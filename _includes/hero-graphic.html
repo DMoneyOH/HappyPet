@@ -1,168 +1,56 @@
-<svg class="hero-graphic" width="100%" viewBox="0 0 520 380" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+{% assign cards = "" | split: "" %}
+{% comment %}Rotating hero cards — JS picks 2 random on each load{% endcomment %}
+<div class="hero-visual">
+  <div class="hero-pet-photo">
+    <img src="https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=480&q=80&auto=format&fit=crop"
+         alt="Happy golden retriever smiling"
+         class="pet-img pet-dog"
+         loading="eager">
+    <img src="https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=320&q=80&auto=format&fit=crop"
+         alt="Cute cat looking at camera"
+         class="pet-img pet-cat"
+         loading="eager">
+  </div>
+  <div class="hero-cards" id="hero-cards">
+    <!-- Populated by JS on load -->
+  </div>
+</div>
 
-  <!-- ── Background scene ────────────────────────────────── -->
-  <!-- Soft ground -->
-  <ellipse cx="260" cy="360" rx="220" ry="28" fill="#FFD8C2" opacity=".5"/>
+<script>
+(function(){
+  var CARDS = [
+    { emoji:'🦮', label:'Dog Collars',     sub:'Small breed picks',    url:'/pawpicks/pet-accessories/best-dog-collars-small-breeds/',    color:'#FF6B4A' },
+    { emoji:'😺', label:'Cat Scratchers',  sub:'That actually last',   url:'/pawpicks/pet-accessories/best-cat-scratching-posts/',        color:'#0D5C63' },
+    { emoji:'🐕', label:'No-Pull Harness', sub:'For strong pullers',   url:'/pawpicks/pet-accessories/best-no-pull-dog-harness/',         color:'#FF6B4A' },
+    { emoji:'🐈', label:'Cat Feeders',     sub:'Auto feeding picks',   url:'/pawpicks/pet-accessories/best-automatic-cat-feeder/',        color:'#0D5C63' },
+    { emoji:'🎾', label:'Dog Toys',        sub:'For tough chewers',    url:'/pawpicks/pet-accessories/best-dog-toys-aggressive-chewers/', color:'#FF6B4A' },
+    { emoji:'🛁', label:'Cat Litter',      sub:'Odor control rated',   url:'/pawpicks/pet-accessories/best-cat-litter-odor-control/',     color:'#0D5C63' },
+    { emoji:'🛏️', label:'Dog Beds',       sub:'Large breed comfort',  url:'/pawpicks/pet-accessories/best-dog-beds-large-breeds/',       color:'#FF6B4A' },
+    { emoji:'💧', label:'Water Fountains', sub:'Cats & dogs love it',  url:'/pawpicks/pet-accessories/best-pet-water-fountain/',          color:'#0D5C63' },
+    { emoji:'📋', label:'Training Pads',   sub:'Puppy essentials',     url:'/pawpicks/pet-accessories/best-puppy-training-pads/',         color:'#FF6B4A' },
+    { emoji:'✈️', label:'Cat Carriers',   sub:'Travel vet-ready',     url:'/pawpicks/pet-accessories/best-cat-carrier-travel/',          color:'#0D5C63' },
+  ];
 
-  <!-- Floating product card top-left -->
-  <g transform="translate(12,30) rotate(-6)">
-    <rect width="148" height="96" rx="16" fill="white" filter="url(#cs)"/>
-    <rect width="148" height="6" rx="6" fill="#FF6B4A"/>
-    <text font-family="Fredoka,sans-serif" font-size="12" font-weight="600" fill="#1C2B2D" x="14" y="28">🐕 Dog Collars</text>
-    <text font-family="Nunito,sans-serif" font-size="10" fill="#5A7070" x="14" y="44">Best for small breeds</text>
-    <rect x="14" y="58" width="72" height="22" rx="11" fill="#FF6B4A"/>
-    <text font-family="Nunito,sans-serif" font-size="10" font-weight="700" fill="white" x="50" y="73" text-anchor="middle">Read →</text>
-  </g>
+  // Pick 2 random non-repeating cards
+  var shuffled = CARDS.slice().sort(function(){ return Math.random()-.5; });
+  var picks = shuffled.slice(0,2);
+  var container = document.getElementById('hero-cards');
+  if(!container) return;
 
-  <!-- Floating product card top-right -->
-  <g transform="translate(362,18) rotate(5)">
-    <rect width="148" height="96" rx="16" fill="white" filter="url(#cs)"/>
-    <rect width="148" height="6" rx="6" fill="#0D5C63"/>
-    <text font-family="Fredoka,sans-serif" font-size="12" font-weight="600" fill="#1C2B2D" x="14" y="28">🐈 Cat Scratchers</text>
-    <text font-family="Nunito,sans-serif" font-size="10" fill="#5A7070" x="14" y="44">Durable &amp; long-lasting</text>
-    <rect x="14" y="58" width="72" height="22" rx="11" fill="#0D5C63"/>
-    <text font-family="Nunito,sans-serif" font-size="10" font-weight="700" fill="white" x="50" y="73" text-anchor="middle">Read →</text>
-  </g>
-
-  <!-- ── Dog (golden, sitting, left side) ─────────────────── -->
-  <g transform="translate(72,130)">
-    <!-- body -->
-    <ellipse cx="62" cy="148" rx="55" ry="60" fill="#E8A84A"/>
-    <!-- belly lighter patch -->
-    <ellipse cx="62" cy="160" rx="32" ry="38" fill="#F5C878" opacity=".7"/>
-    <!-- front leg left -->
-    <rect x="28" y="180" width="22" height="52" rx="11" fill="#D49030"/>
-    <!-- front leg right -->
-    <rect x="58" y="180" width="22" height="52" rx="11" fill="#D49030"/>
-    <!-- paws -->
-    <ellipse cx="39" cy="232" rx="13" ry="9" fill="#C07820"/>
-    <ellipse cx="69" cy="232" rx="13" ry="9" fill="#C07820"/>
-    <!-- tail -->
-    <path d="M8 160 Q-28 120 -14 86 Q-4 64 12 76" stroke="#D49030" stroke-width="16" stroke-linecap="round" fill="none"/>
-    <!-- neck -->
-    <ellipse cx="62" cy="100" rx="30" ry="22" fill="#E8A84A"/>
-    <!-- head -->
-    <ellipse cx="62" cy="64" rx="46" ry="44" fill="#E8A84A"/>
-    <!-- snout -->
-    <ellipse cx="62" cy="78" rx="28" ry="22" fill="#F5C878"/>
-    <ellipse cx="62" cy="72" rx="28" ry="16" fill="#F5C878"/>
-    <!-- nose -->
-    <ellipse cx="62" cy="64" rx="11" ry="8" fill="#2A1808"/>
-    <ellipse cx="59" cy="62" rx="4" ry="3" fill="#5A3018" opacity=".4"/>
-    <!-- mouth -->
-    <path d="M54 72 Q62 80 70 72" stroke="#C07820" stroke-width="2" stroke-linecap="round" fill="none"/>
-    <!-- eyes -->
-    <ellipse cx="42" cy="52" rx="10" ry="11" fill="#2A1808"/>
-    <ellipse cx="82" cy="52" rx="10" ry="11" fill="#2A1808"/>
-    <circle cx="45" cy="49" r="3.5" fill="white"/>
-    <circle cx="85" cy="49" r="3.5" fill="white"/>
-    <circle cx="46" cy="48" r="1.5" fill="white" opacity=".6"/>
-    <circle cx="86" cy="48" r="1.5" fill="white" opacity=".6"/>
-    <!-- eyebrows -->
-    <path d="M34 42 Q42 38 50 42" stroke="#C07820" stroke-width="2.5" stroke-linecap="round" fill="none"/>
-    <path d="M74 42 Q82 38 90 42" stroke="#C07820" stroke-width="2.5" stroke-linecap="round" fill="none"/>
-    <!-- ears (floppy) -->
-    <ellipse cx="22" cy="56" rx="16" ry="26" fill="#C07820" transform="rotate(-12 22 56)"/>
-    <ellipse cx="22" cy="56" rx="10" ry="20" fill="#D49030" opacity=".5" transform="rotate(-12 22 56)"/>
-    <ellipse cx="102" cy="56" rx="16" ry="26" fill="#C07820" transform="rotate(12 102 56)"/>
-    <ellipse cx="102" cy="56" rx="10" ry="20" fill="#D49030" opacity=".5" transform="rotate(12 102 56)"/>
-    <!-- collar -->
-    <rect x="34" y="92" width="56" height="12" rx="6" fill="#FF6B4A"/>
-    <circle cx="62" cy="104" r="5" fill="#FFD166"/>
-    <!-- tongue -->
-    <ellipse cx="62" cy="80" rx="9" ry="7" fill="#E86060"/>
-    <path d="M53 80 Q62 92 71 80" fill="#E86060"/>
-  </g>
-
-  <!-- ── Cat (white + orange tabby, sitting, right side) ─── -->
-  <g transform="translate(312,140)">
-    <!-- body -->
-    <ellipse cx="68" cy="152" rx="52" ry="56" fill="#F5F0E8"/>
-    <!-- tabby markings on body -->
-    <path d="M30 130 Q50 120 70 130" stroke="#D4B870" stroke-width="3" fill="none" opacity=".5"/>
-    <path d="M30 148 Q50 138 70 148" stroke="#D4B870" stroke-width="2.5" fill="none" opacity=".4"/>
-    <!-- belly -->
-    <ellipse cx="68" cy="165" rx="30" ry="36" fill="white" opacity=".6"/>
-    <!-- front legs -->
-    <rect x="36" y="178" width="20" height="48" rx="10" fill="#E8D8C0"/>
-    <rect x="62" y="178" width="20" height="48" rx="10" fill="#E8D8C0"/>
-    <!-- paws -->
-    <ellipse cx="46" cy="226" rx="13" ry="8" fill="#D4C0A0"/>
-    <ellipse cx="72" cy="226" rx="13" ry="8" fill="#D4C0A0"/>
-    <!-- toe lines -->
-    <line x1="40" y1="230" x2="40" y2="226" stroke="#C0A888" stroke-width="1.5" stroke-linecap="round"/>
-    <line x1="46" y1="231" x2="46" y2="226" stroke="#C0A888" stroke-width="1.5" stroke-linecap="round"/>
-    <line x1="52" y1="230" x2="52" y2="226" stroke="#C0A888" stroke-width="1.5" stroke-linecap="round"/>
-    <!-- tail curled around -->
-    <path d="M20 190 Q-10 230 10 258 Q28 275 56 260 Q68 254 62 236" stroke="#E8D8C0" stroke-width="14" stroke-linecap="round" fill="none"/>
-    <path d="M20 190 Q-10 230 10 258 Q28 275 56 260 Q68 254 62 236" stroke="#D4B870" stroke-width="4" stroke-linecap="round" fill="none" stroke-dasharray="8 12" opacity=".5"/>
-    <!-- neck -->
-    <ellipse cx="68" cy="100" rx="28" ry="20" fill="#F5F0E8"/>
-    <!-- head -->
-    <ellipse cx="68" cy="68" rx="46" ry="44" fill="#F5F0E8"/>
-    <!-- orange cap on head -->
-    <ellipse cx="68" cy="48" rx="38" ry="30" fill="#E8A030" opacity=".3"/>
-    <!-- head stripe -->
-    <path d="M58 30 Q68 22 78 30" stroke="#D4B870" stroke-width="3" stroke-linecap="round" fill="none" opacity=".6"/>
-    <path d="M50 40 Q68 30 86 40" stroke="#D4B870" stroke-width="2.5" stroke-linecap="round" fill="none" opacity=".45"/>
-    <!-- ears -->
-    <polygon points="30,44 18,12 48,38" fill="#F5F0E8"/>
-    <polygon points="32,42 24,18 46,36" fill="#E8A8A0" opacity=".7"/>
-    <polygon points="106,44 118,12 88,38" fill="#F5F0E8"/>
-    <polygon points="104,42 112,18 90,36" fill="#E8A8A0" opacity=".7"/>
-    <!-- muzzle -->
-    <ellipse cx="68" cy="78" rx="22" ry="16" fill="white" opacity=".8"/>
-    <!-- nose -->
-    <polygon points="68,68 63,74 73,74" fill="#E87070"/>
-    <!-- mouth -->
-    <path d="M60 75 Q68 83 76 75" stroke="#C06060" stroke-width="1.5" stroke-linecap="round" fill="none"/>
-    <!-- whiskers -->
-    <line x1="46" y1="74" x2="20" y2="68" stroke="#B0A090" stroke-width="1.5" stroke-linecap="round"/>
-    <line x1="46" y1="78" x2="20" y2="78" stroke="#B0A090" stroke-width="1.5" stroke-linecap="round"/>
-    <line x1="46" y1="82" x2="20" y2="88" stroke="#B0A090" stroke-width="1.5" stroke-linecap="round"/>
-    <line x1="90" y1="74" x2="116" y2="68" stroke="#B0A090" stroke-width="1.5" stroke-linecap="round"/>
-    <line x1="90" y1="78" x2="116" y2="78" stroke="#B0A090" stroke-width="1.5" stroke-linecap="round"/>
-    <line x1="90" y1="82" x2="116" y2="88" stroke="#B0A090" stroke-width="1.5" stroke-linecap="round"/>
-    <!-- eyes (big, expressive) -->
-    <ellipse cx="50" cy="56" rx="12" ry="13" fill="#1C2B2D"/>
-    <ellipse cx="86" cy="56" rx="12" ry="13" fill="#1C2B2D"/>
-    <!-- iris colour -->
-    <ellipse cx="50" cy="56" rx="8" ry="10" fill="#4A8A30"/>
-    <ellipse cx="86" cy="56" rx="8" ry="10" fill="#4A8A30"/>
-    <!-- pupil -->
-    <ellipse cx="50" cy="56" rx="3" ry="8" fill="#1C2B2D"/>
-    <ellipse cx="86" cy="56" rx="3" ry="8" fill="#1C2B2D"/>
-    <!-- highlight -->
-    <circle cx="54" cy="51" r="3.5" fill="white"/>
-    <circle cx="90" cy="51" r="3.5" fill="white"/>
-    <!-- collar -->
-    <rect x="42" y="90" width="52" height="11" rx="5.5" fill="#0D5C63"/>
-    <circle cx="68" cy="101" r="5" fill="#FFD166"/>
-  </g>
-
-  <!-- ── Decorative elements ──────────────────────────────── -->
-  <!-- Sparkle stars -->
-  <text x="228" y="55" font-size="18" fill="#FF6B4A" opacity=".55" font-family="sans-serif">✦</text>
-  <text x="170" y="110" font-size="12" fill="#0D5C63" opacity=".4" font-family="sans-serif">✦</text>
-  <text x="460" y="145" font-size="14" fill="#FFD166" opacity=".6" font-family="sans-serif">✦</text>
-  <!-- Paw prints -->
-  <g opacity=".18" transform="translate(250,168) rotate(-10)">
-    <ellipse cx="0" cy="0" rx="9" ry="7" fill="#C07820"/>
-    <circle cx="-11" cy="-10" r="5" fill="#C07820"/>
-    <circle cx="0"  cy="-14" r="5" fill="#C07820"/>
-    <circle cx="11" cy="-10" r="5" fill="#C07820"/>
-  </g>
-  <g opacity=".14" transform="translate(490,240) rotate(15)">
-    <ellipse cx="0" cy="0" rx="7" ry="5.5" fill="#0D5C63"/>
-    <circle cx="-9"  cy="-8"  r="4" fill="#0D5C63"/>
-    <circle cx="0"   cy="-11" r="4" fill="#0D5C63"/>
-    <circle cx="9"   cy="-8"  r="4" fill="#0D5C63"/>
-  </g>
-
-  <!-- Drop shadow filter -->
-  <defs>
-    <filter id="cs" x="-10%" y="-10%" width="120%" height="130%">
-      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="rgba(13,92,99,.12)"/>
-    </filter>
-  </defs>
-</svg>
+  picks.forEach(function(c){
+    var a = document.createElement('a');
+    a.className = 'hero-card';
+    a.href = c.url;
+    a.style.setProperty('--card-accent', c.color);
+    a.innerHTML =
+      '<div class="hc-accent"></div>' +
+      '<div class="hc-body">' +
+        '<span class="hc-emoji">' + c.emoji + '</span>' +
+        '<div><div class="hc-label">' + c.label + '</div>' +
+        '<div class="hc-sub">' + c.sub + '</div></div>' +
+      '</div>' +
+      '<div class="hc-cta">Read →</div>';
+    container.appendChild(a);
+  });
+})();
+</script>
