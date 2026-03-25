@@ -1,8 +1,8 @@
-title: PawPicks
-description: Honest pet product reviews for dog and cat owners on a budget.
+title: Happy Pet Product Reviews
+description: In-depth, honest pet product reviews for dog and cat owners. Find the best gear for your happy pet.
 baseurl: '/pawpicks'
 url: 'https://DMoneyOH.github.io'
-author: PawPicks Team
+author: Happy Pet Product Reviews Team
 email: ''
 show_excerpts: true
 permalink: /:categories/:title/
@@ -16,4 +16,12 @@ defaults:
       type: posts
     values:
       layout: post
-      author: PawPicks Team
+      author: Happy Pet Product Reviews Team
+
+# Social sharing image (og:image)
+social:
+  name: Happy Pet Product Reviews
+  links: []
+
+# jekyll-seo-tag
+logo: /pawpicks/assets/images/og-image.png
