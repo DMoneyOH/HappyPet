@@ -75,37 +75,35 @@ a{color:inherit;text-decoration:none}
 .btn-primary:hover{background:var(--coral-dk);transform:translateY(-2px)}
 .btn-secondary{display:inline-flex;align-items:center;gap:.4rem;background:#fff;color:var(--dark);padding:.72rem 1.25rem;border-radius:var(--rx-p);font-weight:700;font-size:.88rem;border:2px solid var(--border-mid);transition:border-color var(--ease),color var(--ease),transform var(--ease)}
 .btn-secondary:hover{border-color:var(--teal);color:var(--teal);transform:translateY(-2px)}
-/* Hero graphic column — stretches to bottom of hero, image bleeds onto trust strip */
+/* Hero graphic column */
+/* Right column — image bleeds below hero */
 .hero-graphic-wrap{
-  align-self:stretch;           /* fill full hero column height */
   position:relative;
   display:flex;
-  align-items:flex-end;         /* image anchors to bottom */
-  justify-content:center;
+  align-items:flex-end;
+  justify-content:flex-end;
 }
 
-/* ── Hero Visual: transparent PNG sits ON the trust strip divider ── */
+/* ── Hero Visual ── */
 .hero-visual{
   position:relative;
   width:100%;
-  /* Push image DOWN so its bottom ~40% overlaps the trust strip */
-  margin-bottom:-120px;
-  z-index:10;
+  /* bottom of image sits exactly on the hero/trust border */
+  margin-bottom:-10px;
 }
-/* Transparent pet PNG */
 .hero-pet-img{
   width:100%;
-  max-width:580px;
+  max-width:560px;
   height:auto;
   display:block;
   margin:0 auto;
-  filter:drop-shadow(0 20px 40px rgba(13,92,99,.22));
+  filter:drop-shadow(0 16px 32px rgba(13,92,99,.2));
 }
-/* Cards: positioned INSIDE the image — upper-left quadrant */
+/* Cards: upper-left of image */
 .hero-cards{
   position:absolute;
-  top:10px;
-  left:0;
+  top:12px;
+  left:4px;
   z-index:50;
   display:flex;flex-direction:column;gap:.65rem;
 }
@@ -130,7 +128,7 @@ a{color:inherit;text-decoration:none}
 /* ── Trust Strip — sits under the overlapping image ─────── */
 .trust-strip{
   background:var(--teal);
-  padding:140px 1.5rem 1.4rem; /* top pad = image overlap (-120px) + breathing room */
+  padding:1.2rem 1.5rem 1.4rem;
   position:relative;z-index:0;
 }
 .trust-inner{
