@@ -1,33 +1,15 @@
 {% comment %}
-  Hero graphic include — pets overflow downward onto trust strip
-  Cards float over pets with JS rotation from full article list
+  Hero graphic — single pet image overlapping trust strip
+  Cards float in top-right over the image
 {% endcomment %}
-
 <div class="hero-visual">
-
-  <!-- Rotating product cards — JS injects 2 random picks -->
-  <div class="hero-cards" id="hero-cards" aria-label="Featured product categories"></div>
-
-  <!-- Pet photos — overflow below hero into trust strip -->
-  <div class="hero-pets">
-    <div class="pet-wrap pet-wrap--dog">
-      <img
-        src="https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=560&q=85&auto=format&fit=crop&crop=top"
-        alt="Happy golden retriever"
-        class="pet-photo pet-photo--dog"
-        loading="eager"
-        width="280" height="340">
-    </div>
-    <div class="pet-wrap pet-wrap--cat">
-      <img
-        src="https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=400&q=85&auto=format&fit=crop&crop=top"
-        alt="Cute tabby cat"
-        class="pet-photo pet-photo--cat"
-        loading="eager"
-        width="220" height="270">
-    </div>
-  </div>
-
+  <div class="hero-cards" id="hero-cards"></div>
+  <img
+    src="{{ site.baseurl }}/assets/images/hero-pets.jpg"
+    alt="Happy dog and cat together"
+    class="hero-pet-img"
+    loading="eager"
+    width="560" height="374">
 </div>
 
 <script>
@@ -44,15 +26,14 @@
     { emoji:'📋', label:'Training Pads',   sub:'Puppy essentials',      url:'/pawpicks/pet-accessories/best-puppy-training-pads/',         accent:'#FF6B4A' },
     { emoji:'✈️', label:'Cat Carriers',   sub:'Vet & travel ready',    url:'/pawpicks/pet-accessories/best-cat-carrier-travel/',          accent:'#0D5C63' },
   ];
-  // Shuffle and pick 2
   var picks = CARDS.slice().sort(function(){ return Math.random()-.5; }).slice(0,2);
   var wrap = document.getElementById('hero-cards');
   if (!wrap) return;
-  picks.forEach(function(c){
+  picks.forEach(function(c, i){
     var a = document.createElement('a');
     a.className = 'hc';
     a.href = c.url;
-    a.style.cssText = '--ha:'+c.accent;
+    a.style.cssText = '--ha:'+c.accent+';animation-delay:'+(i*0.12)+'s';
     a.innerHTML =
       '<div class="hc-bar"></div>'+
       '<div class="hc-inner">'+
