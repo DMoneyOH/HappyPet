@@ -5,14 +5,15 @@ layout: default
 <section class="hero">
   <div class="hero-layout">
     <div class="hero-content">
-      <div class="hero-badge">🐾 Trusted Pet Reviews</div>
+      <div class="hero-badge">🐾 Expert Pet Reviews</div>
       <h1 class="hero-title">
         Honest picks for<br>your <span class="accent">happy pet.</span>
       </h1>
-      <p class="hero-sub">No sponsored posts, no guesswork. Real product reviews written for dog and cat owners who want the best.</p>
+      <p class="hero-sub">No sponsored posts. No guesswork. Real product reviews written for dog and cat owners who want the best.</p>
       <div class="hero-actions">
         <a href="#reviews" class="btn-primary">Browse Reviews ↓</a>
-        <a href="{{ site.baseurl }}/dogs/" class="btn-ghost">🐶 Dog Products</a>
+        <a href="{{ site.baseurl }}/dogs/" class="btn-secondary">🐶 Dog Products</a>
+        <a href="{{ site.baseurl }}/cats/" class="btn-secondary">🐱 Cat Products</a>
       </div>
     </div>
     <div class="hero-graphic-wrap">
@@ -25,20 +26,20 @@ layout: default
   <div class="trust-inner">
     <div class="trust-item"><span>✅</span><span><strong>Honest</strong> — no paid placements</span></div>
     <div class="trust-item"><span>🔍</span><span><strong>Researched</strong> — every product reviewed</span></div>
-    <div class="trust-item"><span>💰</span><span><strong>Budget-focused</strong> — real value</span></div>
+    <div class="trust-item"><span>💰</span><span><strong>Budget-focused</strong> — real value picks</span></div>
     <div class="trust-item"><span>🐾</span><span><strong>Pet-first</strong> — always</span></div>
   </div>
 </div>
 
 <nav class="categories-bar">
   <div class="categories-inner">
-    <span class="cat-pill active">✦ All Reviews</span>
-    <span class="cat-pill">🐶 Dogs</span>
-    <span class="cat-pill">🐱 Cats</span>
-    <span class="cat-pill peach">🎾 Toys</span>
-    <span class="cat-pill">🛏️ Beds &amp; Comfort</span>
-    <span class="cat-pill peach">🍽️ Feeding</span>
-    <span class="cat-pill">✈️ Travel</span>
+    <button class="cat-pill active" data-filter="all">✦ All Reviews</button>
+    <button class="cat-pill" data-filter="dog">🐶 Dogs</button>
+    <button class="cat-pill" data-filter="cat">🐱 Cats</button>
+    <button class="cat-pill" data-filter="toy">🎾 Toys</button>
+    <button class="cat-pill" data-filter="bed">🛏️ Beds &amp; Comfort</button>
+    <button class="cat-pill" data-filter="feed">🍽️ Feeding</button>
+    <button class="cat-pill" data-filter="travel">✈️ Travel</button>
   </div>
 </nav>
 {% endif %}
@@ -46,13 +47,19 @@ layout: default
 <section class="posts-section" id="reviews">
   <div class="section-header">
     <h2 class="section-title">Latest Reviews</h2>
-    <span class="section-count">{{ site.posts | size }} articles</span>
+    <span class="section-count" id="review-count">{{ site.posts | size }} reviews</span>
   </div>
-  <div class="post-grid">
+  <div class="post-grid" id="post-grid">
+    {% if site.posts.size == 0 %}
+    <div class="empty-state">
+      <p>🐾 Reviews are being written right now — check back soon!</p>
+    </div>
+    {% endif %}
     {% assign emojis = "🦮,😺,🐕,🐈,🎾,🛁,🏕️,💧,📋,✈️" | split: "," %}
+    {% assign filters = "dog,cat,dog,cat,toy,cat,bed,feed,dog,travel" | split: "," %}
     {% for post in site.posts %}
-    <article class="post-card">
-      <div class="card-accent-bar"></div>
+    <article class="post-card" data-filter="{{ filters[forloop.index0] }}">
+      <div class="card-accent"></div>
       <a href="{{ post.url | prepend: site.baseurl }}" class="card-link">
         <div class="card-top">
           <span class="card-category">{{ post.categories | first | replace: '-', ' ' | capitalize }}</span>
@@ -69,3 +76,25 @@ layout: default
     {% endfor %}
   </div>
 </section>
+
+<script>
+(function(){
+  const pills = document.querySelectorAll('.cat-pill');
+  const cards = document.querySelectorAll('.post-card');
+  const count = document.getElementById('review-count');
+  pills.forEach(pill => {
+    pill.addEventListener('click', () => {
+      pills.forEach(p => p.classList.remove('active'));
+      pill.classList.add('active');
+      const f = pill.dataset.filter;
+      let visible = 0;
+      cards.forEach(card => {
+        const show = f === 'all' || card.dataset.filter === f;
+        card.style.display = show ? '' : 'none';
+        if(show) visible++;
+      });
+      if(count) count.textContent = visible + ' review' + (visible !== 1 ? 's' : '');
+    });
+  });
+})();
+</script>

@@ -1,86 +1,168 @@
-<svg class="hero-graphic" width="100%" viewBox="0 0 580 300" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-  <!-- Decorative blobs -->
-  <ellipse cx="500" cy="50" rx="90" ry="80" fill="#A8C830" opacity=".4"/>
-  <ellipse cx="80" cy="260" rx="65" ry="50" fill="#A8C830" opacity=".3"/>
-  <circle cx="540" cy="260" r="38" fill="#E8D840" opacity=".25"/>
+<svg class="hero-graphic" width="100%" viewBox="0 0 520 380" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
 
-  <!-- Floating product card - left -->
-  <rect x="0" y="60" width="150" height="105" rx="16" fill="white" opacity=".88"/>
-  <rect x="0" y="60" width="150" height="7" rx="7" fill="#E06010"/>
-  <text font-family="Fredoka,sans-serif" font-size="12" font-weight="600" fill="#1A1A0A" x="16" y="90">Dog Collars</text>
-  <text font-family="Nunito,sans-serif" font-size="10" fill="#5A5A3A" x="16" y="107">Best for small breeds</text>
-  <rect x="16" y="122" width="76" height="22" rx="11" fill="#C8E850"/>
-  <text font-family="Nunito,sans-serif" font-size="10" font-weight="700" fill="#1A1A0A" x="54" y="137" text-anchor="middle">Read →</text>
+  <!-- ── Background scene ────────────────────────────────── -->
+  <!-- Soft ground -->
+  <ellipse cx="260" cy="360" rx="220" ry="28" fill="#FFD8C2" opacity=".5"/>
 
-  <!-- Floating product card - right -->
-  <rect x="428" y="40" width="150" height="105" rx="16" fill="white" opacity=".88"/>
-  <rect x="428" y="40" width="150" height="7" rx="7" fill="#FAA350"/>
-  <text font-family="Fredoka,sans-serif" font-size="12" font-weight="600" fill="#1A1A0A" x="444" y="70">Cat Scratchers</text>
-  <text font-family="Nunito,sans-serif" font-size="10" fill="#5A5A3A" x="444" y="87">That actually last</text>
-  <rect x="444" y="102" width="76" height="22" rx="11" fill="#FAA350"/>
-  <text font-family="Nunito,sans-serif" font-size="10" font-weight="700" fill="white" x="482" y="117" text-anchor="middle">Read →</text>
+  <!-- Floating product card top-left -->
+  <g transform="translate(12,30) rotate(-6)">
+    <rect width="148" height="96" rx="16" fill="white" filter="url(#cs)"/>
+    <rect width="148" height="6" rx="6" fill="#FF6B4A"/>
+    <text font-family="Fredoka,sans-serif" font-size="12" font-weight="600" fill="#1C2B2D" x="14" y="28">🐕 Dog Collars</text>
+    <text font-family="Nunito,sans-serif" font-size="10" fill="#5A7070" x="14" y="44">Best for small breeds</text>
+    <rect x="14" y="58" width="72" height="22" rx="11" fill="#FF6B4A"/>
+    <text font-family="Nunito,sans-serif" font-size="10" font-weight="700" fill="white" x="50" y="73" text-anchor="middle">Read →</text>
+  </g>
 
-  <!-- Dog (center-left) -->
-  <ellipse cx="220" cy="228" rx="56" ry="40" fill="#1A1A0A"/>
-  <circle cx="264" cy="192" r="32" fill="#1A1A0A"/>
-  <ellipse cx="279" cy="199" rx="15" ry="11" fill="#3A3A20"/>
-  <ellipse cx="283" cy="195" rx="4" ry="3.5" fill="#C8E850"/>
-  <circle cx="262" cy="185" r="4.5" fill="white"/>
-  <circle cx="263" cy="185" r="2.5" fill="#1A1A0A"/>
-  <circle cx="264" cy="183" r="1" fill="white"/>
-  <ellipse cx="247" cy="168" rx="9" ry="15" fill="#1A1A0A" transform="rotate(-15 247 168)"/>
-  <ellipse cx="280" cy="166" rx="9" ry="15" fill="#1A1A0A" transform="rotate(15 280 166)"/>
-  <path d="M166 228 Q138 200 152 178" stroke="#1A1A0A" stroke-width="9" stroke-linecap="round" fill="none"/>
-  <rect x="180" y="260" width="14" height="28" rx="7" fill="#1A1A0A"/>
-  <rect x="202" y="263" width="14" height="24" rx="7" fill="#1A1A0A"/>
-  <rect x="228" y="263" width="14" height="24" rx="7" fill="#1A1A0A"/>
-  <rect x="248" y="260" width="14" height="28" rx="7" fill="#1A1A0A"/>
-  <rect x="190" y="210" width="52" height="9" rx="4.5" fill="#E06010"/>
-  <circle cx="216" cy="219" r="4.5" fill="#C8E850"/>
+  <!-- Floating product card top-right -->
+  <g transform="translate(362,18) rotate(5)">
+    <rect width="148" height="96" rx="16" fill="white" filter="url(#cs)"/>
+    <rect width="148" height="6" rx="6" fill="#0D5C63"/>
+    <text font-family="Fredoka,sans-serif" font-size="12" font-weight="600" fill="#1C2B2D" x="14" y="28">🐈 Cat Scratchers</text>
+    <text font-family="Nunito,sans-serif" font-size="10" fill="#5A7070" x="14" y="44">Durable &amp; long-lasting</text>
+    <rect x="14" y="58" width="72" height="22" rx="11" fill="#0D5C63"/>
+    <text font-family="Nunito,sans-serif" font-size="10" font-weight="700" fill="white" x="50" y="73" text-anchor="middle">Read →</text>
+  </g>
 
-  <!-- Cat (center-right) -->
-  <ellipse cx="360" cy="244" rx="36" ry="42" fill="#3A3A20"/>
-  <circle cx="360" cy="196" r="28" fill="#3A3A20"/>
-  <polygon points="342,173 332,150 355,170" fill="#3A3A20"/>
-  <polygon points="378,173 388,150 365,170" fill="#3A3A20"/>
-  <polygon points="343,171 337,153 353,169" fill="#D05528" opacity=".55"/>
-  <polygon points="377,171 383,153 367,169" fill="#D05528" opacity=".55"/>
-  <ellipse cx="360" cy="201" rx="13" ry="9" fill="#5A3A20" opacity=".35"/>
-  <polygon points="360,198 357,202 363,202" fill="#E06010"/>
-  <line x1="347" y1="202" x2="329" y2="198" stroke="#C8E850" stroke-width="1.5" stroke-linecap="round"/>
-  <line x1="347" y1="206" x2="329" y2="206" stroke="#C8E850" stroke-width="1.5" stroke-linecap="round"/>
-  <line x1="373" y1="202" x2="391" y2="198" stroke="#C8E850" stroke-width="1.5" stroke-linecap="round"/>
-  <line x1="373" y1="206" x2="391" y2="206" stroke="#C8E850" stroke-width="1.5" stroke-linecap="round"/>
-  <ellipse cx="351" cy="191" rx="6" ry="7" fill="#C8E850"/>
-  <ellipse cx="369" cy="191" rx="6" ry="7" fill="#C8E850"/>
-  <ellipse cx="351" cy="191" rx="2" ry="5" fill="#1A1A0A"/>
-  <ellipse cx="369" cy="191" rx="2" ry="5" fill="#1A1A0A"/>
-  <path d="M324 266 Q304 306 330 316 Q348 320 344 292" stroke="#3A3A20" stroke-width="11" stroke-linecap="round" fill="none"/>
-  <ellipse cx="342" cy="286" rx="13" ry="9" fill="#3A3A20"/>
-  <ellipse cx="378" cy="286" rx="13" ry="9" fill="#3A3A20"/>
+  <!-- ── Dog (golden, sitting, left side) ─────────────────── -->
+  <g transform="translate(72,130)">
+    <!-- body -->
+    <ellipse cx="62" cy="148" rx="55" ry="60" fill="#E8A84A"/>
+    <!-- belly lighter patch -->
+    <ellipse cx="62" cy="160" rx="32" ry="38" fill="#F5C878" opacity=".7"/>
+    <!-- front leg left -->
+    <rect x="28" y="180" width="22" height="52" rx="11" fill="#D49030"/>
+    <!-- front leg right -->
+    <rect x="58" y="180" width="22" height="52" rx="11" fill="#D49030"/>
+    <!-- paws -->
+    <ellipse cx="39" cy="232" rx="13" ry="9" fill="#C07820"/>
+    <ellipse cx="69" cy="232" rx="13" ry="9" fill="#C07820"/>
+    <!-- tail -->
+    <path d="M8 160 Q-28 120 -14 86 Q-4 64 12 76" stroke="#D49030" stroke-width="16" stroke-linecap="round" fill="none"/>
+    <!-- neck -->
+    <ellipse cx="62" cy="100" rx="30" ry="22" fill="#E8A84A"/>
+    <!-- head -->
+    <ellipse cx="62" cy="64" rx="46" ry="44" fill="#E8A84A"/>
+    <!-- snout -->
+    <ellipse cx="62" cy="78" rx="28" ry="22" fill="#F5C878"/>
+    <ellipse cx="62" cy="72" rx="28" ry="16" fill="#F5C878"/>
+    <!-- nose -->
+    <ellipse cx="62" cy="64" rx="11" ry="8" fill="#2A1808"/>
+    <ellipse cx="59" cy="62" rx="4" ry="3" fill="#5A3018" opacity=".4"/>
+    <!-- mouth -->
+    <path d="M54 72 Q62 80 70 72" stroke="#C07820" stroke-width="2" stroke-linecap="round" fill="none"/>
+    <!-- eyes -->
+    <ellipse cx="42" cy="52" rx="10" ry="11" fill="#2A1808"/>
+    <ellipse cx="82" cy="52" rx="10" ry="11" fill="#2A1808"/>
+    <circle cx="45" cy="49" r="3.5" fill="white"/>
+    <circle cx="85" cy="49" r="3.5" fill="white"/>
+    <circle cx="46" cy="48" r="1.5" fill="white" opacity=".6"/>
+    <circle cx="86" cy="48" r="1.5" fill="white" opacity=".6"/>
+    <!-- eyebrows -->
+    <path d="M34 42 Q42 38 50 42" stroke="#C07820" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+    <path d="M74 42 Q82 38 90 42" stroke="#C07820" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+    <!-- ears (floppy) -->
+    <ellipse cx="22" cy="56" rx="16" ry="26" fill="#C07820" transform="rotate(-12 22 56)"/>
+    <ellipse cx="22" cy="56" rx="10" ry="20" fill="#D49030" opacity=".5" transform="rotate(-12 22 56)"/>
+    <ellipse cx="102" cy="56" rx="16" ry="26" fill="#C07820" transform="rotate(12 102 56)"/>
+    <ellipse cx="102" cy="56" rx="10" ry="20" fill="#D49030" opacity=".5" transform="rotate(12 102 56)"/>
+    <!-- collar -->
+    <rect x="34" y="92" width="56" height="12" rx="6" fill="#FF6B4A"/>
+    <circle cx="62" cy="104" r="5" fill="#FFD166"/>
+    <!-- tongue -->
+    <ellipse cx="62" cy="80" rx="9" ry="7" fill="#E86060"/>
+    <path d="M53 80 Q62 92 71 80" fill="#E86060"/>
+  </g>
 
+  <!-- ── Cat (white + orange tabby, sitting, right side) ─── -->
+  <g transform="translate(312,140)">
+    <!-- body -->
+    <ellipse cx="68" cy="152" rx="52" ry="56" fill="#F5F0E8"/>
+    <!-- tabby markings on body -->
+    <path d="M30 130 Q50 120 70 130" stroke="#D4B870" stroke-width="3" fill="none" opacity=".5"/>
+    <path d="M30 148 Q50 138 70 148" stroke="#D4B870" stroke-width="2.5" fill="none" opacity=".4"/>
+    <!-- belly -->
+    <ellipse cx="68" cy="165" rx="30" ry="36" fill="white" opacity=".6"/>
+    <!-- front legs -->
+    <rect x="36" y="178" width="20" height="48" rx="10" fill="#E8D8C0"/>
+    <rect x="62" y="178" width="20" height="48" rx="10" fill="#E8D8C0"/>
+    <!-- paws -->
+    <ellipse cx="46" cy="226" rx="13" ry="8" fill="#D4C0A0"/>
+    <ellipse cx="72" cy="226" rx="13" ry="8" fill="#D4C0A0"/>
+    <!-- toe lines -->
+    <line x1="40" y1="230" x2="40" y2="226" stroke="#C0A888" stroke-width="1.5" stroke-linecap="round"/>
+    <line x1="46" y1="231" x2="46" y2="226" stroke="#C0A888" stroke-width="1.5" stroke-linecap="round"/>
+    <line x1="52" y1="230" x2="52" y2="226" stroke="#C0A888" stroke-width="1.5" stroke-linecap="round"/>
+    <!-- tail curled around -->
+    <path d="M20 190 Q-10 230 10 258 Q28 275 56 260 Q68 254 62 236" stroke="#E8D8C0" stroke-width="14" stroke-linecap="round" fill="none"/>
+    <path d="M20 190 Q-10 230 10 258 Q28 275 56 260 Q68 254 62 236" stroke="#D4B870" stroke-width="4" stroke-linecap="round" fill="none" stroke-dasharray="8 12" opacity=".5"/>
+    <!-- neck -->
+    <ellipse cx="68" cy="100" rx="28" ry="20" fill="#F5F0E8"/>
+    <!-- head -->
+    <ellipse cx="68" cy="68" rx="46" ry="44" fill="#F5F0E8"/>
+    <!-- orange cap on head -->
+    <ellipse cx="68" cy="48" rx="38" ry="30" fill="#E8A030" opacity=".3"/>
+    <!-- head stripe -->
+    <path d="M58 30 Q68 22 78 30" stroke="#D4B870" stroke-width="3" stroke-linecap="round" fill="none" opacity=".6"/>
+    <path d="M50 40 Q68 30 86 40" stroke="#D4B870" stroke-width="2.5" stroke-linecap="round" fill="none" opacity=".45"/>
+    <!-- ears -->
+    <polygon points="30,44 18,12 48,38" fill="#F5F0E8"/>
+    <polygon points="32,42 24,18 46,36" fill="#E8A8A0" opacity=".7"/>
+    <polygon points="106,44 118,12 88,38" fill="#F5F0E8"/>
+    <polygon points="104,42 112,18 90,36" fill="#E8A8A0" opacity=".7"/>
+    <!-- muzzle -->
+    <ellipse cx="68" cy="78" rx="22" ry="16" fill="white" opacity=".8"/>
+    <!-- nose -->
+    <polygon points="68,68 63,74 73,74" fill="#E87070"/>
+    <!-- mouth -->
+    <path d="M60 75 Q68 83 76 75" stroke="#C06060" stroke-width="1.5" stroke-linecap="round" fill="none"/>
+    <!-- whiskers -->
+    <line x1="46" y1="74" x2="20" y2="68" stroke="#B0A090" stroke-width="1.5" stroke-linecap="round"/>
+    <line x1="46" y1="78" x2="20" y2="78" stroke="#B0A090" stroke-width="1.5" stroke-linecap="round"/>
+    <line x1="46" y1="82" x2="20" y2="88" stroke="#B0A090" stroke-width="1.5" stroke-linecap="round"/>
+    <line x1="90" y1="74" x2="116" y2="68" stroke="#B0A090" stroke-width="1.5" stroke-linecap="round"/>
+    <line x1="90" y1="78" x2="116" y2="78" stroke="#B0A090" stroke-width="1.5" stroke-linecap="round"/>
+    <line x1="90" y1="82" x2="116" y2="88" stroke="#B0A090" stroke-width="1.5" stroke-linecap="round"/>
+    <!-- eyes (big, expressive) -->
+    <ellipse cx="50" cy="56" rx="12" ry="13" fill="#1C2B2D"/>
+    <ellipse cx="86" cy="56" rx="12" ry="13" fill="#1C2B2D"/>
+    <!-- iris colour -->
+    <ellipse cx="50" cy="56" rx="8" ry="10" fill="#4A8A30"/>
+    <ellipse cx="86" cy="56" rx="8" ry="10" fill="#4A8A30"/>
+    <!-- pupil -->
+    <ellipse cx="50" cy="56" rx="3" ry="8" fill="#1C2B2D"/>
+    <ellipse cx="86" cy="56" rx="3" ry="8" fill="#1C2B2D"/>
+    <!-- highlight -->
+    <circle cx="54" cy="51" r="3.5" fill="white"/>
+    <circle cx="90" cy="51" r="3.5" fill="white"/>
+    <!-- collar -->
+    <rect x="42" y="90" width="52" height="11" rx="5.5" fill="#0D5C63"/>
+    <circle cx="68" cy="101" r="5" fill="#FFD166"/>
+  </g>
+
+  <!-- ── Decorative elements ──────────────────────────────── -->
+  <!-- Sparkle stars -->
+  <text x="228" y="55" font-size="18" fill="#FF6B4A" opacity=".55" font-family="sans-serif">✦</text>
+  <text x="170" y="110" font-size="12" fill="#0D5C63" opacity=".4" font-family="sans-serif">✦</text>
+  <text x="460" y="145" font-size="14" fill="#FFD166" opacity=".6" font-family="sans-serif">✦</text>
   <!-- Paw prints -->
-  <g opacity=".22" transform="translate(140,35) rotate(-18)">
-    <circle cx="0" cy="0" r="7" fill="#1A1A0A"/>
-    <circle cx="-11" cy="-9" r="4.5" fill="#1A1A0A"/>
-    <circle cx="0" cy="-13" r="4.5" fill="#1A1A0A"/>
-    <circle cx="11" cy="-9" r="4.5" fill="#1A1A0A"/>
+  <g opacity=".18" transform="translate(250,168) rotate(-10)">
+    <ellipse cx="0" cy="0" rx="9" ry="7" fill="#C07820"/>
+    <circle cx="-11" cy="-10" r="5" fill="#C07820"/>
+    <circle cx="0"  cy="-14" r="5" fill="#C07820"/>
+    <circle cx="11" cy="-10" r="5" fill="#C07820"/>
   </g>
-  <g opacity=".18" transform="translate(460,200) rotate(22)">
-    <circle cx="0" cy="0" r="5.5" fill="#1A1A0A"/>
-    <circle cx="-8" cy="-7" r="3.5" fill="#1A1A0A"/>
-    <circle cx="0" cy="-10" r="3.5" fill="#1A1A0A"/>
-    <circle cx="8" cy="-7" r="3.5" fill="#1A1A0A"/>
-  </g>
-  <g opacity=".15" transform="translate(60,150) rotate(8)">
-    <circle cx="0" cy="0" r="5" fill="#1A1A0A"/>
-    <circle cx="-7" cy="-6" r="3" fill="#1A1A0A"/>
-    <circle cx="0" cy="-9" r="3" fill="#1A1A0A"/>
-    <circle cx="7" cy="-6" r="3" fill="#1A1A0A"/>
+  <g opacity=".14" transform="translate(490,240) rotate(15)">
+    <ellipse cx="0" cy="0" rx="7" ry="5.5" fill="#0D5C63"/>
+    <circle cx="-9"  cy="-8"  r="4" fill="#0D5C63"/>
+    <circle cx="0"   cy="-11" r="4" fill="#0D5C63"/>
+    <circle cx="9"   cy="-8"  r="4" fill="#0D5C63"/>
   </g>
 
-  <!-- Sparkles -->
-  <text font-size="16" x="170" y="52" opacity=".45" fill="#1A1A0A" font-family="sans-serif">✦</text>
-  <text font-size="11" x="420" y="178" opacity=".4" fill="#1A1A0A" font-family="sans-serif">✦</text>
-  <text font-size="20" x="44" y="220" opacity=".25" fill="#1A1A0A" font-family="sans-serif">✦</text>
+  <!-- Drop shadow filter -->
+  <defs>
+    <filter id="cs" x="-10%" y="-10%" width="120%" height="130%">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="rgba(13,92,99,.12)"/>
+    </filter>
+  </defs>
 </svg>
