@@ -1,6 +1,6 @@
 ---
 layout: default
-title: Dog Product Reviews — Happy Pet Product Reviews
+title: Dog Product Reviews | Happy Pet Product Reviews
 description: In-depth reviews of the best dog products — collars, harnesses, beds, toys and more. Honest picks for every budget.
 permalink: /dogs/
 ---

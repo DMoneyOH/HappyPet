@@ -1,8 +1,8 @@
-_site/
-.sass-cache/
-.jekyll-cache/
-.jekyll-metadata
-vendor/
-*.py
+__pycache__/
+*.pyc
+*.pyo
+.session-context.md
+SESSION_STATE.md
+FUTURE_REFERENCE.md
 *.log
 .env
