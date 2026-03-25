@@ -1,12 +1,12 @@
 ---
 layout: default
 title: Dog Product Reviews | Happy Pet Product Reviews
-description: In-depth reviews of the best dog products — collars, harnesses, beds, toys and more. Honest picks for every budget.
+description: In-depth reviews of the best dog products - collars, harnesses, beds, toys and more. Honest picks for every budget.
 permalink: /dogs/
 ---
 <section class="posts-section">
   <div class="section-header">
-    <h2 class="section-title">🐶 Dog Product Reviews</h2>
+    <h2 class="section-title">Dog Product Reviews</h2>
     <span class="section-count">{{ site.posts | where_exp: "post", "post.tags contains 'dog'" | size }} reviews</span>
   </div>
   <div class="post-grid">
