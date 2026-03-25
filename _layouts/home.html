@@ -24,10 +24,10 @@ layout: default
 
 <div class="trust-strip">
   <div class="trust-inner">
-    <div class="trust-item"><span>✅</span><span><strong>Honest</strong> — no paid placements</span></div>
-    <div class="trust-item"><span>🔍</span><span><strong>Researched</strong> — every product reviewed</span></div>
-    <div class="trust-item"><span>💰</span><span><strong>Budget-focused</strong> — real value picks</span></div>
-    <div class="trust-item"><span>🐾</span><span><strong>Pet-first</strong> — always</span></div>
+    <div class="trust-item"><span class="ti-icon">✅</span><span><strong>Honest</strong> — no paid placements</span></div>
+    <div class="trust-item"><span class="ti-icon">🔍</span><span><strong>Researched</strong> — every product reviewed</span></div>
+    <div class="trust-item"><span class="ti-icon">💰</span><span><strong>Budget-focused</strong> — real value picks</span></div>
+    <div class="trust-item"><span class="ti-icon" style="background:rgba(255,209,102,.2)">🐾</span><span><strong>Pet-first</strong> — always</span></div>
   </div>
 </div>
 
@@ -47,14 +47,17 @@ layout: default
 <section class="posts-section" id="reviews">
   <div class="section-header">
     <h2 class="section-title">Latest Reviews</h2>
+    {% if site.posts.size > 0 %}
     <span class="section-count" id="review-count">{{ site.posts | size }} reviews</span>
+    {% endif %}
   </div>
   <div class="post-grid" id="post-grid">
     {% if site.posts.size == 0 %}
     <div class="empty-state">
-      <p>🐾 Reviews are being written right now — check back soon!</p>
+      <p>🐾 Our first reviews are almost ready!</p>
+      <small>We're writing in-depth guides right now — check back in a few hours.</small>
     </div>
-    {% endif %}
+    {% else %}
     {% assign emojis = "🦮,😺,🐕,🐈,🎾,🛁,🏕️,💧,📋,✈️" | split: "," %}
     {% assign filters = "dog,cat,dog,cat,toy,cat,bed,feed,dog,travel" | split: "," %}
     {% for post in site.posts %}
@@ -74,26 +77,27 @@ layout: default
       </a>
     </article>
     {% endfor %}
+    {% endif %}
   </div>
 </section>
 
 <script>
 (function(){
-  const pills = document.querySelectorAll('.cat-pill');
-  const cards = document.querySelectorAll('.post-card');
-  const count = document.getElementById('review-count');
-  pills.forEach(pill => {
-    pill.addEventListener('click', () => {
-      pills.forEach(p => p.classList.remove('active'));
+  var pills = document.querySelectorAll('.cat-pill');
+  var cards = document.querySelectorAll('.post-card');
+  var countEl = document.getElementById('review-count');
+  pills.forEach(function(pill){
+    pill.addEventListener('click', function(){
+      pills.forEach(function(p){ p.classList.remove('active'); });
       pill.classList.add('active');
-      const f = pill.dataset.filter;
-      let visible = 0;
-      cards.forEach(card => {
-        const show = f === 'all' || card.dataset.filter === f;
+      var f = pill.dataset.filter;
+      var visible = 0;
+      cards.forEach(function(card){
+        var show = f === 'all' || card.dataset.filter === f;
         card.style.display = show ? '' : 'none';
         if(show) visible++;
       });
-      if(count) count.textContent = visible + ' review' + (visible !== 1 ? 's' : '');
+      if(countEl) countEl.textContent = visible + ' review' + (visible !== 1 ? 's' : '');
     });
   });
 })();
