@@ -43,7 +43,7 @@ a{color:inherit;text-decoration:none}
 /* ── Hero ───────────────────────────────────────────────── */
 .hero{
   background:var(--peach);
-  padding:4rem 1.5rem 0;   /* zero bottom — image bleeds below */
+  padding:4rem 1.5rem 0;
   overflow:visible;
   position:relative;z-index:1;
 }
@@ -56,10 +56,10 @@ a{color:inherit;text-decoration:none}
 .hero-layout{
   max-width:var(--max-w);margin:0 auto;
   display:grid;grid-template-columns:1fr 1fr;
-  gap:2rem;align-items:flex-end;
+  gap:2rem;align-items:flex-start;
   position:relative;z-index:2;
 }
-.hero-content{padding-bottom:4rem}
+.hero-content{padding-bottom:3rem}
 .hero-badge{
   display:inline-flex;align-items:center;gap:.45rem;
   background:var(--teal);color:#fff;border-radius:var(--rx-p);
@@ -75,29 +75,37 @@ a{color:inherit;text-decoration:none}
 .btn-primary:hover{background:var(--coral-dk);transform:translateY(-2px)}
 .btn-secondary{display:inline-flex;align-items:center;gap:.4rem;background:#fff;color:var(--dark);padding:.72rem 1.25rem;border-radius:var(--rx-p);font-weight:700;font-size:.88rem;border:2px solid var(--border-mid);transition:border-color var(--ease),color var(--ease),transform var(--ease)}
 .btn-secondary:hover{border-color:var(--teal);color:var(--teal);transform:translateY(-2px)}
-.hero-graphic-wrap{align-self:flex-end;position:relative}
+/* Hero graphic column — stretches to bottom of hero, image bleeds onto trust strip */
+.hero-graphic-wrap{
+  align-self:stretch;           /* fill full hero column height */
+  position:relative;
+  display:flex;
+  align-items:flex-end;         /* image anchors to bottom */
+  justify-content:center;
+}
 
-/* ── Hero Visual: transparent PNG overlapping trust strip ── */
+/* ── Hero Visual: transparent PNG sits ON the trust strip divider ── */
 .hero-visual{
   position:relative;
-  /* pull image DOWN so bottom bleeds into trust strip */
-  margin-bottom:-80px;
-  display:inline-block;
   width:100%;
+  /* Push image DOWN so its bottom ~40% overlaps the trust strip */
+  margin-bottom:-120px;
+  z-index:10;
 }
-/* Transparent pet PNG — no background, no border-radius needed */
+/* Transparent pet PNG */
 .hero-pet-img{
-  width:100%;max-width:600px;
+  width:100%;
+  max-width:580px;
   height:auto;
   display:block;
   margin:0 auto;
-  /* drop shadow to give depth against peach bg */
-  filter:drop-shadow(0 16px 40px rgba(13,92,99,.2));
+  filter:drop-shadow(0 20px 40px rgba(13,92,99,.22));
 }
-/* Cards float in TOP-LEFT of the image container */
+/* Cards: positioned INSIDE the image — upper-left quadrant */
 .hero-cards{
   position:absolute;
-  top:16px;left:16px;
+  top:10px;
+  left:0;
   z-index:50;
   display:flex;flex-direction:column;gap:.65rem;
 }
@@ -122,7 +130,7 @@ a{color:inherit;text-decoration:none}
 /* ── Trust Strip — sits under the overlapping image ─────── */
 .trust-strip{
   background:var(--teal);
-  padding:100px 1.5rem 1.2rem; /* top pad = image overlap amount */
+  padding:140px 1.5rem 1.4rem; /* top pad = image overlap (-120px) + breathing room */
   position:relative;z-index:0;
 }
 .trust-inner{
