@@ -1,0 +1,31 @@
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Segoe UI', system-ui, sans-serif; color: #222; background: #fff; line-height: 1.7; }
+.container { max-width: 900px; margin: 0 auto; padding: 0 1.5rem; }
+header { background: #2d6a4f; color: #fff; padding: 1rem 0; }
+header .container { display: flex; justify-content: space-between; align-items: center; }
+.logo { color: #fff; text-decoration: none; font-size: 1.4rem; font-weight: 700; }
+nav a { color: #cce; text-decoration: none; margin-left: 1.5rem; font-size: .95rem; }
+nav a:hover { color: #fff; }
+main.container { padding: 2rem 1.5rem; }
+footer { background: #f4f4f4; border-top: 1px solid #ddd; padding: 1.5rem 0; text-align: center; font-size: .85rem; color: #666; margin-top: 3rem; }
+.post-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 1.5rem; margin-top: 2rem; }
+.post-card { border: 1px solid #e0e0e0; border-radius: 8px; padding: 1.25rem; transition: box-shadow .2s; }
+.post-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,.1); }
+.post-card a { text-decoration: none; color: inherit; }
+.post-card h2 { font-size: 1.05rem; color: #2d6a4f; margin-bottom: .5rem; }
+.post-card p { font-size: .9rem; color: #555; }
+.read-more { display: inline-block; margin-top: .75rem; color: #2d6a4f; font-weight: 600; font-size: .9rem; }
+article h1 { font-size: 1.8rem; margin-bottom: .5rem; color: #1a1a1a; }
+.post-meta { color: #888; font-size: .9rem; margin-bottom: 2rem; }
+.post-content h2 { margin: 2rem 0 .75rem; color: #2d6a4f; }
+.post-content h3 { margin: 1.5rem 0 .5rem; }
+.post-content p { margin-bottom: 1rem; }
+.post-content ul, .post-content ol { margin: .75rem 0 1rem 1.5rem; }
+.post-content table { width: 100%; border-collapse: collapse; margin: 1.5rem 0; }
+.post-content th { background: #2d6a4f; color: #fff; padding: .6rem 1rem; text-align: left; }
+.post-content td { padding: .6rem 1rem; border-bottom: 1px solid #eee; }
+.post-content tr:hover td { background: #f9f9f9; }
+.affiliate-disclosure { margin-top: 2.5rem; padding: 1rem; background: #f9f9f9; border-left: 4px solid #2d6a4f; font-size: .9rem; }
+.btn-buy { display: inline-block; background: #ff9900; color: #fff; padding: .5rem 1.25rem; border-radius: 4px; text-decoration: none; font-weight: 600; margin: .5rem .25rem; }
+.btn-buy:hover { background: #e68900; }
+@media(max-width:600px) { header .container { flex-direction: column; gap: .5rem; } }

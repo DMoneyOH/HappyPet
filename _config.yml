@@ -1,0 +1,19 @@
+title: PawPicks
+description: Honest pet product reviews for dog and cat owners on a budget.
+baseurl: '/pawpicks'
+url: 'https://DMoneyOH.github.io'
+author: PawPicks Team
+email: ''
+show_excerpts: true
+permalink: /:categories/:title/
+plugins:
+  - jekyll-feed
+  - jekyll-sitemap
+  - jekyll-seo-tag
+defaults:
+  - scope:
+      path: ''
+      type: posts
+    values:
+      layout: post
+      author: PawPicks Team
