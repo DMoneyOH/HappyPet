@@ -46,7 +46,7 @@ a{color:inherit;text-decoration:none}
 .nav-toggle{display:none;background:none;border:none;color:#fff;font-size:1.4rem;cursor:pointer}
 
 /* ── Hero ───────────────────────────────────────────────── */
-.hero{background:var(--peach);padding:4rem 1.5rem 0;overflow:visible;position:relative;z-index:1}
+.hero{background:var(--peach);padding:4rem 1.5rem 0;overflow:visible;position:relative;z-index:1;max-width:100vw}
 .hero::before{content:'';position:absolute;top:-80px;right:-60px;width:440px;height:440px;background:radial-gradient(circle,rgba(255,186,148,.4) 0%,transparent 65%);pointer-events:none}
 .hero-layout{max-width:var(--max-w);margin:0 auto;display:grid;grid-template-columns:1fr 1fr;gap:3rem;align-items:flex-start;position:relative;z-index:2}
 .hero-content{padding-bottom:3rem;line-height:1.7}
@@ -54,10 +54,10 @@ a{color:inherit;text-decoration:none}
 /* Hero badge: only the icon gets yellow bg; text on dark transparent */
 .hero-badge{
   display:inline-flex;align-items:center;gap:.6rem;
-  background:transparent;color:var(--dark);
+  background:var(--peach-mid);color:var(--dark);
   padding:.35rem .9rem .35rem .35rem;
   border-radius:var(--rx-p);
-  border:2px solid var(--border-mid);
+  border:2px solid var(--apricot);
   font-size:.76rem;font-weight:800;
   letter-spacing:.07em;text-transform:uppercase;
   margin-bottom:1.4rem;
@@ -79,16 +79,15 @@ a{color:inherit;text-decoration:none}
 .btn-secondary:hover{border-color:var(--teal);color:var(--teal);transform:translateY(-2px)}
 
 /* ── Hero Visual — right column ─────────────────────────── */
-.hero-graphic-wrap{position:relative;display:flex;align-items:flex-end;justify-content:center;line-height:0}
+.hero-graphic-wrap{position:relative;display:flex;align-items:flex-end;justify-content:center;line-height:0;margin-bottom:-60px;z-index:10}
 .hero-visual{position:relative;width:100%;line-height:0}
 .hero-pet-img{width:100%;max-width:560px;height:auto;display:block;margin:0 auto;filter:drop-shadow(0 16px 32px rgba(13,92,99,.2))}
 
-/* Product cards — float to the RIGHT of center, not on animal faces */
-/* Positioned relative to the hero-graphic-wrap column */
+/* Product cards — upper right, clear of animal faces and text */
 .hero-cards{
   position:absolute;
-  top:40px;
-  left:-10px;        /* just inside left edge of right column */
+  top:20px;
+  right:0;
   z-index:50;
   display:flex;flex-direction:column;gap:.75rem;
 }
@@ -117,14 +116,14 @@ a{color:inherit;text-decoration:none}
 .hc-footer{font-size:.72rem;font-weight:800;color:var(--ha,var(--coral));padding:.3rem .7rem .55rem;text-align:right}
 
 /* ── Trust Strip ─────────────────────────────────────────── */
-.trust-strip{background:var(--teal);padding:1rem 1.5rem;position:relative;z-index:0}
+.trust-strip{background:var(--teal);padding:70px 1.5rem 1rem;position:relative;z-index:5}
 .trust-inner{max-width:var(--max-w);margin:0 auto;display:flex;gap:2rem;align-items:center;flex-wrap:wrap;justify-content:space-between}
 .trust-item{display:flex;align-items:center;gap:.55rem;font-size:.82rem;font-weight:700;color:rgba(255,255,255,.85);white-space:nowrap}
 /* Icon only gets the yellow bg — not the whole item */
 .ti-icon{
   display:inline-flex;align-items:center;justify-content:center;
   width:28px;height:28px;
-  background:var(--sun);  /* yellow bg on icon only */
+  background:#FFD166;  /* solid sun-yellow — no transparency */
   border-radius:var(--rx-sm);
   font-size:.88rem;flex-shrink:0;
 }
