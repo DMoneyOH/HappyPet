@@ -6,3 +6,18 @@ SESSION_STATE.md
 FUTURE_REFERENCE.md
 *.log
 .env
+# Ignore junk files
+__pycache__/
+*.pyc
+*.pyo
+.session-context.md
+SESSION_STATE.md
+FUTURE_REFERENCE.md
+launcher.sh
+run_generator.sh
+single_launch.sh
+pawpicks_run.sh
+dc_keepalive.sh
+ctx_bridge.py
+*.py
+!generate_posts.py
