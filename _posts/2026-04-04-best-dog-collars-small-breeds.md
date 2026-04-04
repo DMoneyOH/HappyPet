@@ -7,6 +7,7 @@ species: dog
 tags: [dog collars small breeds]
 description: "Best Dog Collars for Small Breeds - expert reviews and buying guide."
 affiliate_url: "https://amzn.to/4cpySWA"
+image: "PENDING"
 ---
 
 # Best Dog Collars for Small Breeds

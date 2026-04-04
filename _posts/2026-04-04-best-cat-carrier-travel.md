@@ -7,6 +7,7 @@ species: cat
 tags: [cat carrier travel]
 description: "How to Choose the Best Cat Carrier - expert reviews and buying guide."
 affiliate_url: "https://amzn.to/4sVt7G2"
+image: "https://images-na.ssl-images-amazon.com/images/P/B000FLETX8.01.LZZZZZZZ.jpg"
 ---
 
 # How to Choose the Best Cat Carrier

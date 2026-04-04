@@ -7,6 +7,7 @@ species: dog
 tags: [dog toys aggressive chewers]
 description: "Best Dog Toys for Aggressive Chewers - expert reviews and buying guide."
 affiliate_url: "https://amzn.to/4dnwwbM"
+image: "https://images-na.ssl-images-amazon.com/images/P/B0002AR0II.01.LZZZZZZZ.jpg"
 ---
 
 # Best Dog Toys for Aggressive Chewers

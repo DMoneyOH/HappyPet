@@ -7,6 +7,7 @@ species: dog
 tags: [puppy training pads]
 description: "How to Choose Puppy Training Pads - expert reviews and buying guide."
 affiliate_url: "https://amzn.to/4cqgLQg"
+image: "https://images-na.ssl-images-amazon.com/images/P/B07CWD5PX5.01.LZZZZZZZ.jpg"
 ---
 
 # How to Choose Puppy Training Pads
