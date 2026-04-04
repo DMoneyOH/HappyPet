@@ -1,7 +1,7 @@
 title: Happy Pet Product Reviews
 description: In-depth, honest pet product reviews for dog and cat owners. Find the best gear for your happy pet.
-baseurl: '/pawpicks'
-url: 'https://DMoneyOH.github.io'
+baseurl: ''
+url: 'https://happypetproductreviews.com'
 author: Happy Pet Product Reviews Team
 email: ''
 show_excerpts: true
@@ -24,4 +24,4 @@ social:
   links: []
 
 # jekyll-seo-tag
-logo: /pawpicks/assets/images/og-image.png
+logo: /assets/images/og-image.png
