@@ -5,11 +5,19 @@ layout: default
   <header class="post-header">
     <div class="post-meta-top">
       <span class="post-category">{{ page.categories | first | replace: '-', ' ' | capitalize }}</span>
-      {% if page.species == "cat" %}<span class="card-species species-cat">🐈 Cat</span>{% elsif page.species == "dog" %}<span class="card-species species-dog">🐕 Dog</span>{% endif %}
+      {% if page.species == "cat" %}<span class="card-species species-cat">🐈 Cat</span>{% elsif page.species == "dog" %}<span class="card-species species-dog">🐕 Dog</span>{% elsif page.species == "both" %}<span class="card-species species-dog">🐕 Dog</span><span class="card-species species-cat">🐈 Cat</span>{% endif %}
       <time class="post-date">{{ page.date | date: "%B %d, %Y" }}</time>
     </div>
     <h1 class="post-title">{{ page.title }}</h1>
     <p class="post-description">{{ page.description }}</p>
+    {% if page.image %}
+    <div class="post-product-image">
+      <img src="{{ page.image }}" alt="{{ page.title }}" loading="lazy">
+    </div>
+    {% endif %}
+    {% if page.affiliate_url %}
+    <a href="{{ page.affiliate_url }}" class="post-buy-btn" target="_blank" rel="nofollow noopener">Check Price on Amazon →</a>
+    {% endif %}
     <div class="post-divider"></div>
   </header>
   <div class="post-body">

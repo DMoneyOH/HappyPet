@@ -340,3 +340,11 @@ a { color: inherit; text-decoration: none; }
   .post-grid { grid-template-columns: 1fr; }
   .post-body th, .post-body td { padding: .5rem .6rem; }
 }
+
+/* ── Post product image + buy button ─────────────────────────── */
+.post-product-image { text-align: center; margin: 1.75rem 0 1.25rem; }
+.post-product-image img { max-width: 340px; width: 100%; height: auto; border-radius: var(--rx-xl); box-shadow: var(--sh-md); border: 2px solid var(--border); background: #fff; padding: .75rem; object-fit: contain; }
+.post-buy-btn { display: inline-flex; align-items: center; gap: .45rem; background: var(--coral); color: #fff; padding: .8rem 1.75rem; border-radius: var(--rx-p); font-weight: 800; font-size: 1rem; font-family: var(--font-b); box-shadow: var(--sh-c); text-decoration: none; transition: background var(--ease), transform var(--ease); margin-bottom: 1.5rem; }
+.post-buy-btn:hover { background: var(--coral-dk); transform: translateY(-2px); }
+.post-divider { border: none; border-top: 2px solid var(--border); margin: 1.75rem 0; }
+@media (max-width: 520px) { .post-product-image img { max-width: 260px; } }
