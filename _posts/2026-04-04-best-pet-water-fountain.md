@@ -6,7 +6,7 @@ categories: [pet-feeding, both]
 species: both
 tags: [pet water fountain]
 description: "PetSafe Drinkwell Platinum Fountain Review - expert reviews and buying guide."
-affiliate_url: "https://amzn.to/41dtOOM"
+affiliate_url: "https://amzn.to/3NNVKFY"
 image: "https://images-na.ssl-images-amazon.com/images/P/B00MW8G62E.01.LZZZZZZZ.jpg"
 ---
 
