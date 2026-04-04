@@ -102,14 +102,14 @@ a { color: inherit; text-decoration: none; }
   position: relative; display: flex;
   align-items: flex-end; justify-content: flex-start;
   line-height: 0; margin-bottom: -4px; overflow: visible;
-  min-height: clamp(280px, 35vw, 480px);
 }
 .hero-visual { position: relative; flex: 1 1 auto; line-height: 0; min-width: 0; }
 .hero-pet-img {
   width: 100%; height: auto; display: block;
-  /* Fluid max-width: big on desktop, smaller on tablet/phone */
   max-width: clamp(230px, 58vw, 621px);
   filter: drop-shadow(0 12px 28px rgba(13,92,99,.18));
+  transform: scale(1.15);
+  transform-origin: bottom left;
 }
 /* Cards: right of image, fluid width */
 .hero-cards {
