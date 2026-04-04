@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-PawPicks Content Generator v12 — Real Product + Web-Validated Pipeline
+Happy Pet Product Reviews Generator v13 — Real Product + Web-Validated Pipeline
 - Loads products.json for real affiliate links per topic
 - Web searches Reddit + review sites for real owner sentiment
 - Flexible article format: single_review, roundup, buying_guide
@@ -84,31 +84,7 @@ def front_matter(title: str, keyword: str, affiliate_url: str = "") -> str:
     fm += '---\n'
     return fm
 
-def fetch_validation_context(product_name: str, keyword: str, cse_key: str, cse_cx: str) -> str:
-    """Search for real owner reviews and expert opinions on the product."""
-    if not cse_key or not cse_cx:
-        return ""
-    snippets = []
-    queries = [
-        f"{product_name} review reddit",
-        f"{product_name} honest review",
-    ]
-    for q in queries:
-        try:
-            params = urllib.parse.urlencode({"key": cse_key, "cx": cse_cx, "q": q, "num": 3})
-            req = urllib.request.Request(f"{CSE_URL}?{params}", headers={"User-Agent": "PawPicksBot/1.0"})
-            with urllib.request.urlopen(req, timeout=10) as resp:
-                data = json.loads(resp.read())
-            for item in data.get("items", []):
-                snippet = item.get("snippet", "").strip()
-                if snippet and len(snippet) > 30:
-                    snippets.append(snippet)
-            time.sleep(1)
-        except Exception as exc:
-            log(f"  Validation search warn: {exc}")
-    if snippets:
-        log(f"  Validation: {len(snippets)} snippets found")
-        return "\n".join(f"- {s}" for s in snippets[:5])
+def fetch_validation_context(product_name, keyword, cse_key, cse_cx):
     return ""
 
 def make_prompt(title: str, keyword: str, slug: str, fmt: str,
@@ -125,8 +101,8 @@ def make_prompt(title: str, keyword: str, slug: str, fmt: str,
         affiliate_block = (
             f'FEATURED PRODUCT: {product_name}\n'
             f'AFFILIATE LINK: {affiliate_url}\n'
-            f'Include this exact markdown link naturally in the article: '
-            f'[{product_name}]({affiliate_url})\n'
+            f'LINKING RULE: Every time {product_name} is mentioned by name in the article -- including in comparison table cells -- render it as [{product_name}]({affiliate_url}). No plain-text mentions. Every reference must be a clickable affiliate link.
+'
         )
 
     validation_block = ""
@@ -173,7 +149,7 @@ STRUCTURE (all sections required):
 - FAQ (H2): 4-5 real questions with concise answers
 - Closing (80+ words): Actionable next steps, include affiliate link"""
 
-    return f"""You are a senior writer for PawPicks, a trusted budget-focused pet product review blog.
+    return f"""You are a senior writer for Happy Pet Product Reviews, a trusted budget-focused pet product review blog.
 
 Write a complete, publish-ready blog post. Title: "{title}". Focus keyword: "{keyword}".
 
@@ -260,7 +236,7 @@ def main() -> None:
         POSTS_DIR.mkdir(parents=True, exist_ok=True)
         today = datetime.date.today().isoformat()
         generated = skipped = failed = 0
-        log(f"START v12 (real-product + validated) — {len(TOPICS)} articles — model={MODEL}")
+        log(f"START v13 (real-product + validated) — {len(TOPICS)} articles — model={MODEL}")
 
         for i, (slug, title, keyword, fmt) in enumerate(TOPICS, 1):
             fname = f"{today}-{slugify(slug)}.md"
