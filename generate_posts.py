@@ -196,7 +196,7 @@ def call_gemini(prompt: str, api_key: str) -> str:
     payload = json.dumps({
         "model": MODEL,
         "messages": [{"role": "user", "content": prompt}],
-        "max_tokens": 4096,
+        "max_tokens": 8192,
         "temperature": 0.75,
     }).encode()
     headers = {"Content-Type": "application/json", "Authorization": f"Bearer {api_key}"}
