@@ -2,7 +2,7 @@
 layout: post
 title: "How to Choose Puppy Training Pads"
 date: 2026-04-04
-categories: [dog-training, dog]
+categories: [dog-training]
 species: dog
 tags: [puppy training pads]
 description: "How to Choose Puppy Training Pads - expert reviews and buying guide."

@@ -2,7 +2,7 @@
 layout: post
 title: "Barker Beds Orthopedic Dog Bed Review"
 date: 2026-04-04
-categories: [dog-beds, dog]
+categories: [dog-beds]
 species: dog
 tags: [dog beds large breeds]
 description: "Barker Beds Orthopedic Dog Bed Review - expert reviews and buying guide."

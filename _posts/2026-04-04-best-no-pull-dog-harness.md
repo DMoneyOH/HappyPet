@@ -2,7 +2,7 @@
 layout: post
 title: "PetSafe Easy Walk Harness Review"
 date: 2026-04-04
-categories: [dog-harnesses, dog]
+categories: [dog-harnesses]
 species: dog
 tags: [no pull dog harness XL]
 description: "PetSafe Easy Walk Harness Review - expert reviews and buying guide."

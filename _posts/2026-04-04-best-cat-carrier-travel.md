@@ -2,7 +2,7 @@
 layout: post
 title: "How to Choose the Best Cat Carrier"
 date: 2026-04-04
-categories: [cat-carriers, cat]
+categories: [cat-carriers]
 species: cat
 tags: [cat carrier travel]
 description: "How to Choose the Best Cat Carrier - expert reviews and buying guide."
