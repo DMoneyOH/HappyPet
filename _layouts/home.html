@@ -75,6 +75,10 @@ layout: default
       {% assign data_filter = "dog" %}
       {% assign species_label = "Dog" %}
       {% assign species_class = "species-dog" %}
+    {% elsif post.species == "both" %}
+      {% assign data_filter = "dog cat" %}
+      {% assign species_label = "" %}
+      {% assign species_class = "species-both" %}
     {% else %}
       {% assign data_filter = "all" %}
       {% assign species_label = "" %}
@@ -159,7 +163,7 @@ layout: default
       var f = pill.dataset.filter;
       var visible = 0;
       cards.forEach(function(card){
-        var show = f === 'all' || card.dataset.filter === f;
+        var show = f === 'all' || card.dataset.filter.split(' ').includes(f);
         card.style.display = show ? '' : 'none';
         if(show) visible++;
       });
