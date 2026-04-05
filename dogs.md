@@ -7,10 +7,10 @@ permalink: /dogs/
 <section class="posts-section">
   <div class="section-header">
     <h2 class="section-title">Dog Product Reviews</h2>
-    <span class="section-count">{{ site.posts | where_exp: "post", "post.title contains 'Dog'" | size }} reviews</span>
+    <span class="section-count">{{ site.posts | where_exp: "post", "post.species == 'dog' or post.species == 'both'" | size }} reviews</span>
   </div>
   <div class="post-grid">
-    {% assign dog_posts = site.posts | where_exp: "post", "post.title contains 'Dog'" %}
+    {% assign dog_posts = site.posts | where_exp: "post", "post.species == 'dog' or post.species == 'both'" %}
     {% if dog_posts.size == 0 %}
       {% assign dog_posts = site.posts %}
     {% endif %}
