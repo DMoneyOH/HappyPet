@@ -301,7 +301,7 @@ def main() -> None:
                     encoding="utf-8"
                 )
                 log(f"  SAVED {fname} ({fpath.stat().st_size} bytes)")
-                # Append to Pinterest Queue Google Sheets
+                # Parse front matter data
                 fm_data = {}
                 for line in front_matter(title, keyword, affiliate_url).splitlines():
                     if ':' in line:
@@ -311,8 +311,10 @@ def main() -> None:
                 slug_only = parts[3] if len(parts) == 4 else fname.replace('.md','')
                 category = fm_data.get('categories','').strip('[]')
                 article_url = f"https://happypetproductreviews.com/{category}/{slug_only}/"
-                append_to_sheet(title, article_url, product.get('image',''), fm_data.get('species','both'))
-                # Generate branded Pinterest pin image
+                species = fm_data.get('species','both')
+
+                # 1. Generate branded Pinterest pin image FIRST
+                pin_url = product.get('image','')  # fallback to raw product image
                 if PIN_GEN_AVAILABLE:
                     try:
                         pin_url = make_pin_for_post(
@@ -321,15 +323,16 @@ def main() -> None:
                             product.get('image',''),
                             category,
                             slug_only,
-                            generated  # theme index rotates by article count
+                            generated
                         )
-                        # Update sheet Column C with branded pin URL
-                        append_to_sheet.__module__  # reuse sheet connection
-                        from generate_pin_images import update_sheets as _update_pin_sheets
-                        _update_pin_sheets([{'title':title,'species':fm_data.get('species','both'),'pin_url':pin_url}])
                         log(f"  PIN: {pin_url}")
                     except Exception as pe:
                         log(f"  WARN: pin generation failed: {pe}")
+
+                # 2. Append to sheet with branded pin URL in Column C
+                append_to_sheet(title, article_url, pin_url, species)
+
+                # 3. Push article + pin image together
                 generated += 1
                 git_push(1)
             except Exception as exc:
