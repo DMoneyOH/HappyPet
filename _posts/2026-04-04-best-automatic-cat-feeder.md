@@ -2,7 +2,7 @@
 layout: post
 title: "PETLIBRO Automatic Cat Feeder Review"
 date: 2026-04-04
-categories: [cat-feeders]
+categories: [pet-accessories]
 species: cat
 tags: [automatic cat feeder]
 description: "Never worry about overfeeding again — this programmable feeder keeps your cat on schedule even when you're away."

@@ -2,7 +2,7 @@
 layout: post
 title: "Barker Beds Orthopedic Dog Bed Review"
 date: 2026-04-04
-categories: [dog-beds]
+categories: [pet-accessories]
 species: dog
 tags: [dog beds large breeds]
 description: "Big dogs need real support — this orthopedic bed is built to last and actually holds its shape."

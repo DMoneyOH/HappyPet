@@ -23,3 +23,9 @@ ctx_bridge.py
 !generate_posts.py
 autopublish.sh
 *:Zone.Identifier
+happypet-sheets-key.json
+# Stale scripts — untracked
+commit_cleanup.sh
+feed-cats.xml
+feed-dogs.xml
+happypet_cron.sh

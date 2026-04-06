@@ -2,7 +2,7 @@
 layout: post
 title: "PetSafe Easy Walk Harness Review"
 date: 2026-04-04
-categories: [dog-harnesses]
+categories: [pet-accessories]
 species: dog
 tags: [no pull dog harness XL]
 description: "Stops pulling without hurting your dog — we put the PetSafe Easy Walk to the test on real strong pullers."

@@ -21,7 +21,10 @@ defaults:
 # Social sharing image (og:image)
 social:
   name: Happy Pet Product Reviews
-  links: []
+  links:
+    - https://www.pinterest.com/happypetproductreviews
 
 # jekyll-seo-tag
 logo: /assets/images/og-image.png
+twitter:
+  card: summary_large_image

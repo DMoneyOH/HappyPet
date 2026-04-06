@@ -2,7 +2,7 @@
 layout: post
 title: "Best Cat Scratching Posts That Last"
 date: 2026-04-04
-categories: [cat-scratching]
+categories: [pet-accessories]
 species: cat
 tags: [cat scratching post]
 description: "Most scratching posts wobble and get ignored — these are the ones cats actually use and owners swear by."

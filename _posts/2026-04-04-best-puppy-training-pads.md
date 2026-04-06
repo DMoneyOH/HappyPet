@@ -2,7 +2,7 @@
 layout: post
 title: "How to Choose Puppy Training Pads"
 date: 2026-04-04
-categories: [dog-training]
+categories: [pet-accessories]
 species: dog
 tags: [puppy training pads]
 description: "The right training pads make housebreaking faster and less messy — here's what actually works for new puppy owners."
