@@ -74,7 +74,7 @@ The [SmartCat Ultimate Scratching Post](https://amzn.to/4dME6wX) is an ideal cho
 *   **Anyone Tired of Replacing Cheap Scratchers:** If you're spending $10-$20 every few months on flimsy scratchers that get destroyed quickly, the upfront cost of the [SmartCat Ultimate Scratching Post](https://amzn.to/4dME6wX) will quickly pay for itself.
 *   **Pet Parents Looking for a Durable, Long-Term Solution:** This is a purchase meant to last. If you want a reliable, high-quality cat scratching post that you won't have to think about replacing for years, this is it.
 *   **Homes with Limited Space for Large Cat Trees:** While it's tall, its footprint is relatively small compared to a full cat tree, making it a great option for apartments or smaller homes where a dedicated, effective scratching zone is needed.
-*   **Those Prioritizing Furniture Protection:** Investing in a high-quality cat scratching post like this is one of the best ways to redirect your cat's scratching instincts away from your valuable furniture. Pair it with good behavioral training and maybe some [cat litter for odor control](/pawpicks/pet-accessories/best-cat-litter-odor-control/) to keep your home happy and fresh!
+*   **Those Prioritizing Furniture Protection:** Investing in a high-quality cat scratching post like this is one of the best ways to redirect your cat's scratching instincts away from your valuable furniture. Pair it with good behavioral training and maybe some [cat litter for odor control](/pet-accessories/best-cat-litter-odor-control/) to keep your home happy and fresh!
 
 ## Verdict
 
