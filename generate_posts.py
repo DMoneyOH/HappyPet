@@ -200,7 +200,12 @@ WRITING STYLE:
 - Use "{keyword}" naturally 4-6 times
 - Write in first person plural ("we tested", "we found"){link}
 
-FORMAT: Return ONLY clean Markdown. No YAML. No preamble. Start writing immediately."""
+FORMAT: Return ONLY clean Markdown. No YAML. No preamble. Start writing immediately.
+
+The VERY FIRST LINE of your response must be exactly this format (one line, no label):
+PIN_DESC: [one punchy sentence, max 20 words, that makes a Pinterest user stop scrolling]
+
+Then start the article body immediately after."""
 
 
 def call_gemini(prompt: str, api_key: str) -> str:
@@ -293,20 +298,30 @@ def main() -> None:
             try:
                 prompt = make_prompt(title, keyword, slug, fmt, product)
                 content = call_gemini(prompt, gemini_key)
+                # Extract PIN_DESC from first line if present
+                pin_desc = f'{title} - expert reviews and buying guide.'
+                if content.startswith('PIN_DESC:'):
+                    first_line, _, content = content.partition('\n')
+                    pin_desc = first_line.replace('PIN_DESC:', '').strip()
+                    log(f"  PIN_DESC: {pin_desc[:60]}")
                 if len(content) < 2000:
                     log(f"  WARN: only {len(content)} chars -- may be truncated")
                 affiliate_url = product.get("url", "")
-                fpath.write_text(
-                    front_matter(title, keyword, affiliate_url) + "\n" + content,
-                    encoding="utf-8"
+                fm = front_matter(title, keyword, affiliate_url).replace(
+                    f'description: "{title} - expert reviews and buying guide."',
+                    f'description: "{pin_desc}"'
                 )
+                fpath.write_text(fm + "\n" + content, encoding="utf-8")
                 log(f"  SAVED {fname} ({fpath.stat().st_size} bytes)")
-                # Parse front matter data
+                # Parse front matter from written file
                 fm_data = {}
-                for line in front_matter(title, keyword, affiliate_url).splitlines():
-                    if ':' in line:
-                        k, _, v = line.partition(':')
-                        fm_data[k.strip()] = v.strip().strip('"').strip("'")
+                written = fpath.read_text()
+                m = __import__('re').match(r'^---\n(.*?)\n---', written, __import__('re').DOTALL)
+                if m:
+                    for line in m.group(1).splitlines():
+                        if ':' in line:
+                            k, _, v = line.partition(':')
+                            fm_data[k.strip()] = v.strip().strip('"').strip("'")
                 parts = fname.replace('.md','').split('-', 3)
                 slug_only = parts[3] if len(parts) == 4 else fname.replace('.md','')
                 category = fm_data.get('categories','').strip('[]')
