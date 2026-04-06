@@ -302,7 +302,9 @@ def main() -> None:
                         k, _, v = line.partition(':')
                         fm_data[k.strip()] = v.strip().strip('"').strip("'")
                 parts = fname.replace('.md','').split('-', 3)
-                article_url = f"https://happypetproductreviews.com/{parts[0]}/{parts[1]}/{parts[2]}/{parts[3]}/" if len(parts)==4 else ''
+                slug_only = parts[3] if len(parts) == 4 else fname.replace('.md','')
+                category = fm_data.get('categories','').strip('[]')
+                article_url = f"https://happypetproductreviews.com/{category}/{slug_only}/"
                 append_to_sheet(title, article_url, product.get('image',''), fm_data.get('species','both'))
                 generated += 1
                 git_push(1)
