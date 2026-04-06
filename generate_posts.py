@@ -8,6 +8,12 @@ Happy Pet Product Reviews Generator v13 — Real Product Pipeline
 """
 import os, re, json, datetime, time, urllib.request, urllib.error, urllib.parse, subprocess
 from pathlib import Path
+try:
+    import gspread
+    from google.oauth2.service_account import Credentials as GCredentials
+    GSHEETS_AVAILABLE = True
+except ImportError:
+    GSHEETS_AVAILABLE = False
 
 REPO_DIR  = Path(__file__).parent.resolve()
 POSTS_DIR = REPO_DIR / "_posts"
@@ -62,6 +68,37 @@ def load_products() -> dict:
         with p.open() as f:
             return json.load(f)
     return {}
+
+def append_to_sheet(title, article_url, image_url, species):
+    """Append new article row to the correct Pinterest Queue Google Sheet."""
+    if not GSHEETS_AVAILABLE:
+        log("  WARN: gspread not installed, skipping sheet update")
+        return
+    key_file = REPO_DIR / 'happypet-sheets-key.json'
+    if not key_file.exists():
+        log("  WARN: happypet-sheets-key.json not found, skipping sheet update")
+        return
+    try:
+        from dotenv import load_dotenv
+        load_dotenv(Path.home() / '.env')
+        dog_id = os.getenv('HAPPYPET_SHEET_ID_DOGS')
+        cat_id = os.getenv('HAPPYPET_SHEET_ID_CATS')
+        scopes = ['https://www.googleapis.com/auth/spreadsheets']
+        creds  = GCredentials.from_service_account_file(str(key_file), scopes=scopes)
+        gc     = gspread.authorize(creds)
+        today  = datetime.date.today().isoformat()
+        row    = [title, article_url, image_url, today, 'NO']
+        targets = []
+        if species in ('dog', 'both') and dog_id:
+            targets.append(('Dogs', dog_id))
+        if species in ('cat', 'both') and cat_id:
+            targets.append(('Cats', cat_id))
+        for label, sid in targets:
+            sh = gc.open_by_key(sid)
+            sh.get_worksheet(0).append_row(row)
+            log(f"  SHEET: appended to {label} Pinterest Queue")
+    except Exception as e:
+        log(f"  WARN: sheet append failed: {e}")
 
 def front_matter(title: str, keyword: str, affiliate_url: str = "") -> str:
     today = datetime.date.today().isoformat()
@@ -258,6 +295,15 @@ def main() -> None:
                     encoding="utf-8"
                 )
                 log(f"  SAVED {fname} ({fpath.stat().st_size} bytes)")
+                # Append to Pinterest Queue Google Sheets
+                fm_data = {}
+                for line in front_matter(title, keyword, affiliate_url).splitlines():
+                    if ':' in line:
+                        k, _, v = line.partition(':')
+                        fm_data[k.strip()] = v.strip().strip('"').strip("'")
+                parts = fname.replace('.md','').split('-', 3)
+                article_url = f"https://happypetproductreviews.com/{parts[0]}/{parts[1]}/{parts[2]}/{parts[3]}/" if len(parts)==4 else ''
+                append_to_sheet(title, article_url, product.get('image',''), fm_data.get('species','both'))
                 generated += 1
                 git_push(1)
             except Exception as exc:
