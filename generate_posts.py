@@ -75,7 +75,49 @@ def load_products() -> dict:
             return json.load(f)
     return {}
 
-def append_to_sheet(title, article_url, image_url, species):
+def extract_asin_from_url(url: str) -> str:
+    """Extract ASIN from a full Amazon URL. Returns '' if not found."""
+    m = re.search(r'/(?:dp|gp/product)/([A-Z0-9]{10})', url)
+    return m.group(1) if m else ''
+
+def resolve_short_url(short_url: str) -> str:
+    """Follow amzn.to redirect to get the full Amazon URL. Returns '' on failure."""
+    try:
+        req = urllib.request.Request(short_url, method="HEAD")
+        req.add_header("User-Agent", "Mozilla/5.0")
+        with urllib.request.urlopen(req, timeout=10) as r:
+            return r.geturl()
+    except Exception:
+        return ''
+
+def build_used_asins() -> set:
+    """Scan all existing _posts/ files for affiliate_url ASINs already published."""
+    used = set()
+    asin_re = re.compile(r'affiliate_url:\s*["\']?(https?://[^\s"\']+)["\']?')
+    for md in POSTS_DIR.glob("*.md"):
+        try:
+            text = md.read_text(encoding="utf-8")
+            m = asin_re.search(text)
+            if m:
+                asin = extract_asin_from_url(m.group(1))
+                if asin:
+                    used.add(asin)
+        except Exception:
+            pass
+    return used
+
+def get_asin_for_product(product: dict) -> str:
+    """Get ASIN from product dict — use stored asin if present, else resolve short URL."""
+    if product.get('asin'):
+        return product['asin']
+    url = product.get('url', '')
+    if 'amzn.to' in url:
+        full = resolve_short_url(url)
+        asin = extract_asin_from_url(full)
+        return asin
+    return extract_asin_from_url(url)
+
+def append_to_sheet(title, article_url, description, image_url, species):
     """Append new article row to the correct Pinterest Queue Google Sheet."""
     if not GSHEETS_AVAILABLE:
         log("  WARN: gspread not installed, skipping sheet update")
@@ -93,7 +135,7 @@ def append_to_sheet(title, article_url, image_url, species):
         creds  = GCredentials.from_service_account_file(str(key_file), scopes=scopes)
         gc     = gspread.authorize(creds)
         today  = datetime.date.today().isoformat()
-        row    = [title, article_url, image_url, today, 'NO']
+        row    = [title, article_url, description, image_url, today, 'NO']
         targets = []
         if species in ('dog', 'both') and dog_id:
             targets.append(('Dogs', dog_id))
@@ -273,6 +315,10 @@ def main() -> None:
         products = load_products()
         log(f"Loaded products.json: {len(products)} entries")
 
+        # Build set of ASINs already published in _posts/
+        used_asins = build_used_asins()
+        log(f"Dedup: {len(used_asins)} ASINs already published")
+
         POSTS_DIR.mkdir(parents=True, exist_ok=True)
         today = datetime.date.today().isoformat()
         generated = skipped = failed = 0
@@ -286,14 +332,17 @@ def main() -> None:
             if fpath.exists():
                 log(f"REDO [{i}/{len(TOPICS)}] {fname} (truncated)"); fpath.unlink()
 
-            log(f"WRITE [{i}/{len(TOPICS)}] [{fmt}] {title}")
-            time.sleep(RPM_SLEEP)
-
             product = products.get(slug, {})
             if product:
-                log(f"  Product: {product['name']}")
+                asin = get_asin_for_product(product)
+                if asin and asin in used_asins:
+                    log(f"SKIP [{i}/{len(TOPICS)}] {slug} -- ASIN {asin} already published"); skipped += 1; continue
+                log(f"  Product: {product['name']}" + (f" (ASIN: {asin})" if asin else " (ASIN: unresolved)"))
             else:
                 log(f"  WARN: no product entry for {slug}")
+
+            log(f"WRITE [{i}/{len(TOPICS)}] [{fmt}] {title}")
+            time.sleep(RPM_SLEEP)
 
             try:
                 prompt = make_prompt(title, keyword, slug, fmt, product)
@@ -344,11 +393,15 @@ def main() -> None:
                     except Exception as pe:
                         log(f"  WARN: pin generation failed: {pe}")
 
-                # 2. Append to sheet with branded pin URL in Column C
-                append_to_sheet(title, article_url, pin_url, species)
+                # 2. Append to sheet with branded pin URL in Column D
+                append_to_sheet(title, article_url, fm_data.get('description',''), pin_url, species)
 
                 # 3. Push article + pin image together
                 generated += 1
+                if product:
+                    asin = get_asin_for_product(product)
+                    if asin:
+                        used_asins.add(asin)
                 git_push(1)
             except Exception as exc:
                 log(f"  FAIL: {exc}"); failed += 1
