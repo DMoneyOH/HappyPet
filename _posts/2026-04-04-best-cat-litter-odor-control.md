@@ -2,7 +2,7 @@
 layout: post
 title: "Best Cat Litter for Odor Control"
 date: 2026-04-04
-categories: [pet-accessories]
+categories: [cat-litter]
 species: cat
 tags: [cat litter odor control]
 description: "We tested the top litters so you can finally say goodbye to that smell — even with multiple cats."
@@ -88,7 +88,7 @@ This is a personal preference for both you and your cat. Scented litters, often 
 
 ### 4. Dust Level
 
-A dusty litter isn't just annoying; it can contribute to respiratory issues for both you and your cat. Fine dust particles can carry odors, and they certainly don't make for a pleasant scooping experience. Look for litters marketed as "low dust" or "99% dust-free." While no litter is truly 100% dust-free, some brands do a much better job than others at minimizing airborne particles. A cleaner litter means cleaner air and less irritation for everyone. Remember, proper litter box hygiene goes hand-in-hand with good litter — and don't forget to provide other essentials like a sturdy [cat scratching posts](/pet-accessories/best-cat-scratching-posts/) to keep your cat happy and healthy!
+A dusty litter isn't just annoying; it can contribute to respiratory issues for both you and your cat. Fine dust particles can carry odors, and they certainly don't make for a pleasant scooping experience. Look for litters marketed as "low dust" or "99% dust-free." While no litter is truly 100% dust-free, some brands do a much better job than others at minimizing airborne particles. A cleaner litter means cleaner air and less irritation for everyone. Remember, proper litter box hygiene goes hand-in-hand with good litter — and don't forget to provide other essentials like a sturdy [cat scratching posts](/cat-scratching/best-cat-scratching-posts/) to keep your cat happy and healthy!
 
 ### 5. Multi-Cat Formulas
 

@@ -34,7 +34,31 @@ INTER_DELAY = 300
 RPM_SLEEP   = 8
 MAX_RETRIES = 3
 
-# Reviewer config — swap REVIEWER_MODEL to claude API in cloud migration
+# Category map: slug -> Jekyll category (drives URL structure)
+SLUG_CATEGORIES = {
+    # Articles 1-10
+    "best-dog-collars-small-breeds":    "dog-collars",
+    "best-cat-scratching-posts":        "cat-scratching",
+    "best-no-pull-dog-harness":         "dog-harnesses",
+    "best-automatic-cat-feeder":        "cat-feeders",
+    "best-dog-toys-aggressive-chewers": "dog-toys",
+    "best-cat-litter-odor-control":     "cat-litter",
+    "best-dog-beds-large-breeds":       "dog-beds",
+    "best-pet-water-fountain":          "pet-feeding",
+    "best-puppy-training-pads":         "dog-training",
+    "best-cat-carrier-travel":          "cat-carriers",
+    # Articles 11-20
+    "best-gps-dog-collars":             "dog-collars",
+    "best-self-cleaning-litter-boxes":  "cat-litter",
+    "best-senior-dog-food":             "dog-food",
+    "best-interactive-cat-toys":        "cat-toys",
+    "best-dog-crates":                  "dog-crates",
+    "best-grain-free-cat-food":         "cat-food",
+    "best-pet-cameras":                 "pet-tech",
+    "best-flea-prevention-dogs":        "dog-health",
+    "best-wet-cat-food":                "cat-food",
+    "best-dog-dna-tests":               "dog-health",
+}
 REVIEWER_MODEL   = "gemini-2.5-flash"
 REVIEWER_ENABLED = True
 MAX_REVIEW_ATTEMPTS = 2  # 1 rewrite attempt before GitHub issue + skip
@@ -67,26 +91,26 @@ TOPICS = [
 ]
 
 INTERNAL_LINKS = {
-    "best-dog-collars-small-breeds":    ("/pet-accessories/best-no-pull-dog-harness/", "no-pull harnesses for small dogs"),
-    "best-cat-scratching-posts":        ("/pet-accessories/best-cat-litter-odor-control/", "cat litter for odor control"),
-    "best-no-pull-dog-harness":         ("/pet-accessories/best-dog-collars-small-breeds/", "dog collars for small breeds"),
-    "best-automatic-cat-feeder":        ("/pet-accessories/best-pet-water-fountain/", "pet water fountains"),
-    "best-dog-toys-aggressive-chewers": ("/pet-accessories/best-dog-beds-large-breeds/", "dog beds for large breeds"),
-    "best-cat-litter-odor-control":     ("/pet-accessories/best-cat-scratching-posts/", "cat scratching posts"),
-    "best-dog-beds-large-breeds":       ("/pet-accessories/best-dog-toys-aggressive-chewers/", "toys for aggressive chewers"),
-    "best-pet-water-fountain":          ("/pet-accessories/best-automatic-cat-feeder/", "automatic cat feeders"),
-    "best-puppy-training-pads":         ("/pet-accessories/best-no-pull-dog-harness/", "no-pull dog harnesses"),
-    "best-cat-carrier-travel":          ("/pet-accessories/best-automatic-cat-feeder/", "automatic cat feeders for travel"),
-    "best-gps-dog-collars":             ("/pet-accessories/best-dog-collars-small-breeds/", "dog collars for small breeds"),
-    "best-self-cleaning-litter-boxes":  ("/pet-accessories/best-cat-litter-odor-control/", "best cat litter for odor control"),
-    "best-senior-dog-food":             ("/pet-accessories/best-dog-beds-large-breeds/", "orthopedic dog beds for seniors"),
-    "best-interactive-cat-toys":        ("/pet-accessories/best-cat-scratching-posts/", "cat scratching posts"),
-    "best-dog-crates":                  ("/pet-accessories/best-dog-beds-large-breeds/", "dog beds for crate training"),
-    "best-grain-free-cat-food":         ("/pet-accessories/best-automatic-cat-feeder/", "automatic cat feeders"),
-    "best-pet-cameras":                 ("/pet-accessories/best-gps-dog-collars/", "GPS dog trackers"),
-    "best-flea-prevention-dogs":        ("/pet-accessories/best-no-pull-dog-harness/", "no-pull dog harnesses"),
-    "best-wet-cat-food":                ("/pet-accessories/best-automatic-cat-feeder/", "automatic cat feeders"),
-    "best-dog-dna-tests":               ("/pet-accessories/best-gps-dog-collars/", "GPS dog collars"),
+    "best-dog-collars-small-breeds":    ("/dog-harnesses/best-no-pull-dog-harness/", "no-pull harnesses for small dogs"),
+    "best-cat-scratching-posts":        ("/cat-litter/best-cat-litter-odor-control/", "cat litter for odor control"),
+    "best-no-pull-dog-harness":         ("/dog-collars/best-dog-collars-small-breeds/", "dog collars for small breeds"),
+    "best-automatic-cat-feeder":        ("/pet-feeding/best-pet-water-fountain/", "pet water fountains"),
+    "best-dog-toys-aggressive-chewers": ("/dog-beds/best-dog-beds-large-breeds/", "dog beds for large breeds"),
+    "best-cat-litter-odor-control":     ("/cat-scratching/best-cat-scratching-posts/", "cat scratching posts"),
+    "best-dog-beds-large-breeds":       ("/dog-toys/best-dog-toys-aggressive-chewers/", "toys for aggressive chewers"),
+    "best-pet-water-fountain":          ("/cat-feeders/best-automatic-cat-feeder/", "automatic cat feeders"),
+    "best-puppy-training-pads":         ("/dog-harnesses/best-no-pull-dog-harness/", "no-pull dog harnesses"),
+    "best-cat-carrier-travel":          ("/cat-feeders/best-automatic-cat-feeder/", "automatic cat feeders for travel"),
+    "best-gps-dog-collars":             ("/dog-collars/best-dog-collars-small-breeds/", "dog collars for small breeds"),
+    "best-self-cleaning-litter-boxes":  ("/cat-litter/best-cat-litter-odor-control/", "best cat litter for odor control"),
+    "best-senior-dog-food":             ("/dog-beds/best-dog-beds-large-breeds/", "orthopedic dog beds for seniors"),
+    "best-interactive-cat-toys":        ("/cat-scratching/best-cat-scratching-posts/", "cat scratching posts"),
+    "best-dog-crates":                  ("/dog-beds/best-dog-beds-large-breeds/", "dog beds for crate training"),
+    "best-grain-free-cat-food":         ("/cat-feeders/best-automatic-cat-feeder/", "automatic cat feeders"),
+    "best-pet-cameras":                 ("/dog-collars/best-gps-dog-collars/", "GPS dog trackers"),
+    "best-flea-prevention-dogs":        ("/dog-harnesses/best-no-pull-dog-harness/", "no-pull dog harnesses"),
+    "best-wet-cat-food":                ("/cat-feeders/best-automatic-cat-feeder/", "automatic cat feeders"),
+    "best-dog-dna-tests":               ("/dog-collars/best-gps-dog-collars/", "GPS dog collars"),
 }
 
 def log(msg: str) -> None:
@@ -296,7 +320,7 @@ def append_to_sheet(title, article_url, description, image_url, species):
     except Exception as e:
         log(f"  WARN: sheet append failed: {e}")
 
-def front_matter(title: str, keyword: str, affiliate_url: str = "") -> str:
+def front_matter(title: str, keyword: str, affiliate_url: str = "", slug: str = "") -> str:
     today = datetime.date.today().isoformat()
     kw = keyword.lower()
     if any(w in kw for w in ['cat', 'kitten', 'feline', 'litter', 'scratch']):
@@ -305,9 +329,10 @@ def front_matter(title: str, keyword: str, affiliate_url: str = "") -> str:
         species = 'dog'
     else:
         species = 'both'
+    category = SLUG_CATEGORIES.get(slug, 'pet-accessories')
     fm = (
         f'---\nlayout: post\ntitle: "{title}"\ndate: {today}\n'
-        f'categories: [pet-accessories]\nspecies: {species}\ntags: [{keyword}]\n'
+        f'categories: [{category}]\nspecies: {species}\ntags: [{keyword}]\n'
         f'description: "{title} - expert reviews and buying guide."\n'
     )
     if affiliate_url:
@@ -511,7 +536,7 @@ def main() -> None:
                     continue
 
                 affiliate_url = product.get("url", "")
-                fm = front_matter(title, keyword, affiliate_url).replace(
+                fm = front_matter(title, keyword, affiliate_url, slug).replace(
                     f'description: "{title} - expert reviews and buying guide."',
                     f'description: "{pin_desc}"'
                 )

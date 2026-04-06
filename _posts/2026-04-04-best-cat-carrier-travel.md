@@ -2,7 +2,7 @@
 layout: post
 title: "How to Choose the Best Cat Carrier"
 date: 2026-04-04
-categories: [pet-accessories]
+categories: [cat-carriers]
 species: cat
 tags: [cat carrier travel]
 description: "The right carrier makes vet trips and travel stress-free for both you and your cat."
@@ -60,7 +60,7 @@ Even with the best intentions, new pet owners sometimes make simple mistakes tha
 
 1.  **Buying the Wrong Size:** As we mentioned, getting the size just right is crucial. A carrier that's too small is cruel, and one that's too large can be dangerous. Always measure your cat and compare it to the carrier's interior dimensions, not just the exterior.
 2.  **Only Using the Carrier for Vet Visits:** If the only time your cat sees their carrier is when they're being taken to the vet for shots or an unpleasant procedure, they'll quickly associate it with fear and negativity. Leave the carrier out in your home, with the door open and a comfy blanket inside. Toss treats or toys into it. Make it a safe, familiar den, not just a travel prison. This positive association is key for stress-free cat carrier travel.
-3.  **Forgetting Hydration and Sustenance for Longer Trips:** For journeys longer than a few hours, your cat will need access to water, and possibly food. Many carriers have small pockets where you can stash collapsible bowls or a small bag of treats. For extended travel, consider setting up an automatic feeder for travel once you arrive at your destination. We've found that [automatic cat feeders for travel](/pet-accessories/best-automatic_cat_feeder/) can be a lifesaver for maintaining routine.
+3.  **Forgetting Hydration and Sustenance for Longer Trips:** For journeys longer than a few hours, your cat will need access to water, and possibly food. Many carriers have small pockets where you can stash collapsible bowls or a small bag of treats. For extended travel, consider setting up an automatic feeder for travel once you arrive at your destination. We've found that [automatic cat feeders for travel](/cat-feeders/best-automatic-cat-feeder/) can be a lifesaver for maintaining routine.
 4.  **Not Checking Airline Requirements:** If you plan to fly with your cat, *always* double-check the specific dimensions and requirements of your chosen airline, both for in-cabin and cargo travel. These rules can vary significantly between carriers and change without much notice. Don't assume your carrier will fit just because it's labeled "airline approved" – verify!
 
 ## FAQ
