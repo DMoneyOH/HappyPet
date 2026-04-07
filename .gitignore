@@ -1,32 +1,33 @@
-__pycache__/
-*.pyc
-*.pyo
-.session-context.md
-SESSION_STATE.md
-FUTURE_REFERENCE.md
-*.log
+# === Secrets & Credentials ===
 .env
-# Ignore junk files
+happypet-sheets-key.json
+client_secret.json
+*.json.bak
+
+# === Python Cache ===
 __pycache__/
 *.pyc
 *.pyo
+
+# === Local Session / Dev Notes ===
 .session-context.md
 SESSION_STATE.md
 FUTURE_REFERENCE.md
-launcher.sh
-run_generator.sh
-single_launch.sh
-pawpicks_run.sh
-dc_keepalive.sh
-ctx_bridge.py
-*.py
-!generate_posts.py
-autopublish.sh
-*:Zone.Identifier
-happypet-sheets-key.json
-# Stale scripts — untracked
-commit_cleanup.sh
-feed-cats.xml
-feed-dogs.xml
-happypet_cron.sh
+
+# === Pin Staging Queue (runtime, not source) ===
 _pin_queue/
+
+# === Jekyll Build Output ===
+_site/
+.sass-cache/
+.jekyll-cache/
+.jekyll-metadata
+
+# === OS Junk ===
+*:Zone.Identifier
+.DS_Store
+Thumbs.db
+
+# === Logs (runtime, not source) ===
+*.log
+autopublish.log
