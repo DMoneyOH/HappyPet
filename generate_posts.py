@@ -304,8 +304,29 @@ def create_github_issue(title: str, slug: str, flags: list) -> None:
         else:
             log(f"  WARN: GitHub issue creation failed: {r2.stderr[:120]}")
 
-def append_to_sheet(title, article_url, description, image_url, species):
-    """Append new article row to the correct Pinterest Queue Google Sheet."""
+SLUG_TO_TOPICAL_SHEET = {
+    "best-dog-collars-small-breeds":    "HAPPYPET_SHEET_ID_TOYS",
+    "best-dog-toys-aggressive-chewers": "HAPPYPET_SHEET_ID_TOYS",
+    "best-no-pull-dog-harness":         "HAPPYPET_SHEET_ID_TOYS",
+    "best-puppy-training-pads":         "HAPPYPET_SHEET_ID_HOME",
+    "best-automatic-cat-feeder":        "HAPPYPET_SHEET_ID_HOME",
+    "best-cat-scratching-posts":        "HAPPYPET_SHEET_ID_TOYS",
+    "best-cat-litter-odor-control":     "HAPPYPET_SHEET_ID_HOME",
+    "best-pet-water-fountain":          "HAPPYPET_SHEET_ID_HOME",
+    "best-gps-dog-collars":             "HAPPYPET_SHEET_ID_TOYS",
+    "best-self-cleaning-litter-boxes":  "HAPPYPET_SHEET_ID_HOME",
+    "best-senior-dog-food":             "HAPPYPET_SHEET_ID_FOOD",
+    "best-interactive-cat-toys":        "HAPPYPET_SHEET_ID_TOYS",
+    "best-dog-crates":                  "HAPPYPET_SHEET_ID_HOME",
+    "best-grain-free-cat-food":         "HAPPYPET_SHEET_ID_FOOD",
+    "best-pet-cameras":                 "HAPPYPET_SHEET_ID_TOYS",
+    "best-flea-prevention-dogs":        "HAPPYPET_SHEET_ID_HEALTH",
+    "best-wet-cat-food":                "HAPPYPET_SHEET_ID_FOOD",
+    "best-dog-dna-tests":               "HAPPYPET_SHEET_ID_HEALTH",
+}
+
+def append_to_sheet(title, article_url, description, image_url, species, slug=""):
+    """Append new article row to species sheet + topical board sheet (max 2 pins)."""
     if not GSHEETS_AVAILABLE:
         log("  WARN: gspread not installed, skipping sheet update")
         return
@@ -316,18 +337,24 @@ def append_to_sheet(title, article_url, description, image_url, species):
     try:
         from dotenv import load_dotenv
         load_dotenv(Path.home() / '.env')
-        dog_id = os.getenv('HAPPYPET_SHEET_ID_DOGS')
-        cat_id = os.getenv('HAPPYPET_SHEET_ID_CATS')
-        scopes = ['https://www.googleapis.com/auth/spreadsheets']
-        creds  = GCredentials.from_service_account_file(str(key_file), scopes=scopes)
-        gc     = gspread.authorize(creds)
-        today  = datetime.date.today().isoformat()
-        row    = [title, article_url, description, image_url, today, 'NO']
+        dog_id  = os.getenv('HAPPYPET_SHEET_ID_DOGS')
+        cat_id  = os.getenv('HAPPYPET_SHEET_ID_CATS')
+        scopes  = ['https://www.googleapis.com/auth/spreadsheets']
+        creds   = GCredentials.from_service_account_file(str(key_file), scopes=scopes)
+        gc      = gspread.authorize(creds)
+        row     = [title, article_url, image_url, description, 'NO']
         targets = []
+        # Board 1 — species
         if species in ('dog', 'both') and dog_id:
             targets.append(('Dogs', dog_id))
         if species in ('cat', 'both') and cat_id:
             targets.append(('Cats', cat_id))
+        # Board 2 — topical (max 1 additional)
+        topical_key = SLUG_TO_TOPICAL_SHEET.get(slug)
+        if topical_key:
+            topical_id = os.getenv(topical_key)
+            if topical_id:
+                targets.append((topical_key.replace('HAPPYPET_SHEET_ID_', '').title(), topical_id))
         for label, sid in targets:
             sh = gc.open_by_key(sid)
             sh.get_worksheet(0).append_row(row)
@@ -573,13 +600,15 @@ def main() -> None:
                 species = fm_data.get('species','both')
 
                 # 1. Generate branded Pinterest pin image FIRST
-                pin_url = product.get('image','')  # fallback to raw product image
+                # Image source priority: products.json image → post front matter image → empty
+                product_image = product.get('image','') or fm_data.get('image','')
+                pin_url = product_image  # fallback if pin generation fails
                 if PIN_GEN_AVAILABLE:
                     try:
                         pin_url = make_pin_for_post(
                             title,
                             fm_data.get('description',''),
-                            product.get('image',''),
+                            product_image,
                             category,
                             slug_only,
                             generated
@@ -589,7 +618,7 @@ def main() -> None:
                         log(f"  WARN: pin generation failed: {pe}")
 
                 # 2. Append to sheet with branded pin URL in Column D
-                append_to_sheet(title, article_url, fm_data.get('description',''), pin_url, species)
+                append_to_sheet(title, article_url, fm_data.get('description',''), pin_url, species, slug=slug)
 
                 # 3. Push article + pin image together
                 generated += 1
