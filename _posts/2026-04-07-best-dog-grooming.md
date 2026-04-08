@@ -9,8 +9,6 @@ description: "Tired of pet hair tumbleweeds? Discover the best dog grooming tool
 affiliate_url: "https://amzn.to/4toeb2Q"
 ---
 
-PIN_DESC: Stop guessing which brush to buy, the right dog grooming tools by coat type, no fluff.
-
 # Best Dog Grooming Tools for Every Coat Type
 
 The most common grooming mistake isn't skipping baths, it's using the wrong brush. A slicker brush on a double-coated Husky moves surface hair around without touching the undercoat. A deshedding tool used on a Poodle can damage the curls. The tools matter, and they're not interchangeable.
