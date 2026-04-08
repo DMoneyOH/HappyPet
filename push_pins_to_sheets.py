@@ -15,11 +15,10 @@ import sys
 import shutil
 import smtplib
 from email.mime.text import MIMEText
-from datetime import datetime
+import datetime as _dt
 from pathlib import Path
 
 REPO_DIR          = Path(__file__).parent
-import datetime as _dt
 LOG_PATH          = REPO_DIR / 'LOGS' / f"HappyPet_{_dt.date.today().isoformat()}.log"
 LOG_PATH.parent.mkdir(exist_ok=True)
 QUEUE_LOW_THRESHOLD = 3
@@ -30,7 +29,7 @@ SMTP_PORT         = 587
 
 
 def log(msg: str, level: str = 'INFO') -> None:
-    line = f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} [PUBLISHER] [{level}]  {msg}"
+    line = f"{_dt.datetime.now().strftime('%Y-%m-%d %H:%M:%S')} [SHEETS] [{level}]  {msg}"
     print(line, flush=True)
     with LOG_PATH.open('a') as f: f.write(line + chr(10))
 
@@ -174,7 +173,7 @@ def main():
             if entry.get('topic') and entry.get('topical_sheet'):
                 products_map[entry['topic']] = entry['topical_sheet']
 
-    today      = datetime.now().strftime('%Y-%m-%d')
+    today      = _dt.datetime.now().strftime('%Y-%m-%d')
     processed  = 0
     failed     = 0
     alert_sent = False
@@ -193,6 +192,12 @@ def main():
             image_url   = data['image_url']
             species     = data.get('species', 'both')
             slug        = data.get('slug', '')
+
+            # Enforce ?v= cache-bust rule — Pinterest CDN caches bare URLs permanently
+            if image_url and '?v=' not in image_url:
+                v = _dt.date.today().strftime('%Y%m%d')
+                image_url = f"{image_url}?v={v}"
+                log(f'  WARN: image_url missing ?v= -- appended ?v={v}', 'WARN')
 
             row = [title, article_url, description, image_url, today, 'NO']
 
