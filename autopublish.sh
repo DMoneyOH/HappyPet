@@ -55,13 +55,22 @@ for p in "${SELECTED_POSTS[@]}"; do log "  PUBLISHING: $p"; done
 [[ $HELD_COUNT -gt 0 ]] && log "  HOLDING ${HELD_COUNT} post(s) for next scheduled run"
 
 SELECTED_SLUGS=()
+PUBLISH_DATE=$(date '+%Y-%m-%d')
+RENAMED_POSTS=()
 for p in "${SELECTED_POSTS[@]}"; do
     fname=$(basename "$p" .md)
     slug=$(echo "$fname" | cut -d'-' -f4-)
     SELECTED_SLUGS+=("$slug")
+    new_path="_posts/${PUBLISH_DATE}-${slug}.md"
+    if [[ "$p" != "$new_path" ]]; then
+        mv "$p" "$new_path"
+        log "  DATED: $p to $new_path"
+    fi
+    sed -i "s/^date: .*/date: ${PUBLISH_DATE}/" "$new_path"
+    RENAMED_POSTS+=("$new_path")
 done
 
-git add "${SELECTED_POSTS[@]}"
+git add "${RENAMED_POSTS[@]}"
 for slug in "${SELECTED_SLUGS[@]}"; do
     pin_img="assets/images/pins/${slug}.jpg"
     [[ -f "$pin_img" ]] && git add "$pin_img"

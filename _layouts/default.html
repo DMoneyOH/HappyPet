@@ -35,6 +35,10 @@
         <a href="{{ site.baseurl }}/about/">About</a>
         <a href="{{ site.baseurl }}/contact/">Contact</a>
         <a href="{{ site.baseurl }}/#reviews" class="nav-cta">Reviews →</a>
+        <form class="nav-search" action="{{ site.baseurl }}/search/" method="get" role="search">
+          <input type="search" name="q" placeholder="Search reviews…" aria-label="Search reviews" />
+          <button type="submit" aria-label="Search">🔍</button>
+        </form>
       </nav>
       <button class="nav-toggle" aria-label="Toggle menu">&#9776;</button>
     </div>
