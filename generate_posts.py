@@ -217,7 +217,7 @@ def call_gemini(prompt: str, api_key: str) -> str:
 
 def make_review_prompt(title: str, keyword: str, content: str) -> str:
     # Truncate to 2000 chars — reviewer needs tone/quality signal, not full body
-    content_sample = content[:1000] if len(content) > 1000 else content
+    content_sample = content[:2000] if len(content) > 2000 else content
     return f"""You are a senior human editor for Happy Pet Product Reviews.
 
 ARTICLE TITLE: {title}
