@@ -41,7 +41,7 @@ LOG_PATH.parent.mkdir(exist_ok=True)  # ensure LOGS/ exists
 
 MODEL            = "gemini-2.5-flash"
 GEMINI_URL       = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
-REVIEWER_MODEL   = "gemini-2.5-flash"
+REVIEWER_MODEL   = "models/gemini-2.5-flash-lite"
 REVIEWER_ENABLED = True
 MAX_REVIEW_ATTEMPTS = 2
 INTER_DELAY      = 300
@@ -327,7 +327,7 @@ def review_and_rewrite(title: str, keyword: str, content: str, api_key: str) -> 
             payload = json.dumps({
                 "model": REVIEWER_MODEL,
                 "messages": [{"role": "user", "content": make_review_prompt(title, keyword, content)}],
-                "max_tokens": 1024,
+                "max_tokens": 2048,
                 "temperature": 0.2,
             }).encode()
             headers = {"Content-Type": "application/json", "Authorization": f"Bearer {api_key}"}
