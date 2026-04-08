@@ -52,6 +52,23 @@ GITHUB_REPO      = "DMoneyOH/pawpicks"
 GITHUB_ASSIGNEE  = "DMoneyOH"
 SITE_BASE        = "https://happypetproductreviews.com"
 
+# Banned phrases — apply to pin descriptions AND article body
+# Keep in sync with WRITING STYLE rules in make_prompt()
+BANNED_PHRASE_MAP = [
+    (r'pet parents',          'dog owners'),
+    (r'pet parent',           'dog owner'),
+    (r'furry family members', 'dogs'),
+    (r'furry family member',  'dog'),
+    (r'furry family',         'dogs'),
+    (r'furry friend',         'dog'),
+    (r'fur babies',           'dogs'),
+    (r'fur baby',             'dog'),
+    (r'paw-some',             'great'),
+    (r'put our paws',         'done the research'),
+    (r'tail wagging',         'impressive'),
+    (r'tail-wagging',         'impressive'),
+]
+
 # Articles 1-10 category map (predate products.json; remain hardcoded)
 # Articles 11+ categories registered at runtime from products.json
 SLUG_CATEGORIES = {
@@ -110,6 +127,13 @@ def build_url(slug: str, utm: bool = False) -> str:
     if utm:
         return base + "?utm_source=pinterest&utm_medium=social&utm_campaign=pin"
     return base
+
+
+def clean_pin_desc(text: str) -> str:
+    """Strip banned phrases from pin description before writing to queue."""
+    for pattern, replacement in BANNED_PHRASE_MAP:
+        text = re.sub(pattern, replacement, text, flags=re.IGNORECASE)
+    return text.strip()
 
 
 def build_pin_image_url(slug: str) -> str:
@@ -630,6 +654,7 @@ def main() -> None:
                     first_line, _, content = content.partition("\n")
                     pin_desc = first_line.replace("PIN_DESC:", "").strip()
                     log_pin(f"  PIN_DESC: {pin_desc[:60]}")
+                pin_desc = clean_pin_desc(pin_desc)
                 if len(content) < 2000:
                     log(f"  only {len(content)} chars -- may be truncated", "WARN")
 
