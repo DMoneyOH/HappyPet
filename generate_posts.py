@@ -37,6 +37,7 @@ REPO_DIR  = Path(__file__).parent.resolve()
 POSTS_DIR = REPO_DIR / "_posts"
 LOG_PATH  = Path(__file__).parent / "LOGS" / f"HappyPet_{datetime.date.today().isoformat()}.log"
 LOCK_PATH = Path("/tmp/pawpicks_gen.lock")
+LOG_PATH.parent.mkdir(exist_ok=True)  # ensure LOGS/ exists
 
 MODEL            = "gemini-2.5-flash"
 GEMINI_URL       = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
@@ -84,16 +85,19 @@ SLUG_TO_TOPICAL_SHEET_LEGACY = {
 def log(msg: str, level: str = "INFO") -> None:
     line = f"{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')} [GENERATOR] [{level}]  {msg}"
     print(line, flush=True)
+    with LOG_PATH.open('a') as f: f.write(line + chr(10))
 
 
 def log_reviewer(msg: str, level: str = "INFO") -> None:
     line = f"{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')} [REVIEWER]  [{level}]  {msg}"
     print(line, flush=True)
+    with LOG_PATH.open('a') as f: f.write(line + chr(10))
 
 
 def log_pin(msg: str, level: str = "INFO") -> None:
     line = f"{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')} [PINGEN]    [{level}]  {msg}"
     print(line, flush=True)
+    with LOG_PATH.open('a') as f: f.write(line + chr(10))
 
 
 def slugify(s: str) -> str:

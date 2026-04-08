@@ -1,32 +1,38 @@
 #!/usr/bin/env bash
 # autopublish.sh — Stage 2: git push → wait for live build → append pins to Google Sheets
-# Cron: 0 7 * * 1,4  (Mon + Thu, 7:00 AM ET)  -- cron redirects stdout to /tmp/pawpicks.log
+# Cron: 0 7 * * 1,4  (Mon + Thu, 7:00 AM ET)
 # Cadence: Monday = 2 articles, Thursday = 1 article
 set -Eeuo pipefail
 
 REPO_DIR="/home/derek/projects/pawpicks"
 PATH="/home/derek/.local/bin:/home/derek/bin:/usr/local/bin:/usr/bin:/bin"
 GH="/home/derek/bin/gh"
-MAX_WAIT=600    # seconds to poll for build success (10 min)
+MAX_WAIT=600
 POLL_INTERVAL=30
+LOG_FILE="${REPO_DIR}/LOGS/HappyPet_$(date '+%Y-%m-%d').log"
+mkdir -p "${REPO_DIR}/LOGS"
 
-log()      { printf '%s [PUBLISHER] [INFO]  %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$*"; }
-log_warn() { printf '%s [PUBLISHER] [WARN]  %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$*"; }
-log_err()  { printf '%s [PUBLISHER] [ERROR] %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$*"; }
+_log() {
+    local level="$1"; shift
+    local line
+    line="$(date '+%Y-%m-%d %H:%M:%S') [PUBLISHER] [${level}]  $*"
+    echo "$line"
+    echo "$line" >> "$LOG_FILE"
+}
+log()      { _log INFO  "$@"; }
+log_warn() { _log WARN  "$@"; }
+log_err()  { _log ERROR "$@"; }
 
 cd "$REPO_DIR"
-
 if [[ -f "${HOME}/.env" ]]; then source "${HOME}/.env"; fi
 
 log "START autopublish"
 
 DOW=$(date '+%u')
 if [[ "$DOW" == "1" ]]; then
-    POST_CAP=2
-    log "Monday run — publishing up to 2 articles"
+    POST_CAP=2; log "Monday run — publishing up to 2 articles"
 elif [[ "$DOW" == "4" ]]; then
-    POST_CAP=1
-    log "Thursday run — publishing up to 1 article"
+    POST_CAP=1; log "Thursday run — publishing up to 1 article"
 else
     log_warn "Running on unexpected day (DOW=${DOW}) — defaulting to cap of 1"
     POST_CAP=1
@@ -45,9 +51,7 @@ SELECTED_POSTS=("${ALL_NEW_POSTS[@]:0:$POST_CAP}")
 HELD_COUNT=$(( ${#ALL_NEW_POSTS[@]} - ${#SELECTED_POSTS[@]} ))
 
 for p in "${SELECTED_POSTS[@]}"; do log "  PUBLISHING: $p"; done
-if [[ $HELD_COUNT -gt 0 ]]; then
-    log "  HOLDING ${HELD_COUNT} post(s) for next scheduled run"
-fi
+[[ $HELD_COUNT -gt 0 ]] && log "  HOLDING ${HELD_COUNT} post(s) for next scheduled run"
 
 SELECTED_SLUGS=()
 for p in "${SELECTED_POSTS[@]}"; do
@@ -79,15 +83,13 @@ while [[ $ELAPSED -lt $MAX_WAIT ]]; do
 
     RUN_STATUS=$(echo "$STATUS" | cut -d'|' -f1)
     RUN_CONCLUSION=$(echo "$STATUS" | cut -d'|' -f2)
-
     log "  Build check [${ELAPSED}s]: status=${RUN_STATUS} conclusion=${RUN_CONCLUSION}"
 
     if [[ "$RUN_STATUS" == "completed" && "$RUN_CONCLUSION" == "success" ]]; then
-        BUILD_OK=true
-        break
+        BUILD_OK=true; break
     elif [[ "$RUN_STATUS" == "completed" && "$RUN_CONCLUSION" != "success" ]]; then
         log_err "Build failed (conclusion=${RUN_CONCLUSION}) — aborting sheet append"
-        log_warn "  Pin queue left intact for next run"
+        log_warn "Pin queue left intact for next run"
         exit 1
     fi
 done

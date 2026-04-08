@@ -19,6 +19,9 @@ from datetime import datetime
 from pathlib import Path
 
 REPO_DIR          = Path(__file__).parent
+import datetime as _dt
+LOG_PATH          = REPO_DIR / 'LOGS' / f"HappyPet_{_dt.date.today().isoformat()}.log"
+LOG_PATH.parent.mkdir(exist_ok=True)
 QUEUE_LOW_THRESHOLD = 3
 ALERT_FROM        = 'hello@happypetproductreviews.com'
 ALERT_TO          = 'hello@happypetproductreviews.com'
@@ -29,6 +32,7 @@ SMTP_PORT         = 587
 def log(msg: str, level: str = 'INFO') -> None:
     line = f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} [PUBLISHER] [{level}]  {msg}"
     print(line, flush=True)
+    with LOG_PATH.open('a') as f: f.write(line + chr(10))
 
 
 def load_env():
