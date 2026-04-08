@@ -6,6 +6,8 @@ categories: [dog-health]
 species: dog
 tags: [flea prevention dogs]
 description: "Stop the itch! Discover the best budget-friendly flea prevention for your dog and keep them happy and healthy."
+affiliate_url: "https://amzn.to/3O2oIC2"
+image: "https://images-na.ssl-images-amazon.com/images/P/B00B8CG602.01.LZZZZZZZ.jpg"
 ---
 
 # Best Flea Prevention for Dogs

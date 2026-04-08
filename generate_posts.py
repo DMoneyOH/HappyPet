@@ -191,9 +191,11 @@ def validate_product(slug: str, product: dict) -> list:
     if not product:
         errors.append(f"No product entry in products.json for slug: {slug}")
         return errors
-    for field in ("affiliate_url", "name", "species", "title", "keyword", "category", "format"):
+    for field in ("affiliate_url", "name", "species", "title", "keyword", "category", "format", "image"):
         if not product.get(field):
             errors.append(f"Missing required field: {field}")
+    if product.get("image") == "NEEDS_IMAGE":
+        errors.append("image URL not sourced (NEEDS_IMAGE) -- use SiteStripe to get the URL")
     return errors
 
 
@@ -401,7 +403,7 @@ def create_github_issue(title: str, slug: str, flags: list) -> None:
 
 
 def front_matter(title: str, keyword: str, affiliate_url: str, slug: str,
-                 species: str, category: str, description: str) -> str:
+                 species: str, category: str, description: str, image: str = "") -> str:
     today = datetime.date.today().isoformat()
     fm = (
         f'---\nlayout: post\ntitle: "{title}"\ndate: {today}\n'
@@ -410,6 +412,8 @@ def front_matter(title: str, keyword: str, affiliate_url: str, slug: str,
     )
     if affiliate_url:
         fm += f'affiliate_url: "{affiliate_url}"\n'
+    if image:
+        fm += f'image: "{image}"\n'
     fm += '---\n'
     return fm
 
@@ -538,7 +542,8 @@ def main() -> None:
                 fname = f"{today}-{slugify(slug)}.md"
                 fpath = POSTS_DIR / fname
                 fm    = front_matter(title, keyword, product.get("affiliate_url", ""),
-                                     slug, species, category, pin_desc)
+                                     slug, species, category, pin_desc,
+                                     product.get("image", ""))
                 fpath.write_text(fm + "\n" + content, encoding="utf-8")
                 log(f"  SAVED {fname} ({fpath.stat().st_size} bytes)")
 
