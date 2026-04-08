@@ -40,13 +40,13 @@ LOCK_PATH = Path("/tmp/pawpicks_gen.lock")
 LOG_PATH.parent.mkdir(exist_ok=True)  # ensure LOGS/ exists
 
 MODEL            = "gemini-2.5-flash"
-GEMINI_URL       = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
-REVIEWER_MODEL   = "models/gemini-2.5-flash-lite"
+GROQ_URL         = "https://api.groq.com/openai/v1/chat/completions"
+REVIEWER_MODEL   = "llama-3.3-70b-versatile"
 REVIEWER_ENABLED = True
 MAX_REVIEW_ATTEMPTS = 2
 INTER_DELAY      = 300
 RPM_SLEEP        = 8
-REVIEW_PRE_SLEEP = 30   # seconds to wait before reviewer call to avoid 429
+REVIEW_PRE_SLEEP = 2    # Groq free tier — no long sleep needed
 MAX_RETRIES      = 3
 GITHUB_REPO      = "DMoneyOH/pawpicks"
 GITHUB_ASSIGNEE  = "DMoneyOH"
@@ -232,26 +232,65 @@ def call_gemini(prompt: str, api_key: str) -> str:
 
 
 def make_review_prompt(title: str, keyword: str, content: str) -> str:
-    # Truncate to 2000 chars — reviewer needs tone/quality signal, not full body
-    content_sample = content[:2000] if len(content) > 2000 else content
-    return f"""You are a senior human editor for Happy Pet Product Reviews.
+    # Full article up to 15K chars — 70B handles full context; 15K safety ceiling.
+    content_sample = content[:15000] if len(content) > 15000 else content
+    return f"""You are a senior human editor for Happy Pet Product Reviews, a budget-focused pet product affiliate blog.
+Your job is to score this article honestly and flag specific problems. Do not be generous — a 3 means acceptable, not good.
 
 ARTICLE TITLE: {title}
 FOCUS KEYWORD: {keyword}
 
-ARTICLE CONTENT (sample):
+ARTICLE CONTENT:
 ---
 {content_sample}
 ---
 
+SCORING RUBRIC — use these definitions exactly, do not interpret loosely:
+
+human_voice:
+  5 = Reads like a real person sharing a genuine opinion. Has specific details, natural imperfection, a distinct point of view.
+  4 = Mostly natural. Minor stiffness in 1-2 places but feels written by a person.
+  3 = Neutral. Competent but generic — could have been written by anyone or anything.
+  2 = Noticeably AI-patterned. Lists of features, generic transitions, no personality, no point of view.
+  1 = Pure marketing copy or feature dump. No human presence at all.
+
+warmth:
+  5 = Reader feels like they're getting advice from a knowledgeable friend who owns pets.
+  4 = Friendly but slightly distant. Warm intent but not fully personal.
+  3 = Neutral. Informative but transactional — no warmth, no coldness.
+  2 = Clinical or detached. Reads like a spec sheet.
+  1 = Cold, robotic, or condescending.
+
+readability:
+  5 = Flows effortlessly. Varied sentence length, zero re-reading required, logical section order.
+  4 = Good flow with 1-2 awkward spots or overly long sentences.
+  3 = Readable but some sentences need a second pass or sections feel out of order.
+  2 = Frequent long or convoluted sentences. Reader has to work.
+  1 = Difficult to follow. Structural or sentence-level problems throughout.
+
+accuracy:
+  5 = All product claims are verifiable from Amazon listings or appropriately hedged ("many owners report...").
+  4 = Mostly accurate. One minor unverified detail that is plausible.
+  3 = Some claims are soft assertions — plausible but not grounded in anything specific.
+  2 = Multiple unverified specs or fabricated details presented as fact.
+  1 = Significant factual errors or clearly invented specifications.
+
+PASS criteria (ALL must be true to pass):
+  - All four scores >= 3
+  - affiliate_link_present = true (amzn.to link present in content)
+  - No more than 1 ai_cliche detected
+
 Return ONLY a single valid JSON object. No preamble, no markdown fences, no trailing text.
 Begin with {{ and end with }}.
 
-Example of exact format required:
-{{"pass": true, "scores": {{"human_voice": 4, "warmth": 4, "readability": 4, "accuracy": 4, "affiliate_link_present": true, "disclosure_present": false, "ai_cliches_found": []}}, "flags": [], "rewrite_instructions": ""}}
+JSON format (exact — do not add or remove keys):
+{{"pass": true, "scores": {{"human_voice": 4, "warmth": 4, "readability": 4, "accuracy": 4}}, "affiliate_link_present": true, "em_dash_count": 0, "ai_cliches_found": [], "flags": [], "rewrite_instructions": ""}}
 
-PASS criteria: all scores >= 3, affiliate_link_present true, no more than 1 ai_cliche.
-If pass is false, rewrite_instructions must name exact sections and fixes needed."""
+Rules:
+- rewrite_instructions must name exact sections and specific fixes if pass is false; empty string if pass is true
+- flags must list each specific problem as a plain string; empty array if none
+- em_dash_count must be the exact integer count of em dash characters (—) found in the article
+- ai_cliches_found must list any detected clichés from: delve, it's worth noting, in conclusion, look no further, game-changer, comprehensive guide, navigate, put our paws, paw-some, tail wagging, furry family member"""
 
 
 def make_rewrite_prompt(title: str, keyword: str, content: str, instructions: str) -> str:
@@ -275,6 +314,9 @@ def make_prompt(title: str, keyword: str, slug: str, fmt: str, product: dict,
                 related_url: str, related_anchor: str) -> str:
     affiliate_url = product.get("affiliate_url", "")
     product_name  = product.get("name", "")
+    stars         = product.get("stars", "")
+    review_count  = product.get("review_count", "")
+    price         = product.get("price", "")
     link = ""
     if related_url and related_anchor:
         link = f"\nNaturally include this markdown link once where relevant: [{related_anchor}]({related_url})"
@@ -283,15 +325,60 @@ def make_prompt(title: str, keyword: str, slug: str, fmt: str, product: dict,
         affiliate_block = (
             f"FEATURED PRODUCT: {product_name}\n"
             f"AFFILIATE LINK: {affiliate_url}\n"
-            f"LINKING RULE: Every mention of {product_name} by name must be a clickable affiliate link "
-            f"[{product_name}]({affiliate_url}). No plain-text product name mentions allowed.\n"
+            f"LINKING RULE:\n"
+            f"- Always link {product_name} on its FIRST mention in the article.\n"
+            f"- Always link {product_name} in the CLOSING call-to-action.\n"
+            f"- For all mentions in between, link no more than 3 additional times.\n"
+            f"- MAXIMUM 5 affiliate links total per article. Do not exceed this.\n"
+            f"- All other mentions of {product_name} must be plain text, no link.\n"
         )
     if fmt == "single_review":
         structure = f"""ARTICLE FORMAT: In-depth single product review of {product_name}
 STRUCTURE: Opening (100+ words) | Product Overview (H2) | What We Like (H2, 4-5 features) | What Could Be Better (H2, 2-3 honest drawbacks) | Real Owner Experiences (H2) | Who Should Buy This (H2) | Verdict (H2, 80+ words with affiliate link) | Star rating: **Our Rating: X/5**"""
     elif fmt == "roundup":
+        # Build verified data block — only include fields we actually have
+        verified_data = ""
+        if stars:
+            verified_data += f"  - Star rating : {stars}/5 (verified from Amazon)\n"
+        if review_count:
+            verified_data += f"  - Review count: {int(review_count):,} Amazon reviews\n"
+        if price:
+            verified_data += f"  - Price        : ${price} (verified from Amazon)\n"
+        verified_block = ""
+        if verified_data:
+            verified_block = (
+                f"VERIFIED PRODUCT DATA (use exactly as shown — do not alter or invent):\n"
+                f"{verified_data}"
+            )
         structure = f"""ARTICLE FORMAT: Roundup/comparison -- {title}
-STRUCTURE: Opening (100+ words) | Quick Picks (H2) | Featured Pick {product_name} (H3, 80-100 words, affiliate link, pros/cons) | 2-3 Additional Picks (H3 each, 60-80 words, real brands like Kong/PetSafe/Frisco) | Comparison Table (H2): Product|Best For|Price Range|Rating | Buying Guide (H2, 150+ words) | Closing (80+ words with affiliate link)"""
+
+{verified_block}
+STRUCTURE:
+  Opening (100+ words)
+  Quick Picks (H2)
+
+  Featured Pick: {product_name} (H3, 80-100 words)
+    - Reference the verified star rating and review count naturally in prose if available
+    - Pros bullet list: 3-4 genuine strengths
+    - Cons bullet list: 1-2 honest limitations
+    - Include affiliate link per LINKING RULE above
+    - Do not fabricate specs; hedge unverified claims ("many owners report..." / "tends to...")
+
+  Additional Picks: 2-3 products (H3 each, 60-75 words)
+    - Name real, well-known products that genuinely complement {product_name}
+    - Write each as a single prose paragraph — NO bullet lists
+    - Naturally include 1-2 genuine strengths AND 1-2 honest limitations
+    - DO NOT include star ratings, prices, or specific specs you cannot verify — omit numbers entirely
+    - Hedge unverified claims: "tends to...", "most owners find...", "works well for..."
+    - No invented model numbers, dimensions, or materials
+
+  Comparison Table (H2): Product | Best For | Price Range | Durability
+    - Price Range: use $, $$, $$$ only — do not invent specific dollar amounts for additional picks
+    - Durability: Low / Medium / High based on product type and materials
+    - Do NOT include a ratings column — only use verified ratings from product data above
+
+  Buying Guide (H2, 150+ words)
+  Closing (80+ words with affiliate link per LINKING RULE above)"""
     else:
         structure = f"""ARTICLE FORMAT: Buying guide -- {title}
 STRUCTURE: Opening (100+ words) | What to Look For (H2, 5-6 key factors) | Our Top Pick {product_name} (H2, 100 words, affiliate link) | Common Mistakes to Avoid (H2, 3-4 pitfalls) | FAQ (H2, 4-5 real questions) | Closing (80+ words with affiliate link)"""
@@ -307,8 +394,15 @@ LENGTH: 950-1100 words of body content. Firm requirement.
 WRITING STYLE:
 - Conversational, warm, authoritative -- like advice from a trusted friend who owns pets
 - Vary sentence length. Short punchy sentences mixed with longer flowing ones.
-- NO AI cliches: never use "delve", "it's worth noting", "in conclusion", "look no further", "game-changer", "comprehensive guide", "navigate"
-- Use "{keyword}" naturally 4-6 times. Write in first person plural ("we tested", "we found").{link}
+- Use hyphens (-) for compound words and standard dashes where needed. NEVER use em dashes (—). Rewrite the sentence instead.
+- NO AI clichés -- never use: "delve", "it's worth noting", "in conclusion", "look no further", "game-changer", "comprehensive guide", "navigate"
+- Write warmly but avoid stock pet-blog phrases that signal AI copy: never use "paw-some", "put our paws", "tail wagging" as metaphor, "furry family member", "fur baby", or "pet parent". Use "dog owner" or "cat owner" instead of "pet parent". Natural warmth through genuine voice is encouraged -- forced wordplay is not.
+- FACTS: Only state product specs you are certain of from the product listing. If unsure, hedge with: "many owners report...", "tends to...", or "according to Amazon reviews...". Never invent dimensions, materials, weight, compatibility claims, or any number you were not given.
+- OPENING: If it makes sense for the article topic, open with a specific relatable moment a dog or cat owner would instantly recognize. Show, don't tell.
+  Good examples: "My dog chewed through a couch cushion on a 45-minute Zoom call." / "Our cat knocked the water bowl over three times in one week." / "I spent $40 on a toy my dog sniffed once and walked away from."
+  Bad examples: "Dogs need mental stimulation to stay happy and healthy." (generic) / "As a pet owner, you know how important it is to..." (filler)
+  If the article topic is purely practical (e.g. flea prevention, nutrition), a direct factual opening is fine -- do not force an anecdote.
+- Use "{keyword}" naturally 4-6 times. Write in first person plural ("we tested", "we found", "we noticed").{link}
 
 FORMAT: Return ONLY clean Markdown. No YAML. No preamble. Start writing immediately.
 FIRST LINE must be: PIN_DESC: [one punchy sentence, max 20 words, Pinterest stop-scroll hook]
@@ -330,12 +424,16 @@ def review_and_rewrite(title: str, keyword: str, content: str, api_key: str) -> 
                 "max_tokens": 2048,
                 "temperature": 0.2,
             }).encode()
-            headers = {"Content-Type": "application/json", "Authorization": f"Bearer {api_key}"}
+            headers = {
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {api_key}",
+                "User-Agent": "Mozilla/5.0 (compatible; groq-python/0.9.0)",
+            }
             # Reviewer-specific retry loop for 429
             raw = None
             for r_attempt in range(1, MAX_RETRIES + 1):
                 try:
-                    req = urllib.request.Request(GEMINI_URL, data=payload, headers=headers, method="POST")
+                    req = urllib.request.Request(GROQ_URL, data=payload, headers=headers, method="POST")
                     with urllib.request.urlopen(req, timeout=60) as resp:
                         raw = json.loads(resp.read())["choices"][0]["message"]["content"].strip()
                     break
@@ -457,6 +555,7 @@ def main() -> None:
         load_dotenv(Path.home() / ".env")
 
     gemini_key = os.environ.get("GEMINI_API_KEY", "").strip()
+    groq_key   = os.environ.get("GROQ_API_KEY", "").strip()
 
     if LOCK_PATH.exists():
         old = LOCK_PATH.read_text().strip()
@@ -470,6 +569,8 @@ def main() -> None:
     try:
         if not gemini_key:
             log("GEMINI_API_KEY not set", "ERROR"); return
+        if not groq_key:
+            log("GROQ_API_KEY not set -- reviewer will skip", "WARN")
 
         # Load products -- also registers categories into SLUG_CATEGORIES
         products = load_products()
@@ -533,7 +634,7 @@ def main() -> None:
                     log(f"  only {len(content)} chars -- may be truncated", "WARN")
 
                 time.sleep(RPM_SLEEP)
-                content, review_passed, review_flags = review_and_rewrite(title, keyword, content, gemini_key)
+                content, review_passed, review_flags = review_and_rewrite(title, keyword, content, groq_key)
                 if not review_passed:
                     create_github_issue(title, slug, review_flags)
                     log(f"  HOLD {slug} -- quality check failed, GitHub issue created")
