@@ -3,6 +3,8 @@
 push_pins_to_sheets.py
 Reads staged _pin_queue/*.json files, appends rows to the correct Google Sheets,
 then moves processed files to _pin_queue/sent/.
+After each slug completes, retires it from products.json (rolling queue model).
+When unpublished products.json count drops to 3, logs warning + sends alert email.
 Run ONLY after GitHub Pages build is confirmed live (called by autopublish.sh).
 """
 
@@ -11,14 +13,21 @@ import json
 import os
 import sys
 import shutil
+import smtplib
+from email.mime.text import MIMEText
 from datetime import datetime
 from pathlib import Path
 
-REPO_DIR = Path(__file__).parent
+REPO_DIR          = Path(__file__).parent
+QUEUE_LOW_THRESHOLD = 3
+ALERT_FROM        = 'hello@happypetproductreviews.com'
+ALERT_TO          = 'hello@happypetproductreviews.com'
+SMTP_HOST         = 'smtp.gmail.com'
+SMTP_PORT         = 587
 
 
 def log(msg):
-    print(f'[{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}] {msg}', flush=True)
+    print(f'[{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}] [PINS] {msg}', flush=True)
 
 
 def load_env():
@@ -29,6 +38,76 @@ def load_env():
             if line and not line.startswith('#') and '=' in line:
                 k, _, v = line.partition('=')
                 os.environ.setdefault(k.strip(), v.strip())
+
+
+def retire_from_products(slug: str) -> int:
+    """Remove slug from products.json. Returns remaining entry count."""
+    p = REPO_DIR / 'products.json'
+    if not p.exists():
+        return 0
+    products = json.loads(p.read_text())
+    before = len(products)
+    products = [e for e in products if e.get('topic') != slug]
+    if len(products) < before:
+        p.write_text(json.dumps(products, indent=2))
+        log(f'  RETIRED: {slug} removed from products.json ({before} -> {len(products)} entries)')
+    return len(products)
+
+
+def count_unpublished() -> int:
+    """Count products.json entries whose slug is NOT yet in _posts/."""
+    p = REPO_DIR / 'products.json'
+    if not p.exists():
+        return 0
+    products = json.loads(p.read_text())
+    published = set()
+    for md in (REPO_DIR / '_posts').glob('*.md'):
+        parts = md.stem.split('-', 3)
+        if len(parts) == 4:
+            published.add(parts[3])
+    return sum(1 for e in products if e.get('topic') not in published)
+
+
+def send_queue_alert(unpublished_count: int) -> None:
+    """Send email alert when unpublished queue hits threshold."""
+    smtp_user = os.environ.get('GMAIL_SMTP_USER', ALERT_FROM)
+    smtp_pass = os.environ.get('GMAIL_APP_PASSWORD', '')
+    if not smtp_pass:
+        log('  ALERT: GMAIL_APP_PASSWORD not set -- skipping email alert')
+        return
+    subject = f'[HappyPet] Queue low: only {unpublished_count} unpublished articles remaining'
+    body = (
+        f'Happy Pet Product Reviews queue alert\n\n'
+        f'Only {unpublished_count} unpublished article(s) remain in products.json.\n\n'
+        f'Action needed: Add new topic entries to products.json before the queue runs dry.\n\n'
+        f'Current unpublished topics:\n'
+    )
+    try:
+        p = REPO_DIR / 'products.json'
+        if p.exists():
+            products = json.loads(p.read_text())
+            published = set()
+            for md in (REPO_DIR / '_posts').glob('*.md'):
+                parts = md.stem.split('-', 3)
+                if len(parts) == 4:
+                    published.add(parts[3])
+            for e in products:
+                if e.get('topic') not in published:
+                    body += f"  - {e.get('topic')} ({e.get('title', '')})\n"
+    except Exception:
+        pass
+    try:
+        msg = MIMEText(body)
+        msg['Subject'] = subject
+        msg['From']    = smtp_user
+        msg['To']      = ALERT_TO
+        with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as s:
+            s.starttls()
+            s.login(smtp_user, smtp_pass)
+            s.sendmail(smtp_user, [ALERT_TO], msg.as_string())
+        log(f'  ALERT EMAIL sent to {ALERT_TO}: {subject}')
+    except Exception as e:
+        log(f'  ALERT EMAIL failed: {e}')
 
 
 def main():
@@ -59,27 +138,23 @@ def main():
     queue_files = sorted(queue_dir.glob('*.json'))
     if slug_filter:
         queue_files = [f for f in queue_files if f.stem in slug_filter]
-        log(f'Slug filter active — processing {len(queue_files)} file(s): {slug_filter}')
+        log(f'Slug filter active -- processing {len(queue_files)} file(s): {slug_filter}')
     if not queue_files:
-        log('No queued pins found — nothing to do')
+        log('No queued pins found -- nothing to do')
         return
 
-    # Auth
     scopes = ['https://www.googleapis.com/auth/spreadsheets']
     creds  = Credentials.from_service_account_file(str(key_file), scopes=scopes)
     gc     = gspread.authorize(creds)
 
     dog_id = os.environ.get('HAPPYPET_SHEET_ID_DOGS', '')
     cat_id = os.environ.get('HAPPYPET_SHEET_ID_CATS', '')
-
-    # Topical sheet IDs — all HAPPYPET_SHEET_ID_* except Dogs/Cats
     topical_ids = {
         k: v for k, v in os.environ.items()
         if k.startswith('HAPPYPET_SHEET_ID_')
         and k not in ('HAPPYPET_SHEET_ID_DOGS', 'HAPPYPET_SHEET_ID_CATS')
     }
 
-    # Slug → topical sheet env key (generated by generate_posts.py, stored in slug_topical_map.json)
     slug_topical_map = {}
     map_path = REPO_DIR / 'slug_topical_map.json'
     if map_path.exists():
@@ -88,10 +163,10 @@ def main():
     today     = datetime.now().strftime('%Y-%m-%d')
     processed = 0
     failed    = 0
+    alert_sent = False
 
     for qf in queue_files:
         try:
-            # Dedup guard — skip if already sent in a previous run
             if (sent_dir / qf.name).exists():
                 log(f'  SKIP (already sent): {qf.name}')
                 continue
@@ -112,7 +187,7 @@ def main():
             if species in ('cat', 'both') and cat_id:
                 targets.append(('Cats', cat_id))
 
-            topical_key = slug_topical_map.get(slug)
+            topical_key = data.get('topical_sheet') or slug_topical_map.get(slug)
             if topical_key:
                 topical_id = topical_ids.get(topical_key)
                 if topical_id:
@@ -121,17 +196,29 @@ def main():
             for label, sheet_id in targets:
                 sh = gc.open_by_key(sheet_id)
                 sh.get_worksheet(0).append_row(row)
-                log(f'  SHEET: appended to {label} — {title}')
+                log(f'  SHEET: appended to {label} -- {title}')
 
             shutil.move(str(qf), str(sent_dir / qf.name))
-            log(f'  SENT: {qf.name} → _pin_queue/sent/')
+            log(f'  SENT: {qf.name} -> _pin_queue/sent/')
+
+            # Retire from products.json -- rolling queue model
+            retire_from_products(slug)
+
+            # Check unpublished queue depth and alert if low
+            if not alert_sent:
+                unpub = count_unpublished()
+                if unpub <= QUEUE_LOW_THRESHOLD:
+                    log(f'QUEUE LOW: only {unpub} unpublished article(s) remain in products.json -- add new topics!')
+                    send_queue_alert(unpub)
+                    alert_sent = True  # one alert per autopublish run
+
             processed += 1
 
         except Exception as e:
-            log(f'  FAIL: {qf.name} — {e}')
+            log(f'  FAIL: {qf.name} -- {e}')
             failed += 1
 
-    log(f'DONE — {processed} pinned, {failed} failed')
+    log(f'DONE -- {processed} pinned, {failed} failed')
 
 
 if __name__ == '__main__':
