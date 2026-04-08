@@ -45,7 +45,7 @@ REVIEWER_ENABLED = True
 MAX_REVIEW_ATTEMPTS = 2
 INTER_DELAY      = 300
 RPM_SLEEP        = 8
-REVIEW_PRE_SLEEP = 15   # seconds to wait before reviewer call to avoid 429
+REVIEW_PRE_SLEEP = 30   # seconds to wait before reviewer call to avoid 429
 MAX_RETRIES      = 3
 GITHUB_REPO      = "DMoneyOH/pawpicks"
 GITHUB_ASSIGNEE  = "DMoneyOH"
@@ -217,7 +217,7 @@ def call_gemini(prompt: str, api_key: str) -> str:
 
 def make_review_prompt(title: str, keyword: str, content: str) -> str:
     # Truncate to 2000 chars — reviewer needs tone/quality signal, not full body
-    content_sample = content[:2000] if len(content) > 2000 else content
+    content_sample = content[:1000] if len(content) > 1000 else content
     return f"""You are a senior human editor for Happy Pet Product Reviews.
 
 ARTICLE TITLE: {title}
