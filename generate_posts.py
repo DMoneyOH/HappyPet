@@ -231,7 +231,7 @@ def call_gemini(prompt: str, api_key: str) -> str:
         "max_tokens": 8192,
         "temperature": 0.75,
     }).encode()
-    headers = {"Content-Type": "application/json", "Authorization": f"Bearer {api_key}"}
+    headers = {"Content-Type": "application/json", "x-goog-api-key": api_key}
     for attempt in range(1, MAX_RETRIES + 1):
         try:
             req = urllib.request.Request(GEMINI_URL, data=payload, headers=headers, method="POST")
