@@ -20,7 +20,7 @@ import os, sys, re
 from pathlib import Path
 
 SKILLS_DIR      = '/home/derek/.claude/skills'
-SESSION_CONTEXT = '/home/derek/projects/pawpicks/.session-context.md'
+SESSION_CONTEXT = '/home/derek/projects/personal/pawpicks/.session-context.md'
 OUT_PATH        = '/tmp/pawpicks-skills-context.md'
 
 # Core skills always loaded regardless of task — useful in every session
