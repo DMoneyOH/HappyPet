@@ -1,1 +1,17 @@
-[]
+[
+  {
+    "topic":         "best-dog-dental-chews",
+    "title":         "Best Dog Dental Chews for Clean Teeth and Fresh Breath",
+    "keyword":       "best dog dental chews",
+    "name":          "Greenies Original Regular Natural Dental Dog Treats",
+    "asin":          "B006W6YHHI",
+    "affiliate_url": "https://amzn.to/4c0qQn5",
+    "image":         "https://images-na.ssl-images-amazon.com/images/P/B006W6YHHI.01.LZZZZZZZ.jpg",
+    "species":       "dog",
+    "category":      "dog-health",
+    "format":        "roundup",
+    "topical_sheet": "HAPPYPET_SHEET_ID_FOOD",
+    "stars":         4.8,
+    "price":         "36.97"
+  }
+]
