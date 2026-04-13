@@ -441,6 +441,7 @@ def make_prompt(title: str, keyword: str, slug: str, fmt: str, product: dict,
             f"- For all mentions in between, link no more than 3 additional times.\n"
             f"- MAXIMUM 5 affiliate links total per article. Do not exceed this.\n"
             f"- All other mentions of {product_name} must be plain text, no link.\n"
+            f"- LINK FORMAT: Always use the product name as anchor text: [{product_name}]({affiliate_url}). NEVER display the raw URL as text or as anchor text. NEVER write [{affiliate_url}]({affiliate_url}).\n"
         )
     if fmt == "single_review":
         structure = f"""ARTICLE FORMAT: In-depth single product review of {product_name}
@@ -510,9 +511,9 @@ WRITING STYLE:
 - Write warmly but avoid stock pet-blog phrases that signal AI copy: never use "paw-some", "put our paws", "tail wagging" as metaphor, "furry family member", "fur baby", "pet parent", or "furry friend". Use "dog owner" or "cat owner" instead of "pet parent". Natural warmth through genuine voice is encouraged -- forced wordplay is not.
 - FACTS: Only state product specs you are certain of from the product listing. If unsure, hedge with: "many owners report...", "tends to...", or "according to Amazon reviews...". Never invent dimensions, materials, weight, compatibility claims, percentages, statistics, or any number you were not given. Do NOT fabricate reviewer percentages like "85% of owners said..." -- if you don't have the real number, don't include one.
 - SECTION HEADINGS: Never start a section with "In conclusion" or "In summary". Use a specific, descriptive heading instead.
-- OPENING: If it makes sense for the article topic, open with a specific relatable moment a dog or cat owner would instantly recognize. Show, don't tell.
+- OPENING: If it makes sense for the article topic, open with a specific relatable moment a dog or cat owner would instantly recognize. Show, don't tell. Be SPECIFIC -- name a real scenario, not a generic one.
   Good examples: "My dog chewed through a couch cushion on a 45-minute Zoom call." / "Our cat knocked the water bowl over three times in one week." / "I spent $40 on a toy my dog sniffed once and walked away from."
-  Bad examples: "Dogs need mental stimulation to stay happy and healthy." (generic) / "As a pet owner, you know how important it is to..." (filler)
+  Bad examples (NEVER write openings like these): "We've all been there - [generic scenario]..." (cliché opener) / "As a pet owner, you know how important it is to..." (filler) / "Dogs need mental stimulation to stay happy and healthy." (generic) / "Standing in the kitchen when suddenly..." (AI-template setup) / Any opening that starts with a vague scenario followed by a product pitch.
   If the article topic is purely practical (e.g. flea prevention, nutrition), a direct factual opening is fine -- do not force an anecdote.
 - Use "{keyword}" naturally 4-6 times. Write in first person plural ("we tested", "we found", "we noticed").{link}
 
@@ -523,7 +524,7 @@ Then article body immediately after."""
 
 def find_alternative_products(keyword: str, primary_product: str, groq_key: str, count: int = 3) -> str:
     """Find real alternative products. Primary: compound-mini (web-grounded). Fallback: 8b-instant."""
-    prompt = f"Name the top {count} popular alternatives to {primary_product} for '{keyword}'. For each, provide: brand name, product name, and one sentence describing what makes it different. Return as a simple numbered list: Brand - Product Name: Description"
+    prompt = f"Name the top {count} popular alternatives to {primary_product} for '{keyword}'. For each, provide: brand name, product name, and one sentence that includes a SPECIFIC differentiating feature (e.g. a key ingredient, a unique design element, or a specific use case it excels at). Be concrete, not vague. Return as a simple numbered list: Brand - Product Name: Description"
     
     headers = {
         "Content-Type": "application/json",
