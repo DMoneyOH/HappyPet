@@ -290,7 +290,8 @@ def call_gemini(prompt: str, api_key: str) -> str:
                 log(f"  Vertex {exc.code} attempt {attempt}/{MAX_RETRIES} -- wait {wait}s", "WARN")
                 time.sleep(wait)
             else:
-                raise RuntimeError(f"HTTP {exc.code}: {body[:200]}")
+                log(f"  Vertex HTTP {exc.code} -- falling through to Groq failover", "WARN")
+                break
         except urllib.error.URLError as exc:
             log(f"  Vertex network error attempt {attempt}: {exc.reason}", "WARN")
             time.sleep(RPM_SLEEP * 2)
