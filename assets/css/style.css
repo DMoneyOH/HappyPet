@@ -298,7 +298,6 @@ a { color: inherit; text-decoration: none; }
 
 /* ── Tablet (550–960px): stacked hero, pets still visible ── */
 @media (max-width: 960px) {
-  .mobile-pet-wrap { display: block; }
   .hero-layout {
     grid-template-columns: 1fr;
     align-items: flex-start;
@@ -322,8 +321,9 @@ a { color: inherit; text-decoration: none; }
   .footer-legal { flex-direction: column; }
 }
 
-/* ── Small mobile (<520px): hide pets, full-width content ── */
+/* ── Small mobile (<520px): hide hero graphic, show mobile pet ── */
 @media (max-width: 520px) {
+  .mobile-pet-wrap { display: block; }
   .mobile-pet-img { max-width: 280px; }
   .hero-graphic-wrap { display: none; }
   .hero { padding-bottom: 1.5rem; }
