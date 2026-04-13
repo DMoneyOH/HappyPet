@@ -295,7 +295,47 @@ def call_gemini(prompt: str, api_key: str) -> str:
             log(f"  Vertex network error attempt {attempt}: {exc.reason}", "WARN")
             time.sleep(RPM_SLEEP * 2)
     
-    raise RuntimeError(f"Failed after {MAX_RETRIES} attempts on both endpoints")
+    # Tier 3: Cross-provider failover to Groq Llama 3.3 70B
+    groq_key = os.environ.get("GROQ_API_KEY", "").strip()
+    if not groq_key:
+        raise RuntimeError("Gemini failed on both endpoints and GROQ_API_KEY not set for failover")
+    
+    log("  Gemini exhausted on both endpoints. Failing over to Groq llama-3.3-70b-versatile", "WARN")
+    payload_groq = json.dumps({
+        "model": "llama-3.3-70b-versatile",
+        "messages": [{"role": "user", "content": prompt}],
+        "max_tokens": 8192,
+        "temperature": 0.75,
+    }).encode()
+    headers_groq = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {groq_key}",
+        "User-Agent": "Mozilla/5.0 (compatible; HappyPetReviews/1.0)",
+    }
+    
+    for attempt in range(1, MAX_RETRIES + 1):
+        try:
+            req = urllib.request.Request(GROQ_URL, data=payload_groq, headers=headers_groq, method="POST")
+            with urllib.request.urlopen(req, timeout=90) as resp:
+                data = json.loads(resp.read())
+                content = data["choices"][0]["message"]["content"]
+                finish  = data["choices"][0].get("finish_reason", "?")
+                tokens  = data.get("usage", {}).get("completion_tokens", "?")
+                log(f"  API ok (Groq failover): {len(content)} chars, {tokens} tokens, finish={finish}")
+                return content
+        except urllib.error.HTTPError as exc:
+            body = exc.read().decode(errors="replace")
+            if exc.code in (429, 503, 502):
+                wait = 30 * (2 ** attempt)
+                log(f"  Groq {exc.code} attempt {attempt}/{MAX_RETRIES} -- wait {wait}s", "WARN")
+                time.sleep(wait)
+            else:
+                raise RuntimeError(f"Groq HTTP {exc.code}: {body[:200]}")
+        except urllib.error.URLError as exc:
+            log(f"  Groq network error attempt {attempt}: {exc.reason}", "WARN")
+            time.sleep(RPM_SLEEP * 2)
+    
+    raise RuntimeError(f"Failed after {MAX_RETRIES} attempts on all three providers (Gemini OpenAI, Gemini Vertex, Groq)")
 
 def make_review_prompt(title: str, keyword: str, content: str) -> str:
     # Full article up to 15K chars — 70B handles full context; 15K safety ceiling.
@@ -342,9 +382,13 @@ accuracy:
   1 = Significant factual errors or clearly invented specifications.
 
 PASS criteria (ALL must be true to pass):
-  - All four scores >= 3
+  - human_voice >= 4
+  - warmth >= 4
+  - readability >= 3
+  - accuracy >= 3
   - affiliate_link_present = true (amzn.to link present in content)
   - No more than 1 ai_cliche detected
+  - If this is a roundup article (has "Additional Picks" or "Comparison Table" or multiple product sections): alternative products MUST have specific, concrete descriptions (not vague filler like "many owners find" or "tends to work well"). Each alternative needs at least one real distinguishing detail. If alternatives are generic filler, set pass=false and flag it.
 
 Return ONLY a single valid JSON object. No preamble, no markdown fences, no trailing text.
 Begin with {{ and end with }}.
@@ -356,7 +400,7 @@ Rules:
 - rewrite_instructions must name exact sections and specific fixes if pass is false; empty string if pass is true
 - flags must list each specific problem as a plain string; empty array if none
 - em_dash_count must be the exact integer count of em dash characters (—) found in the article
-- ai_cliches_found must list any detected clichés from: delve, it's worth noting, in conclusion, look no further, game-changer, comprehensive guide, navigate, put our paws, paw-some, tail wagging, furry family member"""
+- ai_cliches_found must list any detected clichés from: delve, it's worth noting, in conclusion, look no further, game-changer, comprehensive guide, navigate, put our paws, paw-some, tail wagging, furry family member, furry friend, for good reason, we've all been there, without breaking the bank, our furry, in today's world, when it comes to, at the end of the day, we all know, as pet owners, as dog owners, as cat owners"""
 
 
 def make_rewrite_prompt(title: str, keyword: str, content: str, instructions: str) -> str:
@@ -475,33 +519,51 @@ FIRST LINE must be: PIN_DESC: [one punchy sentence, max 20 words, Pinterest stop
 Then article body immediately after."""
 
 
-def find_alternative_products(keyword: str, primary_product: str, groq_key: str, count: int = 3) -> list:
-    """Use Groq Compound to find real alternative products via web search."""
-    prompt = f"Search for the top {count} popular alternative products to {primary_product} for '{keyword}'. For each product, provide: brand name, product name, and a brief description (one sentence). Return as a simple numbered list with format: Brand - Product Name: Description"
+def find_alternative_products(keyword: str, primary_product: str, groq_key: str, count: int = 3) -> str:
+    """Find real alternative products. Primary: compound-mini (web-grounded). Fallback: 8b-instant."""
+    prompt = f"Name the top {count} popular alternatives to {primary_product} for '{keyword}'. For each, provide: brand name, product name, and one sentence describing what makes it different. Return as a simple numbered list: Brand - Product Name: Description"
     
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {groq_key}",
+        "User-Agent": "Mozilla/5.0 (compatible; HappyPetReviews/1.0)",
+    }
+    
+    # Tier 1: compound-mini (web-grounded)
     payload = json.dumps({
-        "model": "groq/compound",
+        "model": "groq/compound-mini",
         "messages": [{"role": "user", "content": prompt}],
         "max_tokens": 500,
         "temperature": 0.3,
     }).encode()
     
-    headers = {
-        "Content-Type": "application/json",
-        "Authorization": f"Bearer {groq_key}",
-        "User-Agent": "Mozilla/5.0 (compatible; HappyPetReviews/1.0)"
-    }
-    
     try:
-        req = urllib.request.Request("https://api.groq.com/openai/v1/chat/completions", 
-                                      data=payload, headers=headers, method="POST")
+        req = urllib.request.Request(GROQ_URL, data=payload, headers=headers, method="POST")
         with urllib.request.urlopen(req, timeout=60) as resp:
             data = json.loads(resp.read())
             content = data["choices"][0]["message"]["content"]
-            log(f"  Found {count} alternatives via Groq Compound web search")
+            log(f"  Found {count} alternatives via compound-mini (web-grounded)")
             return content
     except Exception as exc:
-        log(f"  Alternative search failed: {exc}", "WARN")
+        log(f"  compound-mini failed: {exc} -- trying 8b-instant fallback", "WARN")
+    
+    # Tier 2: llama-3.1-8b-instant (training knowledge)
+    payload = json.dumps({
+        "model": "llama-3.1-8b-instant",
+        "messages": [{"role": "user", "content": prompt}],
+        "max_tokens": 500,
+        "temperature": 0.3,
+    }).encode()
+    
+    try:
+        req = urllib.request.Request(GROQ_URL, data=payload, headers=headers, method="POST")
+        with urllib.request.urlopen(req, timeout=60) as resp:
+            data = json.loads(resp.read())
+            content = data["choices"][0]["message"]["content"]
+            log(f"  Found {count} alternatives via 8b-instant fallback")
+            return content
+    except Exception as exc:
+        log(f"  Alternative search failed on both models: {exc}", "WARN")
         return ""
 
 
@@ -525,21 +587,34 @@ def review_and_rewrite(title: str, keyword: str, content: str, api_key: str) -> 
                 "Authorization": f"Bearer {api_key}",
                 "User-Agent": "Mozilla/5.0 (compatible; groq-python/0.9.0)",
             }
-            # Reviewer-specific retry loop for 429
+            # Reviewer-specific retry loop for 429 with model fallback
             raw = None
-            for r_attempt in range(1, MAX_RETRIES + 1):
-                try:
-                    req = urllib.request.Request(GROQ_URL, data=payload, headers=headers, method="POST")
-                    with urllib.request.urlopen(req, timeout=60) as resp:
-                        raw = json.loads(resp.read())["choices"][0]["message"]["content"].strip()
+            review_models = [REVIEWER_MODEL, "openai/gpt-oss-120b"]
+            for model_idx, rev_model in enumerate(review_models):
+                if raw is not None:
                     break
-                except urllib.error.HTTPError as exc:
-                    if exc.code == 429:
-                        wait = 30 * (2 ** r_attempt)
-                        log_reviewer(f"  REVIEW 429 attempt {r_attempt}/{MAX_RETRIES} -- wait {wait}s", "WARN")
-                        time.sleep(wait)
-                    else:
-                        raise
+                if model_idx > 0:
+                    log_reviewer(f"  Primary reviewer failed. Falling back to {rev_model}", "WARN")
+                    payload = json.dumps({
+                        "model": rev_model,
+                        "messages": [{"role": "user", "content": make_review_prompt(title, keyword, content)}],
+                        "max_tokens": 2048,
+                        "temperature": 0.2,
+                    }).encode()
+                for r_attempt in range(1, MAX_RETRIES + 1):
+                    try:
+                        req = urllib.request.Request(GROQ_URL, data=payload, headers=headers, method="POST")
+                        with urllib.request.urlopen(req, timeout=60) as resp:
+                            raw = json.loads(resp.read())["choices"][0]["message"]["content"].strip()
+                        break
+                    except urllib.error.HTTPError as exc:
+                        if exc.code == 429:
+                            wait = 30 * (2 ** r_attempt)
+                            log_reviewer(f"  REVIEW 429 ({rev_model}) attempt {r_attempt}/{MAX_RETRIES} -- wait {wait}s", "WARN")
+                            time.sleep(wait)
+                        else:
+                            log_reviewer(f"  REVIEW HTTP {exc.code} ({rev_model}) -- trying next model", "WARN")
+                            break
             if raw is None:
                 log_reviewer("  review call failed after retries -- skipping review", "WARN")
                 return content, True, []
