@@ -45,7 +45,7 @@ VERTEX_URL       = "https://generativelanguage.googleapis.com/v1beta/models/gemi
 GROQ_URL         = "https://api.groq.com/openai/v1/chat/completions"
 REVIEWER_MODEL   = "qwen/qwen3-32b"
 REVIEWER_ENABLED = True
-MAX_REVIEW_ATTEMPTS = 2
+MAX_REVIEW_ATTEMPTS = 3
 INTER_DELAY      = 300
 RPM_SLEEP        = 8
 REVIEW_PRE_SLEEP = 2    # Groq free tier — no long sleep needed
@@ -642,15 +642,47 @@ def review_and_rewrite(title: str, keyword: str, content: str, api_key: str) -> 
             return content, True, []
         instructions = scorecard.get("rewrite_instructions", "")
         if attempt < MAX_REVIEW_ATTEMPTS and instructions:
-            log_reviewer("  REWRITING based on editor feedback...")
-            time.sleep(RPM_SLEEP)
-            try:
-                content = call_gemini(make_rewrite_prompt(title, keyword, content, instructions), api_key)
-                if content.startswith("PIN_DESC:"):
-                    _, _, content = content.partition("\n")
-            except Exception as e:
-                log_reviewer(f"  WARN: rewrite call failed: {e}")
-                return content, False, flags
+            # Attempt 1 rewrite: use original model (Gemini)
+            # Attempt 2 rewrite: use failover model (Groq Llama 70B)
+            if attempt == 1:
+                log_reviewer("  REWRITING via Gemini (original model)...")
+                time.sleep(RPM_SLEEP)
+                try:
+                    content = call_gemini(make_rewrite_prompt(title, keyword, content, instructions), api_key)
+                    if content.startswith("PIN_DESC:"):
+                        _, _, content = content.partition("\n")
+                except Exception as e:
+                    log_reviewer(f"  WARN: Gemini rewrite failed: {e}")
+                    return content, False, flags
+            else:
+                log_reviewer("  REWRITING via Groq llama-3.3-70b (failover model)...")
+                time.sleep(RPM_SLEEP)
+                groq_key_rewrite = os.environ.get("GROQ_API_KEY", "").strip()
+                if not groq_key_rewrite:
+                    log_reviewer("  WARN: GROQ_API_KEY not set, cannot failover rewrite")
+                    return content, False, flags
+                try:
+                    rewrite_payload = json.dumps({
+                        "model": "llama-3.3-70b-versatile",
+                        "messages": [{"role": "user", "content": make_rewrite_prompt(title, keyword, content, instructions)}],
+                        "max_tokens": 8192,
+                        "temperature": 0.7,
+                    }).encode()
+                    rewrite_headers = {
+                        "Content-Type": "application/json",
+                        "Authorization": f"Bearer {groq_key_rewrite}",
+                        "User-Agent": "Mozilla/5.0 (compatible; HappyPetReviews/1.0)",
+                    }
+                    req = urllib.request.Request(GROQ_URL, data=rewrite_payload, headers=rewrite_headers, method="POST")
+                    with urllib.request.urlopen(req, timeout=90) as resp:
+                        data = json.loads(resp.read())
+                        content = data["choices"][0]["message"]["content"]
+                        if content.startswith("PIN_DESC:"):
+                            _, _, content = content.partition("\n")
+                        log_reviewer(f"  Groq rewrite ok: {len(content)} chars")
+                except Exception as e:
+                    log_reviewer(f"  WARN: Groq rewrite failed: {e}")
+                    return content, False, flags
         else:
             log_reviewer(f"  REVIEW FAILED after {attempt} attempt(s) -- creating GitHub issue", "WARN")
             return content, False, flags
