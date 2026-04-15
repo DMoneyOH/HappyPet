@@ -83,7 +83,8 @@ class ContextBridge:
         return self.call("ctx_search", query=query)
 
     def file(self, path):
-        return self.call("ctx_execute_file", file_path=path)
+        """Read and index a file via ctx_execute (cat). Handles schema change from ctx_execute_file."""
+        return self.call("ctx_execute", code=f"cat '{path}'", language="shell", intent=f"read file: {path}")
 
     def stats(self):
         """Get context compression stats."""
