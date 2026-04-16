@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Happy Pet Product Reviews Generator v18 — Phase 1 Hardened Pipeline
+Happy Pet Product Reviews Generator v19 — Phase 1 Hardened Pipeline
 - TOPICS derived entirely from products.json (no hardcoded list)
 - products.json is single source of truth: slug, title, keyword, format, category, species, topical_sheet
 - Dynamic internal links: resolved at runtime from published _posts/ by category
@@ -504,6 +504,8 @@ Then article body immediately after."""
 
 def fact_check_alternatives(content: str, primary_product: str, groq_key: str) -> str:
     """Strip unverifiable stats from alternative product sections. Runs only on roundups."""
+    # Truncate to 3000 chars to stay within llama-3.1-8b-instant input limit (prevents 413)
+    content_fc = content[:3000] if len(content) > 3000 else content
     prompt = f"""You are a fact-checker for a pet product review blog. The article below has a FEATURED product ({primary_product}) with verified data, and ALTERNATIVE products with potentially fabricated statistics.
 
 TASK: Review the ALTERNATIVE product sections (not the featured product) for two types of problems:
@@ -536,7 +538,7 @@ DO NOT change any other content, structure, headings, links, or prose.
 Return the COMPLETE article with only the flagged claims replaced.
 
 ARTICLE:
-{content}"""
+{content_fc}"""
 
     payload = json.dumps({
         "model": GROQ_FACTCHECK_MODEL,
@@ -681,6 +683,14 @@ def review_and_rewrite(title: str, keyword: str, content: str, api_key: str) -> 
             f"warmth={scores.get('warmth')} readability={scores.get('readability')}")
         if flags:
             log_reviewer(f"  FLAGS: {'; '.join(flags)}")
+        # Hard override: fabrication/accuracy flags always fail regardless of pass=true
+        if passed and flags:
+            accuracy_keywords = ("fabricat", "unverif", "invent", "statistic", "percentag",
+                                  "specific number", "no source", "not verif", "made up",
+                                  "cited", "claimed", "without source")
+            if any(kw in " ".join(flags).lower() for kw in accuracy_keywords):
+                log_reviewer(f"  OVERRIDE: pass forced to FAIL -- accuracy/fabrication flags detected", "WARN")
+                passed = False
         if passed:
             return content, True, []
         instructions = scorecard.get("rewrite_instructions", "")
@@ -804,7 +814,6 @@ def main() -> None:
         load_dotenv(Path.home() / ".env")
 
     groq_key = os.environ.get("GROQ_API_KEY", "").strip()
-    groq_key   = os.environ.get("GROQ_API_KEY", "").strip()
 
     if LOCK_PATH.exists():
         old = LOCK_PATH.read_text().strip()

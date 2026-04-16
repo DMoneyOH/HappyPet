@@ -8,13 +8,14 @@ Standalone review + affiliate-link repair pass for staged articles.
 Run: python3 review_pass.py
 """
 import sys, os, re, time, json
-sys.path.insert(0, '/home/derek/Projects/HappyPet')
+sys.path.insert(0, str(__import__('pathlib').Path(__file__).parent.resolve()))
 from pathlib import Path
 from dotenv import load_dotenv
 
 load_dotenv(Path.home() / '.env')
 api_key = os.environ.get('GROQ_API_KEY', '').strip()
-assert api_key, 'GROQ_API_KEY not set -- check ~/.env'
+if not api_key:
+    sys.exit('ERROR: GROQ_API_KEY not set -- check ~/.env')
 
 import generate_posts as gp
 gp.REVIEWER_ENABLED = True
