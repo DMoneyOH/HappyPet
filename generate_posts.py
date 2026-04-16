@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Happy Pet Product Reviews Generator v19 — Phase 1 Hardened Pipeline
+Happy Pet Product Reviews Generator v20 — P2-C Shared HTTP Helper + Retry Consolidation
 - TOPICS derived entirely from products.json (no hardcoded list)
 - products.json is single source of truth: slug, title, keyword, format, category, species, topical_sheet
 - Dynamic internal links: resolved at runtime from published _posts/ by category
@@ -125,6 +125,35 @@ def log_pin(msg: str, level: str = "INFO") -> None:
     line = f"{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')} [PINGEN]    [{level}]  {msg}"
     print(line, flush=True)
     with LOG_PATH.open('a') as f: f.write(line + chr(10))
+
+
+
+# ---------------------------------------------------------------------------
+# Shared HTTP helper -- all provider calls route through here
+# ---------------------------------------------------------------------------
+def http_post(url, payload, headers, *, label, log_fn=None, timeout=60, retries=None,
+              backoff_base=60, backoff_exp=False, passthrough_codes=frozenset()):
+    if log_fn is None: log_fn = log
+    if retries is None: retries = MAX_RETRIES
+    for attempt in range(1, retries + 1):
+        try:
+            req = urllib.request.Request(url, data=payload, headers=headers, method='POST')
+            with urllib.request.urlopen(req, timeout=timeout) as resp:
+                return resp.read().decode()
+        except urllib.error.HTTPError as exc:
+            body = exc.read().decode(errors='replace')
+            if exc.code in passthrough_codes:
+                raise RuntimeError(label + ' HTTP ' + str(exc.code) + ': ' + body[:200])
+            if exc.code in (429, 502, 503):
+                wait = backoff_base * (2 ** attempt if backoff_exp else attempt)
+                log_fn('  ' + label + ' ' + str(exc.code) + ' attempt ' + str(attempt) + '/' + str(retries) + ' -- wait ' + str(wait) + 's', 'WARN')
+                time.sleep(wait)
+            else:
+                raise RuntimeError(label + ' HTTP ' + str(exc.code) + ': ' + body[:200])
+        except urllib.error.URLError as exc:
+            log_fn('  ' + label + ' network error attempt ' + str(attempt) + ': ' + str(exc.reason), 'WARN')
+            time.sleep(RPM_SLEEP * 2)
+    raise RuntimeError(label + ' exhausted after ' + str(retries) + ' attempt(s)')
 
 
 def slugify(s: str) -> str:
@@ -253,28 +282,18 @@ def call_gemini(prompt: str, api_key: str) -> str:
         "Content-Type": "application/json",
         "Authorization": f"Bearer {api_key}",
     }
-    for attempt in range(1, MAX_RETRIES + 1):
-        try:
-            req = urllib.request.Request(GEMINI_URL, data=payload, headers=headers, method="POST")
-            with urllib.request.urlopen(req, timeout=90) as resp:
-                data    = json.loads(resp.read())
-                content = data["choices"][0]["message"]["content"]
-                finish  = data["choices"][0].get("finish_reason", "?")
-                tokens  = data.get("usage", {}).get("completion_tokens", "?")
-                log(f"  API ok (Gemini 2.0 Flash): {len(content)} chars, {tokens} tokens, finish={finish}")
-                return content
-        except urllib.error.HTTPError as exc:
-            body = exc.read().decode(errors="replace")
-            if exc.code in (429, 503, 502):
-                wait = 60 * attempt
-                log(f"  Gemini {exc.code} attempt {attempt}/{MAX_RETRIES} -- wait {wait}s", "WARN")
-                time.sleep(wait)
-            else:
-                log(f"  Gemini HTTP {exc.code}: {body[:200]} -- falling through to OpenRouter", "WARN")
-                break
-        except urllib.error.URLError as exc:
-            log(f"  Gemini network error attempt {attempt}: {exc.reason}", "WARN")
-            time.sleep(RPM_SLEEP * 2)
+    try:
+        raw     = http_post(GEMINI_URL, payload, headers, label="Gemini",
+                            timeout=90, backoff_base=60,
+                            passthrough_codes=frozenset({400, 401, 403, 404}))
+        data    = json.loads(raw)
+        content = data["choices"][0]["message"]["content"]
+        finish  = data["choices"][0].get("finish_reason", "?")
+        tokens  = data.get("usage", {}).get("completion_tokens", "?")
+        log(f"  API ok (Gemini 2.0 Flash): {len(content)} chars, {tokens} tokens, finish={finish}")
+        return content
+    except RuntimeError as exc:
+        log(f"  Gemini exhausted/failed: {exc} -- falling through to OpenRouter", "WARN")
 
     # --- Tier 2: OpenRouter Llama 3.3 70B (free, separate quota pool) ---
     if not openrouter_key:
@@ -293,29 +312,14 @@ def call_gemini(prompt: str, api_key: str) -> str:
         "HTTP-Referer": "https://happypetproductreviews.com",
         "X-Title": "HappyPetReviews",
     }
-    for attempt in range(1, MAX_RETRIES + 1):
-        try:
-            req = urllib.request.Request(OPENROUTER_URL, data=or_payload, headers=or_headers, method="POST")
-            with urllib.request.urlopen(req, timeout=90) as resp:
-                data    = json.loads(resp.read())
-                content = data["choices"][0]["message"]["content"]
-                finish  = data["choices"][0].get("finish_reason", "?")
-                tokens  = data.get("usage", {}).get("completion_tokens", "?")
-                log(f"  API ok (OpenRouter fallback): {len(content)} chars, {tokens} tokens, finish={finish}")
-                return content
-        except urllib.error.HTTPError as exc:
-            body = exc.read().decode(errors="replace")
-            if exc.code in (429, 503, 502):
-                wait = 60 * attempt
-                log(f"  OpenRouter {exc.code} attempt {attempt}/{MAX_RETRIES} -- wait {wait}s", "WARN")
-                time.sleep(wait)
-            else:
-                raise RuntimeError(f"OpenRouter HTTP {exc.code}: {body[:200]}")
-        except urllib.error.URLError as exc:
-            log(f"  OpenRouter network error attempt {attempt}: {exc.reason}", "WARN")
-            time.sleep(RPM_SLEEP * 2)
-
-    raise RuntimeError("Generator exhausted: Gemini 2.0 Flash and OpenRouter both failed")
+    raw     = http_post(OPENROUTER_URL, or_payload, or_headers, label="OpenRouter",
+                        timeout=90, backoff_base=60)
+    data    = json.loads(raw)
+    content = data["choices"][0]["message"]["content"]
+    finish  = data["choices"][0].get("finish_reason", "?")
+    tokens  = data.get("usage", {}).get("completion_tokens", "?")
+    log(f"  API ok (OpenRouter fallback): {len(content)} chars, {tokens} tokens, finish={finish}")
+    return content
 
 def make_review_prompt(title: str, keyword: str, content: str) -> str:
     # Full article up to 15K chars — 70B handles full context; 15K safety ceiling.
@@ -553,15 +557,13 @@ ARTICLE:
     }
 
     try:
-        req = urllib.request.Request(GROQ_URL, data=payload, headers=headers, method="POST")
-        with urllib.request.urlopen(req, timeout=60) as resp:
-            data = json.loads(resp.read())
-            cleaned = data["choices"][0]["message"]["content"]
-            if len(cleaned) < len(content) * 0.5:
-                log("  Fact-check output too short, keeping original", "WARN")
-                return content
-            log(f"  Fact-check: stripped unverified stats from alternatives ({len(content)} -> {len(cleaned)} chars)")
-            return cleaned
+        raw     = http_post(GROQ_URL, payload, headers, label="FactCheck", timeout=60, retries=1)
+        cleaned = json.loads(raw)["choices"][0]["message"]["content"]
+        if len(cleaned) < len(content) * 0.5:
+            log("  Fact-check output too short, keeping original", "WARN")
+            return content
+        log(f"  Fact-check: stripped unverified stats from alternatives ({len(content)} -> {len(cleaned)} chars)")
+        return cleaned
     except Exception as exc:
         log(f"  Fact-check failed: {exc} -- keeping original", "WARN")
         return content
@@ -586,12 +588,10 @@ def find_alternative_products(keyword: str, primary_product: str, groq_key: str,
     }).encode()
     
     try:
-        req = urllib.request.Request(GROQ_URL, data=payload, headers=headers, method="POST")
-        with urllib.request.urlopen(req, timeout=60) as resp:
-            data = json.loads(resp.read())
-            content = data["choices"][0]["message"]["content"]
-            log(f"  Found {count} alternatives via compound-mini (web-grounded)")
-            return content
+        raw     = http_post(GROQ_URL, payload, headers, label="AltSearch-compound-mini", timeout=60, retries=1)
+        content = json.loads(raw)["choices"][0]["message"]["content"]
+        log(f"  Found {count} alternatives via compound-mini (web-grounded)")
+        return content
     except Exception as exc:
         log(f"  compound-mini failed: {exc} -- trying 8b-instant fallback", "WARN")
     
@@ -604,12 +604,10 @@ def find_alternative_products(keyword: str, primary_product: str, groq_key: str,
     }).encode()
     
     try:
-        req = urllib.request.Request(GROQ_URL, data=payload, headers=headers, method="POST")
-        with urllib.request.urlopen(req, timeout=60) as resp:
-            data = json.loads(resp.read())
-            content = data["choices"][0]["message"]["content"]
-            log(f"  Found {count} alternatives via 8b-instant fallback")
-            return content
+        raw     = http_post(GROQ_URL, payload, headers, label="AltSearch-8b-instant", timeout=60, retries=1)
+        content = json.loads(raw)["choices"][0]["message"]["content"]
+        log(f"  Found {count} alternatives via 8b-instant fallback")
+        return content
     except Exception as exc:
         log(f"  Alternative search failed on both models: {exc}", "WARN")
         return ""
@@ -649,20 +647,14 @@ def review_and_rewrite(title: str, keyword: str, content: str, api_key: str) -> 
                         "max_tokens": 2048,
                         "temperature": 0.2,
                     }).encode()
-                for r_attempt in range(1, MAX_RETRIES + 1):
-                    try:
-                        req = urllib.request.Request(GROQ_URL, data=payload, headers=headers, method="POST")
-                        with urllib.request.urlopen(req, timeout=60) as resp:
-                            raw = json.loads(resp.read())["choices"][0]["message"]["content"].strip()
-                        break
-                    except urllib.error.HTTPError as exc:
-                        if exc.code == 429:
-                            wait = 30 * (2 ** r_attempt)
-                            log_reviewer(f"  REVIEW 429 ({rev_model}) attempt {r_attempt}/{MAX_RETRIES} -- wait {wait}s", "WARN")
-                            time.sleep(wait)
-                        else:
-                            log_reviewer(f"  REVIEW HTTP {exc.code} ({rev_model}) -- trying next model", "WARN")
-                            break
+                try:
+                    raw_resp = http_post(GROQ_URL, payload, headers,
+                                        label=f"Reviewer({rev_model})",
+                                        log_fn=log_reviewer, timeout=60,
+                                        backoff_base=30, backoff_exp=True)
+                    raw = json.loads(raw_resp)["choices"][0]["message"]["content"].strip()
+                except RuntimeError:
+                    pass  # model exhausted -- outer loop tries next model
             if raw is None:
                 log_reviewer("  review call failed after retries -- skipping review", "WARN")
                 return content, True, []
@@ -726,13 +718,13 @@ def review_and_rewrite(title: str, keyword: str, content: str, api_key: str) -> 
                         "Authorization": f"Bearer {groq_key_rewrite}",
                         "User-Agent": "Mozilla/5.0 (compatible; HappyPetReviews/1.0)",
                     }
-                    req = urllib.request.Request(GROQ_URL, data=rewrite_payload, headers=rewrite_headers, method="POST")
-                    with urllib.request.urlopen(req, timeout=90) as resp:
-                        data = json.loads(resp.read())
-                        content = data["choices"][0]["message"]["content"]
-                        if content.startswith("PIN_DESC:"):
-                            _, _, content = content.partition("\n")
-                        log_reviewer(f"  Groq rewrite ok: {len(content)} chars")
+                    raw_rw  = http_post(GROQ_URL, rewrite_payload, rewrite_headers,
+                                        label="Rewriter-Groq", log_fn=log_reviewer,
+                                        timeout=90, backoff_base=30)
+                    content = json.loads(raw_rw)["choices"][0]["message"]["content"]
+                    if content.startswith("PIN_DESC:"):
+                        _, _, content = content.partition("\n")
+                    log_reviewer(f"  Groq rewrite ok: {len(content)} chars")
                 except Exception as e:
                     log_reviewer(f"  WARN: Groq rewrite failed: {e}")
                     return content, False, flags
@@ -858,7 +850,7 @@ def main() -> None:
         POSTS_DIR.mkdir(parents=True, exist_ok=True)
         today     = datetime.date.today().isoformat()
         generated = skipped = failed = held = 0
-        log(f"START v19 -- {len(topics)} topics -- generator={GEMINI_MODEL} reviewer={'ON' if REVIEWER_ENABLED else 'OFF'}")
+        log(f"START v20 -- {len(topics)} topics -- generator={GEMINI_MODEL} reviewer={'ON' if REVIEWER_ENABLED else 'OFF'}")
 
         for i, (slug, title, keyword, fmt) in enumerate(topics, 1):
             if slug in used_slugs:
