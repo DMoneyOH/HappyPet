@@ -39,10 +39,7 @@ jobs:
 
       - name: Install Python dependencies
         run: |
-          pip install --quiet \
-            gspread==6.2.1 \
-            google-auth==2.49.1 \
-            python-dotenv==1.2.2
+          pip install --quiet -r requirements.txt
 
       - name: Write GCP service account key
         run: |

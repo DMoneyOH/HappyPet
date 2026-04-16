@@ -19,7 +19,7 @@ permissions:
 jobs:
   generate:
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 25
 
     steps:
       - name: Checkout repo
@@ -40,11 +40,7 @@ jobs:
 
       - name: Install Python dependencies
         run: |
-          pip install --quiet \
-            pillow==12.1.1 \
-            gspread==6.2.1 \
-            google-auth==2.49.1 \
-            python-dotenv==1.2.2
+          pip install --quiet -r requirements.txt
 
       - name: Write GCP service account key
         run: |

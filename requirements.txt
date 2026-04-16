@@ -1,0 +1,6 @@
+# HappyPet pipeline dependencies -- pinned for reproducibility
+# Install: pip install -r requirements.txt --break-system-packages
+pillow==12.1.1
+gspread==6.2.1
+google-auth==2.49.1
+python-dotenv==1.2.2

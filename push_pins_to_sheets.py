@@ -99,8 +99,8 @@ def send_queue_alert(unpublished_count: int) -> None:
             for e in products:
                 if e.get('topic') not in published:
                     body += f"  - {e.get('topic')} ({e.get('title', '')})\n"
-    except Exception:
-        pass
+    except Exception as _e:
+        log(f'  Alert body build warning: {_e}', 'WARN')
     try:
         msg = MIMEText(body)
         msg['Subject'] = subject
@@ -150,7 +150,7 @@ def main():
 
     scopes = ['https://www.googleapis.com/auth/spreadsheets']
     creds  = Credentials.from_service_account_file(str(key_file), scopes=scopes)
-    gc     = gspread.authorize(creds)
+    gc     = gspread.Client(auth=creds)
 
     dog_id = os.environ.get('HAPPYPET_SHEET_ID_DOGS', '')
     cat_id = os.environ.get('HAPPYPET_SHEET_ID_CATS', '')

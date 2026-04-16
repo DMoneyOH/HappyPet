@@ -3,7 +3,7 @@ description: In-depth, honest pet product reviews for dog and cat owners. Find t
 baseurl: ''
 url: 'https://happypetproductreviews.com'
 author: Happy Pet Product Reviews Team
-email: ''
+email: 'hello@happypetproductreviews.com'
 show_excerpts: true
 permalink: /:categories/:title/
 plugins:

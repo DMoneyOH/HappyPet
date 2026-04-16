@@ -4,11 +4,15 @@ import urllib.request, json, os, time
 from pathlib import Path
 
 # Load env
-for line in (Path.home() / ".env").read_text().splitlines():
-    line = line.strip()
-    if line and not line.startswith("#") and "=" in line:
-        k, _, v = line.partition("=")
-        os.environ.setdefault(k.strip(), v.strip().strip('"'))
+try:
+    from dotenv import load_dotenv
+    load_dotenv(Path.home() / ".env")
+except ImportError:
+    for line in (Path.home() / ".env").read_text().splitlines():
+        line = line.strip()
+        if line and not line.startswith("#") and "=" in line:
+            k, _, v = line.partition("=")
+            os.environ.setdefault(k.strip(), v.strip().strip('"'))
 
 API_KEY = os.environ.get("GEMINI_API_KEY", "")
 URL     = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"

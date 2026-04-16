@@ -12,7 +12,7 @@ from pathlib import Path
 
 # ── Config ─────────────────────────────────────────────────────────────────
 REPO_DIR       = Path(__file__).parent.resolve()
-REVIEWER_MODEL = "llama-3.3-70b-versatile"
+REVIEWER_MODEL = "qwen/qwen3-32b"  # matches generate_posts.py REVIEWER_MODEL
 GROQ_URL       = "https://api.groq.com/openai/v1/chat/completions"
 MAX_RETRIES    = 3
 

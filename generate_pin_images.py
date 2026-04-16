@@ -254,7 +254,7 @@ def update_sheets(posts_with_pins):
         log_pin('key file missing', 'WARN'); return
     creds = Credentials.from_service_account_file(str(KEY_FILE),
         scopes=['https://www.googleapis.com/auth/spreadsheets'])
-    gc = gspread.authorize(creds)
+    gc = gspread.Client(auth=creds)
     DOG_ID = os.getenv('HAPPYPET_SHEET_ID_DOGS')
     CAT_ID = os.getenv('HAPPYPET_SHEET_ID_CATS')
     for label, sid, sp_filter in [('Dogs',DOG_ID,('dog','both')),('Cats',CAT_ID,('cat','both'))]:
