@@ -892,11 +892,18 @@ def main() -> None:
             related_url, related_anchor = find_related_published_slug(slug, category)
 
             try:
-                # For roundup, find real alternatives via Groq Compound
+                # For roundup, use Apify runner-ups from products.json if available,
+                # otherwise fall back to Groq Compound
                 alternatives_text = ""
                 if fmt == "roundup":
                     product_name = product.get("name", "")
-                    alternatives_text = find_alternative_products(keyword, product_name, groq_key, count=3)
+                    runners_up = product.get("runners_up", "")
+                    if runners_up:
+                        alternatives_text = runners_up
+                        log(f"  Alternatives: using Apify runner-ups from products.json")
+                    else:
+                        alternatives_text = find_alternative_products(keyword, product_name, groq_key, count=3)
+                        log(f"  Alternatives: Groq fallback (no runners_up in products.json)")
                 
                 prompt  = make_prompt(title, keyword, slug, fmt, product, related_url, related_anchor)
                 
