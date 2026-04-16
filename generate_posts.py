@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Happy Pet Product Reviews Generator v17 — Phase 1 Hardened Pipeline
+Happy Pet Product Reviews Generator v18 — Phase 1 Hardened Pipeline
 - TOPICS derived entirely from products.json (no hardcoded list)
 - products.json is single source of truth: slug, title, keyword, format, category, species, topical_sheet
 - Dynamic internal links: resolved at runtime from published _posts/ by category
@@ -39,17 +39,25 @@ LOG_PATH  = Path(__file__).parent / "LOGS" / f"HappyPet_{datetime.date.today().i
 LOCK_PATH = Path("/tmp/happypet_gen.lock")
 LOG_PATH.parent.mkdir(exist_ok=True)  # ensure LOGS/ exists
 
-MODEL            = "llama-3.3-70b-versatile"
-GENERATOR_URL    = "https://api.groq.com/openai/v1/chat/completions"
-VERTEX_URL       = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent"
-GROQ_URL         = "https://api.groq.com/openai/v1/chat/completions"
-REVIEWER_MODEL   = "qwen/qwen3-32b"
-REVIEWER_ENABLED = True
-MAX_REVIEW_ATTEMPTS = 3
-INTER_DELAY      = 300
-RPM_SLEEP        = 8
-REVIEW_PRE_SLEEP = 2    # Groq free tier — no long sleep needed
-MAX_RETRIES      = 2
+# --- Provider config ---
+# Generator:  Gemini 2.0 Flash (primary) -> OpenRouter Llama 70B (fallback)
+# Reviewer:   Groq qwen3-32b (isolated -- no generator traffic)
+# Rewriter:   Groq llama-3.3-70b-versatile (isolated)
+# Fact-check: Groq llama-3.1-8b-instant (high RPD, small payload)
+GEMINI_MODEL         = "gemini-2.0-flash"
+GEMINI_URL           = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
+OPENROUTER_URL       = "https://openrouter.ai/api/v1/chat/completions"
+OPENROUTER_MODEL     = "meta-llama/llama-3.3-70b-instruct:free"
+GROQ_URL             = "https://api.groq.com/openai/v1/chat/completions"
+GROQ_REWRITE_MODEL   = "llama-3.3-70b-versatile"
+GROQ_FACTCHECK_MODEL = "llama-3.1-8b-instant"
+REVIEWER_MODEL       = "qwen/qwen3-32b"
+REVIEWER_ENABLED     = True
+MAX_REVIEW_ATTEMPTS  = 3
+INTER_DELAY          = 300
+RPM_SLEEP            = 8
+REVIEW_PRE_SLEEP     = 2
+MAX_RETRIES          = 2
 GITHUB_REPO      = "DMoneyOH/pawpicks"
 GITHUB_ASSIGNEE  = "DMoneyOH"
 SITE_BASE        = "https://happypetproductreviews.com"
@@ -226,117 +234,88 @@ def validate_product(slug: str, product: dict) -> list:
 
 
 def call_gemini(prompt: str, api_key: str) -> str:
-    """Call Gemini with automatic failover between OpenAI-compatible and native endpoints."""
-    
-    # Try OpenAI-compatible endpoint first (generativelanguage.googleapis.com)
-    payload_openai = json.dumps({
-        "model": MODEL,
+    """
+    Generator call chain (isolated from reviewer/rewriter):
+      1. Gemini 2.0 Flash via AI Studio OpenAI-compatible endpoint
+      2. OpenRouter meta-llama/llama-3.3-70b-instruct:free
+    Raises RuntimeError if both exhausted.
+    """
+    openrouter_key = os.environ.get("OPENROUTER_API_KEY", "").strip()
+
+    # --- Tier 1: Gemini 2.0 Flash (AI Studio, OpenAI-compatible) ---
+    payload = json.dumps({
+        "model": GEMINI_MODEL,
         "messages": [{"role": "user", "content": prompt}],
         "max_tokens": 8192,
         "temperature": 0.75,
     }).encode()
-    headers_openai = {"Content-Type": "application/json", "Authorization": f"Bearer {api_key}"}
-    
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {api_key}",
+    }
     for attempt in range(1, MAX_RETRIES + 1):
         try:
-            req = urllib.request.Request(GENERATOR_URL, data=payload_openai, headers={**headers_openai, "User-Agent": "HappyPetReviews/1.0"}, method="POST")
+            req = urllib.request.Request(GEMINI_URL, data=payload, headers=headers, method="POST")
             with urllib.request.urlopen(req, timeout=90) as resp:
-                data = json.loads(resp.read())
+                data    = json.loads(resp.read())
                 content = data["choices"][0]["message"]["content"]
                 finish  = data["choices"][0].get("finish_reason", "?")
                 tokens  = data.get("usage", {}).get("completion_tokens", "?")
-                log(f"  API ok (OpenAI endpoint): {len(content)} chars, {tokens} tokens, finish={finish}")
-                return content
-        except urllib.error.HTTPError as exc:
-            body = exc.read().decode(errors="replace")
-            if exc.code == 503:
-                log(f"  OpenAI endpoint 503 on attempt {attempt}/{MAX_RETRIES} - trying Vertex fallback", "WARN")
-                break  # Switch to Vertex endpoint
-            elif exc.code in (429, 502):
-                wait = 30 * (2 ** attempt)
-                log(f"  {exc.code} attempt {attempt}/{MAX_RETRIES} -- wait {wait}s", "WARN")
-                time.sleep(wait)
-            else:
-                raise RuntimeError(f"HTTP {exc.code}: {body[:200]}")
-        except urllib.error.URLError as exc:
-            log(f"  Network error attempt {attempt}: {exc.reason}", "WARN")
-            time.sleep(RPM_SLEEP * 2)
-    
-    # Fallback to native Vertex endpoint if OpenAI endpoint failed with 503
-    log("  Switching to Vertex AI native endpoint", "INFO")
-    payload_vertex = json.dumps({
-        "contents": [{"parts": [{"text": prompt}]}],
-        "generationConfig": {
-            "maxOutputTokens": 8192,
-            "temperature": 0.75,
-        }
-    }).encode()
-    headers_vertex = {"Content-Type": "application/json", "x-goog-api-key": api_key}
-    
-    for attempt in range(1, MAX_RETRIES + 1):
-        try:
-            req = urllib.request.Request(VERTEX_URL, data=payload_vertex, headers=headers_vertex, method="POST")
-            with urllib.request.urlopen(req, timeout=90) as resp:
-                data = json.loads(resp.read())
-                content = data["candidates"][0]["content"]["parts"][0]["text"]
-                finish  = data["candidates"][0].get("finishReason", "?")
-                tokens  = data.get("usageMetadata", {}).get("candidatesTokenCount", "?")
-                log(f"  API ok (Vertex endpoint): {len(content)} chars, {tokens} tokens, finish={finish}")
+                log(f"  API ok (Gemini 2.0 Flash): {len(content)} chars, {tokens} tokens, finish={finish}")
                 return content
         except urllib.error.HTTPError as exc:
             body = exc.read().decode(errors="replace")
             if exc.code in (429, 503, 502):
-                wait = 30 * (2 ** attempt)
-                log(f"  Vertex {exc.code} attempt {attempt}/{MAX_RETRIES} -- wait {wait}s", "WARN")
+                wait = 60 * attempt
+                log(f"  Gemini {exc.code} attempt {attempt}/{MAX_RETRIES} -- wait {wait}s", "WARN")
                 time.sleep(wait)
             else:
-                log(f"  Vertex HTTP {exc.code} -- falling through to Groq failover", "WARN")
+                log(f"  Gemini HTTP {exc.code}: {body[:200]} -- falling through to OpenRouter", "WARN")
                 break
         except urllib.error.URLError as exc:
-            log(f"  Vertex network error attempt {attempt}: {exc.reason}", "WARN")
+            log(f"  Gemini network error attempt {attempt}: {exc.reason}", "WARN")
             time.sleep(RPM_SLEEP * 2)
-    
-    # Tier 3: Cross-provider failover to Groq Llama 3.3 70B
-    groq_key = os.environ.get("GROQ_API_KEY", "").strip()
-    if not groq_key:
-        raise RuntimeError("Gemini failed on both endpoints and GROQ_API_KEY not set for failover")
-    
-    log("  Gemini exhausted on both endpoints. Failing over to Groq llama-3.3-70b-versatile", "WARN")
-    payload_groq = json.dumps({
-        "model": "llama-3.3-70b-versatile",
+
+    # --- Tier 2: OpenRouter Llama 3.3 70B (free, separate quota pool) ---
+    if not openrouter_key:
+        raise RuntimeError("Gemini exhausted and OPENROUTER_API_KEY not set for failover")
+
+    log("  Gemini exhausted -- failing over to OpenRouter llama-3.3-70b-instruct:free", "WARN")
+    or_payload = json.dumps({
+        "model": OPENROUTER_MODEL,
         "messages": [{"role": "user", "content": prompt}],
         "max_tokens": 8192,
         "temperature": 0.75,
     }).encode()
-    headers_groq = {
+    or_headers = {
         "Content-Type": "application/json",
-        "Authorization": f"Bearer {groq_key}",
-        "User-Agent": "Mozilla/5.0 (compatible; HappyPetReviews/1.0)",
+        "Authorization": f"Bearer {openrouter_key}",
+        "HTTP-Referer": "https://happypetproductreviews.com",
+        "X-Title": "HappyPetReviews",
     }
-    
     for attempt in range(1, MAX_RETRIES + 1):
         try:
-            req = urllib.request.Request(GROQ_URL, data=payload_groq, headers=headers_groq, method="POST")
+            req = urllib.request.Request(OPENROUTER_URL, data=or_payload, headers=or_headers, method="POST")
             with urllib.request.urlopen(req, timeout=90) as resp:
-                data = json.loads(resp.read())
+                data    = json.loads(resp.read())
                 content = data["choices"][0]["message"]["content"]
                 finish  = data["choices"][0].get("finish_reason", "?")
                 tokens  = data.get("usage", {}).get("completion_tokens", "?")
-                log(f"  API ok (Groq failover): {len(content)} chars, {tokens} tokens, finish={finish}")
+                log(f"  API ok (OpenRouter fallback): {len(content)} chars, {tokens} tokens, finish={finish}")
                 return content
         except urllib.error.HTTPError as exc:
             body = exc.read().decode(errors="replace")
             if exc.code in (429, 503, 502):
-                wait = 30 * (2 ** attempt)
-                log(f"  Groq {exc.code} attempt {attempt}/{MAX_RETRIES} -- wait {wait}s", "WARN")
+                wait = 60 * attempt
+                log(f"  OpenRouter {exc.code} attempt {attempt}/{MAX_RETRIES} -- wait {wait}s", "WARN")
                 time.sleep(wait)
             else:
-                raise RuntimeError(f"Groq HTTP {exc.code}: {body[:200]}")
+                raise RuntimeError(f"OpenRouter HTTP {exc.code}: {body[:200]}")
         except urllib.error.URLError as exc:
-            log(f"  Groq network error attempt {attempt}: {exc.reason}", "WARN")
+            log(f"  OpenRouter network error attempt {attempt}: {exc.reason}", "WARN")
             time.sleep(RPM_SLEEP * 2)
-    
-    raise RuntimeError(f"Failed after {MAX_RETRIES} attempts on all three providers (Gemini OpenAI, Gemini Vertex, Groq)")
+
+    raise RuntimeError("Generator exhausted: Gemini 2.0 Flash and OpenRouter both failed")
 
 def make_review_prompt(title: str, keyword: str, content: str) -> str:
     # Full article up to 15K chars — 70B handles full context; 15K safety ceiling.
@@ -560,7 +539,7 @@ ARTICLE:
 {content}"""
 
     payload = json.dumps({
-        "model": "llama-3.1-8b-instant",
+        "model": GROQ_FACTCHECK_MODEL,
         "messages": [{"role": "user", "content": prompt}],
         "max_tokens": 8192,
         "temperature": 0.1,
@@ -727,7 +706,7 @@ def review_and_rewrite(title: str, keyword: str, content: str, api_key: str) -> 
                     return content, False, flags
                 try:
                     rewrite_payload = json.dumps({
-                        "model": "llama-3.3-70b-versatile",
+                        "model": GROQ_REWRITE_MODEL,
                         "messages": [{"role": "user", "content": make_rewrite_prompt(title, keyword, content, instructions)}],
                         "max_tokens": 8192,
                         "temperature": 0.7,
