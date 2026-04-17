@@ -3,6 +3,16 @@ name: Deploy HappyPet to GitHub Pages
 on:
   push:
     branches: [main]
+    paths:
+      # Only deploy when a dated post or site asset changes
+      # Stage 1 commits undated _posts/ drafts -- those do NOT trigger deploy
+      # Stage 2 dates the posts (YYYY-MM-DD-*.md) -- that push triggers deploy
+      - '_posts/[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]-*.md'
+      - 'assets/**'
+      - '_layouts/**'
+      - '_includes/**'
+      - '_config.yml'
+      - 'Gemfile'
   workflow_dispatch:
 
 permissions:

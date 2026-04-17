@@ -103,21 +103,21 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: python3 generate_posts.py
 
-      - name: Commit generated support files
+      - name: Commit generated files
         run: |
-          # Stage pin images, pin queue JSONs, updated products.json — NOT _posts/
-          # _posts/ is committed by Stage 2 after the publish window, triggering deploy
-          git add assets/images/pins/ _pin_queue/ products.json 2>/dev/null || true
+          # Commit _posts/ undated drafts + support files
+          # Stage 2 dates and republishes, triggering deploy
+          git add _posts/ assets/images/pins/ _pin_queue/ products.json 2>/dev/null || true
           if git diff --cached --quiet; then
-            echo "No support files changed — no commit needed"
+            echo "No files changed — no commit needed"
           else
-            git stash --include-untracked
+            git stash
             git pull --rebase origin main
             git stash pop
-            git add assets/images/pins/ _pin_queue/ products.json 2>/dev/null || true
-            git commit -m "auto: stage support files $(date '+%Y-%m-%d')"
+            git add _posts/ assets/images/pins/ _pin_queue/ products.json 2>/dev/null || true
+            git commit -m "auto: stage generated files $(date '+%Y-%m-%d')"
             git push origin main
-            echo "Committed support files"
+            echo "Committed generated files"
           fi
 
       - name: Upload logs as artifact
