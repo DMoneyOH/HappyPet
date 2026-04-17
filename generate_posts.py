@@ -269,41 +269,17 @@ def validate_product(slug: str, product: dict) -> list:
 def call_generator(prompt: str, api_key: str) -> str:
     """
     Generator call chain:
-      1. Gemini 2.5 Flash (AI Studio) -- primary, 2 retries at 60s
-      2. Groq llama-3.3-70b-versatile -- fallback, 2 retries at 60s
+      1. OpenRouter gpt-oss-120b:free -- primary, 2 retries at 60s
+      2. Groq llama-3.3-70b-versatile -- fallback (bias risk noted: different Groq model from reviewer)
     Raises RuntimeError if both exhausted.
+    NOTE: Gemini disabled pending key resolution. Re-enable as primary when sorted.
     """
     or_gen_key = os.environ.get("OPENROUTER_API_KEY", "").strip()
 
-    # --- Tier 1: Gemini 2.5 Flash (native endpoint) ---
-    # Uses x-goog-api-key header -- compatible with AQ. format AI Studio keys on free tier
-    native_url = f"{GEMINI_URL}?key={api_key}"
-    payload = json.dumps({
-        "contents": [{"parts": [{"text": prompt}]}],
-        "generationConfig": {
-            "maxOutputTokens": 8192,
-            "temperature": 0.75,
-        },
-    }).encode()
-    headers = {"Content-Type": "application/json"}
-    try:
-        raw  = http_post(native_url, payload, headers, label="Gemini-2.5-Flash",
-                         timeout=90, retries=2, backoff_base=60,
-                         passthrough_codes=frozenset({400, 401, 403, 404}))
-        data = json.loads(raw)
-        content = data["candidates"][0]["content"]["parts"][0]["text"]
-        tokens  = data.get("usageMetadata", {}).get("candidatesTokenCount", "?")
-        finish  = data["candidates"][0].get("finishReason", "?")
-        log(f"  API ok (Gemini 2.5 Flash native): {len(content)} chars, {tokens} tokens, finish={finish}")
-        return content
-    except RuntimeError as exc:
-        log(f"  Gemini failed: {exc} -- failing over to OpenRouter", "WARN")
-
-    # --- Tier 2: OpenRouter gpt-oss-120b:free ---
+    # --- Tier 1: OpenRouter gpt-oss-120b:free (primary) ---
     if not or_gen_key:
-        raise RuntimeError("Gemini exhausted and OPENROUTER_API_KEY not set for failover")
+        raise RuntimeError("OPENROUTER_API_KEY not set -- cannot generate")
 
-    log("  Failing over to OpenRouter gpt-oss-120b:free", "WARN")
     or_gen_payload = json.dumps({
         "model": OR_GEN_MODEL,
         "messages": [{"role": "user", "content": prompt}],
@@ -315,13 +291,39 @@ def call_generator(prompt: str, api_key: str) -> str:
         "Authorization": f"Bearer {or_gen_key}",
         **OR_HEADERS_EXTRA,
     }
-    raw     = http_post(OPENROUTER_URL, or_gen_payload, or_gen_headers, label="OR-Gen",
+    try:
+        raw     = http_post(OPENROUTER_URL, or_gen_payload, or_gen_headers, label="OR-Gen-Primary",
+                            timeout=90, retries=2, backoff_base=60)
+        data    = json.loads(raw)
+        content = data["choices"][0]["message"]["content"]
+        finish  = data["choices"][0].get("finish_reason", "?")
+        tokens  = data.get("usage", {}).get("completion_tokens", "?")
+        log(f"  API ok (OpenRouter gpt-oss-120b:free): {len(content)} chars, {tokens} tokens, finish={finish}")
+        return content
+    except RuntimeError as exc:
+        log(f"  OpenRouter primary failed: {exc} -- failing over to Groq", "WARN")
+
+    # --- Tier 2: Groq llama-3.3-70b-versatile (fallback) ---
+    # BIAS NOTE: reviewer is qwen3-32b (different model), rewriter is llama-4-scout.
+    # Different Groq models -- not direct self-review. Acceptable fallback risk.
+    log("  Failing over to Groq llama-3.3-70b-versatile (generation fallback)", "WARN")
+    groq_gen_payload = json.dumps({
+        "model": "llama-3.3-70b-versatile",
+        "messages": [{"role": "user", "content": prompt}],
+        "max_tokens": 8192,
+        "temperature": 0.75,
+    }).encode()
+    groq_gen_headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {api_key}",
+    }
+    raw     = http_post(GROQ_URL, groq_gen_payload, groq_gen_headers, label="Groq-Gen-Fallback",
                         timeout=90, retries=2, backoff_base=60)
     data    = json.loads(raw)
     content = data["choices"][0]["message"]["content"]
     finish  = data["choices"][0].get("finish_reason", "?")
     tokens  = data.get("usage", {}).get("completion_tokens", "?")
-    log(f"  API ok (OpenRouter gpt-oss-120b:free): {len(content)} chars, {tokens} tokens, finish={finish}")
+    log(f"  API ok (Groq llama-3.3-70b-versatile fallback): {len(content)} chars, {tokens} tokens, finish={finish}")
     return content
 
 def make_review_prompt(title: str, keyword: str, content: str) -> str:
@@ -329,6 +331,16 @@ def make_review_prompt(title: str, keyword: str, content: str) -> str:
     content_sample = content[:15000] if len(content) > 15000 else content
     return f"""You are a senior human editor for Happy Pet Product Reviews, a budget-focused pet product affiliate blog.
 Your job is to score this article honestly and flag specific problems. Do not be generous — a 3 means acceptable, not good.
+
+IMPORTANT: This article was written by an AI. Your job is to catch what AI typically gets wrong.
+Be especially skeptical of:
+- Smooth, polished prose that sounds fluent but says nothing specific
+- Generic openings that could apply to any article on this topic
+- Transitions that feel templated ("In summary...", "Overall...", "Whether you...")
+- Warmth that feels performed rather than genuine -- forced enthusiasm, hollow affirmations
+- Lists of features that read like spec sheets dressed as prose
+- Claims about product performance not grounded in a specific, verifiable detail
+Score 4 or 5 only if you would genuinely not suspect AI wrote it. When in doubt, score lower.
 
 ARTICLE TITLE: {title}
 FOCUS KEYWORD: {keyword}
@@ -401,6 +413,18 @@ ORIGINAL ARTICLE:
 ---
 {content}
 ---
+
+REWRITE RULES:
+- Fix exactly what the editor flagged. Do not rewrite sections that passed.
+- Where the editor flagged generic or AI-patterned writing, replace with something SPECIFIC.
+  A specific detail beats a fluent generality every time.
+  BAD: "Many cat owners find this litter box easy to clean."
+  GOOD: "The front-entry design means you scoop from the top instead of kneeling on the floor."
+- Where warmth is flagged, add a concrete human moment -- a scenario, a frustration, a small observation.
+  Do not add hollow affirmations ("Great news!", "You'll love..."). Real warmth is specific.
+- Where transitions feel templated, cut them or rewrite as a direct statement.
+  Never use: "Overall", "In summary", "Whether you", "At the end of the day", "Ultimately".
+- Read your output. If any sentence could have been written by a content farm, rewrite it.
 
 Return ONLY clean Markdown. No YAML. No preamble. First line must be:
 PIN_DESC: [one punchy sentence, max 20 words, Pinterest stop-scroll hook]
