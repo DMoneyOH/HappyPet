@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 """
 push_pins_to_sheets.py
-Reads staged _pin_queue/*.json files, appends rows to the correct Google Sheets,
+Reads staged _pin_queue/*.json files, appends rows to HappyPet Facebook Queue sheet,
 then moves processed files to _pin_queue/sent/.
 After each slug completes, retires it from products.json (rolling queue model).
 When unpublished products.json count drops to 3, logs warning + sends alert email.
-Run ONLY after GitHub Pages build is confirmed live (called by autopublish.sh).
+Pinterest posting is handled separately via post_pins.py -> IFTTT webhooks.
+Run ONLY after GitHub Pages build is confirmed live (called by publish.yml).
 """
 
 import argparse
@@ -18,14 +19,14 @@ from email.mime.text import MIMEText
 import datetime as _dt
 from pathlib import Path
 
-REPO_DIR          = Path(__file__).parent
-LOG_PATH          = REPO_DIR / 'LOGS' / f"HappyPet_{_dt.date.today().isoformat()}.log"
+REPO_DIR            = Path(__file__).parent
+LOG_PATH            = REPO_DIR / 'LOGS' / f"HappyPet_{_dt.date.today().isoformat()}.log"
 LOG_PATH.parent.mkdir(exist_ok=True)
 QUEUE_LOW_THRESHOLD = 3
-ALERT_FROM        = 'hello@happypetproductreviews.com'
-ALERT_TO          = 'hello@happypetproductreviews.com'
-SMTP_HOST         = 'smtp.gmail.com'
-SMTP_PORT         = 587
+ALERT_FROM          = 'hello@happypetproductreviews.com'
+ALERT_TO            = 'hello@happypetproductreviews.com'
+SMTP_HOST           = 'smtp.gmail.com'
+SMTP_PORT           = 587
 
 
 def log(msg: str, level: str = 'INFO') -> None:
@@ -45,7 +46,6 @@ def load_env():
 
 
 def retire_from_products(slug: str) -> int:
-    """Remove slug from products.json. Returns remaining entry count."""
     p = REPO_DIR / 'products.json'
     if not p.exists():
         return 0
@@ -59,7 +59,6 @@ def retire_from_products(slug: str) -> int:
 
 
 def count_unpublished() -> int:
-    """Count products.json entries whose slug is NOT yet in _posts/."""
     p = REPO_DIR / 'products.json'
     if not p.exists():
         return 0
@@ -73,7 +72,6 @@ def count_unpublished() -> int:
 
 
 def send_queue_alert(unpublished_count: int) -> None:
-    """Send email alert when unpublished queue hits threshold."""
     smtp_user  = os.environ.get('GMAIL_SMTP_USER', ALERT_FROM)
     smtp_login = os.environ.get('GMAIL_ACCOUNT', smtp_user)
     smtp_pass  = os.environ.get('GMAIL_APP_PASSWORD', '')
@@ -115,9 +113,29 @@ def send_queue_alert(unpublished_count: int) -> None:
         log(f'ALERT EMAIL failed: {e}', 'ERROR')
 
 
+def get_next_fb_sched_date(ws) -> str:
+    """Read all rows in Facebook Queue sheet, find latest SchedDate, return +1 day."""
+    try:
+        rows = ws.get_all_values()
+        # Col index 5 = SchedDate (0-indexed), skip header row
+        dates = []
+        for row in rows[1:]:
+            if len(row) > 5 and row[5].strip():
+                try:
+                    dates.append(_dt.date.fromisoformat(row[5].strip()))
+                except ValueError:
+                    pass
+        if dates:
+            return (max(dates) + _dt.timedelta(days=1)).isoformat()
+    except Exception as e:
+        log(f'  Could not determine last FB sched date: {e}', 'WARN')
+    # Fallback: tomorrow
+    return (_dt.date.today() + _dt.timedelta(days=1)).isoformat()
+
+
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--slugs', default='', help='Comma-separated slugs to process (empty = all queued)')
+    parser.add_argument('--slugs', default='', help='Comma-separated slugs to process')
     args = parser.parse_args()
     slug_filter = set(s.strip() for s in args.slugs.split(',') if s.strip())
 
@@ -133,6 +151,11 @@ def main():
     key_file = REPO_DIR / 'happypet-sheets-key.json'
     if not key_file.exists():
         log('happypet-sheets-key.json not found', 'ERROR')
+        sys.exit(1)
+
+    fb_sheet_id = os.environ.get('FACEBOOK_QUEUE_SHEET_ID', '').strip()
+    if not fb_sheet_id:
+        log('FACEBOOK_QUEUE_SHEET_ID not set -- cannot append to Facebook Queue', 'ERROR')
         sys.exit(1)
 
     queue_dir = REPO_DIR / '_pin_queue'
@@ -152,32 +175,13 @@ def main():
     creds  = Credentials.from_service_account_file(str(key_file), scopes=scopes)
     gc     = gspread.Client(auth=creds)
 
-    dog_id = os.environ.get('HAPPYPET_SHEET_ID_DOGS', '')
-    cat_id = os.environ.get('HAPPYPET_SHEET_ID_CATS', '')
-    topical_ids = {
-        k: v for k, v in os.environ.items()
-        if k.startswith('HAPPYPET_SHEET_ID_')
-        and k not in ('HAPPYPET_SHEET_ID_DOGS', 'HAPPYPET_SHEET_ID_CATS')
-    }
+    fb_sheet = gc.open_by_key(fb_sheet_id)
+    fb_ws    = fb_sheet.get_worksheet(0)
 
-    slug_topical_map = {}
-    map_path = REPO_DIR / 'slug_topical_map.json'
-    if map_path.exists():
-        slug_topical_map = json.loads(map_path.read_text())
-
-    # Load products.json as authoritative fallback for topical_sheet
-    products_map = {}
-    products_path = REPO_DIR / 'products.json'
-    if products_path.exists():
-        for entry in json.loads(products_path.read_text()):
-            if entry.get('topic') and entry.get('topical_sheet'):
-                products_map[entry['topic']] = entry['topical_sheet']
-
-    today      = _dt.datetime.now().strftime('%Y-%m-%d')
-    processed  = 0
-    failed     = 0
+    today     = _dt.date.today().isoformat()
+    processed = 0
+    failed    = 0
     alert_sent = False
-
 
     for qf in queue_files:
         try:
@@ -188,35 +192,28 @@ def main():
             data        = json.loads(qf.read_text())
             title       = data['title']
             article_url = data['article_url']
-            description = data.get('description', '')
-            image_url   = data['image_url']
+            image_url   = data.get('image_url', '')
             species     = data.get('species', 'both')
-            slug        = data.get('slug', '')
+            slug        = data.get('slug', qf.stem)
 
-            # Enforce ?v= cache-bust rule — Pinterest CDN caches bare URLs permanently
             if image_url and '?v=' not in image_url:
                 v = _dt.date.today().strftime('%Y%m%d')
                 image_url = f"{image_url}?v={v}"
-                log(f'  WARN: image_url missing ?v= -- appended ?v={v}', 'WARN')
+                log(f'  WARN: image_url missing ?v= -- appended', 'WARN')
 
-            row = [title, article_url, description, image_url, today, 'NO']
+            # Build Facebook message
+            message = (
+                f"🐾 {title} | Our top picks to help your pet thrive. "
+                f"See our #1 recommendation 👇\n{article_url}"
+            )
 
-            targets = []
-            if species in ('dog', 'both') and dog_id:
-                targets.append(('Dogs', dog_id))
-            if species in ('cat', 'both') and cat_id:
-                targets.append(('Cats', cat_id))
+            # Determine next schedule date (+1 from last row in sheet)
+            sched_date = get_next_fb_sched_date(fb_ws)
 
-            topical_key = data.get('topical_sheet') or slug_topical_map.get(slug) or products_map.get(slug)
-            if topical_key:
-                topical_id = topical_ids.get(topical_key)
-                if topical_id:
-                    targets.append((topical_key, topical_id))
-
-            for label, sheet_id in targets:
-                sh = gc.open_by_key(sheet_id)
-                sh.get_worksheet(0).append_row(row)
-                log(f'SHEET: appended to {label} -- {title}')
+            # Append to Facebook Queue: Title, URL, Message, Image, OrigDate, SchedDate, Species, Posted, PostID
+            fb_row = [title, article_url, message, image_url, today, sched_date, species, 'FALSE', '']
+            fb_ws.append_row(fb_row)
+            log(f'FB QUEUE: appended {slug} -> SchedDate={sched_date}')
 
             shutil.move(str(qf), str(sent_dir / qf.name))
             log(f'SENT: {qf.name} -> _pin_queue/sent/')
@@ -236,7 +233,7 @@ def main():
             log(f'FAIL: {qf.name} -- {e}', 'ERROR')
             failed += 1
 
-    log(f'DONE -- {processed} pinned, {failed} failed')
+    log(f'DONE -- {processed} appended to FB Queue, {failed} failed')
 
 
 if __name__ == '__main__':

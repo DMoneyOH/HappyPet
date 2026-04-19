@@ -165,12 +165,7 @@ jobs:
       - name: Push pins to Google Sheets
         if: steps.stage.outputs.nothing_to_publish == 'false' && steps.build_poll.outputs.build_ok == 'true'
         env:
-          HAPPYPET_SHEET_ID_DOGS:   ${{ secrets.HAPPYPET_SHEET_ID_DOGS }}
-          HAPPYPET_SHEET_ID_CATS:   ${{ secrets.HAPPYPET_SHEET_ID_CATS }}
-          HAPPYPET_SHEET_ID_HOME:   ${{ secrets.HAPPYPET_SHEET_ID_HOME }}
-          HAPPYPET_SHEET_ID_FOOD:   ${{ secrets.HAPPYPET_SHEET_ID_FOOD }}
-          HAPPYPET_SHEET_ID_TOYS:   ${{ secrets.HAPPYPET_SHEET_ID_TOYS }}
-          HAPPYPET_SHEET_ID_HEALTH: ${{ secrets.HAPPYPET_SHEET_ID_HEALTH }}
+          FACEBOOK_QUEUE_SHEET_ID:  ${{ secrets.FACEBOOK_QUEUE_SHEET_ID }}
           GMAIL_SMTP_USER:          ${{ secrets.GMAIL_SMTP_USER }}
           GMAIL_ACCOUNT:            ${{ secrets.GMAIL_ACCOUNT }}
           GMAIL_APP_PASSWORD:       ${{ secrets.GMAIL_APP_PASSWORD }}
