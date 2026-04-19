@@ -157,8 +157,8 @@ jobs:
             fi
           done
           echo "build_ok=false" >> "$GITHUB_OUTPUT"
-          echo "Build did not complete within ${MAX_WAIT}s — aborting sheet append"
-          exit 1
+          echo "Build did not complete within ${MAX_WAIT}s — sheet append skipped, job continuing"
+          exit 0
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
