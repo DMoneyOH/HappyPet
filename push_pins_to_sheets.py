@@ -65,12 +65,12 @@ def retire_from_products(slug: str) -> int:
                 con = _sq.connect(str(brain))
                 con.execute(
                     """INSERT INTO products_archive
-                        (topic, title, keyword, asin, affiliate_url, species, category, price, stars, retired_at, post_slug)
-                        VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
+                        (topic, title, keyword, asin, affiliate_url, species, category, price, stars, retired_at, post_slug, project_name)
+                        VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""",
                     (e.get('topic',''), e.get('title',''), e.get('keyword',''),
                      e.get('asin',''), e.get('affiliate_url',''), e.get('species',''),
                      e.get('category',''), e.get('price',''), e.get('stars'),
-                     _dt.datetime.utcnow().isoformat(), slug)
+                     _dt.datetime.utcnow().isoformat(), slug, 'pawpicks')
                 )
                 con.commit()
                 con.close()
