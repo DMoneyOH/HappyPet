@@ -198,7 +198,7 @@ def main():
             species     = data.get("species", "both")
             topical     = data.get("topical_sheet", "")
 
-            value2 = f"{title} | {pin_desc}" if pin_desc and pin_desc != title else title
+            value2 = title[:100]  # Pinterest maxLength=100; title only avoids duplication and truncation errors
 
             events = resolve_events(species, topical)
             if not events:
