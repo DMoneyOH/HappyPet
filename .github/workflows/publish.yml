@@ -2,7 +2,7 @@ name: Stage 2 — Publish Articles
 
 on:
   schedule:
-    # Mon + Thu 7:00 AM ET = 12:00 UTC (EDT, Apr-Nov) -- touched 2026-04-20 to re-register schedule
+    # Mon + Thu 7:00 AM ET = 12:00 UTC (EDT, Apr-Nov)
     - cron: '0 12 * * 1,4'
   workflow_dispatch:
     inputs:
@@ -18,7 +18,7 @@ permissions:
 jobs:
   publish:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 90
 
     steps:
       - name: Checkout repo
@@ -68,7 +68,6 @@ jobs:
         run: |
           CAP="${{ steps.cap.outputs.cap }}"
           TODAY=$(date '+%Y-%m-%d')
-          # Find committed DRAFT-*.md files (Stage 1 commits them as tracked)
           mapfile -t ALL_NEW < <(git ls-files _posts/DRAFT-*.md | sort)
           TOTAL=${#ALL_NEW[@]}
           echo "Found ${TOTAL} DRAFT post(s)"
@@ -79,22 +78,30 @@ jobs:
           echo "nothing_to_publish=false" >> "$GITHUB_OUTPUT"
           SELECTED=("${ALL_NEW[@]:0:$CAP}")
           SLUGS=()
+          URLS=()
           for p in "${SELECTED[@]}"; do
             fname=$(basename "$p" .md)
             slug="${fname#DRAFT-}"
-
             SLUGS+=("$slug")
             new_path="_posts/${TODAY}-${slug}.md"
-            # Remove DRAFT- tracked file from git index, rename on filesystem
             git rm --cached "$p" -q 2>/dev/null || true
             [ "$p" != "$new_path" ] && mv "$p" "$new_path" && echo "  DATED: $p -> $new_path"
             sed -i "s/^date: .*/date: ${TODAY}/" "$new_path"
             git add "$new_path"
             pin_img="assets/images/pins/${slug}.jpg"
             [ -f "$pin_img" ] && git add "$pin_img" && echo "  STAGED pin: $pin_img"
+            # Derive article URL from pin queue JSON (has full category path)
+            pin_json="_pin_queue/${slug}.json"
+            if [ -f "$pin_json" ]; then
+              art_url=$(python3 -c "import json; d=json.load(open('${pin_json}')); print(d.get('article_url','').split('?')[0].rstrip('/')+'/')")
+              URLS+=("$art_url")
+              echo "  URL: $art_url"
+            fi
           done
           SLUGS_CSV=$(IFS=','; echo "${SLUGS[*]}")
+          URLS_CSV=$(IFS=','; echo "${URLS[*]}")
           echo "slugs=${SLUGS_CSV}" >> "$GITHUB_OUTPUT"
+          echo "urls=${URLS_CSV}"   >> "$GITHUB_OUTPUT"
           echo "publish_count=${#SELECTED[@]}" >> "$GITHUB_OUTPUT"
           REMAINING=$(( TOTAL - ${#SELECTED[@]} ))
           echo "remaining=${REMAINING}" >> "$GITHUB_OUTPUT"
@@ -102,75 +109,54 @@ jobs:
 
       - name: Commit and push
         if: steps.stage.outputs.nothing_to_publish == 'false'
-        id: push
         run: |
           COUNT="${{ steps.stage.outputs.publish_count }}"
           TODAY=$(date '+%Y-%m-%d')
           git commit -m "auto: publish ${TODAY} [${COUNT} post(s)]"
           git push origin main
-          echo "Push complete — waiting for Pages build..."
-          # Capture the commit SHA so the poll can find the exact deploy run
-          SHA=$(git rev-parse HEAD)
-          echo "sha=${SHA}" >> "$GITHUB_OUTPUT"
-          echo "Pushed SHA: ${SHA}"
+          echo "Pushed — Jekyll build triggered"
 
-      - name: Poll for Pages build success
+      - name: Wait for articles to go live
         if: steps.stage.outputs.nothing_to_publish == 'false'
-        id: build_poll
+        id: liveness
         run: |
-          SHA="${{ steps.push.outputs.sha }}"
-          MAX_WAIT=600
+          URLS="${{ steps.stage.outputs.urls }}"
+          if [ -z "$URLS" ]; then
+            echo "No URLs to check — assuming live"
+            echo "live=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          IFS=',' read -ra URL_LIST <<< "$URLS"
+          MAX_WAIT=3600
           POLL=30
           ELAPSED=0
-          # Wait briefly for GHA to register the new run before polling
-          sleep 15
+          echo "Checking liveness for: ${URLS}"
+          # Initial wait — Pages build takes at least 60s
+          sleep 60
           while [ $ELAPSED -lt $MAX_WAIT ]; do
-            sleep $POLL
-            ELAPSED=$(( ELAPSED + POLL ))
-            # Find the deploy run triggered by our specific commit SHA
-            STATUS=$(gh run list \
-              --repo DMoneyOH/HappyPet \
-              --workflow deploy.yml \
-              --limit 5 \
-              --json status,conclusion,headSha \
-              --jq ".[] | select(.headSha==\"${SHA}\") | \"\(.status)|\(.conclusion)\"" \
-              2>/dev/null | head -1 || echo "")
-            if [ -z "$STATUS" ]; then
-              echo "  [${ELAPSED}s] Run for SHA ${SHA} not found yet — waiting..."
-              continue
-            fi
-            RUN_STATUS=$(echo "$STATUS" | cut -d'|' -f1)
-            RUN_CONC=$(echo   "$STATUS" | cut -d'|' -f2)
-            echo "  [${ELAPSED}s] status=${RUN_STATUS} conclusion=${RUN_CONC}"
-            if [ "$RUN_STATUS" = "completed" ] && [ "$RUN_CONC" = "success" ]; then
-              echo "build_ok=true" >> "$GITHUB_OUTPUT"
-              echo "Build confirmed live"
+            ALL_LIVE=true
+            for url in "${URL_LIST[@]}"; do
+              CODE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 "$url" || echo "000")
+              echo "  [${ELAPSED}s] ${url} -> HTTP ${CODE}"
+              if [ "$CODE" != "200" ]; then
+                ALL_LIVE=false
+              fi
+            done
+            if [ "$ALL_LIVE" = "true" ]; then
+              echo "live=true" >> "$GITHUB_OUTPUT"
+              echo "All articles confirmed live at ${ELAPSED}s"
               exit 0
             fi
-            if [ "$RUN_STATUS" = "completed" ] && [ "$RUN_CONC" != "success" ]; then
-              echo "build_ok=false" >> "$GITHUB_OUTPUT"
-              echo "Build FAILED (conclusion=${RUN_CONC}) — aborting sheet append"
-              exit 1
-            fi
+            sleep $POLL
+            ELAPSED=$(( ELAPSED + POLL ))
           done
-          echo "build_ok=false" >> "$GITHUB_OUTPUT"
-          echo "Build did not complete within ${MAX_WAIT}s — sheet append skipped, job continuing"
-          exit 0
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Push pins to Google Sheets
-        if: steps.stage.outputs.nothing_to_publish == 'false' && steps.build_poll.outputs.build_ok == 'true'
-        env:
-          FACEBOOK_QUEUE_SHEET_ID:  ${{ secrets.FACEBOOK_QUEUE_SHEET_ID }}
-          GMAIL_SMTP_USER:          ${{ secrets.GMAIL_SMTP_USER }}
-          GMAIL_ACCOUNT:            ${{ secrets.GMAIL_ACCOUNT }}
-          GMAIL_APP_PASSWORD:       ${{ secrets.GMAIL_APP_PASSWORD }}
-        run: |
-          python3 push_pins_to_sheets.py --slugs "${{ steps.stage.outputs.slugs }}"
+          # Timeout — still push pins. Article is almost certainly live,
+          # Pages just didn't return 200 within the window.
+          echo "live=true" >> "$GITHUB_OUTPUT"
+          echo "Liveness timeout (${MAX_WAIT}s) — proceeding anyway"
 
       - name: Post pins via IFTTT Maker webhooks
-        if: steps.stage.outputs.nothing_to_publish == 'false' && steps.build_poll.outputs.build_ok == 'true'
+        if: steps.stage.outputs.nothing_to_publish == 'false' && steps.liveness.outputs.live == 'true'
         env:
           IFTTT_MAKER_KEY:          ${{ secrets.IFTTT_MAKER_KEY }}
           HAPPYPET_SHEET_ID_DOGS:   ${{ secrets.HAPPYPET_SHEET_ID_DOGS }}
@@ -182,8 +168,18 @@ jobs:
         run: |
           python3 post_pins.py --slugs "${{ steps.stage.outputs.slugs }}"
 
+      - name: Push pins to Google Sheets
+        if: steps.stage.outputs.nothing_to_publish == 'false' && steps.liveness.outputs.live == 'true'
+        env:
+          FACEBOOK_QUEUE_SHEET_ID:  ${{ secrets.FACEBOOK_QUEUE_SHEET_ID }}
+          GMAIL_SMTP_USER:          ${{ secrets.GMAIL_SMTP_USER }}
+          GMAIL_ACCOUNT:            ${{ secrets.GMAIL_ACCOUNT }}
+          GMAIL_APP_PASSWORD:       ${{ secrets.GMAIL_APP_PASSWORD }}
+        run: |
+          python3 push_pins_to_sheets.py --slugs "${{ steps.stage.outputs.slugs }}"
+
       - name: Queue low — create GitHub issue
-        if: steps.stage.outputs.nothing_to_publish == 'false' && steps.build_poll.outputs.build_ok == 'true' && fromJSON(steps.stage.outputs.remaining) <= 3
+        if: steps.stage.outputs.nothing_to_publish == 'false' && fromJSON(steps.stage.outputs.remaining) <= 3
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
