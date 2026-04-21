@@ -235,7 +235,7 @@ a { color: inherit; text-decoration: none; }
 .post-body tr:nth-child(even) td { background: var(--bg-sand); }
 .post-body tr:hover td { background: var(--teal-lt); }
 .affiliate-notice { display: flex; gap: .85rem; align-items: flex-start; margin-top: 3rem; padding: 1.25rem 1.5rem; background: var(--teal-lt); border: 2px solid rgba(13,92,99,.2); border-radius: var(--rx-lg); font-size: .85rem; font-weight: 600; color: var(--dark-mid); line-height: 1.6; }
-.share-toolbar { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; margin-top: 2rem; padding-top: 1.5rem; border-top: 2px solid var(--border); }
+.share-toolbar { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; margin-top: 2.5rem; padding-top: 1.5rem; border-top: 2px solid var(--border); margin-bottom: 2rem; }
 .share-label { font-size: .8rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--text-mid); margin-right: .25rem; }
 .share-btn { display: inline-flex; align-items: center; gap: .4rem; padding: .45rem 1rem; border-radius: var(--rx-p); font-size: .8rem; font-weight: 700; text-decoration: none; transition: transform var(--ease), opacity var(--ease); }
 .share-btn:hover { transform: translateY(-2px); opacity: .88; }
