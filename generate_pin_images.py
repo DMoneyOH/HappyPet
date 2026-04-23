@@ -8,7 +8,7 @@ generate_pin_images.py v3
 - Pin generated BEFORE sheet append
 - Hooked into generate_posts.py via make_pin_for_post()
 """
-import os, re, urllib.request, urllib.error
+import os, re, datetime, urllib.request, urllib.error
 from pathlib import Path
 from io import BytesIO
 from dotenv import load_dotenv
