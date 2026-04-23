@@ -14,6 +14,10 @@ on:
       - '_config.yml'
       - 'Gemfile'
   workflow_dispatch:
+  workflow_run:
+    workflows: ["Stage 2 — Publish Articles"]
+    types: [completed]
+    branches: [main]
 
 permissions:
   contents: read
@@ -26,6 +30,9 @@ concurrency:
 
 jobs:
   build:
+    if: >
+      github.event_name != 'workflow_run' ||
+      github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
