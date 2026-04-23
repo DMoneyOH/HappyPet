@@ -70,7 +70,7 @@ def retire_from_products(slug: str) -> int:
                     (e.get('topic',''), e.get('title',''), e.get('keyword',''),
                      e.get('asin',''), e.get('affiliate_url',''), e.get('species',''),
                      e.get('category',''), e.get('price',''), e.get('stars'),
-                     _dt.datetime.utcnow().isoformat(), slug, 'pawpicks')
+                     _dt.datetime.now(_dt.timezone.utc).isoformat(), slug, 'HappyPet')
                 )
                 con.commit()
                 con.close()
@@ -237,10 +237,10 @@ def main():
             fb_ws.append_row(fb_row)
             log(f'FB QUEUE: appended {slug} -> SchedDate={sched_date}')
 
+            retire_from_products(slug)
+
             shutil.move(str(qf), str(sent_dir / qf.name))
             log(f'SENT: {qf.name} -> _pin_queue/sent/')
-
-            retire_from_products(slug)
 
             if not alert_sent:
                 unpub = count_unpublished()

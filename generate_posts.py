@@ -1022,7 +1022,7 @@ def main() -> None:
                 pin_queue_dir.mkdir(exist_ok=True)
                 pin_data = {
                     "title": title, "article_url": article_url, "description": pin_desc,
-                    "image_url": pin_url, "species": species, "slug": slug,
+                    "image_url": build_pin_image_url(slug), "species": species, "slug": slug,
                     "topical_sheet": topical_sheet_key,
                 }
                 (pin_queue_dir / f"{slug}.json").write_text(json.dumps(pin_data, indent=2))
