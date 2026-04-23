@@ -1,0 +1,162 @@
+name: Stage 3 — Post Pins
+
+on:
+  workflow_dispatch:
+    inputs:
+      slugs:
+        description: 'Comma-separated slugs to pin'
+        required: true
+
+permissions:
+  contents: write
+  issues: write
+
+jobs:
+  pin:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure git identity
+        run: |
+          git config user.name  "HappyPet Bot"
+          git config user.email "hello@happypetproductreviews.com"
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      - name: Install Python dependencies
+        run: |
+          pip install --quiet -r requirements.txt
+
+      - name: Write GCP service account key
+        run: |
+          echo "${{ secrets.GCP_SA_KEY_B64 }}" | base64 -d > happypet-sheets-key.json
+
+      - name: Wait for article and image liveness
+        id: liveness
+        run: |
+          SLUGS="${{ github.event.inputs.slugs }}"
+          IFS=',' read -ra SLUG_LIST <<< "$SLUGS"
+          MAX_WAIT=1800
+          POLL=30
+          ELAPSED=0
+          ALL_LIVE=false
+
+          echo "Checking liveness for slugs: ${SLUGS}"
+          sleep 30
+
+          while [ $ELAPSED -lt $MAX_WAIT ]; do
+            ALL_LIVE=true
+            for slug in "${SLUG_LIST[@]}"; do
+              slug=$(echo "$slug" | tr -d '[:space:]')
+              PIN_JSON="_pin_queue/${slug}.json"
+              if [ ! -f "$PIN_JSON" ]; then
+                # Already moved to sent/ — skip liveness, already processed
+                echo "  [${ELAPSED}s] ${slug}: JSON in sent/ — skipping"
+                continue
+              fi
+              ART_URL=$(python3 -c "import json; d=json.load(open('${PIN_JSON}')); print(d.get('article_url','').split('?')[0].rstrip('/')+'/')")
+              IMG_URL=$(python3 -c "import json; d=json.load(open('${PIN_JSON}')); u=d.get('image_url','').split('?')[0]; print(u)")
+              ART_CODE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 "$ART_URL" || echo "000")
+              IMG_CODE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 "$IMG_URL" || echo "000")
+              echo "  [${ELAPSED}s] ${slug}: article=${ART_CODE} image=${IMG_CODE}"
+              if [ "$ART_CODE" != "200" ] || [ "$IMG_CODE" != "200" ]; then
+                ALL_LIVE=false
+              fi
+            done
+            if [ "$ALL_LIVE" = "true" ]; then
+              echo "All articles and images confirmed live at ${ELAPSED}s"
+              echo "live=true" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            sleep $POLL
+            ELAPSED=$(( ELAPSED + POLL ))
+          done
+
+          echo "ERROR: Liveness timeout after ${MAX_WAIT}s — aborting pin fire"
+          echo "live=false" >> "$GITHUB_OUTPUT"
+          exit 1
+
+      - name: Post pins via IFTTT Maker webhooks
+        env:
+          IFTTT_MAKER_KEY:          ${{ secrets.IFTTT_MAKER_KEY }}
+          HAPPYPET_SHEET_ID_DOGS:   ${{ secrets.HAPPYPET_SHEET_ID_DOGS }}
+          HAPPYPET_SHEET_ID_CATS:   ${{ secrets.HAPPYPET_SHEET_ID_CATS }}
+          HAPPYPET_SHEET_ID_HOME:   ${{ secrets.HAPPYPET_SHEET_ID_HOME }}
+          HAPPYPET_SHEET_ID_FOOD:   ${{ secrets.HAPPYPET_SHEET_ID_FOOD }}
+          HAPPYPET_SHEET_ID_TOYS:   ${{ secrets.HAPPYPET_SHEET_ID_TOYS }}
+          HAPPYPET_SHEET_ID_HEALTH: ${{ secrets.HAPPYPET_SHEET_ID_HEALTH }}
+        run: |
+          python3 post_pins.py --slugs "${{ github.event.inputs.slugs }}"
+
+      - name: Push pins to Google Sheets
+        env:
+          FACEBOOK_QUEUE_SHEET_ID:  ${{ secrets.FACEBOOK_QUEUE_SHEET_ID }}
+          GMAIL_SMTP_USER:          ${{ secrets.GMAIL_SMTP_USER }}
+          GMAIL_ACCOUNT:            ${{ secrets.GMAIL_ACCOUNT }}
+          GMAIL_APP_PASSWORD:       ${{ secrets.GMAIL_APP_PASSWORD }}
+        run: |
+          python3 push_pins_to_sheets.py --slugs "${{ github.event.inputs.slugs }}"
+
+      - name: Consume pending-slugs
+        run: |
+          PENDING="_pin_queue/.pending-slugs"
+          if [ -f "$PENDING" ]; then
+            git rm "$PENDING" -q
+            git commit -m "chore: consume .pending-slugs after successful pin run"
+            git push origin main
+            echo "Consumed .pending-slugs"
+          else
+            echo ".pending-slugs already gone — nothing to consume"
+          fi
+
+      - name: Upload logs as artifact
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: pin-logs-${{ github.run_id }}
+          path: LOGS/
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Alert on failure
+        if: failure()
+        env:
+          GMAIL_SMTP_USER:    ${{ secrets.GMAIL_SMTP_USER }}
+          GMAIL_ACCOUNT:      ${{ secrets.GMAIL_ACCOUNT }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+        run: |
+          python3 -c "
+          import smtplib, os
+          from email.mime.text import MIMEText
+          slugs = '${{ github.event.inputs.slugs }}'
+          run_id = '${{ github.run_id }}'
+          smtp_user  = os.environ.get('GMAIL_SMTP_USER', '')
+          smtp_login = os.environ.get('GMAIL_ACCOUNT', '')
+          smtp_pass  = os.environ.get('GMAIL_APP_PASSWORD', '')
+          if not smtp_pass:
+              print('GMAIL_APP_PASSWORD not set -- skipping alert')
+              exit(0)
+          body = f'Stage 3 (pin.yml) failed for slugs: {slugs}\n\nRun ID: {run_id}\nCheck logs: https://github.com/DMoneyOH/HappyPet/actions/runs/{run_id}'
+          msg = MIMEText(body)
+          msg['Subject'] = f'[HappyPet] Pin workflow failed: {slugs}'
+          msg['From'] = smtp_user
+          msg['To'] = 'hello@happypetproductreviews.com'
+          try:
+              with smtplib.SMTP('smtp.gmail.com', 587) as s:
+                  s.starttls()
+                  s.login(smtp_login, smtp_pass)
+                  s.sendmail(smtp_user, ['hello@happypetproductreviews.com'], msg.as_string())
+              print('Alert email sent')
+          except Exception as e:
+              print(f'Alert email failed: {e}')
+          "
