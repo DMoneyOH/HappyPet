@@ -915,6 +915,11 @@ def main() -> None:
         used_slugs = build_used_slugs()
         log(f"Dedup: {len(used_slugs)} slugs already published")
 
+        # Filter already-published slugs BEFORE applying cap so cap slots
+        # are never wasted on topics that will be skipped anyway.
+        topics = [t for t in topics if t[0] not in used_slugs]
+        log(f"Unpublished topics available: {len(topics)}")
+
         max_articles = int(os.environ.get("MAX_ARTICLES", "999"))
         topics = topics[:max_articles]
         log(f"Cap: {max_articles} -- {len(topics)} topic(s) queued this run")
