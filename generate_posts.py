@@ -679,28 +679,40 @@ def review_and_rewrite(title: str, keyword: str, content: str, api_key: str) -> 
                 "Authorization": f"Bearer {api_key}",
                 "User-Agent": "Mozilla/5.0 (compatible; groq-python/0.9.0)",
             }
-            # Reviewer-specific retry loop for 429 with model fallback
+            # Reviewer-specific retry loop: Groq primary, OpenRouter fallback
             raw = None
-            review_models = [REVIEWER_MODEL, REVIEWER_FALLBACK]
-            for model_idx, rev_model in enumerate(review_models):
+            groq_key_rev = os.environ.get("GROQ_API_KEY", "").strip()
+            or_key_rev   = os.environ.get("OPENROUTER_API_KEY", "").strip()
+            review_tiers = [
+                (REVIEWER_MODEL,   GROQ_URL,         groq_key_rev),
+                (REVIEWER_FALLBACK, OPENROUTER_URL,  or_key_rev),
+            ]
+            for model_idx, (rev_model, rev_url, rev_key) in enumerate(review_tiers):
                 if raw is not None:
                     break
+                if not rev_key:
+                    log_reviewer(f"  SKIP reviewer tier {model_idx+1} ({rev_model}) -- API key not set", "WARN")
+                    continue
                 if model_idx > 0:
-                    log_reviewer(f"  Primary reviewer failed. Falling back to {rev_model}", "WARN")
-                    payload = json.dumps({
-                        "model": rev_model,
-                        "messages": [{"role": "user", "content": make_review_prompt(title, keyword, content)}],
-                        "max_tokens": 2048,
-                        "temperature": 0.2,
-                    }).encode()
+                    log_reviewer(f"  Primary reviewer failed. Falling back to {rev_model} via OpenRouter", "WARN")
+                rev_payload = json.dumps({
+                    "model": rev_model,
+                    "messages": [{"role": "user", "content": make_review_prompt(title, keyword, content)}],
+                    "max_tokens": 2048,
+                    "temperature": 0.2,
+                }).encode()
+                rev_headers = {
+                    "Content-Type": "application/json",
+                    "Authorization": f"Bearer {rev_key}",
+                }
                 try:
-                    raw_resp = http_post(GROQ_URL, payload, headers,
+                    raw_resp = http_post(rev_url, rev_payload, rev_headers,
                                         label=f"Reviewer({rev_model})",
                                         log_fn=log_reviewer, timeout=60,
                                         backoff_base=30, backoff_exp=True)
                     raw = json.loads(raw_resp)["choices"][0]["message"]["content"].strip()
                 except RuntimeError:
-                    pass  # model exhausted -- outer loop tries next model
+                    pass  # tier exhausted -- try next
             if raw is None:
                 log_reviewer("  review call failed after retries -- skipping review", "WARN")
                 return content, True, []
