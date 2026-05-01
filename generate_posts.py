@@ -34,6 +34,8 @@ except ImportError:
     PIN_GEN_AVAILABLE = False
 
 REPO_DIR  = Path(__file__).parent.resolve()
+import sys as _sys; _sys.path.insert(0, str(REPO_DIR))
+from brain_secrets import get_sheets_creds, get_secret as brain_get_secret
 POSTS_DIR = REPO_DIR / "_posts"
 LOG_PATH  = Path(__file__).parent / "LOGS" / f"HappyPet_{datetime.date.today().isoformat()}.log"
 LOCK_PATH = Path("/tmp/happypet_gen.lock")
@@ -850,16 +852,10 @@ def front_matter(title: str, keyword: str, affiliate_url: str, slug: str,
 def append_to_sheet(title, article_url, description, image_url, species, slug, topical_sheet_key):
     if not GSHEETS_AVAILABLE:
         log("  WARN: gspread not installed, skipping sheet update"); return
-    key_file = REPO_DIR / "happypet-sheets-key.json"
-    if not key_file.exists():
-        log("  WARN: happypet-sheets-key.json not found, skipping sheet update"); return
     try:
-        if DOTENV_AVAILABLE:
-            load_dotenv(Path.home() / ".env")
-        dog_id = os.getenv("HAPPYPET_SHEET_ID_DOGS")
-        cat_id = os.getenv("HAPPYPET_SHEET_ID_CATS")
-        scopes = ["https://www.googleapis.com/auth/spreadsheets"]
-        creds  = GCredentials.from_service_account_file(str(key_file), scopes=scopes)
+        creds  = get_sheets_creds()
+        dog_id = brain_get_secret("HAPPYPET_SHEET_ID_DOGS") or os.getenv("HAPPYPET_SHEET_ID_DOGS")
+        cat_id = brain_get_secret("HAPPYPET_SHEET_ID_CATS") or os.getenv("HAPPYPET_SHEET_ID_CATS")
         gc     = gspread.authorize(creds)
         pin_image_url = build_pin_image_url(slug)
         row    = [title, article_url, pin_image_url, description, "NO"]
