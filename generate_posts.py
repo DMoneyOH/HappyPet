@@ -661,7 +661,7 @@ def find_alternative_products(keyword: str, primary_product: str, groq_key: str,
         return ""
 
 
-def review_and_rewrite(title: str, keyword: str, content: str, api_key: str) -> tuple:
+def review_and_rewrite(title: str, keyword: str, content: str, api_key: str, or_key: str = "") -> tuple:
     """Returns (final_content, passed, flags)"""
     if not REVIEWER_ENABLED:
         return content, True, []
@@ -676,18 +676,20 @@ def review_and_rewrite(title: str, keyword: str, content: str, api_key: str) -> 
                 "max_tokens": 2048,
                 "temperature": 0.2,
             }).encode()
+            _or_key = or_key or os.environ.get("OPENROUTER_API_KEY", "").strip()
             headers = {
                 "Content-Type": "application/json",
-                "Authorization": f"Bearer {api_key}",
-                "User-Agent": "Mozilla/5.0 (compatible; groq-python/0.9.0)",
+                "Authorization": f"Bearer {_or_key}",
+                "HTTP-Referer": "https://happypetproductreviews.com",
+                "X-Title": "HappyPet Reviewer",
             }
             # Reviewer-specific retry loop: Groq primary, OpenRouter fallback
             raw = None
             groq_key_rev = os.environ.get("GROQ_API_KEY", "").strip()
             or_key_rev   = os.environ.get("OPENROUTER_API_KEY", "").strip()
             review_tiers = [
-                (REVIEWER_MODEL,   GROQ_URL,         groq_key_rev),
-                (REVIEWER_FALLBACK, OPENROUTER_URL,  or_key_rev),
+                (REVIEWER_MODEL,   OPENROUTER_URL,  or_key_rev),
+                (REVIEWER_FALLBACK, OPENROUTER_URL, or_key_rev),
             ]
             for model_idx, (rev_model, rev_url, rev_key) in enumerate(review_tiers):
                 if raw is not None:
@@ -716,19 +718,19 @@ def review_and_rewrite(title: str, keyword: str, content: str, api_key: str) -> 
                 except RuntimeError:
                     pass  # tier exhausted -- try next
             if raw is None:
-                log_reviewer("  review call failed after retries -- skipping review", "WARN")
-                return content, True, []
+                log_reviewer("  review call failed after retries -- article held as UNREVIEWED", "WARN")
+                return content, False, ["REVIEWER_UNAVAILABLE"]
             raw = re.sub(r"```json|```", "", raw).strip()
             raw = re.sub(r"<think>.*?</think>", "", raw, flags=re.DOTALL).strip()
             m = re.search(r"\{.*\}", raw, re.DOTALL)
             raw = m.group(0) if m else raw
             scorecard = json.loads(raw)
         except json.JSONDecodeError as e:
-            log_reviewer(f"  review JSON parse failed: {e} -- skipping review", "WARN")
-            return content, True, []
+            log_reviewer(f"  review JSON parse failed: {e} -- article held as UNREVIEWED", "WARN")
+            return content, False, ["REVIEWER_JSON_ERROR"]
         except Exception as e:
-            log_reviewer(f"  review call failed: {e} -- skipping review", "WARN")
-            return content, True, []
+            log_reviewer(f"  review call failed: {e} -- article held as UNREVIEWED", "WARN")
+            return content, False, ["REVIEWER_UNAVAILABLE"]
         passed = scorecard.get("pass", False)
         flags  = scorecard.get("flags", [])
         scores = scorecard.get("scores", {})
@@ -1008,7 +1010,8 @@ def main() -> None:
                     log(f"  [timing] fact-check: {time.monotonic()-_t0:.1f}s")
 
                 time.sleep(RPM_SLEEP)
-                content, review_passed, review_flags = review_and_rewrite(title, keyword, content, groq_key)
+                or_key_reviewer = os.environ.get("OPENROUTER_API_KEY", "").strip()
+                content, review_passed, review_flags = review_and_rewrite(title, keyword, content, groq_key, or_key=or_key_reviewer)
                 log(f"  [timing] review: {time.monotonic()-_t0:.1f}s")
                 if not review_passed:
                     create_github_issue(title, slug, review_flags)
