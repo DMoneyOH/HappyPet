@@ -884,7 +884,8 @@ def create_github_issue(title: str, slug: str, flags: list) -> None:
 
 
 def front_matter(title: str, keyword: str, affiliate_url: str, slug: str,
-                 species: str, category: str, description: str, image: str = "", pin_image: str = "") -> str:
+                 species: str, category: str, description: str, image: str = "",
+                 pin_image: str = "", chewy_url: str = "") -> str:
     today = datetime.date.today().isoformat()
     fm = (
         f'---\nlayout: post\ntitle: "{title}"\ndate: {today}\n'
