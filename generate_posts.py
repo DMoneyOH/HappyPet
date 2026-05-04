@@ -61,8 +61,8 @@ GEMINI_URL           = "https://generativelanguage.googleapis.com/v1beta/models/
 GROQ_URL             = "https://api.groq.com/openai/v1/chat/completions"
 OPENROUTER_URL       = "https://openrouter.ai/api/v1/chat/completions"
 OR_GEN_MODEL         = "openai/gpt-oss-120b:free"
-REVIEWER_MODEL       = "qwen/qwen3-32b"
-REVIEWER_FALLBACK    = "openai/gpt-oss-120b:free"
+REVIEWER_MODEL       = "nvidia/nemotron-3-super-120b-a12b:free"
+REVIEWER_FALLBACK    = "qwen/qwen3-32b"
 REVIEWER_ENABLED     = True
 GROQ_REWRITE_MODEL   = "meta-llama/llama-4-scout-17b-16e-instruct"
 REWRITE_FALLBACK     = "openai/gpt-oss-120b:free"
@@ -697,9 +697,15 @@ def review_and_rewrite(title: str, keyword: str, content: str, api_key: str, or_
             raw = None
             groq_key_rev = os.environ.get("GROQ_API_KEY", "").strip()
             or_key_rev   = os.environ.get("OPENROUTER_API_KEY", "").strip()
+            # Reviewer tiers — ordered by quality/uptime, bias-excluded:
+            # Generator primary = gpt-oss-120b (OR), fallback = llama-3.3-70b-versatile (Groq).
+            # Neither appears in tiers 1-3 to avoid same-model self-review bias.
+            # Groq tier 4 draws from a separate rate-limit pool independent of OR daily cap.
             review_tiers = [
-                (REVIEWER_MODEL,   OPENROUTER_URL,  or_key_rev),
-                (REVIEWER_FALLBACK, OPENROUTER_URL, or_key_rev),
+                ("nvidia/nemotron-3-super-120b-a12b:free", OPENROUTER_URL, or_key_rev),   # T1: 120B MoE, no pipeline overlap
+                ("qwen/qwen3-32b",                         OPENROUTER_URL, or_key_rev),   # T2: diff family, was prior primary
+                ("google/gemma-3-27b-it:free",             OPENROUTER_URL, or_key_rev),   # T3: Google, no overlap
+                ("llama-3.3-70b-versatile",                GROQ_URL,       groq_key_rev), # T4: last resort, same as gen fallback
             ]
             for model_idx, (rev_model, rev_url, rev_key) in enumerate(review_tiers):
                 if raw is not None:
