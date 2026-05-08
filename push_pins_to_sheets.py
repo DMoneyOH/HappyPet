@@ -215,7 +215,7 @@ def main():
     queue_dir.mkdir(exist_ok=True)
     sent_dir.mkdir(exist_ok=True)
 
-    queue_files = sorted(queue_dir.glob('*.json'))
+    queue_files = sorted(queue_dir.glob('*.json')) + sorted(sent_dir.glob('*.json'))
     if slug_filter:
         queue_files = [f for f in queue_files if f.stem in slug_filter]
         log(f'Slug filter active -- processing {len(queue_files)} file(s): {slug_filter}')
@@ -223,8 +223,12 @@ def main():
         log('No queued pins found -- nothing to do')
         return
 
-    creds  = get_sheets_creds()
-    gc     = gspread.Client(auth=creds)
+    try:
+        creds = get_sheets_creds()
+        gc    = gspread.Client(auth=creds)
+    except Exception as creds_exc:
+        log(f"Sheets creds failed: {creds_exc} -- cannot append to FB Queue", "ERROR")
+        sys.exit(1)
 
     fb_sheet = gc.open_by_key(fb_sheet_id)
     fb_ws    = fb_sheet.get_worksheet(0)

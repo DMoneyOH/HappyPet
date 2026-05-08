@@ -543,28 +543,31 @@ STRUCTURE:
   Opening (100+ words, NO heading — begin prose directly)
   Quick Picks (H2)
 
-  Featured Pick: {product_name} (H3, 80-100 words)
+  Featured Pick: {product_name} (H3, 150-200 words)
     - Reference the verified star rating and review count naturally in prose if available
     - Pros bullet list: 3-4 genuine strengths
     - Cons bullet list: 1-2 honest limitations
     - Include affiliate link per LINKING RULE above
     - Do not fabricate specs; hedge unverified claims ("many owners report..." / "tends to...")
+    - NO invented personal stories, named dogs, specific dates, or fabricated test metrics
 
   Additional Picks: Use ONLY these real products from web search (H3 each, 60-75 words)
     {{ALTERNATIVE_PRODUCTS}}
     - Write each as a single prose paragraph — NO bullet lists
-    - Naturally include 1-2 genuine strengths AND 1-2 honest limitations  
+    - Naturally include 1-2 genuine strengths AND 1-2 honest limitations
     - DO NOT include star ratings, prices, specific specs, or fabricated statistics/percentages you cannot verify -- omit numbers entirely
     - Hedge unverified claims: "tends to...", "most owners find...", "works well for..."
     - DO NOT fabricate review data like "88% of owners reported..." -- if you don't have the number, don't include one
     - Use ONLY the products listed above — do not add or invent others
-
-  Comparison Table (H2): Product | Best For | Price Range | Chew Time
-    - Price Range: use $, $$, $$$ only — do not invent specific dollar amounts for additional picks
-    - Chew Time: Quick (under 5 min) / Moderate (5-15 min) / Long (15+ min) -- estimate based on chew density and product type. For non-consumable products, use a relevant attribute instead of Chew Time.
-    - Do NOT include a ratings column — only use verified ratings from product data above
+    - NO links for additional picks unless a URL is explicitly provided in the prompt
 
   Buying Guide (H2, 150+ words)
+
+  Comparison Table (H2): Product | Best For | Price Range | Key Attribute
+    - Price Range: use $, $$, $$$ only — do not invent specific dollar amounts for additional picks
+    - Key Attribute: choose the most relevant column header for this product category (e.g. Form, CFU Count, Flavor, Size). Never use "Chew Time" for non-consumable products.
+    - Do NOT include a ratings column — only use verified ratings from product data above
+
   Closing (80+ words with affiliate link per LINKING RULE above, NO heading — begin prose directly)"""
     else:
         structure = f"""ARTICLE FORMAT: Buying guide -- {title}
@@ -1080,7 +1083,11 @@ def main() -> None:
                                      product.get("image", ""),
                                      build_pin_image_url(slug),
                                      chewy_url=product.get("chewy_url") or "")
-                fpath.write_text(fm + "\n" + content, encoding="utf-8")
+                # Strip leading horizontal rules model sometimes prepends
+                content_clean = content.lstrip()
+                while content_clean.startswith("---"):
+                    content_clean = content_clean[3:].lstrip()
+                fpath.write_text(fm + "\n" + content_clean, encoding="utf-8")
                 log(f"  SAVED {fname} ({fpath.stat().st_size} bytes) -- total: {time.monotonic()-_t0:.1f}s")
 
                 article_url = build_url(slug, utm=True)

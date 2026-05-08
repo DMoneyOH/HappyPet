@@ -252,6 +252,11 @@ def main():
             if pin_ok:
                 if gc:
                     mark_pinned_in_sheet(slug, gc, sheet_ids)
+                try:
+                    shutil.move(str(qf), str(sent_dir / qf.name))
+                    log(f"  SENT: {qf.name} -> _pin_queue/sent/")
+                except Exception as mv_exc:
+                    log(f"  WARN: could not move {qf.name} to sent/: {mv_exc}", "WARN")
                 processed += 1
             else:
                 log(f"  PARTIAL/full failure for {slug}", "WARN")
