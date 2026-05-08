@@ -164,8 +164,10 @@ jobs:
         if: steps.slugs.outputs.slugs != ''
         run: |
           PENDING="_pin_queue/.pending-slugs"
-          # Pull before staging -- git pull --rebase fails on dirty index
+          # Stash working tree changes before pull to avoid dirty-index rebase failure
+          git stash --include-untracked -q || true
           git pull --rebase origin main
+          git stash pop -q || true
           # Stage everything push_pins_to_sheets.py modified in the working tree:
           # products.json (retirement), _pin_queue/sent/ (moved files), LOGS/
           git add products.json _pin_queue/ LOGS/ 2>/dev/null || true
