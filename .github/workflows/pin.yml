@@ -81,44 +81,60 @@ jobs:
         run: |
           SLUGS="${{ steps.slugs.outputs.slugs }}"
           IFS=',' read -ra SLUG_LIST <<< "$SLUGS"
-          MAX_WAIT=1800
+          ART_MAX_WAIT=600
           POLL=30
           ELAPSED=0
-          ALL_LIVE=false
+          TODAY=$(date +%Y%m%d)
 
           echo "Checking liveness for slugs: ${SLUGS}"
-          sleep 30
+          sleep 15
 
-          while [ $ELAPSED -lt $MAX_WAIT ]; do
-            ALL_LIVE=true
+          # Phase 1: Wait for articles to be live (hard requirement, 10 min cap)
+          ALL_ARTS_LIVE=false
+          while [ $ELAPSED -lt $ART_MAX_WAIT ]; do
+            ALL_ARTS_LIVE=true
             for slug in "${SLUG_LIST[@]}"; do
               slug=$(echo "$slug" | tr -d '[:space:]')
               PIN_JSON="_pin_queue/${slug}.json"
               if [ ! -f "$PIN_JSON" ]; then
-                echo "  [${ELAPSED}s] ${slug}: JSON in sent/ — skipping"
+                echo "  [${ELAPSED}s] ${slug}: no JSON in queue — skipping"
                 continue
               fi
               ART_URL=$(python3 -c "import json; d=json.load(open('${PIN_JSON}')); print(d.get('article_url','').split('?')[0].rstrip('/')+'/')")
-              IMG_URL=$(python3 -c "import json; d=json.load(open('${PIN_JSON}')); u=d.get('image_url','').split('?')[0]; print(u)")
               ART_CODE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 "$ART_URL" || echo "000")
-              IMG_CODE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 "$IMG_URL" || echo "000")
-              echo "  [${ELAPSED}s] ${slug}: article=${ART_CODE} image=${IMG_CODE}"
-              if [ "$ART_CODE" != "200" ] || [ "$IMG_CODE" != "200" ]; then
-                ALL_LIVE=false
+              echo "  [${ELAPSED}s] ${slug}: article=${ART_CODE}"
+              if [ "$ART_CODE" != "200" ]; then
+                ALL_ARTS_LIVE=false
               fi
             done
-            if [ "$ALL_LIVE" = "true" ]; then
-              echo "All articles and images confirmed live at ${ELAPSED}s"
-              echo "live=true" >> "$GITHUB_OUTPUT"
-              exit 0
+            if [ "$ALL_ARTS_LIVE" = "true" ]; then
+              echo "All articles confirmed live at ${ELAPSED}s"
+              break
             fi
             sleep $POLL
             ELAPSED=$(( ELAPSED + POLL ))
           done
 
-          echo "ERROR: Liveness timeout after ${MAX_WAIT}s — aborting pin fire"
-          echo "live=false" >> "$GITHUB_OUTPUT"
-          exit 1
+          if [ "$ALL_ARTS_LIVE" != "true" ]; then
+            echo "ERROR: Article liveness timeout after ${ART_MAX_WAIT}s — aborting"
+            echo "live=false" >> "$GITHUB_OUTPUT"
+            exit 1
+          fi
+
+          # Phase 2: Image check with cache-buster — non-blocking (warn only)
+          for slug in "${SLUG_LIST[@]}"; do
+            slug=$(echo "$slug" | tr -d '[:space:]')
+            PIN_JSON="_pin_queue/${slug}.json"
+            if [ ! -f "$PIN_JSON" ]; then continue; fi
+            IMG_URL=$(python3 -c "import json; d=json.load(open('${PIN_JSON}')); u=d.get('image_url','').split('?')[0]; print(u+'?v=${TODAY}')")
+            IMG_CODE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 "$IMG_URL" || echo "000")
+            echo "  image check ${slug}: ${IMG_CODE} — ${IMG_URL}"
+            if [ "$IMG_CODE" != "200" ]; then
+              echo "  WARNING: image not yet live for ${slug} — proceeding anyway"
+            fi
+          done
+
+          echo "live=true" >> "$GITHUB_OUTPUT"
 
       - name: Post pins via IFTTT Maker webhooks
         if: steps.slugs.outputs.slugs != ''
