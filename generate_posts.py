@@ -55,8 +55,8 @@ GEMINI_URL           = "https://generativelanguage.googleapis.com/v1beta/models/
 GROQ_URL             = "https://api.groq.com/openai/v1/chat/completions"
 OPENROUTER_URL       = "https://openrouter.ai/api/v1/chat/completions"
 OR_GEN_MODEL         = "openai/gpt-oss-120b:free"
-REVIEWER_MODEL       = "nvidia/nemotron-3-super-120b-a12b:free"
-REVIEWER_FALLBACK    = "qwen/qwen3-32b"
+REVIEWER_MODEL       = "qwen/qwen3-32b"
+REVIEWER_FALLBACK    = "nvidia/nemotron-3-super-120b-a12b:free"
 REVIEWER_ENABLED     = True
 GROQ_REWRITE_MODEL   = "meta-llama/llama-4-scout-17b-16e-instruct"
 REWRITE_FALLBACK     = "openai/gpt-oss-120b:free"
@@ -768,8 +768,10 @@ def review_and_rewrite(title: str, keyword: str, content: str, api_key: str, or_
                                         log_fn=log_reviewer, timeout=60,
                                         backoff_base=30, backoff_exp=True)
                     raw = json.loads(raw_resp)["choices"][0]["message"]["content"].strip()
-                except RuntimeError:
-                    pass  # model exhausted -- outer loop tries next model
+                    if not raw:
+                        raise ValueError(f"empty content from {rev_model}")
+                except Exception:
+                    pass  # model failed or returned bad/empty body -- try next model
             if raw is None:
                 log_reviewer("  review call failed after retries -- article held as UNREVIEWED", "WARN")
                 return content, False, ["REVIEWER_UNAVAILABLE"]
