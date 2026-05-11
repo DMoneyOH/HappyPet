@@ -5,14 +5,15 @@ on:
 jobs:
   audit:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-python@v6
         with:
           python-version: '3.12'
-      - name: Run model audit
+      - name: Run model quality audit
         env:
           GROQ_API_KEY:        ${{ secrets.GROQ_API_KEY }}
           OPENROUTER_API_KEY:  ${{ secrets.OPENROUTER_API_KEY }}
-        run: python3 model_audit.py
+          GEMINI_API_KEY:      ${{ secrets.GEMINI_API_KEY }}
+        run: python3 quality_test.py
