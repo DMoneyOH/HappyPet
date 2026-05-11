@@ -55,8 +55,8 @@ GEMINI_URL           = "https://generativelanguage.googleapis.com/v1beta/models/
 GROQ_URL             = "https://api.groq.com/openai/v1/chat/completions"
 OPENROUTER_URL       = "https://openrouter.ai/api/v1/chat/completions"
 OR_GEN_MODEL         = "openai/gpt-oss-120b:free"
-REVIEWER_MODEL       = "qwen/qwen3-32b"
-REVIEWER_FALLBACK    = "nvidia/nemotron-3-super-120b-a12b:free"
+REVIEWER_MODEL       = "llama-3.3-70b-versatile"
+REVIEWER_FALLBACK    = "openai/gpt-oss-120b:free"
 REVIEWER_ENABLED     = True
 GROQ_REWRITE_MODEL   = "meta-llama/llama-4-scout-17b-16e-instruct"
 REWRITE_FALLBACK     = "openai/gpt-oss-120b:free"
@@ -735,19 +735,8 @@ def review_and_rewrite(title: str, keyword: str, content: str, api_key: str, or_
         log_reviewer(f"  REVIEW pre-sleep {REVIEW_PRE_SLEEP}s...")
         time.sleep(REVIEW_PRE_SLEEP)
         try:
-            payload = json.dumps({
-                "model": REVIEWER_MODEL,
-                "messages": [{"role": "user", "content": make_review_prompt(title, keyword, content)}],
-                "max_tokens": 2048,
-                "temperature": 0.2,
-            }).encode()
-            _or_key = or_key or os.environ.get("OPENROUTER_API_KEY", "").strip()
-            headers = {
-                "Content-Type": "application/json",
-                "Authorization": f"Bearer {_or_key}",
-                "HTTP-Referer": "https://happypetproductreviews.com",
-                "X-Title": "HappyPet Reviewer",
-            }
+            _or_key   = or_key or os.environ.get("OPENROUTER_API_KEY", "").strip()
+            _groq_key = os.environ.get("GROQ_API_KEY", "").strip()
             # Reviewer-specific retry loop for 429 with model fallback
             raw = None
             review_models = [REVIEWER_MODEL, REVIEWER_FALLBACK]
@@ -756,14 +745,21 @@ def review_and_rewrite(title: str, keyword: str, content: str, api_key: str, or_
                     break
                 if model_idx > 0:
                     log_reviewer(f"  Primary reviewer failed. Falling back to {rev_model}", "WARN")
-                    payload = json.dumps({
-                        "model": rev_model,
-                        "messages": [{"role": "user", "content": make_review_prompt(title, keyword, content)}],
-                        "max_tokens": 2048,
-                        "temperature": 0.2,
-                    }).encode()
+                # Route by provider: Groq models use Groq URL/key, else OpenRouter
+                _is_groq = rev_model in ("llama-3.3-70b-versatile", "llama-3.1-8b-instant", "llama-4-scout-17b-16e-instruct", "meta-llama/llama-4-scout-17b-16e-instruct")
+                rev_url  = GROQ_URL if _is_groq else OPENROUTER_URL
+                rev_key  = _groq_key if _is_groq else _or_key
+                rev_headers = {"Content-Type": "application/json", "Authorization": f"Bearer {rev_key}"}
+                if not _is_groq:
+                    rev_headers.update({"HTTP-Referer": "https://happypetproductreviews.com", "X-Title": "HappyPet Reviewer"})
+                payload = json.dumps({
+                    "model": rev_model,
+                    "messages": [{"role": "user", "content": make_review_prompt(title, keyword, content)}],
+                    "max_tokens": 2048,
+                    "temperature": 0.2,
+                }).encode()
                 try:
-                    raw_resp = http_post(OPENROUTER_URL, payload, headers,
+                    raw_resp = http_post(rev_url, payload, rev_headers,
                                         label=f"Reviewer({rev_model})",
                                         log_fn=log_reviewer, timeout=60,
                                         backoff_base=30, backoff_exp=True)
