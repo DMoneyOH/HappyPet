@@ -766,8 +766,8 @@ def review_and_rewrite(title: str, keyword: str, content: str, api_key: str, or_
                     raw = json.loads(raw_resp)["choices"][0]["message"]["content"].strip()
                     if not raw:
                         raise ValueError(f"empty content from {rev_model}")
-                except Exception:
-                    pass  # model failed or returned bad/empty body -- try next model
+                except Exception as _rev_exc:
+                    log_reviewer(f"  {rev_model} error: {_rev_exc}", "WARN")
             if raw is None:
                 log_reviewer("  review call failed after retries -- article held as UNREVIEWED", "WARN")
                 return content, False, ["REVIEWER_UNAVAILABLE"]
