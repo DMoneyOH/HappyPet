@@ -1,3 +1,4 @@
+import shutil
 #!/usr/bin/env python3
 """
 post_pins.py - HappyPet Pinterest poster via IFTTT Maker webhooks
