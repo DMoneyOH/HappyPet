@@ -35,7 +35,7 @@ We chose this set as our top pick because it consistently balances safety, comfo
 
 **Voyager Adjustable Cat Harness** – Made from 100 % ripstop nylon, the harness features a 2‑inch wide chest strap that distributes pressure evenly. Reviewers note that the inner elastic grommets keep the strap from digging into the fur, and the side buckles are reinforced with stainless‑steel rivets, preventing breakage after dozens of walks.  
 
-**Purrfect Escape‑Free Outdoor Kit** – This kit includes a padded chest strap lined with breathable polyester mesh and a quick‑release buckle that clicks shut with a single press. One user, “Mia from Seattle,” wrote, “My senior cat, Luna, was terrified of anything on her chest until I tried this—she steadied herself within minutes and actually asked for a walk.” The set ships with a 3‑foot leash made of woven polypropylene, ideal for indoor play.  
+**Purrfect Escape‑Free Outdoor Kit** – This kit includes a padded chest strap lined with breathable polyester mesh and a quick‑release buckle that clicks shut with a single press. The set ships with a 3‑foot leash made of woven polypropylene, ideal for indoor play.  
 
 **Adventure Cat Trail Harness** – Featuring a hybrid design of 3 mm mesh panels and a moisture‑wicking polyester backing, this harness stays cool on hot days; the reflective stitching is rated to reflect up to 300 lux, making it visible to passing cars at dusk. A reviewer on Reddit clarified, “I ordered a size Small (12‑16 lb) for my 9‑lb tuxedo cat; the chart was off by an inch, so I had to size up, but the fit was perfect after the adjustment.”  
 
