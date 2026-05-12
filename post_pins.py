@@ -136,6 +136,27 @@ def check_url_live(url: str, timeout: int = 8) -> bool:
         return False
 
 
+def check_image_has_content(url: str, min_bytes: int = 10000) -> bool:
+    """Verify image URL returns real image content, not a placeholder.
+    Pinterest silently drops pins with broken/placeholder images.
+    min_bytes=10000 -- any real product photo is well above this threshold."""
+    if not url:
+        return False
+    try:
+        import urllib.request
+        bare_url = url.split("?")[0]
+        req = urllib.request.Request(bare_url, headers={"User-Agent": "HappyPetBot/1.0"})
+        with urllib.request.urlopen(req, timeout=15) as r:
+            data = r.read()
+        if len(data) < min_bytes:
+            log(f"  WARN: image too small ({len(data)} bytes) -- likely placeholder: {bare_url[:60]}", "WARN")
+            return False
+        return True
+    except Exception as e:
+        log(f"  WARN: image content check failed for {url[:60]} -- {e}", "WARN")
+        return False
+
+
 def mark_pinned_in_sheet(slug, gc, sheet_ids):
     """Mark column F = YES for this slug. Audit trail only."""
     url_fragment = f"/{slug}/"
@@ -240,6 +261,11 @@ def main():
 
             if not check_url_live(article_url):
                 log(f"  SKIP: article not live yet ({article_url[:60]})", "WARN")
+                failed += 1
+                continue
+
+            if not check_image_has_content(image_url):
+                log(f"  ABORT: pin image has no content -- refusing to fire blank pin for {slug}", "ERROR")
                 failed += 1
                 continue
 
