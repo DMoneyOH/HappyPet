@@ -1091,7 +1091,12 @@ def main() -> None:
                 log(f"  SAVED {fname} ({fpath.stat().st_size} bytes) -- total: {time.monotonic()-_t0:.1f}s")
 
                 article_url = build_url(slug, utm=True)
+                asin        = product.get("asin", "")
                 pin_url     = product.get("image", "")
+                # Prefer canonical Amazon CDN format -- direct m.media-amazon.com URLs
+                # are blocked by GHA runner IPs; images-na CDN is consistently accessible
+                if asin:
+                    pin_url = f"https://images-na.ssl-images-amazon.com/images/P/{asin}.01.LZZZZZZZ.jpg"
                 if PIN_GEN_AVAILABLE:
                     try:
                         pin_url = make_pin_for_post(title, pin_desc, pin_url, category, slug, generated)

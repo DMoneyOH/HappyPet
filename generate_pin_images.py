@@ -73,14 +73,33 @@ def get_font(name, size):
     return ImageFont.load_default()
 
 def fetch_image(url):
-    try:
-        req = urllib.request.Request(url, headers={'User-Agent':'Mozilla/5.0'})
-        with urllib.request.urlopen(req, timeout=10) as r:
-            data = r.read()
-        return Image.open(BytesIO(data)).convert('RGBA')
-    except Exception as e:
-        log_pin(f'image fetch failed: {e}', 'WARN')
-        return None
+    import re as _re
+    def _try(u):
+        try:
+            req = urllib.request.Request(u, headers={'User-Agent': 'Mozilla/5.0'})
+            with urllib.request.urlopen(req, timeout=15) as r:
+                data = r.read()
+            if len(data) < 500:  # placeholder/redirect -- not a real image
+                return None
+            return Image.open(BytesIO(data)).convert('RGBA')
+        except Exception:
+            return None
+
+    img = _try(url)
+    if img:
+        return img
+
+    # Fallback: extract image ID from m.media-amazon URLs and try alternate size suffixes
+    for suffix in ['._AC_SL1500_.jpg', '._AC_SX522_.jpg', '.jpg']:
+        m = _re.search(r'/images/I/([A-Za-z0-9%+_-]+)[\._]', url)
+        if m:
+            alt = f'https://m.media-amazon.com/images/I/{m.group(1)}{suffix}'
+            img = _try(alt)
+            if img:
+                return img
+
+    log_pin(f'image fetch failed for {url[:80]} -- pin will render without product photo', 'WARN')
+    return None
 
 def autocrop_whitespace(img, threshold=240):
     diff = ImageOps.invert(img.convert('RGB'))
