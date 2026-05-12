@@ -55,13 +55,13 @@ GEMINI_URL           = "https://generativelanguage.googleapis.com/v1beta/models/
 GROQ_URL             = "https://api.groq.com/openai/v1/chat/completions"
 OPENROUTER_URL       = "https://openrouter.ai/api/v1/chat/completions"
 OR_GEN_MODEL         = "openai/gpt-oss-120b:free"
-REVIEWER_MODEL       = "llama-3.3-70b-versatile"
-REVIEWER_FALLBACK    = "openai/gpt-oss-120b:free"
+REVIEWER_MODEL       = "google/gemma-3-27b-it"
+REVIEWER_FALLBACK    = "openai/gpt-oss-20b:free"
 REVIEWER_ENABLED     = True
-GROQ_REWRITE_MODEL   = "meta-llama/llama-4-scout-17b-16e-instruct"
-REWRITE_FALLBACK     = "openai/gpt-oss-120b:free"
-GROQ_FACTCHECK_MODEL = "llama-3.1-8b-instant"
-FACTCHECK_FALLBACK   = "llama-3.3-70b-versatile"
+GEMINI_REWRITE_MODEL = "gemini-2.5-flash-lite"
+REWRITE_FALLBACK     = "openai/gpt-oss-20b:free"
+OR_FACTCHECK_MODEL   = "openai/gpt-oss-20b:free"
+FACTCHECK_FALLBACK   = "gemini-2.5-flash-lite"
 OR_HEADERS_EXTRA     = {"HTTP-Referer": "https://happypetproductreviews.com", "X-Title": "HappyPetReviews"}
 MAX_REVIEW_ATTEMPTS  = 3
 INTER_DELAY          = 300
@@ -746,7 +746,7 @@ def review_and_rewrite(title: str, keyword: str, content: str, api_key: str, or_
                 if model_idx > 0:
                     log_reviewer(f"  Primary reviewer failed. Falling back to {rev_model}", "WARN")
                 # Route by provider: Groq models use Groq URL/key, else OpenRouter
-                _is_groq = rev_model in ("llama-3.3-70b-versatile", "llama-3.1-8b-instant", "llama-4-scout-17b-16e-instruct", "meta-llama/llama-4-scout-17b-16e-instruct")
+                _is_groq = False  # All reviewer models on OR -- no Groq
                 rev_url  = GROQ_URL if _is_groq else OPENROUTER_URL
                 rev_key  = _groq_key if _is_groq else _or_key
                 rev_headers = {"Content-Type": "application/json", "Authorization": f"Bearer {rev_key}"}
@@ -957,7 +957,7 @@ def main() -> None:
 
     try:
         if not groq_key:
-            log("GROQ_API_KEY not set", "ERROR"); return
+            log("GROQ_API_KEY not set -- not required (Groq removed)", "WARN")
 
         # Load products -- also registers categories into SLUG_CATEGORIES
         products = load_products()
