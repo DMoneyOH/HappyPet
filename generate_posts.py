@@ -639,7 +639,7 @@ ARTICLE:
 {content_fc}"""
 
     payload = json.dumps({
-        "model": GROQ_FACTCHECK_MODEL,
+        "model": OR_FACTCHECK_MODEL,
         "messages": [{"role": "user", "content": prompt}],
         "max_tokens": 4096,
         "temperature": 0.1,
@@ -825,7 +825,7 @@ def review_and_rewrite(title: str, keyword: str, content: str, api_key: str, or_
                 # Tier 1: Groq llama-4-scout
                 try:
                     rw_payload = json.dumps({
-                        "model": GROQ_REWRITE_MODEL,
+                        "model": GEMINI_REWRITE_MODEL,
                         "messages": [{"role": "user", "content": rw_prompt_text}],
                         "max_tokens": 8192, "temperature": 0.7,
                     }).encode()
