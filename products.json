@@ -100,8 +100,6 @@
     "chewy_rating": null
   },
   {
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
     "topic": "best-dog-puzzle-toys",
     "title": "Best Dog Puzzle Toys to Keep Smart Dogs Busy and Engaged",
     "keyword": "best dog puzzle toys",
@@ -118,7 +116,10 @@
     "runners_up": "PETSTA Treat Dispensing Puzzle IQ Training; Forfon 9-Pack Puzzle Set with Lick Mat; Outward Hound Dog Tornado 3-Layer",
     "chewy_url": "https://chewy.sjv.io/c/7160344/3054490/32975?prodsku=86001&u=https%3A%2F%2Fwww.chewy.com%2Foutward-hound-hide-squirrel-squeaky%2Fdp%2F113784%3Futm_source%3Dgoogle-product%26utm_medium%3Dorganic%26utm_content%3DOutward%2520Hound&intsrc=APIG_24727",
     "chewy_price": "23.28",
-=======
+    "chewy_stock": "InStock",
+    "chewy_rating": null
+  },
+  {
     "topic": "best-cat-harness-leash",
     "title": "Best Cat Harness and Leash for Safe Outdoor Adventures",
     "keyword": "best cat harness and leash",
@@ -135,13 +136,10 @@
     "runners_up": "rabbitgoo Cat Harness and Leash Escape Proof Black S; Wanheart Cat Chest Harness Anti-Escape Grey",
     "chewy_url": "https://chewy.sjv.io/c/7160344/3054490/32975?prodsku=3676534&u=https%3A%2F%2Fwww.chewy.com%2Fpink-papyrus-reflective-nylon-cat%2Fdp%2F3676534%3Futm_source%3Dgoogle-product%26utm_medium%3Dorganic%26utm_content%3DPink%2520Papyrus&intsrc=APIG_24727",
     "chewy_price": "27.99",
->>>>>>> Stashed changes
     "chewy_stock": "InStock",
     "chewy_rating": null
   },
   {
-=======
->>>>>>> Stashed changes
     "topic": "best-cat-tunnel-toys",
     "title": "Best Cat Tunnel Toys for Active Indoor Cats Who Love to Pounce",
     "keyword": "best cat tunnel toys",
