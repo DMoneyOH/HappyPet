@@ -107,15 +107,16 @@ jobs:
 
       - name: Commit generated files
         run: |
-          # Commit _posts/ undated drafts + support files
-          # Stage 2 dates and republishes, triggering deploy
+          # stash --include-untracked captures new pin images (untracked) before pull
+          git stash --include-untracked -q || true
+          git pull --rebase origin main
+          git stash pop -q || true
           git add _posts/ assets/images/pins/ _pin_queue/ products.json 2>/dev/null || true
-          if git diff --cached --quiet; then
-            echo "No files changed — no commit needed"
+          STAGED=$(git diff --cached --name-only)
+          UNTRACKED=$(git ls-files --others --exclude-standard _posts/ assets/images/pins/ _pin_queue/ 2>/dev/null)
+          if [ -z "$STAGED" ] && [ -z "$UNTRACKED" ]; then
+            echo "No files changed -- no commit needed"
           else
-            git stash
-            git pull --rebase origin main
-            git stash pop
             git add _posts/ assets/images/pins/ _pin_queue/ products.json 2>/dev/null || true
             git commit -m "auto: stage generated files $(date '+%Y-%m-%d')"
             git push origin main
