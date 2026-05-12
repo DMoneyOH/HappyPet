@@ -405,6 +405,7 @@ Be especially skeptical of:
 - Lists of features that read like spec sheets dressed as prose
 - Claims about product performance not grounded in a specific, verifiable detail
 - First-person singular voice ("my dog", "my cat", "I tried", "I noticed", "I found") -- the blog voice is first-person plural ("we tested", "we found") or second-person ("your dog"). Singular first-person is always a flag.
+- Em dashes (—) anywhere in the article -- flag every instance. The blog style does not use em dashes.
 Score 4 or 5 only if you would genuinely not suspect AI wrote it. When in doubt, score lower.
 
 ARTICLE TITLE: {title}
