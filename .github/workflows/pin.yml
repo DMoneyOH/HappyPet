@@ -6,6 +6,10 @@ on:
       slugs:
         description: 'Comma-separated slugs to pin'
         required: true
+      force:
+        description: 'Re-fire already-sent pins (true/false)'
+        required: false
+        default: 'false'
 
 permissions:
   contents: write
@@ -97,7 +101,9 @@ jobs:
           HAPPYPET_SHEET_ID_TOYS:   ${{ secrets.HAPPYPET_SHEET_ID_TOYS }}
           HAPPYPET_SHEET_ID_HEALTH: ${{ secrets.HAPPYPET_SHEET_ID_HEALTH }}
         run: |
-          python3 post_pins.py --slugs "${{ github.event.inputs.slugs }}"
+          FORCE_FLAG=""
+          if [ "${{ github.event.inputs.force }}" = "true" ]; then FORCE_FLAG="--force"; fi
+          python3 post_pins.py --slugs "${{ github.event.inputs.slugs }}" $FORCE_FLAG
 
       - name: Push pins to Google Sheets
         env:
