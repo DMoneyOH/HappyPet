@@ -1,7 +1,7 @@
 ---
 layout: post
 title: "Best Dog Puzzle Toys to Keep Smart Dogs Busy and Engaged"
-date: 2026-05-11
+date: 2026-05-12
 categories: [dog-gear]
 species: dog
 tags: [best dog puzzle toys]
