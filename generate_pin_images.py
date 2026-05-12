@@ -108,6 +108,8 @@ def wrap_text(draw, text, font, max_width):
 def get_stage_bg(img, threshold=235):
     """Sample image edges to detect background color. Returns RGB tuple."""
     w, h = img.size
+    if w == 0 or h == 0 or w // 10 == 0 or h // 10 == 0:
+        return (255, 255, 255)
     rgb = img.convert('RGB')
     samples = []
     for x in range(0, w, w//10):
@@ -116,8 +118,9 @@ def get_stage_bg(img, threshold=235):
     for y in range(0, h, h//10):
         samples.append(rgb.getpixel((0, y)))
         samples.append(rgb.getpixel((w-1, y)))
+    if not samples:
+        return (255, 255, 255)
     avg = tuple(sum(c[i] for c in samples)//len(samples) for i in range(3))
-    # If near-white keep white, else use the sampled color slightly lightened
     if all(v >= threshold for v in avg):
         return (255, 255, 255)
     return tuple(min(255, v + 20) for v in avg)
