@@ -1,9 +1,9 @@
-name: Model Audit
+name: Pipeline Test
 on:
   workflow_dispatch:
 
 jobs:
-  audit:
+  test:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -11,9 +11,18 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: '3.12'
-      - name: Run model quality audit
+      - name: Install dependencies
+        run: pip install --quiet -r requirements.txt
+      - name: Run pipeline test
         env:
-          GROQ_API_KEY:        ${{ secrets.GROQ_API_KEY }}
           OPENROUTER_API_KEY:  ${{ secrets.OPENROUTER_API_KEY }}
           GEMINI_API_KEY:      ${{ secrets.GEMINI_API_KEY }}
-        run: python3 quality_test.py
+        run: python3 pipeline_test.py --save
+      - name: Upload article output
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: pipeline-test-output
+          path: /tmp/pipeline_test_output.md
+          if-no-files-found: ignore
+          retention-days: 7
