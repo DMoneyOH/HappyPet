@@ -112,12 +112,14 @@ def resolve_events(species, topical_sheet):
 
 
 def ensure_cache_bust(image_url):
+    """Return clean image URL with no query string for IFTTT/Pinterest.
+    Pinterest CDN fails to fetch image URLs containing query parameters.
+    """
     if not image_url:
         return image_url
-    if "?v=" not in image_url:
-        v = _dt.date.today().strftime("%Y%m%d")
-        image_url = f"{image_url}?v={v}"
-        log("  WARN: image_url missing ?v= -- appended", "WARN")
+    # Strip any query string -- Pinterest rejects URLs with ?v= or any params
+    if "?" in image_url:
+        image_url = image_url.split("?")[0]
     return image_url
 
 
