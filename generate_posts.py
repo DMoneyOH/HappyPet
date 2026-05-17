@@ -367,27 +367,26 @@ def call_generator(prompt: str, api_key: str) -> str:
     except RuntimeError as exc:
         log(f"  OpenRouter primary failed: {exc} -- failing over to Groq", "WARN")
 
-    # --- Tier 2: Groq llama-3.3-70b-versatile (fallback) ---
-    # BIAS NOTE: reviewer is qwen3-32b (different model), rewriter is llama-4-scout.
-    # Different Groq models -- not direct self-review. Acceptable fallback risk.
-    log("  Failing over to Groq llama-3.3-70b-versatile (generation fallback)", "WARN")
-    groq_gen_payload = json.dumps({
-        "model": "llama-3.3-70b-versatile",
+    # --- Tier 2: OpenRouter gpt-oss-20b:free (fallback -- Groq removed, CF-blocked from GHA) ---
+    log("  Failing over to OR gpt-oss-20b:free (generation fallback)", "WARN")
+    or_fb_payload = json.dumps({
+        "model": "openai/gpt-oss-20b:free",
         "messages": [{"role": "user", "content": prompt}],
         "max_tokens": 8192,
         "temperature": 0.75,
     }).encode()
-    groq_gen_headers = {
+    or_fb_headers = {
         "Content-Type": "application/json",
-        "Authorization": f"Bearer {api_key}",
+        "Authorization": f"Bearer {or_gen_key}",
+        **OR_HEADERS_EXTRA,
     }
-    raw     = http_post(GROQ_URL, groq_gen_payload, groq_gen_headers, label="Groq-Gen-Fallback",
+    raw     = http_post(OPENROUTER_URL, or_fb_payload, or_fb_headers, label="OR-Gen-Fallback",
                         timeout=90, retries=2, backoff_base=60)
     data    = json.loads(raw)
     content = data["choices"][0]["message"]["content"]
     finish  = data["choices"][0].get("finish_reason", "?")
     tokens  = data.get("usage", {}).get("completion_tokens", "?")
-    log(f"  API ok (Groq llama-3.3-70b-versatile fallback): {len(content)} chars, {tokens} tokens, finish={finish}")
+    log(f"  API ok (OR gpt-oss-20b:free fallback): {len(content)} chars, {tokens} tokens, finish={finish}")
     return content
 
 def make_review_prompt(title: str, keyword: str, content: str) -> str:
@@ -663,21 +662,31 @@ ARTICLE:
         return cleaned
     except Exception as exc:
         log(f"  Fact-check primary failed: {exc} -- trying fallback", "WARN")
-    # Fallback: llama-3.3-70b-versatile
+    # Fallback: gemini-2.5-flash-lite via Gemini direct API (Groq removed -- CF-blocked from GHA)
     try:
         fc_prompt = json.loads(payload.decode())["messages"][0]["content"]
-        fb_payload = json.dumps({
-            "model": FACTCHECK_FALLBACK,
-            "messages": [{"role": "user", "content": fc_prompt}],
-            "max_tokens": 4096, "temperature": 0.1,
+        _gemini_key_fc = os.environ.get("GEMINI_API_KEY", "").strip()
+        if not _gemini_key_fc:
+            raise ValueError("GEMINI_API_KEY not set -- cannot run fact-check fallback")
+        gem_fc_url = (
+            f"https://generativelanguage.googleapis.com/v1beta/models/"
+            f"{FACTCHECK_FALLBACK}:generateContent?key={_gemini_key_fc}"
+        )
+        gem_fc_payload = json.dumps({
+            "contents": [{"parts": [{"text": fc_prompt}]}],
+            "generationConfig": {"maxOutputTokens": 4096, "temperature": 0.1}
         }).encode()
-        raw     = http_post(GROQ_URL, fb_payload, headers, label="FactCheck-70b",
-                            timeout=60, retries=2, backoff_base=60)
-        cleaned = json.loads(raw)["choices"][0]["message"]["content"]
+        gem_fc_req = urllib.request.Request(
+            gem_fc_url, data=gem_fc_payload,
+            headers={"Content-Type": "application/json"}, method="POST"
+        )
+        with urllib.request.urlopen(gem_fc_req, timeout=60) as r:
+            gem_fc_data = json.loads(r.read())
+        cleaned = gem_fc_data["candidates"][0]["content"]["parts"][0]["text"].strip()
         if len(cleaned) < len(content) * 0.85:
             log(f"  Fact-check fallback too short ({len(cleaned)} vs {len(content)}), keeping original", "WARN")
             return content
-        log(f"  Fact-check fallback ok: {len(content)} -> {len(cleaned)} chars")
+        log(f"  Fact-check fallback ok ({FACTCHECK_FALLBACK}): {len(content)} -> {len(cleaned)} chars")
         return cleaned
     except Exception as exc:
         log(f"  Fact-check fallback failed: {exc} -- keeping original", "WARN")
@@ -685,46 +694,57 @@ ARTICLE:
 
 
 def find_alternative_products(keyword: str, primary_product: str, groq_key: str, count: int = 3) -> str:
-    """Find real alternative products. Primary: compound-mini (web-grounded). Fallback: 8b-instant."""
-    prompt = f"Name the top {count} popular alternatives to {primary_product} for '{keyword}'. For each, provide: brand name, product name, and one sentence that includes a SPECIFIC differentiating feature (e.g. a key ingredient, a unique design element, or a specific use case it excels at). Be concrete, not vague. Return as a simple numbered list: Brand - Product Name: Description"
-    
-    headers = {
+    """Find real alternative products via OpenRouter (Groq removed -- CF-blocked from GHA)."""
+    prompt = (
+        f"Name the top {count} popular alternatives to {primary_product} for '{keyword}'. "
+        f"For each, provide: brand name, product name, and one sentence that includes a SPECIFIC "
+        f"differentiating feature (e.g. a key ingredient, a unique design element, or a specific "
+        f"use case it excels at). Be concrete, not vague. "
+        f"Return as a simple numbered list: Brand - Product Name: Description"
+    )
+
+    or_key = os.environ.get("OPENROUTER_API_KEY", "").strip()
+    if not or_key:
+        log("  OPENROUTER_API_KEY not set -- skipping alternative search", "WARN")
+        return ""
+
+    or_headers = {
         "Content-Type": "application/json",
-        "Authorization": f"Bearer {groq_key}",
-        "User-Agent": "Mozilla/5.0 (compatible; HappyPetReviews/1.0)",
+        "Authorization": f"Bearer {or_key}",
+        **OR_HEADERS_EXTRA,
     }
-    
-    # Tier 1: compound-mini (web-grounded)
+
+    # Tier 1: gpt-oss-120b:free (Groq removed -- CF error 1010 blocks all Groq from GHA)
     payload = json.dumps({
-        "model": "groq/compound-mini",
+        "model": OR_GEN_MODEL,
         "messages": [{"role": "user", "content": prompt}],
         "max_tokens": 500,
         "temperature": 0.3,
     }).encode()
-    
+
     try:
-        raw     = http_post(GROQ_URL, payload, headers, label="AltSearch-compound-mini", timeout=60, retries=1)
+        raw     = http_post(OPENROUTER_URL, payload, or_headers, label="AltSearch-OR-120b", timeout=60, retries=1)
         content = json.loads(raw)["choices"][0]["message"]["content"]
-        log(f"  Found {count} alternatives via compound-mini (web-grounded)")
+        log(f"  Found {count} alternatives via OR gpt-oss-120b:free")
         return content
     except Exception as exc:
-        log(f"  compound-mini failed: {exc} -- trying 8b-instant fallback", "WARN")
-    
-    # Tier 2: llama-3.1-8b-instant (training knowledge)
+        log(f"  OR-120b alt search failed: {exc} -- trying OR-20b fallback", "WARN")
+
+    # Tier 2: gpt-oss-20b:free
     payload = json.dumps({
-        "model": "llama-3.1-8b-instant",
+        "model": "openai/gpt-oss-20b:free",
         "messages": [{"role": "user", "content": prompt}],
         "max_tokens": 500,
         "temperature": 0.3,
     }).encode()
-    
+
     try:
-        raw     = http_post(GROQ_URL, payload, headers, label="AltSearch-8b-instant", timeout=60, retries=1)
+        raw     = http_post(OPENROUTER_URL, payload, or_headers, label="AltSearch-OR-20b", timeout=60, retries=1)
         content = json.loads(raw)["choices"][0]["message"]["content"]
-        log(f"  Found {count} alternatives via 8b-instant fallback")
+        log(f"  Found {count} alternatives via OR gpt-oss-20b:free fallback")
         return content
     except Exception as exc:
-        log(f"  Alternative search failed on both models: {exc}", "WARN")
+        log(f"  Alternative search failed on both OR models: {exc}", "WARN")
         return ""
 
 
@@ -846,21 +866,28 @@ def review_and_rewrite(title: str, keyword: str, content: str, api_key: str, or_
                 rw_prompt_text = make_rewrite_prompt(title, keyword, content, instructions)
                 rw_content = None
                 # Tier 1: Groq llama-4-scout
+                _gemini_key_rw = os.environ.get("GEMINI_API_KEY", "").strip()
                 try:
-                    rw_payload = json.dumps({
-                        "model": GEMINI_REWRITE_MODEL,
-                        "messages": [{"role": "user", "content": rw_prompt_text}],
-                        "max_tokens": 8192, "temperature": 0.7,
+                    if not _gemini_key_rw:
+                        raise ValueError("GEMINI_API_KEY not set")
+                    gem_rw_url = (
+                        f"https://generativelanguage.googleapis.com/v1beta/models/"
+                        f"{GEMINI_REWRITE_MODEL}:generateContent?key={_gemini_key_rw}"
+                    )
+                    gem_rw_payload = json.dumps({
+                        "contents": [{"parts": [{"text": rw_prompt_text}]}],
+                        "generationConfig": {"maxOutputTokens": 8192, "temperature": 0.7}
                     }).encode()
-                    rw_headers = {"Content-Type": "application/json",
-                                  "Authorization": f"Bearer {groq_key_rewrite}"}
-                    raw_rw     = http_post(GROQ_URL, rw_payload, rw_headers,
-                                           label="Rewriter-Groq", log_fn=log_reviewer,
-                                           timeout=90, retries=2, backoff_base=60)
-                    rw_content = json.loads(raw_rw)["choices"][0]["message"]["content"]
-                    log_reviewer(f"  Groq rewrite ok: {len(rw_content)} chars")
+                    gem_rw_req = urllib.request.Request(
+                        gem_rw_url, data=gem_rw_payload,
+                        headers={"Content-Type": "application/json"}, method="POST"
+                    )
+                    with urllib.request.urlopen(gem_rw_req, timeout=90) as r:
+                        gem_rw_data = json.loads(r.read())
+                    rw_content = gem_rw_data["candidates"][0]["content"]["parts"][0]["text"].strip()
+                    log_reviewer(f"  Gemini rewrite ok ({GEMINI_REWRITE_MODEL}): {len(rw_content)} chars")
                 except Exception as e:
-                    log_reviewer(f"  Groq rewrite failed: {e} -- trying OR fallback", "WARN")
+                    log_reviewer(f"  Gemini rewrite failed: {e} -- trying OR fallback", "WARN")
                 # Tier 2: OpenRouter gpt-oss-120b:free
                 if not rw_content:
                     try:
