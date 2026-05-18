@@ -226,6 +226,8 @@ def enrich_with_chewy(slug: str, product: dict) -> bool:
         return False
 
     # Confirmed URL -- update the in-memory product dict and write back to products.json
+    matched_name = result.get("chewy_matched_name") or "unknown"
+    log(f"  [chewy] Matched: '{matched_name[:70]}' -> {url[:60]}")
     product["chewy_url"]    = url
     product["chewy_price"]  = result.get("chewy_price")
     product["chewy_stock"]  = result.get("chewy_stock")

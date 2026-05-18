@@ -7,7 +7,6 @@ species: cat
 tags: [best cat tunnel toys]
 description: "Give your indoor cat a high-speed hide‑and‑seek playground with the best cat tunnel toys."
 affiliate_url: "https://amzn.to/4cu6ph4"
-chewy_url: "https://chewy.sjv.io/c/7160344/3054490/32975?prodsku=1592422&u=https%3A%2F%2Fwww.chewy.com%2Fsungrow-3-way-tunnel-small-pet-toy%2Fdp%2F1592422%3Futm_source%3Dgoogle-product%26utm_medium%3Dorganic%26utm_content%3DSunGrow&intsrc=APIG_24727"
 image: "https://m.media-amazon.com/images/I/71ndCl0iQyL._AC_SX425_.jpg"
 pin_image: "https://happypetproductreviews.com/assets/images/pins/best-cat-tunnel-toys.jpg?v=20260514"
 ---

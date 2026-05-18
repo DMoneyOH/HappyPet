@@ -7,7 +7,6 @@ species: cat
 tags: [best cat harness and leash]
 description: "Unlock safe outdoor fun for your cat with the perfect harness and leash combo"
 affiliate_url: "https://amzn.to/4sAXu3o"
-chewy_url: "https://chewy.sjv.io/c/7160344/3054490/32975?prodsku=3676534&u=https%3A%2F%2Fwww.chewy.com%2Fpink-papyrus-reflective-nylon-cat%2Fdp%2F3676534%3Futm_source%3Dgoogle-product%26utm_medium%3Dorganic%26utm_content%3DPink%2520Papyrus&intsrc=APIG_24727"
 image: "https://m.media-amazon.com/images/I/81W+omkOlLL._AC_SX425_.jpg"
 pin_image: "https://happypetproductreviews.com/assets/images/pins/best-cat-harness-leash.jpg?v=20260512"
 ---

@@ -327,10 +327,11 @@ def lookup(product_name: str) -> dict:
       credentials missing   → all None
     """
     result = {
-        "chewy_url":    None,
-        "chewy_price":  None,
-        "chewy_stock":  None,
-        "chewy_rating": None,
+        "chewy_url":          None,
+        "chewy_price":        None,
+        "chewy_stock":        None,
+        "chewy_rating":       None,
+        "chewy_matched_name": None,  # auditing: what Chewy product was matched
     }
 
     if not ACCOUNT_SID or not AUTH_TOKEN:
@@ -348,8 +349,37 @@ def lookup(product_name: str) -> dict:
     price      = match.get("CurrentPrice") or None
     stock      = match.get("StockAvailability") or None
 
+    matched_name = match.get("Name", "")
+    result["chewy_matched_name"] = matched_name
+
+    # Brand identity gate: extract first non-stop-word token from both names.
+    # If the searched product has a recognisable brand token (length >= 4) and
+    # it does not appear anywhere in the matched Chewy product name, the match
+    # is likely a category-similar product from a different brand.
+    # In that case, cap the effective score below SCORE_AUTO_ACCEPT so it is
+    # flagged for human review rather than auto-accepted.
+    def _first_brand_token(text: str) -> str:
+        words = [w for w in text.lower().split() if w not in STOP_WORDS and len(w) >= 4]
+        return words[0] if words else ""
+
+    searched_brand  = _first_brand_token(product_name)
+    matched_brand   = _first_brand_token(matched_name)
+    brand_conflict  = (
+        searched_brand
+        and matched_brand
+        and searched_brand not in matched_name.lower()
+        and matched_brand  not in product_name.lower()
+    )
+    if brand_conflict and score >= SCORE_AUTO_ACCEPT:
+        print(
+            f"[chewy_lookup] Brand mismatch: searched='{searched_brand}' matched='{matched_brand}' "
+            f"— downgrading score {score} -> {SCORE_AUTO_ACCEPT - 1} (REVIEW)",
+            file=sys.stderr
+        )
+        score = SCORE_AUTO_ACCEPT - 1  # force into REVIEW band
+
     if score >= SCORE_AUTO_ACCEPT:
-        print(f"[chewy_lookup] Auto-accepted (score={score})", file=sys.stderr)
+        print(f"[chewy_lookup] Auto-accepted (score={score}): {matched_name[:60]}", file=sys.stderr)
         result["chewy_url"]   = raw_url
         result["chewy_price"] = price
         result["chewy_stock"] = stock
@@ -358,7 +388,7 @@ def lookup(product_name: str) -> dict:
             result["chewy_rating"] = scrape_chewy_rating(raw_url)
     else:
         # SCORE_REVIEW <= score < SCORE_AUTO_ACCEPT — flag for human review
-        print(f"[chewy_lookup] Low confidence (score={score}) — flagging REVIEW", file=sys.stderr)
+        print(f"[chewy_lookup] Low confidence (score={score}): {matched_name[:60]} — flagging REVIEW", file=sys.stderr)
         result["chewy_url"]   = f"REVIEW:{raw_url}" if raw_url else "REVIEW"
         result["chewy_price"] = price
         result["chewy_stock"] = stock
