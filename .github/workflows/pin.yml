@@ -118,7 +118,10 @@ jobs:
       - name: Consume pending-slugs
         run: |
           PENDING="_pin_queue/.pending-slugs"
-          # Pull before staging -- git pull --rebase fails on dirty index
+          # Discard the GCP key file written by setup step -- it is gitignored
+          # but sits as an untracked change that blocks git pull --rebase.
+          git checkout happypet-sheets-key.json 2>/dev/null || true
+          git clean -f happypet-sheets-key.json 2>/dev/null || true
           git pull --rebase origin main
           # Stage everything push_pins_to_sheets.py modified in the working tree:
           # products.json (retirement), _pin_queue/sent/ (moved files), LOGS/
