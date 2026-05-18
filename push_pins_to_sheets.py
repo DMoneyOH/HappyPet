@@ -6,8 +6,53 @@ then moves processed files to _pin_queue/sent/.
 After each slug completes, retires it from products.json (rolling queue model).
 When unpublished products.json count drops to 3, logs warning + sends alert email.
 Pinterest posting is handled separately via post_pins.py -> IFTTT webhooks.
-Run ONLY after GitHub Pages build is confirmed live (called by publish.yml).
 """
+
+# ---------------------------------------------------------------------------
+# Facebook message hooks -- keyed by slug fragment, fallback to title-derived.
+# Add new entries here as the article library grows rather than editing the
+# append logic. Hooks must be second-person or third-person only -- no I/we/us/our/my.
+# ---------------------------------------------------------------------------
+_FB_HOOKS: dict[str, str] = {
+    'joint-supplement':   "Stiff joints don't have to slow your dog down. These supplements actually work.",
+    'dental-chew':        "Clean teeth, fresh breath, happy dog. The chews that actually deliver.",
+    'calming-treat':      "Calm your dog without a vet visit. These treats actually soothe anxiety.",
+    'anxiety-vest':       "Thunder, fireworks, separation -- these vests help your dog keep calm when it counts.",
+    'probiotic':          "Gut health is everything. The right probiotic keeps your dog's digestion running smooth.",
+    'puzzle-toy':         "Bored dogs are destructive dogs. These puzzle toys burn energy and keep them sharp.",
+    'backpack-carrier':   "Carry your pup hands-free on any trail. Built for the long haul.",
+    'life-jacket':        "Water adventures are safer with the right vest. Here's the one worth trusting.",
+    'nail-grinder':       "No more nail-trim dread. This grinder is quiet, safe, and dog-approved.",
+    'harness-leash':      "The right harness makes all the difference for outdoor cats. Here's what actually fits.",
+    'window-perch':       "A sunny perch changes everything for an indoor cat. Here's the one worth buying.",
+    'cat-bed':            "Cozy cats swear by these lounge-worthy beds -- find the perfect spot for your napper.",
+    'kitten-food':        "Give your kitten the best start -- top-rated food for growth, immunity, and a shiny coat.",
+    'calming-product':    "Stressed cats hide it well. These calming products actually make a difference.",
+    'cat-litter':         "The secret to a mess-free litter area starts with the right box.",
+    'puppy-food':         "Fuel your puppy's growth with food that actually delivers -- without filler.",
+    'wet-cat-food':       "Picky cats devour this. Real food your feline will actually eat.",
+    'dog-food':           "Dogs who eat well, live well. These top-rated foods make every meal count.",
+    'flea':               "Flea season doesn't have to be a nightmare. Here's what actually works.",
+    'tick':               "Keep ticks off your pet without harsh chemicals. Here's the smart way to protect them.",
+    'shampoo':            "Bath time doesn't have to be a battle. The right shampoo makes all the difference.",
+    'brush':              "A good brush is the foundation of a healthy coat. Here's the one groomers reach for.",
+}
+
+def _build_fb_message(slug: str, title: str, article_url: str) -> str:
+    """Return a personable Facebook post message keyed to slug, fallback to title-derived hook."""
+    clean_url = article_url.split('?')[0].rstrip('/') + '/'
+    # Try each hook key as a substring of the slug
+    for key, hook in _FB_HOOKS.items():
+        if key in slug:
+            return f'\U0001f43e {hook}\n{clean_url}'
+    # Fallback: convert title into a short punchy hook
+    # Strip leading 'Best ' and trailing category noise, build a direct hook
+    hook_title = title
+    for prefix in ('Best ', 'Top ', 'The Best '):
+        if hook_title.startswith(prefix):
+            hook_title = hook_title[len(prefix):]
+            break
+    return f'\U0001f43e Looking for the best {hook_title.lower()}? Here\'s the one worth buying.\n{clean_url}'
 
 import argparse
 import json
@@ -256,11 +301,8 @@ def main():
                 image_url = f"{image_url}?v={v}"
                 log(f'  WARN: image_url missing ?v= -- appended', 'WARN')
 
-            # Build Facebook message
-            message = (
-                f"🐾 {title} | Our top picks to help your pet thrive. "
-                f"See our #1 recommendation 👇\n{article_url}"
-            )
+            # Build Facebook message -- personable hook derived from slug/title
+            message = _build_fb_message(slug, title, article_url)
 
             # Determine next schedule date (+1 from last row in sheet)
             sched_date = get_next_fb_sched_date(fb_ws)

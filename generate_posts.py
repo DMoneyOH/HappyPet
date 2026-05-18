@@ -403,7 +403,7 @@ Be especially skeptical of:
 - Warmth that feels performed rather than genuine -- forced enthusiasm, hollow affirmations
 - Lists of features that read like spec sheets dressed as prose
 - Claims about product performance not grounded in a specific, verifiable detail
-- First-person singular voice ("my dog", "my cat", "I tried", "I noticed", "I found") -- the blog voice is first-person plural ("we tested", "we found") or second-person ("your dog"). Singular first-person is always a flag.
+- ANY first-person voice whatsoever -- "I", "we", "us", "our", "my" used as the author's own voice is ABSOLUTELY PROHIBITED. This includes first-person singular ("I tried", "my dog") AND first-person plural ("we tested", "our top picks", "we found"). The only acceptable voices are second-person ("your dog", "you'll find") and third-person ("owners report", "dogs love"). First-person anecdotes are always a hard flag regardless of how natural they read.
 - Em dashes (—) anywhere in the article -- flag every instance. The blog style does not use em dashes.
 Score 4 or 5 only if you would genuinely not suspect AI wrote it. When in doubt, score lower.
 
@@ -451,6 +451,7 @@ PASS criteria (ALL must be true to pass):
   - readability >= 3
   - accuracy >= 3
   - affiliate_link_present = true (amzn.to link present in content)
+  - NO first-person voice anywhere in the article (I, we, us, our, my used as author voice). If ANY first-person voice is found, set pass=false and include it in flags and rewrite_instructions regardless of all other scores.
   - If this is a roundup article (has "Additional Picks" or "Comparison Table" or multiple product sections): alternative products MUST have specific, concrete descriptions (not vague filler like "many owners find" or "tends to work well"). Each alternative needs at least one real distinguishing detail. If alternatives are generic filler, set pass=false and flag it.
 
 Return ONLY a single valid JSON object. No preamble, no markdown fences, no trailing text.
