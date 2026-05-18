@@ -190,10 +190,12 @@ def main():
 
     slug_filter = set(s.strip() for s in args.slugs.split(",") if s.strip()) if args.slugs else set()
 
-    queue_dir = REPO_DIR / "_pin_queue"
-    sent_dir  = queue_dir / "sent"
+    queue_dir  = REPO_DIR / "_pin_queue"
+    sent_dir   = queue_dir / "sent"
+    fired_dir  = queue_dir / ".fired"
     queue_dir.mkdir(exist_ok=True)
     sent_dir.mkdir(exist_ok=True)
+    fired_dir.mkdir(exist_ok=True)
 
     queue_files = sorted(queue_dir.glob("*.json"))
     if slug_filter:
@@ -228,11 +230,13 @@ def main():
 
     for qf in queue_files:
         try:
-            if (sent_dir / qf.name).exists() and not args.force:
-                log(f"SKIP (already sent): {qf.name}")
+            fired_sentinel = fired_dir / f"{qf.stem}.fired"
+            already_fired  = fired_sentinel.exists() or (sent_dir / qf.name).exists()
+            if already_fired and not args.force:
+                log(f"SKIP (already fired): {qf.name}")
                 continue
-            if (sent_dir / qf.name).exists() and args.force:
-                log(f"FORCE: re-firing {qf.name} (already in sent/)", "WARN")
+            if already_fired and args.force:
+                log(f"FORCE: re-firing {qf.name} (already fired)", "WARN")
 
             data        = json.loads(qf.read_text())
             slug        = data.get("slug", qf.stem)
@@ -279,6 +283,22 @@ def main():
                 time.sleep(RPM_SLEEP)
 
             if pin_ok:
+                # Write .fired sentinel immediately -- survives GHA workspace recreation
+                # and prevents duplicate fires if cleanup step fails before sent/ move.
+                try:
+                    import datetime as _dt
+                    fired_sentinel.write_text(_dt.datetime.utcnow().isoformat())
+                    import subprocess as _sp
+                    _sp.run(['git', '-C', str(REPO_DIR), 'stage', str(fired_sentinel.relative_to(REPO_DIR))],
+                            capture_output=True)
+                    _sp.run(['git', '-C', str(REPO_DIR), 'commit', '-m',
+                             f'chore: mark {slug} as fired (dedup sentinel)'],
+                            capture_output=True)
+                    _sp.run(['git', '-C', str(REPO_DIR), 'push', 'origin', 'main'],
+                            capture_output=True)
+                    log(f"  FIRED sentinel committed: _pin_queue/.fired/{slug}.fired")
+                except Exception as _fe:
+                    log(f"  WARN: could not commit .fired sentinel: {_fe}", "WARN")
                 if gc:
                     mark_pinned_in_sheet(slug, gc, sheet_ids)
                 try:
