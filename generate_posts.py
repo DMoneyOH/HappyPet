@@ -872,7 +872,7 @@ def review_and_rewrite(title: str, keyword: str, content: str, api_key: str, or_
                     fb_payload = json.dumps({
                         "model": REVIEWER_FALLBACK,
                         "messages": [{"role": "user", "content": make_review_prompt(title, keyword, content)}],
-                        "max_tokens": 400,
+                        "max_tokens": 1000,
                         "temperature": 0.1,
                     }).encode()
                     fb_headers = {
@@ -903,7 +903,7 @@ def review_and_rewrite(title: str, keyword: str, content: str, api_key: str, or_
                         gem_url     = f"https://generativelanguage.googleapis.com/v1beta/models/{REVIEWER_MODEL}:generateContent?key={_gemini_key}"
                         gem_payload = json.dumps({
                             "contents": [{"parts": [{"text": make_review_prompt(title, keyword, content)}]}],
-                            "generationConfig": {"maxOutputTokens": 400, "temperature": 0.1}
+                            "generationConfig": {"maxOutputTokens": 1000, "temperature": 0.1}
                         }).encode()
                         gem_req = urllib.request.Request(gem_url, data=gem_payload,
                                                          headers={"Content-Type": "application/json"}, method="POST")

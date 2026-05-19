@@ -47,6 +47,11 @@ TOPICAL_EVENT = {
     "HAPPYPET_SHEET_ID_HEALTH": "happypet_pin_health",
     "HAPPYPET_SHEET_ID_HOME":   "happypet_pin_home",
     "HAPPYPET_SHEET_ID_TOYS":   "happypet_pin_toys",
+    # Species-level sheet IDs: map to their canonical IFTTT events.
+    # No current products use these; included to prevent silent fallback
+    # when future products assign these topical_sheet values.
+    "HAPPYPET_SHEET_ID_DOGS":   "happypet_pin_dogs",
+    "HAPPYPET_SHEET_ID_CATS":   "happypet_pin_cats",
 }
 
 MAX_RETRIES  = 3
