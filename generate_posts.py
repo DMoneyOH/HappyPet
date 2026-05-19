@@ -403,22 +403,15 @@ def call_generator(prompt: str, api_key: str) -> str:
     return content
 
 def make_review_prompt(title: str, keyword: str, content: str) -> str:
-    # Full article up to 15K chars — 70B handles full context; 15K safety ceiling.
+    """
+    Full 21-category AI writing audit built from the avoid-ai-writing catalog
+    and beautiful-prose style contract. Replaces the 6-pattern legacy prompt.
+    """
     content_sample = content[:15000] if len(content) > 15000 else content
     return f"""You are a senior human editor for Happy Pet Product Reviews, a budget-focused pet product affiliate blog.
-Your job is to score this article honestly and flag specific problems. Do not be generous — a 3 means acceptable, not good.
+Your job is to score this article honestly and catch every AI writing pattern it contains. Do not be generous.
 
-IMPORTANT: This article was written by an AI. Your job is to catch what AI typically gets wrong.
-Be especially skeptical of:
-- Smooth, polished prose that sounds fluent but says nothing specific
-- Generic openings that could apply to any article on this topic
-- Transitions that feel templated ("In summary...", "Overall...", "Whether you...")
-- Warmth that feels performed rather than genuine -- forced enthusiasm, hollow affirmations
-- Lists of features that read like spec sheets dressed as prose
-- Claims about product performance not grounded in a specific, verifiable detail
-- ANY first-person voice whatsoever -- "I", "we", "us", "our", "my" used as the author's own voice is ABSOLUTELY PROHIBITED. This includes first-person singular ("I tried", "my dog") AND first-person plural ("we tested", "our top picks", "we found"). The only acceptable voices are second-person ("your dog", "you'll find") and third-person ("owners report", "dogs love"). First-person anecdotes are always a hard flag regardless of how natural they read.
-- Em dashes (—) anywhere in the article -- flag every instance. The blog style does not use em dashes.
-Score 4 or 5 only if you would genuinely not suspect AI wrote it. When in doubt, score lower.
+This article was written by an AI. Score 4 or 5 ONLY if you would genuinely not suspect AI wrote it.
 
 ARTICLE TITLE: {title}
 FOCUS KEYWORD: {keyword}
@@ -428,57 +421,117 @@ ARTICLE CONTENT:
 {content_sample}
 ---
 
-SCORING RUBRIC — use these definitions exactly, do not interpret loosely:
+=== SCORING RUBRIC ===
 
 human_voice:
-  5 = Reads like a real person sharing a genuine opinion. Has specific details, natural imperfection, a distinct point of view.
-  4 = Mostly natural. Minor stiffness in 1-2 places but feels written by a person.
-  3 = Neutral. Competent but generic — could have been written by anyone or anything.
-  2 = Noticeably AI-patterned. Lists of features, generic transitions, no personality, no point of view.
-  1 = Pure marketing copy or feature dump. No human presence at all.
+  5 = Real opinion, specific details, natural imperfection, distinct point of view.
+  4 = Mostly natural. Minor stiffness in 1-2 places.
+  3 = Competent but generic — could be written by anyone or anything.
+  2 = Noticeably AI-patterned — feature lists, generic transitions, no personality.
+  1 = Pure marketing copy or feature dump. No human presence.
 
 warmth:
-  5 = Reader feels like they're getting advice from a knowledgeable friend who owns pets.
-  4 = Friendly but slightly distant. Warm intent but not fully personal.
-  3 = Neutral. Informative but transactional — no warmth, no coldness.
-  2 = Clinical or detached. Reads like a spec sheet.
+  5 = Advice from a knowledgeable friend who owns pets.
+  4 = Friendly but slightly distant.
+  3 = Neutral. Informative but transactional.
+  2 = Clinical or detached.
   1 = Cold, robotic, or condescending.
 
 readability:
-  5 = Flows effortlessly. Varied sentence length, zero re-reading required, logical section order.
-  4 = Good flow with 1-2 awkward spots or overly long sentences.
-  3 = Readable but some sentences need a second pass or sections feel out of order.
-  2 = Frequent long or convoluted sentences. Reader has to work.
-  1 = Difficult to follow. Structural or sentence-level problems throughout.
+  5 = Flows effortlessly. Varied sentence length. Zero re-reading required.
+  4 = Good flow with 1-2 awkward spots.
+  3 = Readable but some sentences need a second pass.
+  2 = Frequent long or convoluted sentences.
+  1 = Difficult to follow.
 
 accuracy:
-  5 = All product claims are verifiable from Amazon listings or appropriately hedged ("many owners report...").
-  4 = Mostly accurate. One minor unverified detail that is plausible.
-  3 = Some claims are soft assertions — plausible but not grounded in anything specific.
-  2 = Multiple unverified specs or fabricated details presented as fact.
-  1 = Significant factual errors or clearly invented specifications.
+  5 = All claims verifiable or appropriately hedged.
+  4 = One minor unverified but plausible detail.
+  3 = Some soft assertions — plausible but not grounded.
+  2 = Multiple unverified specs presented as fact.
+  1 = Significant factual errors or invented specifications.
 
-PASS criteria (ALL must be true to pass):
-  - human_voice >= 4
-  - warmth >= 4
-  - readability >= 3
-  - accuracy >= 3
-  - affiliate_link_present = true (amzn.to link present in content)
-  - NO first-person voice anywhere in the article (I, we, us, our, my used as author voice). If ANY first-person voice is found, set pass=false and include it in flags and rewrite_instructions regardless of all other scores.
-  - If this is a roundup article (has "Additional Picks" or "Comparison Table" or multiple product sections): alternative products MUST have specific, concrete descriptions (not vague filler like "many owners find" or "tends to work well"). Each alternative needs at least one real distinguishing detail. If alternatives are generic filler, set pass=false and flag it.
+=== 21-CATEGORY AI PATTERN AUDIT ===
+
+Check every category. Flag every violation found.
+
+1. FORMATTING — Em dashes (—): Count every em dash in the article. Em dash count > 0 = FAIL.
+2. FORMATTING — Bold overuse: Flag if more than 3 bolded phrases per 500 words.
+3. FORMATTING — Bullet-heavy sections: Flag if any section is 90%+ bullet points with no prose.
+4. FORMATTING — Inline-header bullet lists: Flag any bullet that begins with a bolded phrase acting as a mini-header.
+5. SENTENCE STRUCTURE — Hedging: Flag excessive qualifier stacking ("somewhat", "perhaps", "it could be argued", "it is worth noting", "it is important to note").
+6. SENTENCE STRUCTURE — Hollow intensifiers: Flag "very", "truly", "really", "incredibly", "absolutely", "deeply" used as filler before adjectives.
+7. SENTENCE STRUCTURE — Rule of three overuse: Flag if 3+ instances of X, Y, and Z list structure appear in the same article.
+8. SENTENCE STRUCTURE — Copula avoidance: Flag if most sentences use "be" verbs (is/are/was/were/has been) instead of active verbs. Active verbs reveal specificity; copulas reveal vagueness.
+9. SENTENCE STRUCTURE — Superficial -ing analyses: Flag opening clauses like "Standing at the edge of...", "Looking at...", "Considering the...", "Navigating the complex...".
+10. WORD REPLACEMENTS — Flag any of these exact words/phrases and note their location:
+    leverage, utilize, facilitate, implement, demonstrate, endeavor, commence, prioritize,
+    comprehensive, robust, innovative, cutting-edge, seamless, streamline, synergy,
+    delve, embark, pivotal, testament to, foster, in the realm of, at the end of the day,
+    game-changer, look no further, it goes without saying, needless to say,
+    in today's [X] landscape, in today's world, when it comes to, more than ever,
+    a testament to, serves as a reminder, take it to the next level, stands out from the crowd.
+11. TEMPLATE PHRASES — Flag: "In conclusion", "In summary", "To summarize", "As we've seen",
+    "Whether you're a [X] or a [Y]", "No matter what", "At the end of the day",
+    "The bottom line is", "All in all", "When all is said and done".
+12. TRANSITION PHRASES — Flag: "Moreover", "Furthermore", "Additionally", "It's worth noting",
+    "It is important to note", "That said", "Having said that", "With that in mind",
+    "On the other hand", "In light of", "Given the above".
+13. SIGNIFICANCE INFLATION — Flag language that makes ordinary things sound historic or transformative:
+    "revolutionize", "unprecedented", "landmark", "paradigm shift", "groundbreaking",
+    "once-in-a-generation", "redefine the way", "changed everything", "will never be the same".
+14. SYNONYM CYCLING — Flag if the same concept is described with 3+ different synonyms in one article
+    purely for variety (e.g. "purchase" → "acquire" → "obtain" → "procure").
+15. VAGUE ATTRIBUTIONS — Flag: "experts say", "studies show", "research suggests", "according to experts",
+    "many people believe", "it is widely known", "most agree" without naming a specific source.
+16. FILLER PHRASES — Flag: "It's no secret that", "Let's face it", "The fact of the matter is",
+    "The truth is", "Believe it or not", "At the heart of", "Needless to say".
+17. GENERIC CONCLUSIONS — Flag conclusions that restate the intro, summarize without adding new information,
+    or end with a generic call to action not tied to a specific product or action.
+18. CHATBOT ARTIFACTS — Flag: "Certainly!", "Of course!", "Great question!", "As an AI",
+    "I hope this helps", "Feel free to", "Don't hesitate to", meta-commentary about the article itself.
+19. NOTABILITY NAME-DROPPING — Flag name-dropping of brands, institutions, or experts that adds no
+    substantive information (e.g. "As seen on major platforms..." without specifics).
+20. PROMOTIONAL LANGUAGE — Flag superlatives without evidence: "the best", "the most", "unmatched",
+    "superior", "top-tier", "best-in-class" applied to alternatives without specific justification.
+21. TITLE CASE HEADINGS — Flag any H2 or H3 that uses Title Case instead of Sentence case
+    (e.g. "The Best Features Of This Product" should be "The best features of this product").
+
+=== PASS CRITERIA (ALL must be true) ===
+
+- human_voice >= 4
+- warmth >= 4
+- readability >= 3
+- accuracy >= 3
+- affiliate_link_present = true (amzn.to link present)
+- em_dash_count = 0 (any em dash = FAIL, no exceptions)
+- NO first-person voice (I, we, us, our, my used as author voice = FAIL regardless of scores)
+- If roundup: alternative product sections must have specific distinguishing details, not generic filler
+
+Score 4 or 5 only if genuinely non-AI-sounding. When in doubt, score lower.
+
+=== OUTPUT ===
 
 Return ONLY a single valid JSON object. No preamble, no markdown fences, no trailing text.
 Begin with {{ and end with }}.
 
-JSON format (exact — do not add or remove keys):
-{{"pass": true, "scores": {{"human_voice": 4, "warmth": 4, "readability": 4, "accuracy": 4}}, "affiliate_link_present": true, "em_dash_count": 0, "ai_cliches_found": [], "flags": [], "rewrite_instructions": ""}}
+{{
+  "pass": true,
+  "scores": {{"human_voice": 4, "warmth": 4, "readability": 4, "accuracy": 4}},
+  "affiliate_link_present": true,
+  "em_dash_count": 0,
+  "ai_patterns_found": [],
+  "flags": [],
+  "rewrite_instructions": ""
+}}
 
 Rules:
-- rewrite_instructions must name exact sections and specific fixes if pass is false; empty string if pass is true
-- flags must list each specific problem as a plain string; empty array if none
-- em_dash_count must be the exact integer count of em dash characters (—) found in the article
-- ai_cliches_found must list any detected clichés from: delve, it's worth noting, in conclusion, look no further, game-changer, comprehensive guide, navigate, put our paws, paw-some, tail wagging, furry family member, furry friend, furry companion, for good reason, we've all been there, we've been there, there's nothing quite like, nothing quite like, we've got you covered, without breaking the bank, our furry, in today's world, when it comes to, at the end of the day, we all know, as pet owners, as dog owners, as cat owners
-- NOTE: ai_cliches_found is for logging only -- cliché presence does NOT cause a fail unless human_voice < 4. Flag them in ai_cliches_found but do not fail on clichés alone."""
+- ai_patterns_found: list each AI pattern detected as "CATEGORY_NUMBER: description" (e.g. "10: uses leverage, seamless")
+- flags: list each specific problem as a plain string; empty array if none
+- rewrite_instructions: name exact sections and specific fixes if pass=false; empty string if pass=true
+- em_dash_count: exact integer count of (—) characters in article
+- pass=false if em_dash_count > 0, first-person voice present, or human_voice < 4 or warmth < 4
+"""
 
 
 def make_rewrite_prompt(title: str, keyword: str, content: str, instructions: str) -> str:
@@ -848,13 +901,22 @@ def review_and_rewrite(title: str, keyword: str, content: str, api_key: str, or_
         except Exception as e:
             log_reviewer(f"  review call failed: {e} -- article held as UNREVIEWED", "WARN")
             return content, False, ["REVIEWER_UNAVAILABLE"]
-        passed = scorecard.get("pass", False)
-        flags  = scorecard.get("flags", [])
-        scores = scorecard.get("scores", {})
+        passed     = scorecard.get("pass", False)
+        flags      = scorecard.get("flags", [])
+        scores     = scorecard.get("scores", {})
+        em_dashes  = scorecard.get("em_dash_count", 0)
+        ai_patterns = scorecard.get("ai_patterns_found", [])
         log_reviewer(f"  REVIEW {'PASS' if passed else 'FAIL'} | human_voice={scores.get('human_voice')} "
-            f"warmth={scores.get('warmth')} readability={scores.get('readability')}")
+            f"warmth={scores.get('warmth')} readability={scores.get('readability')} em_dashes={em_dashes}")
+        if ai_patterns:
+            log_reviewer(f"  AI PATTERNS: {'; '.join(ai_patterns[:5])}")
         if flags:
             log_reviewer(f"  FLAGS: {'; '.join(flags)}")
+        # Hard override: em dash count > 0 always fails
+        if passed and em_dashes > 0:
+            log_reviewer(f"  OVERRIDE: pass forced to FAIL -- {em_dashes} em dash(es) found", "WARN")
+            passed = False
+            flags = flags + [f"em_dash_count={em_dashes}"]
         # Hard override: fabrication/accuracy flags always fail regardless of pass=true
         if passed and flags:
             accuracy_keywords = ("fabricat", "unverif", "invent", "statistic", "percentag",
@@ -880,15 +942,11 @@ def review_and_rewrite(title: str, keyword: str, content: str, api_key: str, or_
                     log_reviewer(f"  WARN: Gemini rewrite failed: {e}")
                     return content, False, flags
             else:
-                log_reviewer("  REWRITING via Groq llama-3.3-70b (failover model)...")
+                log_reviewer(f"  REWRITING via {GEMINI_REWRITE_MODEL} (attempt 2 failover)...")
                 time.sleep(RPM_SLEEP)
-                groq_key_rewrite = os.environ.get("GROQ_API_KEY", "").strip()
-                if not groq_key_rewrite:
-                    log_reviewer("  WARN: GROQ_API_KEY not set, cannot failover rewrite")
-                    return content, False, flags
                 rw_prompt_text = make_rewrite_prompt(title, keyword, content, instructions)
                 rw_content = None
-                # Tier 1: Groq llama-4-scout
+                # Tier 1: Gemini direct API (Groq removed -- CF error 1010 blocks GHA)
                 _gemini_key_rw = os.environ.get("GEMINI_API_KEY", "").strip()
                 try:
                     if not _gemini_key_rw:
