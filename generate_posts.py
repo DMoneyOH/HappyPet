@@ -1209,6 +1209,22 @@ def main() -> None:
         }, indent=2))
         log(f"RESULT: wrote GENERATION_RESULT.json (generated={generated} held={held} skipped={skipped} failed={failed})")
 
+        # P7: Write PENDING_DRAFTS.json atomically so Stage 2 has a reliable signal.
+        # Stage 2 reads this file; file present = drafts exist, file absent = nothing to publish.
+        # This replaces fragile SHA polling with a deterministic file-based handoff.
+        if generated > 0:
+            draft_slugs = [
+                md.stem.split("-", 1)[1]
+                for md in sorted(POSTS_DIR.glob("DRAFT-*.md"))
+            ]
+            pending_path = REPO_DIR / "PENDING_DRAFTS.json"
+            pending_path.write_text(json.dumps({
+                "drafts":    draft_slugs,
+                "generated": generated,
+                "date":      datetime.date.today().isoformat(),
+            }, indent=2))
+            log(f"P7: wrote PENDING_DRAFTS.json with {len(draft_slugs)} slug(s): {draft_slugs}")
+
     finally:
         if LOCK_PATH.exists(): LOCK_PATH.unlink()
 

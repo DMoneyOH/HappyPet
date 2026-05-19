@@ -83,6 +83,18 @@ jobs:
             fi
           fi
 
+      - name: Check PENDING_DRAFTS.json signal (P7)
+        id: pending_check
+        run: |
+          if [ -f "PENDING_DRAFTS.json" ]; then
+            PENDING_COUNT=$(python3 -c "import json; d=json.load(open('PENDING_DRAFTS.json')); print(d.get('generated',0))")
+            echo "PENDING_DRAFTS.json present — Stage 1 wrote ${PENDING_COUNT} draft(s)"
+            echo "pending_drafts=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "No PENDING_DRAFTS.json — checking for DRAFT-*.md files directly (manual trigger or legacy run)"
+            echo "pending_drafts=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Find and date unpublished posts
         id: stage
         run: |
@@ -133,6 +145,14 @@ jobs:
           git add _pin_queue/.pending-slugs
           echo "Wrote .pending-slugs: ${{ steps.stage.outputs.slugs }}"
 
+      - name: Consume PENDING_DRAFTS.json
+        if: steps.stage.outputs.nothing_to_publish == 'false'
+        run: |
+          if [ -f "PENDING_DRAFTS.json" ]; then
+            git rm PENDING_DRAFTS.json -q
+            echo "Consumed PENDING_DRAFTS.json"
+          fi
+
       - name: Commit and push
         if: steps.stage.outputs.nothing_to_publish == 'false'
         run: |
@@ -147,8 +167,6 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Measure true supply: unprocessed entries in products.json
-          # (topics not yet published to _posts/). This is the authoritative queue depth.
           QUEUE_REMAINING=$(python3 -c "
           import json
           from pathlib import Path
