@@ -343,6 +343,38 @@ def validate_product(slug: str, product: dict) -> list:
     return errors
 
 
+class GenerationStageError(Exception):
+    """Raised when a pipeline stage produces output that fails its contract.
+    GHA captures the non-zero exit and logs the message. Never swallowed silently."""
+    pass
+
+
+def validate_output(stage: str, content: str, slug: str) -> None:
+    """
+    Output contract gate. Raises GenerationStageError on violation.
+    Called after each pipeline stage. GHA step captures non-zero exit.
+    """
+    MIN_WORD_COUNT   = 700
+    MIN_CHARS        = 2000
+    REQUIRED_PATTERN = "https?://amzn[.]to/"
+
+    if not content or not content.strip():
+        raise GenerationStageError(f"[{stage}] {slug}: empty output")
+    if len(content) < MIN_CHARS:
+        raise GenerationStageError(
+            f"[{stage}] {slug}: output too short ({len(content)} chars, min {MIN_CHARS})"
+        )
+    word_count = len(content.split())
+    if word_count < MIN_WORD_COUNT:
+        raise GenerationStageError(
+            f"[{stage}] {slug}: word count too low ({word_count} words, min {MIN_WORD_COUNT})"
+        )
+    if not re.search(REQUIRED_PATTERN, content):
+        raise GenerationStageError(
+            f"[{stage}] {slug}: no affiliate link (amzn.to) found in output"
+        )
+
+
 def call_generator(prompt: str, api_key: str) -> str:
     """
     Generator call chain:
@@ -1191,6 +1223,13 @@ def main() -> None:
                 if len(content) < 2000:
                     log(f"  only {len(content)} chars -- may be truncated", "WARN")
 
+                # Gate 1: generation output contract
+                try:
+                    validate_output("generate", content, slug)
+                except GenerationStageError as e:
+                    log(f"  HOLD {slug} -- generation contract failed: {e}", "WARN")
+                    held += 1; continue
+
                 # Fact-check: strip fabricated stats from alternative product sections (roundups only)
                 if fmt == "roundup":
                     content = fact_check_alternatives(content, product.get("name", ""))
@@ -1203,6 +1242,13 @@ def main() -> None:
                 if not review_passed:
                     create_github_issue(title, slug, review_flags)
                     log(f"  HOLD {slug} -- quality check failed, GitHub issue created")
+                    held += 1; continue
+
+                # Gate 2: post-review output contract
+                try:
+                    validate_output("review", content, slug)
+                except GenerationStageError as e:
+                    log(f"  HOLD {slug} -- post-review contract failed: {e}", "WARN")
                     held += 1; continue
 
                 fname = f"DRAFT-{slugify(slug)}.md"  # Stage 2 dates on publish
