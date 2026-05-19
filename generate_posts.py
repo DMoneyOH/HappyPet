@@ -1198,6 +1198,17 @@ def main() -> None:
 
         log(f"DONE -- {generated} written, {skipped} skipped, {held} held, {failed} failed")
 
+        # P4: Write machine-readable result for GHA exit gate.
+        # GHA step reads this and exits non-zero if articles_generated and articles_held are both 0.
+        result_path = REPO_DIR / "GENERATION_RESULT.json"
+        result_path.write_text(json.dumps({
+            "articles_generated": generated,
+            "articles_held":      held,
+            "articles_skipped":   skipped,
+            "articles_failed":    failed,
+        }, indent=2))
+        log(f"RESULT: wrote GENERATION_RESULT.json (generated={generated} held={held} skipped={skipped} failed={failed})")
+
     finally:
         if LOCK_PATH.exists(): LOCK_PATH.unlink()
 

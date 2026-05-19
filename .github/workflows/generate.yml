@@ -123,6 +123,22 @@ jobs:
             echo "Committed generated files"
           fi
 
+      - name: Validate generation result
+        if: steps.queue_check.outputs.queue_count != '0'
+        run: |
+          if [ ! -f "GENERATION_RESULT.json" ]; then
+            echo "ERROR: GENERATION_RESULT.json not written -- generator may have crashed"
+            exit 1
+          fi
+          GENERATED=$(python3 -c "import json; d=json.load(open('GENERATION_RESULT.json')); print(d['articles_generated'])")
+          HELD=$(python3 -c "import json; d=json.load(open('GENERATION_RESULT.json')); print(d['articles_held'])")
+          echo "Generated: ${GENERATED} | Held: ${HELD}"
+          if [ "${GENERATED}" = "0" ] && [ "${HELD}" = "0" ]; then
+            echo "ERROR: 0 articles generated and 0 held -- provider failure or empty queue. Failing workflow."
+            exit 1
+          fi
+          echo "Generation result OK"
+
       - name: Upload logs as artifact
         if: always()
         uses: actions/upload-artifact@v4
