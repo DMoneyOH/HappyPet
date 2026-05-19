@@ -296,11 +296,8 @@ def main():
             species     = data.get('species', 'both')
             slug        = data.get('slug', qf.stem)
 
-            if image_url and '?v=' not in image_url:
-                v = _dt.date.today().strftime('%Y%m%d')
-                image_url = f"{image_url}?v={v}"
-                log(f'  WARN: image_url missing ?v= -- appended', 'WARN')
-
+            # image_url is written by generate_posts.py via build_pin_image_url_for_queue()
+            # which guarantees ?v=YYYYMMDD is present. No late-append needed.
             # Build Facebook message -- personable hook derived from slug/title
             message = _build_fb_message(slug, title, article_url)
 

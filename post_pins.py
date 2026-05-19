@@ -111,16 +111,14 @@ def resolve_events(species, topical_sheet):
     return events
 
 
-def ensure_cache_bust(image_url):
-    """Return clean image URL with no query string for IFTTT/Pinterest.
-    Pinterest CDN fails to fetch image URLs containing query parameters.
+def build_pin_image_url_for_ifttt(image_url: str) -> str:
+    """Return bare image URL with no query string for IFTTT/Pinterest delivery.
+    Pinterest CDN rejects URLs containing query parameters. Strip all query strings
+    before firing to IFTTT. This is the enforced contract for all IFTTT payloads.
     """
     if not image_url:
         return image_url
-    # Strip any query string -- Pinterest rejects URLs with ?v= or any params
-    if "?" in image_url:
-        image_url = image_url.split("?")[0]
-    return image_url
+    return image_url.split("?")[0]
 
 
 def check_url_live(url: str, timeout: int = 8) -> bool:
@@ -243,7 +241,7 @@ def main():
             title       = data.get("title", slug)
             pin_desc    = data.get("description", title)
             article_url = data.get("article_url", "")
-            image_url   = ensure_cache_bust(data.get("image_url", ""))
+            image_url   = build_pin_image_url_for_ifttt(data.get("image_url", ""))
             species     = data.get("species", "both")
             topical     = data.get("topical_sheet", "")
 

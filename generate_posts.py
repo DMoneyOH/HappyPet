@@ -185,10 +185,21 @@ def clean_pin_desc(text: str) -> str:
     return text.strip()
 
 
-def build_pin_image_url(slug: str) -> str:
-    """Always version-stamp pin image URLs to bust Pinterest CDN cache."""
+def build_pin_image_url_for_queue(slug: str) -> str:
+    """URL for sheet/queue entries. Includes ?v= cache-bust stamp for Pinterest CDN."""
     version = datetime.date.today().strftime("%Y%m%d")
     return f"{SITE_BASE}/assets/images/pins/{slug}.jpg?v={version}"
+
+
+def build_pin_image_url_for_ifttt(slug: str) -> str:
+    """URL for IFTTT Maker webhook payloads. Bare URL -- no query string.
+    Pinterest CDN rejects image URLs containing query parameters."""
+    return f"{SITE_BASE}/assets/images/pins/{slug}.jpg"
+
+
+def build_pin_image_url(slug: str) -> str:
+    """Deprecated alias. Use build_pin_image_url_for_queue() for sheets/queue entries."""
+    return build_pin_image_url_for_queue(slug)
 
 
 def enrich_with_chewy(slug: str, product: dict) -> bool:
