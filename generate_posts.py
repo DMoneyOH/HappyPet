@@ -410,7 +410,7 @@ def call_generator(prompt: str, api_key: str) -> str:
         log(f"  API ok (OpenRouter gpt-oss-120b:free): {len(content)} chars, {tokens} tokens, finish={finish}")
         return content
     except RuntimeError as exc:
-        log(f"  OpenRouter primary failed: {exc} -- failing over to Groq", "WARN")
+        log(f"  OpenRouter primary failed: {exc} -- failing over to OR-20b", "WARN")
 
     # --- Tier 2: OpenRouter gpt-oss-20b:free (fallback -- Groq removed, CF-blocked from GHA) ---
     log("  Failing over to OR gpt-oss-20b:free (generation fallback)", "WARN")
@@ -704,9 +704,7 @@ def fact_check_alternatives(content: str, primary_product: str) -> str:
     """Strip unverifiable stats from alternative product sections. Runs only on roundups."""
     # Check full article. Minimum 60% coverage enforced.
     # For articles over 7000 chars, run two overlapping 3500-char windows.
-    CHUNK = 3500
-    MIN_LEN = max(int(len(content) * 0.60), 1)
-    content_fc = content if len(content) <= CHUNK else content  # full article passed; chunking handled below
+    content_fc = content  # full article always passed to fact-checker
     prompt = f"""You are a fact-checker for a pet product review blog. The article below has a FEATURED product ({primary_product}) with verified data, and ALTERNATIVE products with potentially fabricated statistics.
 
 TASK: Review the ALTERNATIVE product sections (not the featured product) for two types of problems:
