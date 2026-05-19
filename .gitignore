@@ -15,7 +15,7 @@ SESSION_STATE.md
 FUTURE_REFERENCE.md
 
 # === Pin Staging Queue (runtime, not source) ===
-_pin_queue/sent/
+# _pin_queue/sent/ -- intentionally tracked for FB Queue dedup across GHA workspaces
 
 # === Jekyll Build Output ===
 _site/
