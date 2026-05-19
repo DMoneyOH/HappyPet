@@ -1077,7 +1077,7 @@ def append_to_sheet(title, article_url, description, image_url, species, slug, t
         cat_id = brain_get_secret("HAPPYPET_SHEET_ID_CATS") or os.getenv("HAPPYPET_SHEET_ID_CATS")
         creds  = get_sheets_creds()
         gc     = gspread.Client(auth=creds)
-        pin_image_url = build_pin_image_url(slug)
+        pin_image_url = build_pin_image_url_for_queue(slug)
         row    = [title, article_url, pin_image_url, description, "NO"]
         targets = []
         if species in ("dog", "both") and dog_id:
@@ -1256,7 +1256,7 @@ def main() -> None:
                 fm    = front_matter(title, keyword, product.get("affiliate_url", ""),
                                      slug, species, category, pin_desc,
                                      product.get("image", ""),
-                                     build_pin_image_url(slug),
+                                     build_pin_image_url_for_queue(slug),
                                      chewy_url=product.get("chewy_url") or "")
                 # Strip leading horizontal rules model sometimes prepends
                 content_clean = content.lstrip()
@@ -1284,7 +1284,7 @@ def main() -> None:
                 pin_queue_dir.mkdir(exist_ok=True)
                 pin_data = {
                     "title": title, "article_url": article_url, "description": pin_desc,
-                    "image_url": build_pin_image_url(slug), "species": species, "slug": slug,
+                    "image_url": build_pin_image_url_for_queue(slug), "species": species, "slug": slug,
                     "topical_sheet": topical_sheet_key,
                 }
                 (pin_queue_dir / f"{slug}.json").write_text(json.dumps(pin_data, indent=2))
