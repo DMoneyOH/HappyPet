@@ -286,8 +286,7 @@ def main():
                 # Write .fired sentinel immediately -- survives GHA workspace recreation
                 # and prevents duplicate fires if cleanup step fails before sent/ move.
                 try:
-                    import datetime as _dt
-                    fired_sentinel.write_text(_dt.datetime.utcnow().isoformat())
+                    fired_sentinel.write_text(_dt.datetime.now(_dt.timezone.utc).isoformat())
                     import subprocess as _sp
                     _sp.run(['git', '-C', str(REPO_DIR), 'stage', str(fired_sentinel.relative_to(REPO_DIR))],
                             capture_output=True)
