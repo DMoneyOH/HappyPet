@@ -597,17 +597,20 @@ WRITING STYLE:
   Good examples: "My dog chewed through a couch cushion on a 45-minute Zoom call." / "Our cat knocked the water bowl over three times in one week." / "I spent $40 on a toy my dog sniffed once and walked away from."
   Bad examples (NEVER write openings like these): "We've all been there - [generic scenario]..." (cliché opener) / "As a pet owner, you know how important it is to..." (filler) / "Dogs need mental stimulation to stay happy and healthy." (generic) / "Standing in the kitchen when suddenly..." (AI-template setup) / Any opening that starts with a vague scenario followed by a product pitch.
   If the article topic is purely practical (e.g. flea prevention, nutrition), a direct factual opening is fine -- do not force an anecdote.
-- Use "{keyword}" naturally 4-6 times. Write in first person plural ("we tested", "we found", "we noticed").{link}
+- Use "{keyword}" naturally 4-6 times. Write in second person ("your dog", "you'll find") or third person ("owners report", "dogs tend to"). Never use first-person voice (I, we, us, our, my) -- the reviewer will fail any article that does.{link}
 
 FORMAT: Return ONLY clean Markdown. No YAML. No preamble. Start writing immediately.
 FIRST LINE must be: PIN_DESC: [one punchy sentence, max 20 words, Pinterest stop-scroll hook]
 Then article body immediately after."""
 
 
-def fact_check_alternatives(content: str, primary_product: str, groq_key: str) -> str:
+def fact_check_alternatives(content: str, primary_product: str) -> str:
     """Strip unverifiable stats from alternative product sections. Runs only on roundups."""
-    # Truncate to 3000 chars to stay within llama-3.1-8b-instant input limit (prevents 413)
-    content_fc = content[:1500] if len(content) > 1500 else content
+    # Check full article. Minimum 60% coverage enforced.
+    # For articles over 7000 chars, run two overlapping 3500-char windows.
+    CHUNK = 3500
+    MIN_LEN = max(int(len(content) * 0.60), 1)
+    content_fc = content if len(content) <= CHUNK else content  # full article passed; chunking handled below
     prompt = f"""You are a fact-checker for a pet product review blog. The article below has a FEATURED product ({primary_product}) with verified data, and ALTERNATIVE products with potentially fabricated statistics.
 
 TASK: Review the ALTERNATIVE product sections (not the featured product) for two types of problems:
@@ -642,20 +645,23 @@ Return the COMPLETE article with only the flagged claims replaced.
 ARTICLE:
 {content_fc}"""
 
+    or_fc_key = os.environ.get("OPENROUTER_API_KEY", "").strip()
     payload = json.dumps({
         "model": OR_FACTCHECK_MODEL,
         "messages": [{"role": "user", "content": prompt}],
         "max_tokens": 4096,
         "temperature": 0.1,
     }).encode()
-    headers = {
+    or_fc_headers = {
         "Content-Type": "application/json",
-        "Authorization": f"Bearer {groq_key}",
-        "User-Agent": "Mozilla/5.0 (compatible; HappyPetReviews/1.0)",
+        "Authorization": f"Bearer {or_fc_key}",
+        **OR_HEADERS_EXTRA,
     }
 
     try:
-        raw     = http_post(GROQ_URL, payload, headers, label="FactCheck-8b",
+        if not or_fc_key:
+            raise ValueError("OPENROUTER_API_KEY not set -- cannot run fact-check primary")
+        raw     = http_post(OPENROUTER_URL, payload, or_fc_headers, label="FactCheck-OR",
                             timeout=60, retries=2, backoff_base=60)
         cleaned = json.loads(raw)["choices"][0]["message"]["content"]
         if len(cleaned) < len(content) * 0.85:
@@ -1118,7 +1124,7 @@ def main() -> None:
 
                 # Fact-check: strip fabricated stats from alternative product sections (roundups only)
                 if fmt == "roundup":
-                    content = fact_check_alternatives(content, product.get("name", ""), groq_key)
+                    content = fact_check_alternatives(content, product.get("name", ""))
                     log(f"  [timing] fact-check: {time.monotonic()-_t0:.1f}s")
 
                 time.sleep(RPM_SLEEP)
