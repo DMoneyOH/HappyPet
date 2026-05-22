@@ -369,7 +369,8 @@ def validate_output(stage: str, content: str, slug: str) -> None:
         raise GenerationStageError(
             f"[{stage}] {slug}: word count too low ({word_count} words, min {MIN_WORD_COUNT})"
         )
-    if not re.search(REQUIRED_PATTERN, content):
+    # Affiliate link required only at Gate 2 (post-review); rewrite has a chance to inject it first
+    if stage == "review" and not re.search(REQUIRED_PATTERN, content):
         raise GenerationStageError(
             f"[{stage}] {slug}: no affiliate link (amzn.to) found in output"
         )
@@ -566,12 +567,19 @@ Rules:
 """
 
 
-def make_rewrite_prompt(title: str, keyword: str, content: str, instructions: str) -> str:
+def make_rewrite_prompt(title: str, keyword: str, content: str, instructions: str, affiliate_url: str = "", product_name: str = "") -> str:
+    affiliate_reminder = ""
+    if affiliate_url and not re.search(r"https?://amzn[.]to/", content):
+        affiliate_reminder = (
+            f"\nCRITICAL: The article is missing its affiliate link. "
+            f"You MUST include this exact markdown link at least once -- in the opening mention of the product and again in the closing call-to-action: "
+            f"[{product_name or 'this product'}]({affiliate_url})\n"
+        )
     return f"""You are a senior writer for Happy Pet Product Reviews. Rewrite fixing ONLY the flagged issues.
 
 ARTICLE TITLE: {title}
 FOCUS KEYWORD: {keyword}
-EDITOR FEEDBACK: {instructions}
+EDITOR FEEDBACK: {instructions}{affiliate_reminder}
 
 ORIGINAL ARTICLE:
 ---
@@ -851,7 +859,7 @@ def find_alternative_products(keyword: str, primary_product: str, groq_key: str,
         return ""
 
 
-def review_and_rewrite(title: str, keyword: str, content: str, api_key: str, or_key: str = "") -> tuple:
+def review_and_rewrite(title: str, keyword: str, content: str, api_key: str, or_key: str = "", affiliate_url: str = "", product_name: str = "") -> tuple:
     """Returns (final_content, passed, flags)"""
     if not REVIEWER_ENABLED:
         return content, True, []
@@ -965,7 +973,7 @@ def review_and_rewrite(title: str, keyword: str, content: str, api_key: str, or_
                 log_reviewer("  REWRITING via Gemini (original model)...")
                 time.sleep(RPM_SLEEP)
                 try:
-                    content = call_generator(make_rewrite_prompt(title, keyword, content, instructions), api_key)
+                    content = call_generator(make_rewrite_prompt(title, keyword, content, instructions, affiliate_url=affiliate_url, product_name=product_name), api_key)
                     if content.startswith("PIN_DESC:"):
                         _, _, content = content.partition("\n")
                 except Exception as e:
@@ -974,7 +982,7 @@ def review_and_rewrite(title: str, keyword: str, content: str, api_key: str, or_
             else:
                 log_reviewer(f"  REWRITING via {GEMINI_REWRITE_MODEL} (attempt 2 failover)...")
                 time.sleep(RPM_SLEEP)
-                rw_prompt_text = make_rewrite_prompt(title, keyword, content, instructions)
+                rw_prompt_text = make_rewrite_prompt(title, keyword, content, instructions, affiliate_url=affiliate_url, product_name=product_name)
                 rw_content = None
                 # Tier 1: Gemini direct API (Groq removed -- CF error 1010 blocks GHA)
                 _gemini_key_rw = os.environ.get("GEMINI_API_KEY", "").strip()
@@ -1235,7 +1243,7 @@ def main() -> None:
 
                 time.sleep(RPM_SLEEP)
                 or_key_reviewer = os.environ.get("OPENROUTER_API_KEY", "").strip()
-                content, review_passed, review_flags = review_and_rewrite(title, keyword, content, groq_key, or_key=or_key_reviewer)
+                content, review_passed, review_flags = review_and_rewrite(title, keyword, content, groq_key, or_key=or_key_reviewer, affiliate_url=product.get("affiliate_url", ""), product_name=product.get("name", ""))
                 log(f"  [timing] review: {time.monotonic()-_t0:.1f}s")
                 if not review_passed:
                     create_github_issue(title, slug, review_flags)
