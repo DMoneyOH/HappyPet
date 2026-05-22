@@ -872,58 +872,59 @@ def review_and_rewrite(title: str, keyword: str, content: str, api_key: str, or_
             _gemini_key = os.environ.get("GEMINI_API_KEY", "").strip()
             raw = None
 
-            # --- Primary: OR gpt-oss-20b:free (Gemini 503s too frequently from GHA) ---
-            if _or_key:
+            # --- Primary: Gemini gemini-2.5-flash-lite (direct API) ---
+            # OR gpt-oss-20b:free fails 9/10 runs from GHA; Gemini is the reliable primary
+            if _gemini_key:
                 try:
-                    fb_payload = json.dumps({
-                        "model": REVIEWER_FALLBACK,
-                        "messages": [{"role": "user", "content": make_review_prompt(title, keyword, content)}],
-                        "max_tokens": 1000,
-                        "temperature": 0.1,
+                    gem_url     = f"https://generativelanguage.googleapis.com/v1beta/models/{REVIEWER_MODEL}:generateContent?key={_gemini_key}"
+                    gem_payload = json.dumps({
+                        "contents": [{"parts": [{"text": make_review_prompt(title, keyword, content)}]}],
+                        "generationConfig": {"maxOutputTokens": 1000, "temperature": 0.1}
                     }).encode()
-                    fb_headers = {
-                        "Content-Type": "application/json",
-                        "Authorization": f"Bearer {_or_key}",
-                        "HTTP-Referer": "https://happypetproductreviews.com",
-                        "X-Title": "HappyPet Reviewer",
-                    }
-                    raw_resp = http_post(OPENROUTER_URL, fb_payload, fb_headers,
-                                        label=f"Reviewer-Primary({REVIEWER_FALLBACK})",
-                                        log_fn=log_reviewer, timeout=60,
-                                        backoff_base=30, backoff_exp=True)
-                    raw = json.loads(raw_resp)["choices"][0]["message"]["content"].strip()
+                    gem_req = urllib.request.Request(gem_url, data=gem_payload,
+                                                     headers={"Content-Type": "application/json"}, method="POST")
+                    with urllib.request.urlopen(gem_req, timeout=60) as r:
+                        gem_data = json.loads(r.read())
+                    raw = gem_data["candidates"][0]["content"]["parts"][0]["text"].strip()
                     if not raw:
-                        raise ValueError(f"empty content from {REVIEWER_FALLBACK}")
-                    log_reviewer(f"  Reviewer: {REVIEWER_FALLBACK} (OR primary)")
-                except Exception as _or_exc:
-                    log_reviewer(f"  OR reviewer error: {_or_exc} -- falling back to Gemini", "WARN")
+                        raise ValueError("empty content from Gemini reviewer")
+                    log_reviewer(f"  Reviewer: {REVIEWER_MODEL} (Gemini primary)")
+                except Exception as _gem_exc:
+                    log_reviewer(f"  Gemini reviewer error: {_gem_exc} -- falling back to OR", "WARN")
                     raw = None
             else:
-                log_reviewer("  OPENROUTER_API_KEY not set -- skipping OR reviewer", "WARN")
+                log_reviewer("  GEMINI_API_KEY not set -- skipping Gemini reviewer", "WARN")
 
-            # --- Fallback: Gemini gemini-2.5-flash-lite (direct API) ---
+            # --- Fallback: OR gpt-oss-20b:free ---
             if raw is None:
-                log_reviewer(f"  OR reviewer failed. Falling back to {REVIEWER_MODEL} (Gemini direct)", "WARN")
-                if _gemini_key:
+                log_reviewer(f"  Gemini reviewer failed. Falling back to {REVIEWER_FALLBACK} (OR)")
+                if _or_key:
                     try:
-                        gem_url     = f"https://generativelanguage.googleapis.com/v1beta/models/{REVIEWER_MODEL}:generateContent?key={_gemini_key}"
-                        gem_payload = json.dumps({
-                            "contents": [{"parts": [{"text": make_review_prompt(title, keyword, content)}]}],
-                            "generationConfig": {"maxOutputTokens": 1000, "temperature": 0.1}
+                        fb_payload = json.dumps({
+                            "model": REVIEWER_FALLBACK,
+                            "messages": [{"role": "user", "content": make_review_prompt(title, keyword, content)}],
+                            "max_tokens": 1000,
+                            "temperature": 0.1,
                         }).encode()
-                        gem_req = urllib.request.Request(gem_url, data=gem_payload,
-                                                         headers={"Content-Type": "application/json"}, method="POST")
-                        with urllib.request.urlopen(gem_req, timeout=60) as r:
-                            gem_data = json.loads(r.read())
-                        raw = gem_data["candidates"][0]["content"]["parts"][0]["text"].strip()
+                        fb_headers = {
+                            "Content-Type": "application/json",
+                            "Authorization": f"Bearer {_or_key}",
+                            "HTTP-Referer": "https://happypetproductreviews.com",
+                            "X-Title": "HappyPet Reviewer",
+                        }
+                        raw_resp = http_post(OPENROUTER_URL, fb_payload, fb_headers,
+                                            label=f"Reviewer-Fallback({REVIEWER_FALLBACK})",
+                                            log_fn=log_reviewer, timeout=60,
+                                            backoff_base=30, backoff_exp=True)
+                        raw = json.loads(raw_resp)["choices"][0]["message"]["content"].strip()
                         if not raw:
-                            raise ValueError("empty content from Gemini reviewer")
-                        log_reviewer(f"  Reviewer fallback: {REVIEWER_MODEL} (Gemini direct)")
-                    except Exception as _gem_exc:
-                        log_reviewer(f"  {REVIEWER_MODEL} fallback error: {_gem_exc}", "WARN")
+                            raise ValueError(f"empty content from {REVIEWER_FALLBACK}")
+                        log_reviewer(f"  Reviewer fallback: {REVIEWER_FALLBACK} (OR)")
+                    except Exception as _or_exc:
+                        log_reviewer(f"  OR reviewer error: {_or_exc}", "WARN")
                         raw = None
                 else:
-                    log_reviewer("  GEMINI_API_KEY not set -- cannot use Gemini fallback", "WARN")
+                    log_reviewer("  OPENROUTER_API_KEY not set -- cannot use OR fallback", "WARN")
 
             if raw is None:
                 log_reviewer("  review call failed after retries -- article held as UNREVIEWED", "WARN")
