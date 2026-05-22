@@ -928,11 +928,30 @@ def review_and_rewrite(title: str, keyword: str, content: str, api_key: str, or_
             if raw is None:
                 log_reviewer("  review call failed after retries -- article held as UNREVIEWED", "WARN")
                 return content, False, ["REVIEWER_UNAVAILABLE"]
+            # Normalize common Gemini/OR response wrapper patterns
             raw = re.sub(r"```json|```", "", raw).strip()
             raw = re.sub(r"<think>.*?</think>", "", raw, flags=re.DOTALL).strip()
+            # Extract outermost JSON object
             m = re.search(r"\{.*\}", raw, re.DOTALL)
             raw = m.group(0) if m else raw
-            scorecard = json.loads(raw)
+            # Attempt parse with progressive repair for common Gemini breakage
+            scorecard = None
+            for _attempt, _raw in enumerate([
+                raw,
+                # Repair 1: collapse unescaped literal newlines inside string values
+                re.sub(r'(?<=: ")(.*?)(?="(?:\s*[,}]))', lambda x: x.group(0).replace('\n', ' ').replace('\r', ''), raw, flags=re.DOTALL),
+                # Repair 2: strip trailing commas before } or ]
+                re.sub(r',\s*([}\]])', r'\1', raw),
+            ]):
+                try:
+                    scorecard = json.loads(_raw)
+                    if _attempt > 0:
+                        log_reviewer(f"  review JSON repaired on attempt {_attempt + 1}")
+                    break
+                except json.JSONDecodeError:
+                    continue
+            if scorecard is None:
+                raise json.JSONDecodeError("all parse attempts failed", raw, 0)
         except json.JSONDecodeError as e:
             log_reviewer(f"  review JSON parse failed: {e} -- article held as UNREVIEWED", "WARN")
             return content, False, ["REVIEWER_JSON_ERROR"]
