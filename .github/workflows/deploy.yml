@@ -37,7 +37,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
 
       - name: Setup Ruby
         uses: ruby/setup-ruby@v1
@@ -73,7 +73,7 @@ jobs:
     needs: deploy
     steps:
       - name: Checkout to read pending-slugs
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
 
       - name: Dispatch Stage 3 if pending slugs exist
         env:
