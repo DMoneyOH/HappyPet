@@ -1,10 +1,10 @@
 name: Stage 1 — Generate Articles
 
 on:
-  schedule:
-    # Mon + Thu 3:15 AM ET = 8:15 UTC (EDT, Apr-Nov)
-    # Winter (EST): shifts to 8:15 UTC = 3:15 AM EST — same expression, no drift
-    - cron: '15 8 * * 1,4'
+  # schedule: # DISABLED 2026-05-25 — beta rebuild in progress
+    # # Mon + Thu 3:15 AM ET = 8:15 UTC (EDT, Apr-Nov)
+    # # Winter (EST): shifts to 8:15 UTC = 3:15 AM EST — same expression, no drift
+    # - cron: '15 8 * * 1,4'
   workflow_dispatch:
     inputs:
       force_cap:
