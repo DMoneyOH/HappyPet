@@ -1,10 +1,9 @@
 name: Stage 1 — Generate Articles
 
 on:
-  # schedule: # DISABLED 2026-05-25 — beta rebuild in progress
-    # # Mon + Thu 3:15 AM ET = 8:15 UTC (EDT, Apr-Nov)
-    # # Winter (EST): shifts to 8:15 UTC = 3:15 AM EST — same expression, no drift
-    # - cron: '15 8 * * 1,4'
+  schedule: # re-enabled 2026-07-02 — recovery (was disabled 2026-05-25 for a beta rebuild that never happened)
+    # Mon + Thu 8:15 UTC = 4:15 AM EDT / 3:15 AM EST
+    - cron: '15 8 * * 1,4'
   workflow_dispatch:
     inputs:
       force_cap:
@@ -105,27 +104,10 @@ jobs:
           IMPACT_AUTH_TOKEN: ${{ secrets.IMPACT_AUTH_TOKEN }}
         run: python3 generate_posts.py
 
-      - name: Commit generated files
-        run: |
-          # stash --include-untracked captures new pin images (untracked) before pull
-          git stash --include-untracked -q || true
-          git pull --rebase origin main
-          git stash pop -q || true
-          git add _posts/ assets/images/pins/ _pin_queue/ products.json 2>/dev/null || true
-          STAGED=$(git diff --cached --name-only)
-          UNTRACKED=$(git ls-files --others --exclude-standard _posts/ assets/images/pins/ _pin_queue/ 2>/dev/null)
-          if [ -z "$STAGED" ] && [ -z "$UNTRACKED" ]; then
-            echo "No files changed -- no commit needed"
-          else
-            git add _posts/ assets/images/pins/ _pin_queue/ products.json 2>/dev/null || true
-            git commit -m "auto: stage generated files $(date '+%Y-%m-%d')"
-            git push origin main
-            echo "Committed generated files"
-          fi
-
       - name: Validate generation result
         if: steps.queue_check.outputs.queue_count != '0'
         run: |
+          # Gate BEFORE committing: never push drafts from a run whose generator crashed
           if [ ! -f "GENERATION_RESULT.json" ]; then
             echo "ERROR: GENERATION_RESULT.json not written -- generator may have crashed"
             exit 1
@@ -138,6 +120,29 @@ jobs:
             exit 1
           fi
           echo "Generation result OK"
+
+      - name: Commit generated files
+        run: |
+          # Stash only when there is something to stash, and let a conflicting
+          # pop fail loudly -- `|| true` here silently vanished generated drafts.
+          STASHED=0
+          if [ -n "$(git status --porcelain)" ]; then
+            git stash --include-untracked -q
+            STASHED=1
+          fi
+          git pull --rebase origin main
+          if [ "$STASHED" = "1" ]; then
+            git stash pop -q
+          fi
+          git add _posts/ assets/images/pins/ _pin_queue/ products.json PENDING_DRAFTS.json 2>/dev/null || true
+          STAGED=$(git diff --cached --name-only)
+          if [ -z "$STAGED" ]; then
+            echo "No files changed -- no commit needed"
+          else
+            git commit -m "auto: stage generated files $(date '+%Y-%m-%d')"
+            git push origin main
+            echo "Committed generated files"
+          fi
 
       - name: Upload logs as artifact
         if: always()
