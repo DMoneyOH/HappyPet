@@ -37,3 +37,6 @@ INFRA.md
 
 # Local dev scripts (not for production)
 scripts/
+
+# Chewy validation reports (runtime artifacts, uploaded to GHA)
+chewy_link_validation_*.json

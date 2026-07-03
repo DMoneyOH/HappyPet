@@ -1,9 +1,14 @@
-import shutil
 #!/usr/bin/env python3
 """
 post_pins.py - HappyPet Pinterest poster via IFTTT Maker webhooks
 Sheet role: AUDIT TRAIL only. Rows appended by push_pins_to_sheets.py.
 post_pins.py marks column F = YES after successful pin.
+
+Dedup contract (single-owner markers):
+  _pin_queue/.fired/{slug}.fired          -> ALL events fired (this script's marker)
+  _pin_queue/.fired/{slug}.{event}.fired  -> that one webhook succeeded (partial-failure retry)
+  _pin_queue/sent/                        -> owned by push_pins_to_sheets.py (FB-queued marker);
+                                             this script must NEVER move files there.
 
 Board routing:
   species=cat/both -> happypet_pin_cats
@@ -74,13 +79,17 @@ def http_post(url, payload, headers, *, label):
                 return resp.read().decode()
         except urllib.error.HTTPError as exc:
             body = exc.read().decode(errors="replace")
-            if exc.code == 429:
-                wait = BACKOFF_BASE * (2 ** attempt)
-                log(f"  {label} 429 attempt {attempt}/{MAX_RETRIES} -- wait {wait}s", "WARN")
-                time.sleep(wait)
-            else:
+            # 429 and 5xx are transient (IFTTT blips) -- retry; 4xx is a real error
+            if exc.code != 429 and exc.code < 500:
                 raise RuntimeError(f"{label} HTTP {exc.code}: {body[:200]}")
+            if attempt == MAX_RETRIES:
+                break  # no point sleeping before the terminal raise
+            wait = BACKOFF_BASE * (2 ** attempt)
+            log(f"  {label} HTTP {exc.code} attempt {attempt}/{MAX_RETRIES} -- wait {wait}s", "WARN")
+            time.sleep(wait)
         except urllib.error.URLError as exc:
+            if attempt == MAX_RETRIES:
+                break
             log(f"  {label} network error attempt {attempt}: {exc.reason}", "WARN")
             time.sleep(RPM_SLEEP * 3)
     raise RuntimeError(f"{label} exhausted after {MAX_RETRIES} attempts")
@@ -202,7 +211,10 @@ def main():
 
     queue_files = sorted(queue_dir.glob("*.json"))
     if slug_filter:
-        queue_files = [f for f in queue_files if any(s in f.stem for s in slug_filter)]
+        # Exact stem match -- same semantics as push_pins_to_sheets.py, so one
+        # --slugs value behaves identically in both scripts (substring matching
+        # once fired best-cat-tree-large when only best-cat-tree was requested)
+        queue_files = [f for f in queue_files if f.stem in slug_filter]
 
     if not queue_files:
         log("No queued pins found -- nothing to do")
@@ -234,17 +246,15 @@ def main():
     for qf in queue_files:
         try:
             fired_sentinel = fired_dir / f"{qf.stem}.fired"
-            already_fired  = fired_sentinel.exists() or (sent_dir / qf.name).exists()
-            if already_fired and not args.force:
+            if fired_sentinel.exists() and not args.force:
                 log(f"SKIP (already fired): {qf.name}")
                 continue
-            if already_fired and args.force:
+            if fired_sentinel.exists() and args.force:
                 log(f"FORCE: re-firing {qf.name} (already fired)", "WARN")
 
             data        = json.loads(qf.read_text())
             slug        = data.get("slug", qf.stem)
             title       = data.get("title", slug)
-            pin_desc    = data.get("description", title)
             article_url = data.get("article_url", "")
             image_url   = build_pin_image_url_for_ifttt(data.get("image_url", ""))
             species     = data.get("species", "both")
@@ -258,7 +268,14 @@ def main():
                 failed += 1
                 continue
 
-            log(f"PIN [{slug}] -> {events}")
+            # Per-event sentinels: a prior partial failure (e.g. 2 of 3 webhooks
+            # succeeded) must not re-fire the events that already went through --
+            # that duplicated pins on every retry.
+            def _ev_sentinel(event):
+                return fired_dir / f"{qf.stem}.{event}.fired"
+            pending_events = events if args.force else [e for e in events if not _ev_sentinel(e).exists()]
+
+            log(f"PIN [{slug}] -> {events} (to fire: {pending_events or 'none, finalizing'})")
             log(f"  image: {image_url[:80]}")
             log(f"  url:   {article_url[:80]}")
             log(f"  v2:    {value2[:80]}")
@@ -268,49 +285,58 @@ def main():
                 processed += 1
                 continue
 
-            if not check_url_live(article_url):
-                log(f"  SKIP: article not live yet ({article_url[:60]})", "WARN")
-                failed += 1
-                continue
+            if pending_events:
+                if not check_url_live(article_url):
+                    log(f"  SKIP: article not live yet ({article_url[:60]})", "WARN")
+                    failed += 1
+                    continue
 
-            if not check_image_has_content(image_url):
-                log(f"  ABORT: pin image has no content -- refusing to fire blank pin for {slug}", "ERROR")
-                failed += 1
-                continue
+                if not check_image_has_content(image_url):
+                    log(f"  ABORT: pin image has no content -- refusing to fire blank pin for {slug}", "ERROR")
+                    failed += 1
+                    continue
 
             pin_ok = True
-            for event in events:
+            for event in pending_events:
                 ok = fire_webhook(event, image_url, value2, article_url, maker_key)
-                if not ok:
+                if ok:
+                    _ev_sentinel(event).write_text(_dt.datetime.now(_dt.timezone.utc).isoformat())
+                else:
                     pin_ok = False
                 time.sleep(RPM_SLEEP)
 
             if pin_ok:
-                # Write .fired sentinel immediately -- survives GHA workspace recreation
-                # and prevents duplicate fires if cleanup step fails before sent/ move.
+                # Write the all-events sentinel and commit immediately -- survives
+                # GHA workspace recreation and prevents duplicate fires.
+                # NOTE: the queue JSON stays where it is. Moving it to sent/ is
+                # push_pins_to_sheets.py's marker (FB queued) -- when this script
+                # moved it first, the FB Queue append silently never happened.
                 try:
                     fired_sentinel.write_text(_dt.datetime.now(_dt.timezone.utc).isoformat())
                     import subprocess as _sp
-                    _sp.run(['git', '-C', str(REPO_DIR), 'stage', str(fired_sentinel.relative_to(REPO_DIR))],
-                            capture_output=True)
-                    _sp.run(['git', '-C', str(REPO_DIR), 'commit', '-m',
-                             f'chore: mark {slug} as fired (dedup sentinel)'],
-                            capture_output=True)
-                    _sp.run(['git', '-C', str(REPO_DIR), 'push', 'origin', 'main'],
-                            capture_output=True)
-                    log(f"  FIRED sentinel committed: _pin_queue/.fired/{slug}.fired")
+                    git_steps = [
+                        (['git', '-C', str(REPO_DIR), 'add', '_pin_queue/.fired'], 'add'),
+                        (['git', '-C', str(REPO_DIR), 'commit', '-m',
+                          f'chore: mark {slug} as fired (dedup sentinel)'], 'commit'),
+                        (['git', '-C', str(REPO_DIR), 'push', 'origin', 'main'], 'push'),
+                    ]
+                    for cmd, step in git_steps:
+                        r = _sp.run(cmd, capture_output=True, text=True)
+                        if r.returncode != 0:
+                            # A rejected push here is recoverable (the consume step
+                            # re-pushes), but it must be visible, not swallowed.
+                            log(f"  WARN: sentinel git {step} failed (rc={r.returncode}): "
+                                f"{(r.stderr or r.stdout).strip()[:150]}", "WARN")
+                            break
+                    else:
+                        log(f"  FIRED sentinel committed: _pin_queue/.fired/{qf.stem}.fired")
                 except Exception as _fe:
                     log(f"  WARN: could not commit .fired sentinel: {_fe}", "WARN")
                 if gc:
                     mark_pinned_in_sheet(slug, gc, sheet_ids)
-                try:
-                    shutil.move(str(qf), str(sent_dir / qf.name))
-                    log(f"  SENT: {qf.name} -> _pin_queue/sent/")
-                except Exception as mv_exc:
-                    log(f"  WARN: could not move {qf.name} to sent/: {mv_exc}", "WARN")
                 processed += 1
             else:
-                log(f"  PARTIAL/full failure for {slug}", "WARN")
+                log(f"  PARTIAL failure for {slug} -- fired events recorded, will retry the rest", "WARN")
                 failed += 1
 
         except Exception as exc:

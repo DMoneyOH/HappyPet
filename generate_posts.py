@@ -742,6 +742,35 @@ FIRST LINE must be: PIN_DESC: [one punchy sentence, max 20 words, Pinterest stop
 Then article body immediately after."""
 
 
+def _sanitize_factcheck_output(cleaned: str, original: str) -> str | None:
+    """
+    Validate/clean a fact-checker response before it replaces the article.
+    Returns the sanitized article, or None if the original must be kept.
+    Chat models routinely wrap output in code fences or prepend 'Here is the
+    corrected article:' -- and a response that dropped the affiliate links
+    would previously have shipped as long as it cleared the length floor.
+    """
+    text = cleaned.strip()
+    if text.startswith("```"):
+        text = re.sub(r"^```[a-zA-Z]*\s*\n", "", text)
+        text = re.sub(r"\n```\s*$", "", text)
+    first_nl = text.find("\n")
+    if first_nl != -1:
+        first_line = text[:first_nl].strip().lower()
+        if first_line.endswith(":") and (
+            "article" in first_line or first_line.startswith(("here", "sure", "below", "okay"))
+        ):
+            text = text[first_nl + 1:].lstrip()
+    if len(text) < len(original) * 0.85:
+        log(f"  Fact-check output too short ({len(text)} vs {len(original)}), keeping original", "WARN")
+        return None
+    link_pattern = r"https?://amzn[.]to/[\w]+"
+    if sorted(re.findall(link_pattern, text)) != sorted(re.findall(link_pattern, original)):
+        log("  Fact-check output altered affiliate links, keeping original", "WARN")
+        return None
+    return text
+
+
 def fact_check_alternatives(content: str, primary_product: str) -> str:
     """Strip unverifiable stats from alternative product sections. Runs only on roundups."""
     # Check full article. Minimum 60% coverage enforced.
@@ -785,7 +814,11 @@ ARTICLE:
     payload = json.dumps({
         "model": OR_FACTCHECK_MODEL,
         "messages": [{"role": "user", "content": prompt}],
-        "max_tokens": 4096,
+        # The task echoes the COMPLETE article; on a reasoning model the
+        # reasoning tokens count against max_tokens, so 4096 truncated the echo
+        # and the length guard silently kept the unchecked original.
+        "max_tokens": 8192,
+        "reasoning": {"effort": "low"},
         "temperature": 0.1,
     }).encode()
     or_fc_headers = {
@@ -799,12 +832,12 @@ ARTICLE:
             raise ValueError("OPENROUTER_API_KEY not set -- cannot run fact-check primary")
         raw     = http_post(OPENROUTER_URL, payload, or_fc_headers, label="FactCheck-OR",
                             timeout=60, retries=2, backoff_base=60)
-        cleaned = json.loads(raw)["choices"][0]["message"]["content"]
-        if len(cleaned) < len(content) * 0.85:
-            log(f"  Fact-check output too short ({len(cleaned)} vs {len(content)}), keeping original", "WARN")
+        cleaned = _extract_or_content(raw, "FactCheck-OR")
+        sanitized = _sanitize_factcheck_output(cleaned, content)
+        if sanitized is None:
             return content
-        log(f"  Fact-check ok: {len(content)} -> {len(cleaned)} chars")
-        return cleaned
+        log(f"  Fact-check ok: {len(content)} -> {len(sanitized)} chars")
+        return sanitized
     except Exception as exc:
         log(f"  Fact-check primary failed: {exc} -- trying fallback", "WARN")
     # Fallback: gemini-2.5-flash-lite via Gemini direct API (Groq removed -- CF-blocked from GHA)
@@ -828,11 +861,11 @@ ARTICLE:
         with urllib.request.urlopen(gem_fc_req, timeout=60) as r:
             gem_fc_data = json.loads(r.read())
         cleaned = gem_fc_data["candidates"][0]["content"]["parts"][0]["text"].strip()
-        if len(cleaned) < len(content) * 0.85:
-            log(f"  Fact-check fallback too short ({len(cleaned)} vs {len(content)}), keeping original", "WARN")
+        sanitized = _sanitize_factcheck_output(cleaned, content)
+        if sanitized is None:
             return content
-        log(f"  Fact-check fallback ok ({FACTCHECK_FALLBACK}): {len(content)} -> {len(cleaned)} chars")
-        return cleaned
+        log(f"  Fact-check fallback ok ({FACTCHECK_FALLBACK}): {len(content)} -> {len(sanitized)} chars")
+        return sanitized
     except Exception as exc:
         log(f"  Fact-check fallback failed: {exc} -- keeping original", "WARN")
         return content

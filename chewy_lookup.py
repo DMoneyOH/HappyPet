@@ -89,9 +89,25 @@ HARD_GOOD_CATEGORIES = {
 }
 
 
+def _first_brand_token(text: str) -> str:
+    """First non-stop-word token of length >= 4 -- the brand identity gate key.
+    Module-level so validate_published_chewy_links.py can import it (it used to
+    live inside lookup(), which made that import fail on every run and silently
+    disabled the weekly validation)."""
+    words = [w for w in text.lower().split() if w not in STOP_WORDS and len(w) >= 4]
+    return words[0] if words else ""
+
+
 # ---------------------------------------------------------------------------
 # Impact.com API
 # ---------------------------------------------------------------------------
+
+class ChewyAPIError(Exception):
+    """Raised when the Impact.com API fails hard (auth, outage, network).
+    Callers must distinguish this from 'product not found on Chewy' -- treating
+    an API outage as a universal mismatch once let --fix clear every stored link."""
+    pass
+
 
 def _impact_get(path: str, params: dict = None) -> dict:
     url = f"{BASE_URL}{path}"
@@ -106,11 +122,12 @@ def _impact_get(path: str, params: dict = None) -> dict:
         with urllib.request.urlopen(req, timeout=15) as resp:
             return json.loads(resp.read().decode())
     except urllib.error.HTTPError as e:
-        print(f"[chewy_lookup] HTTP {e.code} on {path}: {e.read().decode()}", file=sys.stderr)
-        return {}
+        body = e.read().decode(errors="replace")[:200]
+        print(f"[chewy_lookup] HTTP {e.code} on {path}: {body}", file=sys.stderr)
+        raise ChewyAPIError(f"Impact API HTTP {e.code} on {path}: {body}") from e
     except Exception as e:
         print(f"[chewy_lookup] Request error on {path}: {e}", file=sys.stderr)
-        return {}
+        raise ChewyAPIError(f"Impact API request failed on {path}: {e}") from e
 
 
 def search_catalog(keyword: str, page_size: int = 10) -> list:
@@ -352,16 +369,11 @@ def lookup(product_name: str) -> dict:
     matched_name = match.get("Name", "")
     result["chewy_matched_name"] = matched_name
 
-    # Brand identity gate: extract first non-stop-word token from both names.
-    # If the searched product has a recognisable brand token (length >= 4) and
-    # it does not appear anywhere in the matched Chewy product name, the match
-    # is likely a category-similar product from a different brand.
-    # In that case, cap the effective score below SCORE_AUTO_ACCEPT so it is
-    # flagged for human review rather than auto-accepted.
-    def _first_brand_token(text: str) -> str:
-        words = [w for w in text.lower().split() if w not in STOP_WORDS and len(w) >= 4]
-        return words[0] if words else ""
-
+    # Brand identity gate (see _first_brand_token at module level): if the
+    # searched product has a recognisable brand token and it does not appear
+    # anywhere in the matched Chewy product name, the match is likely a
+    # category-similar product from a different brand. Cap the effective score
+    # below SCORE_AUTO_ACCEPT so it is flagged for human review.
     searched_brand  = _first_brand_token(product_name)
     matched_brand   = _first_brand_token(matched_name)
     brand_conflict  = (
@@ -410,5 +422,9 @@ if __name__ == "__main__":
         print("Usage: python3 chewy_lookup.py \"Product Name\"", file=sys.stderr)
         sys.exit(1)
     product_name = " ".join(sys.argv[1:])
-    result = lookup(product_name)
+    try:
+        result = lookup(product_name)
+    except ChewyAPIError as e:
+        print(f"[chewy_lookup] API error: {e}", file=sys.stderr)
+        sys.exit(2)
     print(json.dumps(result, indent=2))

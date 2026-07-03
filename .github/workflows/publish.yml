@@ -2,7 +2,9 @@ name: Stage 2 — Publish Articles
 
 on:
   schedule:
-    # Mon + Thu 7:00 AM ET = 12:00 UTC (EDT, Apr-Nov)
+    # Mon + Thu 12:00 UTC = 8:00 AM EDT / 7:00 AM EST
+    # Safety net: the workflow_run trigger below publishes right after Stage 1;
+    # this cron catches drafts left behind by manual or failed S1 runs.
     - cron: '0 12 * * 1,4'
   workflow_dispatch:
     inputs:
@@ -17,6 +19,10 @@ on:
 permissions:
   contents: write
   issues: write
+
+concurrency:
+  group: happypet-publish
+  cancel-in-progress: false
 
 jobs:
   publish:
