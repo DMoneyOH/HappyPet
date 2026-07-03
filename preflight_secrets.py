@@ -93,31 +93,6 @@ def check_openrouter() -> None:
         record("OPENROUTER_API_KEY", "WARN", f"key valid but response unparseable: {exc}")
 
 
-def check_groq() -> None:
-    key = check_presence("GROQ_API_KEY")
-    if not key:
-        return
-    status, body = http_get("https://api.groq.com/openai/v1/models",
-                            {"Authorization": f"Bearer {key}"})
-    if status == 200:
-        record("GROQ_API_KEY", "PASS", "key accepted (legacy fallback only)")
-    else:
-        record("GROQ_API_KEY", "WARN",
-               f"models HTTP {status} -- legacy fallback key, not required for go-live")
-
-
-def check_cse() -> None:
-    key = check_presence("GOOGLE_CSE_KEY")
-    cx = check_presence("GOOGLE_CSE_CX")
-    if not key or not cx:
-        return
-    status, body = http_get(
-        "https://www.googleapis.com/customsearch/v1?q=test&num=1"
-        f"&key={urllib.parse.quote(key)}&cx={urllib.parse.quote(cx)}")
-    if status == 200:
-        record("GOOGLE_CSE_KEY+CX", "PASS", "test query OK (1 of 100 free daily queries)")
-    else:
-        record("GOOGLE_CSE_KEY+CX", "FAIL", f"test query HTTP {status}: {body[:120]}")
 
 
 def check_impact() -> None:
@@ -219,8 +194,6 @@ def main() -> None:
     print("HappyPet secrets preflight\n" + "=" * 60, flush=True)
     check_gemini()
     check_openrouter()
-    check_groq()
-    check_cse()
     check_impact()
     check_sheets()
     check_gmail()

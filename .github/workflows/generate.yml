@@ -91,9 +91,6 @@ jobs:
           MAX_ARTICLES: ${{ steps.cap.outputs.cap }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
-          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
-          GOOGLE_CSE_KEY: ${{ secrets.GOOGLE_CSE_KEY }}
-          GOOGLE_CSE_CX: ${{ secrets.GOOGLE_CSE_CX }}
           HAPPYPET_SHEET_ID_DOGS: ${{ secrets.HAPPYPET_SHEET_ID_DOGS }}
           HAPPYPET_SHEET_ID_CATS: ${{ secrets.HAPPYPET_SHEET_ID_CATS }}
           HAPPYPET_SHEET_ID_HOME: ${{ secrets.HAPPYPET_SHEET_ID_HOME }}
