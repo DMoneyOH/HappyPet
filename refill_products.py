@@ -27,9 +27,11 @@ Env:
   GEMINI_API_KEY    topic ideation + product fit-check
   IMPACT_*          optional Chewy enrichment via chewy_lookup
 """
+import gzip
 import html
 import json
 import os
+import random
 import re
 import sys
 import time
@@ -58,12 +60,20 @@ VALID_SHEETS     = ("HAPPYPET_SHEET_ID_DOGS", "HAPPYPET_SHEET_ID_CATS",
 VALID_CATEGORIES = ("dog-gear", "dog-food", "dog-health",
                     "cat-gear", "cat-food", "cat-health")
 
-SEARCH_HEADERS = {
-    "User-Agent": ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-                   "(KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36"),
-    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-    "Accept-Language": "en-US,en;q=0.9",
-}
+DESKTOP_UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+              "(KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36")
+MOBILE_UA  = ("Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) "
+              "AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1")
+
+# Try the desktop search first, then the lighter mobile endpoint -- datacenter
+# IPs are often blocked on one but not the other.
+SEARCH_ENDPOINTS = (
+    ("https://www.amazon.com/s?k=", DESKTOP_UA),
+    ("https://www.amazon.com/gp/aw/s?k=", MOBILE_UA),
+)
+
+BOT_MARKERS = ("api-services-support@amazon.com", "Robot Check",
+               "Type the characters you see", "automated access")
 
 TOPIC_SCHEMA = {
     "type": "object",
@@ -122,18 +132,42 @@ def unpublished_count(products: list, pub: set) -> int:
 
 # ------------------------------------------------------------- amazon scrape
 
+def _fetch_once(url: str, user_agent: str) -> str:
+    """One GET with explicit gzip handling (urllib does not auto-decompress)."""
+    req = urllib.request.Request(url, headers={
+        "User-Agent": user_agent,
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.9",
+        "Accept-Encoding": "gzip",
+    })
+    with urllib.request.urlopen(req, timeout=30) as resp:
+        raw = resp.read()
+        if resp.headers.get("Content-Encoding", "") == "gzip" or raw[:2] == b"\x1f\x8b":
+            raw = gzip.decompress(raw)
+        return raw.decode("utf-8", "replace")
+
+
 def fetch_search_html(query: str) -> str:
-    """Fetch an Amazon search page. Raises RuntimeError on block/failure."""
-    url = "https://www.amazon.com/s?k=" + urllib.parse.quote_plus(query)
-    req = urllib.request.Request(url, headers=SEARCH_HEADERS)
-    try:
-        with urllib.request.urlopen(req, timeout=30) as resp:
-            body = resp.read().decode("utf-8", "replace")
-    except (urllib.error.URLError, OSError) as exc:
-        raise RuntimeError(f"search fetch failed: {exc}") from exc
-    if "api-services-support@amazon.com" in body or "captcha" in body.lower()[:5000]:
-        raise RuntimeError("bot-blocked (captcha page)")
-    return body
+    """
+    Fetch an Amazon search page, trying desktop then mobile endpoints with
+    backoff. Raises RuntimeError when every attempt is blocked or fails.
+    """
+    q = urllib.parse.quote_plus(query)
+    errors = []
+    for base, ua in SEARCH_ENDPOINTS:
+        for attempt in range(2):
+            try:
+                body = _fetch_once(base + q, ua)
+            except (urllib.error.URLError, OSError) as exc:
+                errors.append(str(exc))
+                time.sleep(4 + random.uniform(0, 3))
+                continue
+            if any(m in body for m in BOT_MARKERS) or "captcha" in body.lower()[:5000]:
+                errors.append("bot-blocked (captcha page)")
+                time.sleep(4 + random.uniform(0, 3))
+                continue
+            return body
+    raise RuntimeError(f"search fetch failed after all endpoints: {errors[-1] if errors else '?'}")
 
 
 def parse_search_results(html_text: str, max_results: int = 8) -> list:
@@ -163,6 +197,35 @@ def parse_search_results(html_text: str, max_results: int = 8) -> list:
             "asin":  asin,
             "name":  html.unescape(name.group(1)).strip() if name else None,
             "image": img.group(1) if img else None,
+            "price": price,
+            "stars": float(stars_m.group(1)) if stars_m else None,
+        })
+        if len(results) >= max_results:
+            break
+    if results:
+        return results
+    # Fallback for layouts without data-component-type (e.g. mobile search):
+    # any data-asin block with an amazon-CDN image + alt text. Downstream
+    # validation and the LLM fit-check still gate what gets trusted.
+    for m in re.finditer(r'data-asin="(B0[A-Z0-9]{8})"(.*?)(?=data-asin="B0|$)',
+                         html_text, re.DOTALL):
+        asin, block = m.group(1), m.group(2)
+        if ">Sponsored<" in block[:4000]:
+            continue
+        img = re.search(r'src="(https://m\.media-amazon\.com/images/I/[^"]+)"', block)
+        name = re.search(r'alt="([^"]{15,})"', block)
+        price_m = re.search(r'class="a-price-whole">([\d,]+)[^0-9]*'
+                            r'(?:class="a-price-fraction">(\d{2}))?', block)
+        stars_m = re.search(r'([0-9.]+) out of 5 stars', block)
+        if not (img and name):
+            continue
+        price = None
+        if price_m:
+            price = price_m.group(1).replace(",", "") + "." + (price_m.group(2) or "99")
+        results.append({
+            "asin":  asin,
+            "name":  html.unescape(name.group(1)).strip(),
+            "image": img.group(1),
             "price": price,
             "stars": float(stars_m.group(1)) if stars_m else None,
         })
@@ -206,13 +269,17 @@ def resolve_product(topic_title: str, query: str) -> dict | None:
     for the first verified card, or None (caller keeps placeholders).
     """
     try:
-        cards = parse_search_results(fetch_search_html(query))
+        body = fetch_search_html(query)
+        cards = parse_search_results(body)
     except RuntimeError as exc:
         log(f"'{query}': {exc}", "WARN")
         return None
     valid = [c for c in cards if validate_candidate(c)]
     if not valid:
-        log(f"'{query}': no parseable product cards", "WARN")
+        asin_hits = len(re.findall(r'data-asin="B0', body))
+        log(f"'{query}': no parseable product cards "
+            f"(body {len(body)} chars, {asin_hits} asin attrs, "
+            f"head: {body[:120].replace(chr(10), ' ')!r})", "WARN")
         return None
     top = valid[0]
     if not llm_fit_check(topic_title, top["name"]):
@@ -281,7 +348,8 @@ Rules:
 - amazon_search_query: what a shopper would type into Amazon to find the single best mainstream product for this topic
 - Favor products relevant in {month} and the coming two months (seasonality), mixed across species and price points.
 Answer strictly as JSON."""
-    raw = gp._call_gemini(gp.GEMINI_GEN_MODEL, prompt, max_tokens=4096,
+    # 2.5-flash spends thinking tokens from the same budget; 4096 truncated
+    raw = gp._call_gemini(gp.GEMINI_GEN_MODEL, prompt, max_tokens=16384,
                           temperature=0.8, label="refill-ideate",
                           log_fn=log, json_schema=TOPIC_SCHEMA)
     topics = json.loads(raw)["topics"]
