@@ -8,8 +8,15 @@ show_excerpts: true
 excerpt_separator: "\n\n"
 permalink: /:categories/:title/
 
-# Keep pipeline source, data, and internal docs out of the published site
+# Keep pipeline source, data, and internal docs out of the published site.
+# Setting `exclude:` replaces Jekyll's built-in defaults, which cover
+# bundler's vendored gems — CI installs into ./vendor, so keep these listed.
 exclude:
+  - vendor
+  - node_modules
+  - .sass-cache
+  - .jekyll-cache
+  - gemfiles
   - "*.py"
   - "*.py.bak*"
   - "*.log"
