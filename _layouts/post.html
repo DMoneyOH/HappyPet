@@ -15,12 +15,15 @@ layout: default
       <img src="{{ page.image }}" alt="{{ page.title }}" loading="lazy">
     </div>
     {% endif %}
+    {% if page.affiliate_url or page.chewy_url %}
+    <p class="affiliate-disclosure-inline"><em>We may earn a commission if you buy through our links, at no extra cost to you.</em></p>
+    {% endif %}
     <div class="post-buy-buttons">
     {% if page.affiliate_url %}
-    <a href="{{ page.affiliate_url }}" class="post-buy-btn post-buy-btn--amazon" target="_blank" rel="nofollow noopener">Check Price on Amazon →</a>
+    <a href="{{ page.affiliate_url }}" class="post-buy-btn post-buy-btn--amazon" target="_blank" rel="sponsored nofollow noopener">Check Price on Amazon →</a>
     {% endif %}
     {% if page.chewy_url %}
-    <a href="{{ page.chewy_url }}" class="post-buy-btn post-buy-btn--chewy" target="_blank" rel="nofollow noopener">Check Price on Chewy →</a>
+    <a href="{{ page.chewy_url }}" class="post-buy-btn post-buy-btn--chewy" target="_blank" rel="sponsored nofollow noopener">Check Price on Chewy →</a>
     {% endif %}
     </div>
     <div class="post-divider"></div>

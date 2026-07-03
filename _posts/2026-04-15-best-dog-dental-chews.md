@@ -20,7 +20,7 @@ With a stellar 4.8/5 star rating, Greenies Original Regular Natural Dental Dog T
 * Low calorie and easy to digest
 * Helps reduce tartar and plaque
 * Made with natural ingredients
-* Can be expensive, with a price tag of 6.97
+* Can be expensive, with a price tag of $36.97
 * May not be suitable for dogs with sensitive stomachs
 Testing found that many owners report a significant reduction in bad breath and improved oral health after switching to Greenies.
 

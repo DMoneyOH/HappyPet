@@ -34,7 +34,7 @@ REPO_DIR  = Path(__file__).parent.resolve()
 import sys as _sys; _sys.path.insert(0, str(REPO_DIR))
 try:
     from brain_secrets import get_sheets_creds, get_secret as brain_get_secret
-except ImportError:
+except Exception:  # brain vault code can raise beyond ImportError; env-var fallback either way
     def brain_get_secret(key, *a, **kw): return os.environ.get(key, '')
     def get_sheets_creds():
         import base64, json as _j

@@ -68,7 +68,7 @@ REPO_DIR            = Path(__file__).parent
 import sys as _sys; _sys.path.insert(0, str(REPO_DIR))
 try:
     from brain_secrets import get_sheets_creds, get_secret as brain_get_secret
-except ImportError:
+except Exception:  # brain vault code can raise beyond ImportError; env-var fallback either way
     def brain_get_secret(key, *a, **kw): return os.environ.get(key, '')
     def get_sheets_creds():
         import base64, json as _j
@@ -167,6 +167,9 @@ def count_unpublished() -> int:
     products = json.loads(p.read_text())
     published = set()
     for md in (REPO_DIR / '_posts').glob('*.md'):
+        if md.stem.startswith('DRAFT-'):
+            published.add(md.stem[len('DRAFT-'):])  # pending counts as spoken-for
+            continue
         parts = md.stem.split('-', 3)
         if len(parts) == 4:
             published.add(parts[3])
@@ -193,6 +196,9 @@ def send_queue_alert(unpublished_count: int) -> None:
             products = json.loads(p.read_text())
             published = set()
             for md in (REPO_DIR / '_posts').glob('*.md'):
+                if md.stem.startswith('DRAFT-'):
+                    published.add(md.stem[len('DRAFT-'):])
+                    continue
                 parts = md.stem.split('-', 3)
                 if len(parts) == 4:
                     published.add(parts[3])

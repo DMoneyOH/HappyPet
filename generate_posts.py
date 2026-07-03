@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Happy Pet Product Reviews Generator v21.3 — Fact-check token fix: 1500 char input, 4096 max_tokens
+Happy Pet Product Reviews Generator v21.4
 - TOPICS derived entirely from products.json (no hardcoded list)
 - products.json is single source of truth: slug, title, keyword, format, category, species, topical_sheet
 - Dynamic internal links: resolved at runtime from published _posts/ by category
@@ -46,12 +46,10 @@ LOCK_PATH = Path("/tmp/happypet_gen.lock")
 LOG_PATH.parent.mkdir(exist_ok=True)  # ensure LOGS/ exists
 
 # --- Provider config ---
-# Generator:  Gemini 2.5 Flash (primary)          -> OpenRouter gpt-oss-120b:free (fallback)
-# Reviewer:   Nemotron-super-49b (primary)         -> qwen/qwen3-32b (fallback)
-# Rewriter:   Groq llama-4-scout (primary)         -> OpenRouter gpt-oss-120b:free (fallback)
-# Fact-check: Groq llama-3.1-8b-instant (primary)  -> Groq llama-3.3-70b-versatile (fallback)
-GEMINI_MODEL         = "gemini-2.5-flash"
-GEMINI_URL           = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent"
+# Generator:  OpenRouter gpt-oss-120b:free (primary) -> OpenRouter gpt-oss-20b:free (fallback)
+# Reviewer:   Gemini 2.5 Flash Lite (primary)        -> OpenRouter gpt-oss-20b:free (fallback)
+# Rewriter:   OpenRouter via call_generator (att. 1) -> Gemini direct + OR fallback (att. 2)
+# Fact-check: OpenRouter gpt-oss-20b:free (primary)  -> Gemini 2.5 Flash Lite (fallback)
 GROQ_URL             = "https://api.groq.com/openai/v1/chat/completions"
 OPENROUTER_URL       = "https://openrouter.ai/api/v1/chat/completions"
 OR_GEN_MODEL         = "openai/gpt-oss-120b:free"
@@ -74,15 +72,16 @@ SITE_BASE        = "https://happypetproductreviews.com"
 
 # Banned phrases — apply to pin descriptions AND article body
 # Keep in sync with WRITING STYLE rules in make_prompt()
+# {noun} is filled per-product species: dog / cat / pet (species == both)
 BANNED_PHRASE_MAP = [
-    (r'pet parents',          'dog owners'),
-    (r'pet parent',           'dog owner'),
-    (r'furry family members', 'dogs'),
-    (r'furry family member',  'dog'),
-    (r'furry family',         'dogs'),
-    (r'furry friend',         'dog'),
-    (r'fur babies',           'dogs'),
-    (r'fur baby',             'dog'),
+    (r'pet parents',          '{noun} owners'),
+    (r'pet parent',           '{noun} owner'),
+    (r'furry family members', '{noun}s'),
+    (r'furry family member',  '{noun}'),
+    (r'furry family',         '{noun}s'),
+    (r'furry friend',         '{noun}'),
+    (r'fur babies',           '{noun}s'),
+    (r'fur baby',             '{noun}'),
     (r'paw-some',             'great'),
     (r'put our paws',         'done the research'),
     (r'tail wagging',         'impressive'),
@@ -155,12 +154,16 @@ def http_post(url, payload, headers, *, label, log_fn=None, timeout=60, retries=
             if exc.code in passthrough_codes:
                 raise RuntimeError(label + ' HTTP ' + str(exc.code) + ': ' + body[:200])
             if exc.code in (429, 502, 503):
+                if attempt == retries:
+                    break  # terminal attempt: raising anyway, don't sleep first
                 wait = backoff_base * (2 ** attempt if backoff_exp else attempt)
                 log_fn('  ' + label + ' ' + str(exc.code) + ' attempt ' + str(attempt) + '/' + str(retries) + ' -- wait ' + str(wait) + 's', 'WARN')
                 time.sleep(wait)
             else:
                 raise RuntimeError(label + ' HTTP ' + str(exc.code) + ': ' + body[:200])
         except urllib.error.URLError as exc:
+            if attempt == retries:
+                break
             log_fn('  ' + label + ' network error attempt ' + str(attempt) + ': ' + str(exc.reason), 'WARN')
             time.sleep(RPM_SLEEP * 2)
     raise RuntimeError(label + ' exhausted after ' + str(retries) + ' attempt(s)')
@@ -178,11 +181,38 @@ def build_url(slug: str, utm: bool = False) -> str:
     return base
 
 
-def clean_pin_desc(text: str) -> str:
-    """Strip banned phrases from pin description before writing to queue."""
+def scrub_banned_phrases(text: str, species: str = "dog") -> str:
+    """Deterministic banned-phrase scrub, species-aware -- a cat article must
+    never end up saying 'dog owners'. Applied to pin descriptions AND the
+    article body (the body was previously prompt-enforced only, and published
+    posts show the prompt alone does not hold)."""
+    noun = {"cat": "cat", "dog": "dog"}.get(species, "pet")
     for pattern, replacement in BANNED_PHRASE_MAP:
-        text = re.sub(pattern, replacement, text, flags=re.IGNORECASE)
+        text = re.sub(pattern, replacement.format(noun=noun), text, flags=re.IGNORECASE)
     return text.strip()
+
+
+def clean_pin_desc(text: str, species: str = "dog") -> str:
+    """Strip banned phrases from pin description before writing to queue."""
+    return scrub_banned_phrases(text, species)
+
+
+def extract_pin_desc(content: str, default: str) -> tuple:
+    """
+    Find a PIN_DESC marker in the first few lines and remove it from the body.
+    Models sometimes wrap the marker ('**PIN_DESC:**') or prepend a blank line;
+    a marker that survives into the published body is worse than a generic
+    description, so match loosely and always strip.
+    Returns (pin_desc, content_without_marker).
+    """
+    lines = content.split("\n")
+    for idx, line in enumerate(lines[:5]):
+        m = re.match(r"^\s*[*_#>`\s]*PIN_DESC:\s*[*_]*\s*(.*)$", line, re.IGNORECASE)
+        if m:
+            desc = m.group(1).strip().strip("*_").strip()
+            del lines[idx]
+            return (desc or default), "\n".join(lines).lstrip("\n")
+    return default, content
 
 
 def build_pin_image_url_for_queue(slug: str) -> str:
@@ -195,11 +225,6 @@ def build_pin_image_url_for_ifttt(slug: str) -> str:
     """URL for IFTTT Maker webhook payloads. Bare URL -- no query string.
     Pinterest CDN rejects image URLs containing query parameters."""
     return f"{SITE_BASE}/assets/images/pins/{slug}.jpg"
-
-
-def build_pin_image_url(slug: str) -> str:
-    """Deprecated alias. Use build_pin_image_url_for_queue() for sheets/queue entries."""
-    return build_pin_image_url_for_queue(slug)
 
 
 def enrich_with_chewy(slug: str, product: dict) -> bool:
@@ -466,6 +491,11 @@ def _extract_or_content(raw: bytes, label: str) -> str:
         raise RuntimeError(f"{label}: null/empty message content")
     finish = choices[0].get("finish_reason", "?")
     tokens = data.get("usage", {}).get("completion_tokens", "?")
+    if finish == "length":
+        # Truncated mid-article: at 8192 max_tokens a legitimate article never
+        # hits this, so treat it as a failure and let the caller fail over
+        # instead of burning fact-check + review spend on a cut-off draft
+        raise RuntimeError(f"{label}: response truncated (finish_reason=length, {tokens} tokens)")
     log(f"  API ok ({label}): {len(content)} chars, {tokens} tokens, finish={finish}")
     return content
 
@@ -773,8 +803,6 @@ def _sanitize_factcheck_output(cleaned: str, original: str) -> str | None:
 
 def fact_check_alternatives(content: str, primary_product: str) -> str:
     """Strip unverifiable stats from alternative product sections. Runs only on roundups."""
-    # Check full article. Minimum 60% coverage enforced.
-    # For articles over 7000 chars, run two overlapping 3500-char windows.
     content_fc = content  # full article always passed to fact-checker
     prompt = f"""You are a fact-checker for a pet product review blog. The article below has a FEATURED product ({primary_product}) with verified data, and ALTERNATIVE products with potentially fabricated statistics.
 
@@ -1053,6 +1081,13 @@ def review_and_rewrite(title: str, keyword: str, content: str, api_key: str, or_
         if passed:
             return content, True, []
         instructions = scorecard.get("rewrite_instructions", "")
+        if not instructions and (flags or scorecard.get("ai_patterns_found")):
+            # Terse/truncated reviewers often fail an article but return empty
+            # rewrite_instructions -- which used to abort the 3-attempt loop
+            # after one try. Synthesize instructions from what it did report.
+            problems = list(flags) + list(scorecard.get("ai_patterns_found") or [])
+            instructions = "Fix each of these reviewer findings: " + "; ".join(str(p) for p in problems[:12])
+            log_reviewer("  rewrite_instructions empty -- synthesized from flags/patterns", "WARN")
         if attempt < MAX_REVIEW_ATTEMPTS and instructions:
             # Attempt 1 rewrite: use original model (Gemini)
             # Attempt 2 rewrite: use failover model (Groq Llama 70B)
@@ -1061,8 +1096,7 @@ def review_and_rewrite(title: str, keyword: str, content: str, api_key: str, or_
                 time.sleep(RPM_SLEEP)
                 try:
                     content = call_generator(make_rewrite_prompt(title, keyword, content, instructions, affiliate_url=affiliate_url, product_name=product_name), api_key)
-                    if content.startswith("PIN_DESC:"):
-                        _, _, content = content.partition("\n")
+                    _, content = extract_pin_desc(content, "")
                 except Exception as e:
                     log_reviewer(f"  WARN: Gemini rewrite failed: {e}")
                     return content, False, flags
@@ -1115,8 +1149,7 @@ def review_and_rewrite(title: str, keyword: str, content: str, api_key: str, or_
                         log_reviewer(f"  WARN: OR rewrite failed: {e}")
                         return content, False, flags
                 content = rw_content
-                if content.startswith("PIN_DESC:"):
-                    _, _, content = content.partition("\n")
+                _, content = extract_pin_desc(content, "")
         else:
             log_reviewer(f"  REVIEW FAILED after {attempt} attempt(s) -- creating GitHub issue", "WARN")
             return content, False, flags
@@ -1124,7 +1157,7 @@ def review_and_rewrite(title: str, keyword: str, content: str, api_key: str, or_
 
 
 def create_github_issue(title: str, slug: str, flags: list) -> None:
-    env = {**os.environ, "PATH": "/home/derek/bin:/usr/local/bin:/usr/bin:/bin", "GIT_TERMINAL_PROMPT": "0", "GH_TOKEN": os.environ.get("GITHUB_TOKEN", os.environ.get("GH_TOKEN", ""))}
+    env = {**os.environ, "GIT_TERMINAL_PROMPT": "0", "GH_TOKEN": os.environ.get("GITHUB_TOKEN", os.environ.get("GH_TOKEN", ""))}
     flag_text = "\n".join(f"- {f}" for f in flags) if flags else "- Review failed quality threshold"
     body = (
         f"## Article Quality Review Failed\n\n"
@@ -1136,8 +1169,13 @@ def create_github_issue(title: str, slug: str, flags: list) -> None:
     )
     cmd = ["gh", "issue", "create", "--repo", GITHUB_REPO,
            "--title", f"[Review Required] {title}", "--body", body, "--assignee", GITHUB_ASSIGNEE]
-    r = subprocess.run(cmd, env=env, capture_output=True, text=True)
-    log_reviewer(f"  GITHUB ISSUE: {r.stdout.strip() if r.returncode == 0 else r.stderr[:80]}")
+    try:
+        r = subprocess.run(cmd, env=env, capture_output=True, text=True)
+        log_reviewer(f"  GITHUB ISSUE: {r.stdout.strip() if r.returncode == 0 else r.stderr[:80]}")
+    except FileNotFoundError:
+        # gh missing must not crash the caller -- an uncaught error here was
+        # counted as a generation FAIL instead of a held article
+        log_reviewer("  GITHUB ISSUE skipped: gh CLI not available", "WARN")
 
 
 def yaml_quote(text: str) -> str:
@@ -1170,34 +1208,6 @@ def front_matter(title: str, keyword: str, affiliate_url: str, slug: str,
     return fm
 
 
-def append_to_sheet(title, article_url, description, image_url, species, slug, topical_sheet_key):
-    if not GSHEETS_AVAILABLE:
-        log("  WARN: gspread not installed, skipping sheet update"); return
-    try:
-        from brain_secrets import get_sheets_creds, get_secret as brain_get_secret
-        dog_id = brain_get_secret("HAPPYPET_SHEET_ID_DOGS") or os.getenv("HAPPYPET_SHEET_ID_DOGS")
-        cat_id = brain_get_secret("HAPPYPET_SHEET_ID_CATS") or os.getenv("HAPPYPET_SHEET_ID_CATS")
-        creds  = get_sheets_creds()
-        gc     = gspread.Client(auth=creds)
-        pin_image_url = build_pin_image_url_for_queue(slug)
-        row    = [title, article_url, pin_image_url, description, "NO"]
-        targets = []
-        if species in ("dog", "both") and dog_id:
-            targets.append(("Dogs", dog_id))
-        if species in ("cat", "both") and cat_id:
-            targets.append(("Cats", cat_id))
-        sheet_key = topical_sheet_key or SLUG_TO_TOPICAL_SHEET_STATIC.get(slug)
-        if sheet_key:
-            tid = os.getenv(sheet_key)
-            if tid:
-                targets.append((sheet_key.replace("HAPPYPET_SHEET_ID_", "").title(), tid))
-        for label, sid in targets:
-            gc.open_by_key(sid).get_worksheet(0).append_row(row)
-            log(f"  SHEET: appended to {label} Pinterest Queue")
-    except Exception as e:
-        log(f"  WARN: sheet append failed: {e}")
-
-
 def main() -> None:
     # Load .env first -- local runs need this; GHA already has env vars from secrets
     if DOTENV_AVAILABLE:
@@ -1205,7 +1215,12 @@ def main() -> None:
 
     # Reduce inter-article delay on multi-article runs to stay within Stage 1 timeout
     global INTER_DELAY
-    if int(os.environ.get("MAX_ARTICLES", "1")) > 1:
+    # Single authoritative read -- this used to be parsed twice with different
+    # defaults ("1" here, "999" at the cap), so an unset MAX_ARTICLES queued
+    # every topic while keeping the slow single-article delay
+    _max_raw = os.environ.get("MAX_ARTICLES", "").strip()
+    max_articles = int(_max_raw) if _max_raw.isdigit() and int(_max_raw) > 0 else 1
+    if max_articles > 1:
         INTER_DELAY = 120
         log("Multi-article run detected -- INTER_DELAY reduced to 120s")
 
@@ -1250,7 +1265,6 @@ def main() -> None:
         topics = [t for t in topics if t[0] not in used_slugs]
         log(f"Unpublished topics available: {len(topics)}")
 
-        max_articles = int(os.environ.get("MAX_ARTICLES", "999"))
         topics = topics[:max_articles]
         log(f"Cap: {max_articles} -- {len(topics)} topic(s) queued this run")
 
@@ -1260,6 +1274,14 @@ def main() -> None:
         log(f"START v21.4 -- {len(topics)} topics -- generator=openrouter/{OR_GEN_MODEL} reviewer={'ON' if REVIEWER_ENABLED else 'OFF'}")
 
         for i, (slug, title, keyword, fmt) in enumerate(topics, 1):
+            # Inter-article delay at the TOP of the loop so every path pays it.
+            # When it lived at the bottom, every held/failed `continue` skipped
+            # it and the next topic's API burst started immediately -- exactly
+            # when the free-tier providers were already rate-limiting us.
+            if i > 1:
+                log(f"  Waiting {INTER_DELAY // 60}min before next topic...")
+                time.sleep(INTER_DELAY)
+
             if slug in used_slugs:
                 log(f"SKIP [{i}/{len(topics)}] {slug} -- already published"); skipped += 1; continue
 
@@ -1302,7 +1324,13 @@ def main() -> None:
                 
                 # Inject alternatives into roundup prompt with explicit count constraint
                 if alternatives_text:
-                    alt_count = len([a for a in alternatives_text.split(";") if a.strip()])
+                    # runners_up from products.json is ';'-delimited; the LLM
+                    # fallback returns a newline-separated numbered list --
+                    # counting ';' on the latter said "EXACTLY 1" while listing 3
+                    if ";" in alternatives_text:
+                        alt_count = len([a for a in alternatives_text.split(";") if a.strip()])
+                    else:
+                        alt_count = len([ln for ln in alternatives_text.splitlines() if ln.strip()])
                     alt_constraint = (
                         "EXACTLY " + str(alt_count) + " alternative product(s) listed below. "
                         "Use ONLY these " + str(alt_count) + " product(s). "
@@ -1316,12 +1344,9 @@ def main() -> None:
                 content = call_generator(prompt, groq_key)
                 log(f"  [timing] generate: {time.monotonic()-_t0:.1f}s")
 
-                pin_desc = f"{title} - expert reviews and buying guide."
-                if content.startswith("PIN_DESC:"):
-                    first_line, _, content = content.partition("\n")
-                    pin_desc = first_line.replace("PIN_DESC:", "").strip()
-                    log_pin(f"  PIN_DESC: {pin_desc[:60]}")
-                pin_desc = clean_pin_desc(pin_desc)
+                pin_desc, content = extract_pin_desc(content, f"{title} - expert reviews and buying guide.")
+                log_pin(f"  PIN_DESC: {pin_desc[:60]}")
+                pin_desc = clean_pin_desc(pin_desc, species)
                 if len(content) < 2000:
                     log(f"  only {len(content)} chars -- may be truncated", "WARN")
 
@@ -1345,6 +1370,11 @@ def main() -> None:
                     create_github_issue(title, slug, review_flags)
                     log(f"  HOLD {slug} -- quality check failed, GitHub issue created")
                     held += 1; continue
+
+                # Deterministic banned-phrase scrub on the body -- the prompt
+                # asks for it and the reviewer spot-checks it, but published
+                # posts prove neither is airtight
+                content = scrub_banned_phrases(content, species)
 
                 # Gate 2: post-review output contract
                 try:
@@ -1397,10 +1427,6 @@ def main() -> None:
 
             except Exception as exc:
                 log(f"  FAIL: {exc}", "ERROR"); failed += 1
-
-            if i < len(topics):
-                log(f"  Waiting {INTER_DELAY // 60}min...")
-                time.sleep(INTER_DELAY)
 
         log(f"DONE -- {generated} written, {skipped} skipped, {held} held, {failed} failed")
 

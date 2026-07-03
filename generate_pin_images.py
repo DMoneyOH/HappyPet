@@ -47,7 +47,7 @@ import sys as _sys; _sys.path.insert(0, str(REPO))
 # Fallback: build sheets creds from GCP_SA_KEY_B64 env var (same as all other scripts).
 try:
     from brain_secrets import get_sheets_creds, get_secret as brain_get_secret
-except ImportError:
+except Exception:  # brain vault code can raise beyond ImportError; env-var fallback either way
     def brain_get_secret(key, *a, **kw): return os.environ.get(key, '')
     def get_sheets_creds():
         import base64, json as _j
@@ -116,10 +116,27 @@ def fetch_image(url):
     if img:
         return img
 
-    for suffix in ['._AC_SL1500_.jpg', '._AC_SX522_.jpg', '.jpg']:
-        m = re.search(r'/images/I/([A-Za-z0-9%+_-]+)[\._]', url)
-        if m:
-            alt = f'https://m.media-amazon.com/images/I/{m.group(1)}{suffix}'
+    # Fallbacks for both Amazon CDN URL shapes. The pipeline passes
+    # images-na.ssl-images-amazon.com/images/P/{ASIN} URLs (m.media-amazon.com
+    # is blocked from GHA runner IPs), so the /images/P/ variants matter most;
+    # the /images/I/ branch covers manually curated image URLs.
+    m = re.search(r'/images/P/([A-Za-z0-9]+)', url)
+    if m:
+        asin = m.group(1).split('.')[0]
+        for alt in [
+            f'https://images-na.ssl-images-amazon.com/images/P/{asin}.01._SCLZZZZZZZ_.jpg',
+            f'https://images-na.ssl-images-amazon.com/images/P/{asin}.01.LZZZZZZZ.jpg',
+            f'https://images-na.ssl-images-amazon.com/images/P/{asin}.01.MZZZZZZZ.jpg',
+        ]:
+            if alt.split('?')[0] != url.split('?')[0]:
+                img = _try(alt)
+                if img:
+                    return img
+
+    m = re.search(r'/images/I/([A-Za-z0-9%+_-]+)[\._]', url)
+    if m:
+        for suffix in ['._AC_SL1500_.jpg', '._AC_SX522_.jpg', '.jpg']:
+            alt = f'https://images-na.ssl-images-amazon.com/images/I/{m.group(1)}{suffix}'
             img = _try(alt)
             if img:
                 return img
@@ -286,8 +303,14 @@ def parse_posts():
                 if ':' in line:
                     k, _, v = line.partition(':')
                     fm[k.strip()] = v.strip().strip('"').strip("'")
-        parts = fname.replace('.md','').split('-',3)
-        slug = parts[3] if len(parts)==4 else fname.replace('.md','')
+        stem = fname.replace('.md','')
+        if stem.startswith('DRAFT-'):
+            # Drafts have no live URL and a standalone run would render their
+            # pins under garbage slugs ('DRAFT-best-x' split as a date) and
+            # push them to main -- skip until Stage 2 publishes them
+            continue
+        parts = stem.split('-',3)
+        slug = parts[3] if len(parts)==4 else stem
         cat  = fm.get('categories','').strip('[]')
         posts.append({
             'title':       fm.get('title',''),
@@ -321,6 +344,8 @@ def update_sheets(posts_with_pins):
         rows = ws.get_all_values()
         updates = []
         for i, row in enumerate(rows[1:], start=2):
+            if not row:
+                continue  # trailing blank rows would IndexError after pins were rendered
             for p in posts_with_pins:
                 if p['species'] in sp_filter and row[0] == p['title']:
                     updates.append({'range': f'C{i}', 'values': [[p['pin_url']]]})
