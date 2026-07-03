@@ -48,7 +48,9 @@ LOG_PATH.parent.mkdir(exist_ok=True)  # ensure LOGS/ exists
 # --- Provider config ---
 # Hybrid model strategy (2026-07): paid Gemini generates, Claude reviews.
 # Generator:  Gemini 2.5 Flash (paid, direct API)    -> OpenRouter gpt-oss-120b:free (emergency fallback)
-# Reviewer:   Claude Haiku 4.5 (schema-enforced JSON) -> Gemini 2.5 Flash Lite (responseSchema fallback)
+# Reviewer:   Claude Haiku 4.5 via OpenRouter        -> Gemini 2.5 Flash Lite (responseSchema fallback)
+#             (schema-enforced JSON; routed through OpenRouter on the existing
+#             OPENROUTER_API_KEY -- no direct Anthropic account needed)
 # Rewriter:   call_generator/Gemini (attempt 1)      -> Gemini Flash Lite + OR fallback (attempt 2)
 # Fact-check: Gemini 2.5 Flash Lite (primary)        -> OpenRouter gpt-oss-20b:free (fallback)
 # Cross-family review is deliberate: a judge from the writer's own family
@@ -56,11 +58,9 @@ LOG_PATH.parent.mkdir(exist_ok=True)  # ensure LOGS/ exists
 # structurally impossible instead of merely less likely.
 GROQ_URL             = "https://api.groq.com/openai/v1/chat/completions"
 OPENROUTER_URL       = "https://openrouter.ai/api/v1/chat/completions"
-ANTHROPIC_URL        = "https://api.anthropic.com/v1/messages"
-ANTHROPIC_VERSION    = "2023-06-01"
 GEMINI_GEN_MODEL     = "gemini-2.5-flash"
 OR_GEN_MODEL         = "openai/gpt-oss-120b:free"
-REVIEWER_MODEL       = "claude-haiku-4-5"
+REVIEWER_MODEL       = "anthropic/claude-haiku-4.5"
 REVIEWER_FALLBACK    = "gemini-2.5-flash-lite"
 REVIEWER_ENABLED     = True
 GEMINI_REWRITE_MODEL = "gemini-2.5-flash-lite"
@@ -256,38 +256,46 @@ def _strip_additional_properties(schema):
 REVIEW_SCHEMA_GEMINI = _strip_additional_properties(REVIEW_SCHEMA)
 
 
-def _call_claude_reviewer(prompt: str) -> dict:
+def _call_openrouter_reviewer(prompt: str) -> dict:
     """
-    Review via Claude Haiku 4.5 with structured output -- the response text is
-    guaranteed schema-valid JSON, so no regex repair passes are needed.
-    Raises RuntimeError on any failure so the caller can fail over to Gemini.
+    Review via Claude Haiku 4.5 routed through OpenRouter with structured
+    output (response_format json_schema, strict) -- the response text is
+    schema-valid JSON, so no regex repair passes are needed. provider
+    require_parameters makes OpenRouter route only to providers that honor
+    response_format. Raises RuntimeError on any failure so the caller can
+    fail over to the independently schema-enforced Gemini path.
     """
-    key = os.environ.get("ANTHROPIC_API_KEY", "").strip()
+    key = os.environ.get("OPENROUTER_API_KEY", "").strip()
     if not key:
-        raise RuntimeError("ANTHROPIC_API_KEY not set")
+        raise RuntimeError("OPENROUTER_API_KEY not set")
     payload = json.dumps({
         "model": REVIEWER_MODEL,
         "max_tokens": 4096,
-        "output_config": {"format": {"type": "json_schema", "schema": REVIEW_SCHEMA}},
+        "temperature": 0.1,
         "messages": [{"role": "user", "content": prompt}],
+        "response_format": {
+            "type": "json_schema",
+            "json_schema": {
+                "name": "review_scorecard",
+                "strict": True,
+                "schema": REVIEW_SCHEMA,
+            },
+        },
+        "provider": {"require_parameters": True},
     }).encode()
     headers = {
         "Content-Type": "application/json",
-        "x-api-key": key,
-        "anthropic-version": ANTHROPIC_VERSION,
+        "Authorization": f"Bearer {key}",
+        **OR_HEADERS_EXTRA,
     }
-    raw = http_post(ANTHROPIC_URL, payload, headers, label="Reviewer-Claude",
+    raw = http_post(OPENROUTER_URL, payload, headers, label="Reviewer-Haiku-OR",
                     log_fn=log_reviewer, timeout=90, retries=2, backoff_base=30)
-    data = json.loads(raw)
-    stop = data.get("stop_reason")
-    if stop == "max_tokens":
-        raise RuntimeError("Reviewer-Claude: scorecard truncated (max_tokens)")
-    if stop == "refusal":
-        raise RuntimeError("Reviewer-Claude: request refused")
-    text = next((b.get("text") for b in (data.get("content") or [])
-                 if b.get("type") == "text"), None)
-    if not text:
-        raise RuntimeError(f"Reviewer-Claude: no text block in response: {str(data)[:200]}")
+    text = _extract_or_content(raw, "Reviewer-Haiku-OR")
+    # Belt and braces: strict schema enforcement should make this a no-op, but
+    # if a provider ever degrades it, a fence-wrapped scorecard still parses
+    # and anything worse raises into the Gemini fallback instead of holding
+    # the article unreviewed.
+    text = re.sub(r"^```(?:json)?\s*|\s*```$", "", text.strip())
     return json.loads(text)
 
 
@@ -1053,15 +1061,15 @@ def review_and_rewrite(title: str, keyword: str, content: str, api_key: str, or_
         review_prompt = make_review_prompt(title, keyword, content)
         scorecard = None
 
-        # --- Primary: Claude Haiku 4.5 with schema-enforced JSON output ---
+        # --- Primary: Claude Haiku 4.5 via OpenRouter, schema-enforced JSON ---
         # Cross-family judge (Gemini writes, Claude reviews) + server-side schema
         # validation: the old regex-repair passes and REVIEWER_JSON_ERROR class
         # existed because free models returned malformed scorecards.
         try:
-            scorecard = _call_claude_reviewer(review_prompt)
-            log_reviewer(f"  Reviewer: {REVIEWER_MODEL} (Claude, schema-enforced)")
+            scorecard = _call_openrouter_reviewer(review_prompt)
+            log_reviewer(f"  Reviewer: {REVIEWER_MODEL} (via OpenRouter, schema-enforced)")
         except Exception as _claude_exc:
-            log_reviewer(f"  Claude reviewer error: {_claude_exc} -- falling back to Gemini", "WARN")
+            log_reviewer(f"  Haiku reviewer error: {_claude_exc} -- falling back to Gemini", "WARN")
 
         # --- Fallback: Gemini Flash Lite with responseSchema ---
         if scorecard is None:
