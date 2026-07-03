@@ -373,3 +373,10 @@ a { color: inherit; text-decoration: none; }
 .nav-search button { background: var(--coral); color: #fff; border: none; border-radius: var(--rx-p); padding: .35rem .6rem; cursor: pointer; font-size: .9rem; line-height: 1; transition: background var(--ease); }
 .nav-search button:hover { background: var(--coral-dk); }
 @media (max-width: 768px) { .nav-search { display: none; } }
+
+/* Inline affiliate disclosure above buy buttons (FTC: disclose before the links) */
+.affiliate-disclosure-inline {
+  font-size: 0.85rem;
+  color: #6b7c7e;
+  margin: 0.25rem 0 0.5rem;
+}
