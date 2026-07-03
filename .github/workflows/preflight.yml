@@ -1,0 +1,56 @@
+name: Preflight — Secrets Readiness Check
+
+# Manual only. Verifies every pipeline secret is present and, where a free
+# side-effect-free ping exists, live. Generates nothing, publishes nothing,
+# fires no pins, appends no rows, sends no email.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: happypet-preflight
+  cancel-in-progress: false
+
+jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Python dependencies
+        run: pip install --quiet -r requirements.txt
+
+      - name: Run secrets preflight
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          GOOGLE_CSE_KEY: ${{ secrets.GOOGLE_CSE_KEY }}
+          GOOGLE_CSE_CX: ${{ secrets.GOOGLE_CSE_CX }}
+          GCP_SA_KEY_B64: ${{ secrets.GCP_SA_KEY_B64 }}
+          FACEBOOK_QUEUE_SHEET_ID: ${{ secrets.FACEBOOK_QUEUE_SHEET_ID }}
+          HAPPYPET_SHEET_ID_DOGS: ${{ secrets.HAPPYPET_SHEET_ID_DOGS }}
+          HAPPYPET_SHEET_ID_CATS: ${{ secrets.HAPPYPET_SHEET_ID_CATS }}
+          HAPPYPET_SHEET_ID_HOME: ${{ secrets.HAPPYPET_SHEET_ID_HOME }}
+          HAPPYPET_SHEET_ID_FOOD: ${{ secrets.HAPPYPET_SHEET_ID_FOOD }}
+          HAPPYPET_SHEET_ID_TOYS: ${{ secrets.HAPPYPET_SHEET_ID_TOYS }}
+          HAPPYPET_SHEET_ID_HEALTH: ${{ secrets.HAPPYPET_SHEET_ID_HEALTH }}
+          GMAIL_SMTP_USER: ${{ secrets.GMAIL_SMTP_USER }}
+          GMAIL_ACCOUNT: ${{ secrets.GMAIL_ACCOUNT }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          IFTTT_MAKER_KEY: ${{ secrets.IFTTT_MAKER_KEY }}
+          IMPACT_ACCOUNT_SID: ${{ secrets.IMPACT_ACCOUNT_SID }}
+          IMPACT_AUTH_TOKEN: ${{ secrets.IMPACT_AUTH_TOKEN }}
+          FACEBOOK_PAGE_TOKEN: ${{ secrets.FACEBOOK_PAGE_TOKEN }}
+        run: python3 preflight_secrets.py
