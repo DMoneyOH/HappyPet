@@ -534,5 +534,83 @@ class TestReviewerSchema(unittest.TestCase):
         self.assertNotIn("ANTHROPIC_API_KEY", workflow)
 
 
+
+
+class TestRefillAgent(unittest.TestCase):
+    """Stage 0 refill: scrape parsing, validation, dedup, threshold gate."""
+
+    FIXTURE = """
+    <div data-asin="B0ABCD1234" data-component-type="s-search-result">
+      <img src="https://m.media-amazon.com/images/I/71abcDEF._AC_UL320_.jpg"
+           alt="CoolPup Elevated Dog Bed with Breathable Mesh, 43 inch, Grey">
+      <span class="a-price-whole">36</span><span class="a-price-fraction">99</span>
+      <span>4.6 out of 5 stars</span>
+    </div>
+    <div data-asin="B0SPONSOR9" data-component-type="s-search-result">
+      >Sponsored<
+      <img src="https://m.media-amazon.com/images/I/00spon._AC_UL320_.jpg"
+           alt="SponsoredBrand Raised Pet Cot for Large Dogs">
+    </div>
+    <div data-asin="B0WXYZ5678" data-component-type="s-search-result">
+      <img src="https://m.media-amazon.com/images/I/81wxyZ._AC_UL320_.jpg"
+           alt="BarkLoft Cooling Elevated Pet Bed for Outdoor and Indoor Use">
+      <span class="a-price-whole">45</span><span class="a-price-fraction">50</span>
+      <span>4.4 out of 5 stars</span>
+    </div>
+    """
+
+    def test_parse_search_results_extracts_cards(self):
+        import refill_products as rp
+        cards = rp.parse_search_results(self.FIXTURE)
+        self.assertEqual(cards[0]["asin"], "B0ABCD1234")
+        self.assertTrue(cards[0]["name"].startswith("CoolPup Elevated"))
+        self.assertEqual(cards[0]["price"], "36.99")
+        self.assertEqual(cards[0]["stars"], 4.6)
+        self.assertTrue(cards[0]["image"].startswith("https://m.media-amazon.com/images/I/"))
+        # sponsored card skipped, organic second card kept
+        asins = [c["asin"] for c in cards]
+        self.assertNotIn("B0SPONSOR9", asins)
+        self.assertIn("B0WXYZ5678", asins)
+
+    def test_validate_candidate_rejects_bad_data(self):
+        import refill_products as rp
+        good = {"asin": "B0ABCD1234", "name": "Real Product",
+                "image": "https://m.media-amazon.com/images/I/x.jpg"}
+        self.assertTrue(rp.validate_candidate(good))
+        # invented / malformed ASINs must never pass
+        self.assertFalse(rp.validate_candidate({**good, "asin": "B12345678"}))
+        self.assertFalse(rp.validate_candidate({**good, "asin": "B0abcd1234"}))
+        # off-host images must never pass (hotlink target must be amazon CDN)
+        self.assertFalse(rp.validate_candidate(
+            {**good, "image": "https://example.com/evil.jpg"}))
+        self.assertFalse(rp.validate_candidate({**good, "image": None}))
+        self.assertFalse(rp.validate_candidate({**good, "name": None}))
+
+    def test_affiliate_url_uses_tag(self):
+        import refill_products as rp
+        entry = rp.build_entry({
+            "topic": "best-heated-cat-bed", "title": "T", "keyword": "k",
+            "species": "cat", "category": "cat-gear",
+            "topical_sheet": "HAPPYPET_SHEET_ID_HOME", "amazon_search_query": "q"})
+        self.assertIn("tag=pawpicks04-20", entry["affiliate_url"])
+        self.assertEqual(entry["asin"], "NEEDS_ASIN")
+        self.assertEqual(entry["image"], "NEEDS_IMAGE")
+
+    def test_unpublished_count_and_threshold_semantics(self):
+        import refill_products as rp
+        products = [{"topic": "best-a"}, {"topic": "best-b"}, {"topic": "best-c"}]
+        pub = {"a", "best-b"}  # dated posts store bare or best- slugs
+        # only exact topic matches count as published here (mirrors generator)
+        self.assertEqual(rp.unpublished_count(products, {"best-a", "best-b"}), 1)
+
+    def test_refill_workflow_never_pushes_main(self):
+        workflow = (REPO / ".github/workflows/refill.yml").read_text()
+        self.assertNotIn("git push origin main", workflow)
+        self.assertIn("gh pr create", workflow)
+        self.assertIn("workflow_dispatch", workflow)
+        self.assertIn("concurrency", workflow)
+
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

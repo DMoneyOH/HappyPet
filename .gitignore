@@ -40,3 +40,7 @@ scripts/
 
 # Chewy validation reports (runtime artifacts, uploaded to GHA)
 chewy_link_validation_*.json
+
+# Refill agent runtime artifacts (uploaded to GHA, PR body scratch)
+REFILL_RESULT.json
+pr_body.md
