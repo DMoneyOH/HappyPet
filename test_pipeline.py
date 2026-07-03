@@ -206,10 +206,16 @@ class TestOutputContract(unittest.TestCase):
         with self.assertRaises(self.gp.GenerationStageError):
             self.gp.validate_output("generate", "short text", "test-slug")
 
-    def test_no_affiliate_link_fails(self):
+    def test_no_affiliate_link_tolerated_at_generate_gate(self):
+        # Gate 1 (generate) tolerates a missing link -- the rewrite step injects it
+        no_link = GOOD_ARTICLE.replace("https://amzn.to/3TestABC", "https://amazon.com/dp/B00AKOQYXY")
+        self.gp.validate_output("generate", no_link, "test-slug")
+
+    def test_no_affiliate_link_fails_at_review_gate(self):
+        # Gate 2 (post-review) is the publish gate: missing link must raise
         no_link = GOOD_ARTICLE.replace("https://amzn.to/3TestABC", "https://amazon.com/dp/B00AKOQYXY")
         with self.assertRaises(self.gp.GenerationStageError):
-            self.gp.validate_output("generate", no_link, "test-slug")
+            self.gp.validate_output("review", no_link, "test-slug")
 
     def test_word_count_below_minimum_fails(self):
         # Has a link but too short

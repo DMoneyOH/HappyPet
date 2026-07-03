@@ -287,13 +287,28 @@ def load_products() -> dict:
     return data
 
 
+def slug_from_post_stem(stem: str) -> str | None:
+    """
+    Extract the topic slug from a _posts/ filename stem.
+    Handles both shapes: 'YYYY-MM-DD-slug' (published) and 'DRAFT-slug' (pending).
+    Returns None for anything else.
+    """
+    if stem.startswith("DRAFT-"):
+        return stem[len("DRAFT-"):] or None
+    parts = stem.split("-", 3)
+    if len(parts) == 4:
+        return parts[3]
+    return None
+
+
 def build_used_slugs() -> set:
-    """Scan _posts/ and return set of published slugs (date-stripped filename)."""
+    """Scan _posts/ and return set of used slugs -- published AND pending drafts,
+    so a draft awaiting Stage 2 is never regenerated (and overwritten)."""
     used = set()
     for md in POSTS_DIR.glob("*.md"):
-        parts = md.stem.split("-", 3)
-        if len(parts) == 4:
-            used.add(parts[3])
+        slug = slug_from_post_stem(md.stem)
+        if slug:
+            used.add(slug)
     return used
 
 
@@ -305,6 +320,8 @@ def find_related_published_slug(current_slug: str, current_category: str) -> tup
     """
     candidates = []
     for md in POSTS_DIR.glob("*.md"):
+        if md.stem.startswith("DRAFT-"):
+            continue  # drafts have no live URL to link to
         parts = md.stem.split("-", 3)
         if len(parts) != 4:
             continue
@@ -404,13 +421,12 @@ def call_generator(prompt: str, api_key: str) -> str:
     try:
         raw     = http_post(OPENROUTER_URL, or_gen_payload, or_gen_headers, label="OR-Gen-Primary",
                             timeout=90, retries=2, backoff_base=60)
-        data    = json.loads(raw)
-        content = data["choices"][0]["message"]["content"]
-        finish  = data["choices"][0].get("finish_reason", "?")
-        tokens  = data.get("usage", {}).get("completion_tokens", "?")
-        log(f"  API ok (OpenRouter gpt-oss-120b:free): {len(content)} chars, {tokens} tokens, finish={finish}")
-        return content
-    except RuntimeError as exc:
+        return _extract_or_content(raw, "OpenRouter gpt-oss-120b:free")
+    except Exception as exc:
+        # Broad catch: OpenRouter returns HTTP 200 with an {"error": ...} body (no
+        # "choices") on free-tier moderation/rate events, and null message.content
+        # on some reasoning models -- those raise KeyError/TypeError, not RuntimeError,
+        # and must still fail over to Tier 2.
         log(f"  OpenRouter primary failed: {exc} -- failing over to OR-20b", "WARN")
 
     # --- Tier 2: OpenRouter gpt-oss-20b:free (fallback -- Groq removed, CF-blocked from GHA) ---
@@ -426,13 +442,31 @@ def call_generator(prompt: str, api_key: str) -> str:
         "Authorization": f"Bearer {or_gen_key}",
         **OR_HEADERS_EXTRA,
     }
-    raw     = http_post(OPENROUTER_URL, or_fb_payload, or_fb_headers, label="OR-Gen-Fallback",
-                        timeout=90, retries=2, backoff_base=60)
-    data    = json.loads(raw)
-    content = data["choices"][0]["message"]["content"]
-    finish  = data["choices"][0].get("finish_reason", "?")
-    tokens  = data.get("usage", {}).get("completion_tokens", "?")
-    log(f"  API ok (OR gpt-oss-20b:free fallback): {len(content)} chars, {tokens} tokens, finish={finish}")
+    raw = http_post(OPENROUTER_URL, or_fb_payload, or_fb_headers, label="OR-Gen-Fallback",
+                    timeout=90, retries=2, backoff_base=60)
+    return _extract_or_content(raw, "OR gpt-oss-20b:free fallback")
+
+
+def _extract_or_content(raw: bytes, label: str) -> str:
+    """
+    Validate an OpenRouter chat-completions response and return message content.
+    Raises RuntimeError on any malformed/degenerate shape so callers can fail over.
+    """
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        raise RuntimeError(f"{label}: non-JSON response: {exc}") from exc
+    if "error" in data:
+        raise RuntimeError(f"{label}: API error body: {str(data['error'])[:200]}")
+    choices = data.get("choices")
+    if not choices:
+        raise RuntimeError(f"{label}: no choices in response")
+    content = choices[0].get("message", {}).get("content")
+    if not content:
+        raise RuntimeError(f"{label}: null/empty message content")
+    finish = choices[0].get("finish_reason", "?")
+    tokens = data.get("usage", {}).get("completion_tokens", "?")
+    log(f"  API ok ({label}): {len(content)} chars, {tokens} tokens, finish={finish}")
     return content
 
 def make_review_prompt(title: str, keyword: str, content: str) -> str:
@@ -561,7 +595,7 @@ Begin with {{ and end with }}.
 Rules:
 - ai_patterns_found: list each AI pattern detected as "CATEGORY_NUMBER: description" (e.g. "10: uses leverage, seamless")
 - flags: list each specific problem as a plain string; empty array if none
-- rewrite_instructions: name exact sections and specific fixes if pass=false; empty string if pass=true
+- rewrite_instructions: name exact sections and specific fixes if pass=false; empty string if pass=true. Keep under 250 words -- a truncated response fails JSON parsing and the article is held unreviewed.
 - em_dash_count: exact integer count of (—) characters in article
 - pass=false if em_dash_count > 0, first-person voice present, or human_voice < 4 or warmth < 4
 """
@@ -879,7 +913,7 @@ def review_and_rewrite(title: str, keyword: str, content: str, api_key: str, or_
                     gem_url     = f"https://generativelanguage.googleapis.com/v1beta/models/{REVIEWER_MODEL}:generateContent?key={_gemini_key}"
                     gem_payload = json.dumps({
                         "contents": [{"parts": [{"text": make_review_prompt(title, keyword, content)}]}],
-                        "generationConfig": {"maxOutputTokens": 1000, "temperature": 0.1}
+                        "generationConfig": {"maxOutputTokens": 4000, "temperature": 0.1}
                     }).encode()
                     gem_req = urllib.request.Request(gem_url, data=gem_payload,
                                                      headers={"Content-Type": "application/json"}, method="POST")
@@ -903,7 +937,7 @@ def review_and_rewrite(title: str, keyword: str, content: str, api_key: str, or_
                         fb_payload = json.dumps({
                             "model": REVIEWER_FALLBACK,
                             "messages": [{"role": "user", "content": make_review_prompt(title, keyword, content)}],
-                            "max_tokens": 1000,
+                            "max_tokens": 4000,
                             "temperature": 0.1,
                         }).encode()
                         fb_headers = {
@@ -1073,14 +1107,23 @@ def create_github_issue(title: str, slug: str, flags: list) -> None:
     log_reviewer(f"  GITHUB ISSUE: {r.stdout.strip() if r.returncode == 0 else r.stderr[:80]}")
 
 
+def yaml_quote(text: str) -> str:
+    """
+    Make a string safe inside double-quoted YAML front matter.
+    Title/description/pin_desc are LLM output -- a stray quote or newline
+    would otherwise break the front matter and fail the whole Jekyll build.
+    """
+    return str(text).replace("\\", "\\\\").replace('"', '\\"').replace("\n", " ").replace("\r", " ").strip()
+
+
 def front_matter(title: str, keyword: str, affiliate_url: str, slug: str,
                  species: str, category: str, description: str, image: str = "",
                  pin_image: str = "", chewy_url: str = "") -> str:
     today = datetime.date.today().isoformat()
     fm = (
-        f'---\nlayout: post\ntitle: "{title}"\ndate: {today}\n'
+        f'---\nlayout: post\ntitle: "{yaml_quote(title)}"\ndate: {today}\n'
         f'categories: [{category}]\nspecies: {species}\ntags: [{keyword}]\n'
-        f'description: "{description}"\n'
+        f'description: "{yaml_quote(description)}"\n'
     )
     if affiliate_url:
         fm += f'affiliate_url: "{affiliate_url}"\n'
