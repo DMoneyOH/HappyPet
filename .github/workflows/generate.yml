@@ -1,9 +1,9 @@
 name: Stage 1 — Generate Articles
 
 on:
-  schedule: # re-enabled 2026-07-02 — recovery (was disabled 2026-05-25 for a beta rebuild that never happened)
-    # Mon + Thu 8:15 UTC = 4:15 AM EDT / 3:15 AM EST
-    - cron: '15 8 * * 1,4'
+  # schedule: # HELD for go-live 2026-07-03 — re-enable after supervised run gets the go-ahead
+  #   # Mon + Thu 8:15 UTC = 4:15 AM EDT / 3:15 AM EST
+  #   - cron: '15 8 * * 1,4'
   workflow_dispatch:
     inputs:
       force_cap:
