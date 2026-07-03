@@ -35,9 +35,6 @@ jobs:
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
-          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
-          GOOGLE_CSE_KEY: ${{ secrets.GOOGLE_CSE_KEY }}
-          GOOGLE_CSE_CX: ${{ secrets.GOOGLE_CSE_CX }}
           GCP_SA_KEY_B64: ${{ secrets.GCP_SA_KEY_B64 }}
           FACEBOOK_QUEUE_SHEET_ID: ${{ secrets.FACEBOOK_QUEUE_SHEET_ID }}
           HAPPYPET_SHEET_ID_DOGS: ${{ secrets.HAPPYPET_SHEET_ID_DOGS }}
