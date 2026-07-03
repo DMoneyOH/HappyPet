@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Happy Pet Product Reviews Generator v21.4
+Happy Pet Product Reviews Generator v22.0 — hybrid models: Gemini 2.5 Flash generates, Claude Haiku 4.5 reviews (schema-enforced JSON)
 - TOPICS derived entirely from products.json (no hardcoded list)
 - products.json is single source of truth: slug, title, keyword, format, category, species, topical_sheet
 - Dynamic internal links: resolved at runtime from published _posts/ by category
@@ -46,20 +46,26 @@ LOCK_PATH = Path("/tmp/happypet_gen.lock")
 LOG_PATH.parent.mkdir(exist_ok=True)  # ensure LOGS/ exists
 
 # --- Provider config ---
-# Generator:  OpenRouter gpt-oss-120b:free (primary) -> OpenRouter gpt-oss-20b:free (fallback)
-# Reviewer:   Gemini 2.5 Flash Lite (primary)        -> OpenRouter gpt-oss-20b:free (fallback)
-# Rewriter:   OpenRouter via call_generator (att. 1) -> Gemini direct + OR fallback (att. 2)
-# Fact-check: OpenRouter gpt-oss-20b:free (primary)  -> Gemini 2.5 Flash Lite (fallback)
+# Hybrid model strategy (2026-07): paid Gemini generates, Claude reviews.
+# Generator:  Gemini 2.5 Flash (paid, direct API)    -> OpenRouter gpt-oss-120b:free (emergency fallback)
+# Reviewer:   Claude Haiku 4.5 via OpenRouter        -> Gemini 2.5 Flash Lite (responseSchema fallback)
+#             (schema-enforced JSON; routed through OpenRouter on the existing
+#             OPENROUTER_API_KEY -- no direct Anthropic account needed)
+# Rewriter:   call_generator/Gemini (attempt 1)      -> Gemini Flash Lite + OR fallback (attempt 2)
+# Fact-check: Gemini 2.5 Flash Lite (primary)        -> OpenRouter gpt-oss-20b:free (fallback)
+# Cross-family review is deliberate: a judge from the writer's own family
+# inflates pass rates, and schema enforcement makes REVIEWER_JSON_ERROR
+# structurally impossible instead of merely less likely.
 GROQ_URL             = "https://api.groq.com/openai/v1/chat/completions"
 OPENROUTER_URL       = "https://openrouter.ai/api/v1/chat/completions"
+GEMINI_GEN_MODEL     = "gemini-2.5-flash"
 OR_GEN_MODEL         = "openai/gpt-oss-120b:free"
-REVIEWER_MODEL       = "gemini-2.5-flash-lite"
-REVIEWER_FALLBACK    = "openai/gpt-oss-20b:free"
+REVIEWER_MODEL       = "anthropic/claude-haiku-4.5"
+REVIEWER_FALLBACK    = "gemini-2.5-flash-lite"
 REVIEWER_ENABLED     = True
 GEMINI_REWRITE_MODEL = "gemini-2.5-flash-lite"
-REWRITE_FALLBACK     = "openai/gpt-oss-20b:free"
 OR_FACTCHECK_MODEL   = "openai/gpt-oss-20b:free"
-FACTCHECK_FALLBACK   = "gemini-2.5-flash-lite"
+FACTCHECK_MODEL      = "gemini-2.5-flash-lite"
 OR_HEADERS_EXTRA     = {"HTTP-Referer": "https://happypetproductreviews.com", "X-Title": "HappyPetReviews"}
 MAX_REVIEW_ATTEMPTS  = 3
 INTER_DELAY          = 300
@@ -167,6 +173,130 @@ def http_post(url, payload, headers, *, label, log_fn=None, timeout=60, retries=
             log_fn('  ' + label + ' network error attempt ' + str(attempt) + ': ' + str(exc.reason), 'WARN')
             time.sleep(RPM_SLEEP * 2)
     raise RuntimeError(label + ' exhausted after ' + str(retries) + ' attempt(s)')
+
+
+def _call_gemini(model: str, prompt: str, *, max_tokens: int, temperature: float,
+                 label: str, log_fn=None, json_schema: dict = None, timeout: int = 90) -> str:
+    """
+    Shared Gemini generateContent call. Validates the response shape and raises
+    RuntimeError on any failure so callers can fail over. When json_schema is
+    given, the response is constrained to schema-valid JSON (responseSchema).
+    """
+    if log_fn is None:
+        log_fn = log
+    key = os.environ.get("GEMINI_API_KEY", "").strip()
+    if not key:
+        raise RuntimeError(f"{label}: GEMINI_API_KEY not set")
+    gen_cfg = {"maxOutputTokens": max_tokens, "temperature": temperature}
+    if json_schema:
+        gen_cfg["responseMimeType"] = "application/json"
+        gen_cfg["responseSchema"] = json_schema
+    payload = json.dumps({
+        "contents": [{"parts": [{"text": prompt}]}],
+        "generationConfig": gen_cfg,
+    }).encode()
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={key}"
+    raw = http_post(url, payload, {"Content-Type": "application/json"},
+                    label=label, log_fn=log_fn, timeout=timeout, retries=2, backoff_base=30)
+    data = json.loads(raw)
+    try:
+        candidate = data["candidates"][0]
+        text = candidate["content"]["parts"][0]["text"]
+    except (KeyError, IndexError, TypeError) as exc:
+        raise RuntimeError(f"{label}: malformed Gemini response: {str(data)[:200]}") from exc
+    if not text or not text.strip():
+        raise RuntimeError(f"{label}: empty Gemini response")
+    finish = candidate.get("finishReason", "?")
+    if finish == "MAX_TOKENS":
+        raise RuntimeError(f"{label}: response truncated (finishReason=MAX_TOKENS)")
+    log_fn(f"  API ok ({label}/{model}): {len(text)} chars, finish={finish}")
+    return text
+
+
+# Reviewer scorecard schema. Enforced server-side by both reviewer paths:
+# Claude via output_config.format (needs additionalProperties: false),
+# Gemini via responseSchema (rejects additionalProperties -- stripped below).
+REVIEW_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "pass": {"type": "boolean"},
+        "scores": {
+            "type": "object",
+            "properties": {
+                "human_voice": {"type": "integer"},
+                "warmth": {"type": "integer"},
+                "readability": {"type": "integer"},
+                "accuracy": {"type": "integer"},
+            },
+            "required": ["human_voice", "warmth", "readability", "accuracy"],
+            "additionalProperties": False,
+        },
+        "affiliate_link_present": {"type": "boolean"},
+        "em_dash_count": {"type": "integer"},
+        "ai_patterns_found": {"type": "array", "items": {"type": "string"}},
+        "flags": {"type": "array", "items": {"type": "string"}},
+        "rewrite_instructions": {"type": "string"},
+    },
+    "required": ["pass", "scores", "affiliate_link_present", "em_dash_count",
+                 "ai_patterns_found", "flags", "rewrite_instructions"],
+    "additionalProperties": False,
+}
+
+
+def _strip_additional_properties(schema):
+    """Gemini's responseSchema rejects additionalProperties; Claude requires it."""
+    if isinstance(schema, dict):
+        return {k: _strip_additional_properties(v) for k, v in schema.items()
+                if k != "additionalProperties"}
+    if isinstance(schema, list):
+        return [_strip_additional_properties(s) for s in schema]
+    return schema
+
+
+REVIEW_SCHEMA_GEMINI = _strip_additional_properties(REVIEW_SCHEMA)
+
+
+def _call_openrouter_reviewer(prompt: str) -> dict:
+    """
+    Review via Claude Haiku 4.5 routed through OpenRouter with structured
+    output (response_format json_schema, strict) -- the response text is
+    schema-valid JSON, so no regex repair passes are needed. provider
+    require_parameters makes OpenRouter route only to providers that honor
+    response_format. Raises RuntimeError on any failure so the caller can
+    fail over to the independently schema-enforced Gemini path.
+    """
+    key = os.environ.get("OPENROUTER_API_KEY", "").strip()
+    if not key:
+        raise RuntimeError("OPENROUTER_API_KEY not set")
+    payload = json.dumps({
+        "model": REVIEWER_MODEL,
+        "max_tokens": 4096,
+        "temperature": 0.1,
+        "messages": [{"role": "user", "content": prompt}],
+        "response_format": {
+            "type": "json_schema",
+            "json_schema": {
+                "name": "review_scorecard",
+                "strict": True,
+                "schema": REVIEW_SCHEMA,
+            },
+        },
+        "provider": {"require_parameters": True},
+    }).encode()
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {key}",
+        **OR_HEADERS_EXTRA,
+    }
+    raw = http_post(OPENROUTER_URL, payload, headers, label="Reviewer-Haiku-OR",
+                    log_fn=log_reviewer, timeout=90, retries=2, backoff_base=30)
+    text = _extract_or_content(raw, "Reviewer-Haiku-OR")
+    # Belt and braces: strict schema enforcement should make this a no-op, but
+    # if a provider ever degrades it, a fence-wrapped scorecard still parses
+    # and anything worse raises into the Gemini fallback instead of holding
+    # the article unreviewed.
+    text = re.sub(r"^```(?:json)?\s*|\s*```$", "", text.strip())
+    return json.loads(text)
 
 
 def slugify(s: str) -> str:
@@ -421,43 +551,24 @@ def validate_output(stage: str, content: str, slug: str) -> None:
 def call_generator(prompt: str, api_key: str) -> str:
     """
     Generator call chain:
-      1. OpenRouter gpt-oss-120b:free -- primary, 2 retries at 60s
-      2. Groq llama-3.3-70b-versatile -- fallback (bias risk noted: different Groq model from reviewer)
-    Raises RuntimeError if both exhausted.
-    NOTE: Gemini disabled pending key resolution. Re-enable as primary when sorted.
+      1. Gemini 2.5 Flash (paid, direct API) -- primary
+      2. OpenRouter gpt-oss-120b:free -- emergency fallback only
+    Raises RuntimeError if both exhausted. A failed run that retries Thursday
+    beats a flaky free-tier article published Monday, so there is no tier 3.
     """
-    or_gen_key = os.environ.get("OPENROUTER_API_KEY", "").strip()
-
-    # --- Tier 1: OpenRouter gpt-oss-120b:free (primary) ---
-    if not or_gen_key:
-        raise RuntimeError("OPENROUTER_API_KEY not set -- cannot generate")
-
-    or_gen_payload = json.dumps({
-        "model": OR_GEN_MODEL,
-        "messages": [{"role": "user", "content": prompt}],
-        "max_tokens": 8192,
-        "temperature": 0.75,
-    }).encode()
-    or_gen_headers = {
-        "Content-Type": "application/json",
-        "Authorization": f"Bearer {or_gen_key}",
-        **OR_HEADERS_EXTRA,
-    }
+    # --- Tier 1: Gemini 2.5 Flash (primary) ---
     try:
-        raw     = http_post(OPENROUTER_URL, or_gen_payload, or_gen_headers, label="OR-Gen-Primary",
-                            timeout=90, retries=2, backoff_base=60)
-        return _extract_or_content(raw, "OpenRouter gpt-oss-120b:free")
+        return _call_gemini(GEMINI_GEN_MODEL, prompt, max_tokens=8192, temperature=0.75,
+                            label="Gemini-Gen-Primary")
     except Exception as exc:
-        # Broad catch: OpenRouter returns HTTP 200 with an {"error": ...} body (no
-        # "choices") on free-tier moderation/rate events, and null message.content
-        # on some reasoning models -- those raise KeyError/TypeError, not RuntimeError,
-        # and must still fail over to Tier 2.
-        log(f"  OpenRouter primary failed: {exc} -- failing over to OR-20b", "WARN")
+        log(f"  Gemini generator failed: {exc} -- failing over to OpenRouter", "WARN")
 
-    # --- Tier 2: OpenRouter gpt-oss-20b:free (fallback -- Groq removed, CF-blocked from GHA) ---
-    log("  Failing over to OR gpt-oss-20b:free (generation fallback)", "WARN")
+    # --- Tier 2: OpenRouter gpt-oss-120b:free (emergency fallback) ---
+    or_gen_key = os.environ.get("OPENROUTER_API_KEY", "").strip()
+    if not or_gen_key:
+        raise RuntimeError("Gemini generator failed and OPENROUTER_API_KEY not set")
     or_fb_payload = json.dumps({
-        "model": "openai/gpt-oss-20b:free",
+        "model": OR_GEN_MODEL,
         "messages": [{"role": "user", "content": prompt}],
         "max_tokens": 8192,
         "temperature": 0.75,
@@ -469,7 +580,7 @@ def call_generator(prompt: str, api_key: str) -> str:
     }
     raw = http_post(OPENROUTER_URL, or_fb_payload, or_fb_headers, label="OR-Gen-Fallback",
                     timeout=90, retries=2, backoff_base=60)
-    return _extract_or_content(raw, "OR gpt-oss-20b:free fallback")
+    return _extract_or_content(raw, "OR gpt-oss-120b:free fallback")
 
 
 def _extract_or_content(raw: bytes, label: str) -> str:
@@ -838,29 +949,11 @@ Return the COMPLETE article with only the flagged claims replaced.
 ARTICLE:
 {content_fc}"""
 
-    or_fc_key = os.environ.get("OPENROUTER_API_KEY", "").strip()
-    payload = json.dumps({
-        "model": OR_FACTCHECK_MODEL,
-        "messages": [{"role": "user", "content": prompt}],
-        # The task echoes the COMPLETE article; on a reasoning model the
-        # reasoning tokens count against max_tokens, so 4096 truncated the echo
-        # and the length guard silently kept the unchecked original.
-        "max_tokens": 8192,
-        "reasoning": {"effort": "low"},
-        "temperature": 0.1,
-    }).encode()
-    or_fc_headers = {
-        "Content-Type": "application/json",
-        "Authorization": f"Bearer {or_fc_key}",
-        **OR_HEADERS_EXTRA,
-    }
-
+    # --- Primary: Gemini Flash Lite (paid tier -- reliable, non-reasoning,
+    # so the full-article echo fits comfortably in the output budget) ---
     try:
-        if not or_fc_key:
-            raise ValueError("OPENROUTER_API_KEY not set -- cannot run fact-check primary")
-        raw     = http_post(OPENROUTER_URL, payload, or_fc_headers, label="FactCheck-OR",
-                            timeout=60, retries=2, backoff_base=60)
-        cleaned = _extract_or_content(raw, "FactCheck-OR")
+        cleaned = _call_gemini(FACTCHECK_MODEL, prompt, max_tokens=8192,
+                               temperature=0.1, label="FactCheck-Gemini", timeout=90)
         sanitized = _sanitize_factcheck_output(cleaned, content)
         if sanitized is None:
             return content
@@ -868,31 +961,34 @@ ARTICLE:
         return sanitized
     except Exception as exc:
         log(f"  Fact-check primary failed: {exc} -- trying fallback", "WARN")
-    # Fallback: gemini-2.5-flash-lite via Gemini direct API (Groq removed -- CF-blocked from GHA)
+
+    # --- Fallback: OpenRouter gpt-oss-20b:free ---
     try:
-        fc_prompt = json.loads(payload.decode())["messages"][0]["content"]
-        _gemini_key_fc = os.environ.get("GEMINI_API_KEY", "").strip()
-        if not _gemini_key_fc:
-            raise ValueError("GEMINI_API_KEY not set -- cannot run fact-check fallback")
-        gem_fc_url = (
-            f"https://generativelanguage.googleapis.com/v1beta/models/"
-            f"{FACTCHECK_FALLBACK}:generateContent?key={_gemini_key_fc}"
-        )
-        gem_fc_payload = json.dumps({
-            "contents": [{"parts": [{"text": fc_prompt}]}],
-            "generationConfig": {"maxOutputTokens": 4096, "temperature": 0.1}
+        or_fc_key = os.environ.get("OPENROUTER_API_KEY", "").strip()
+        if not or_fc_key:
+            raise ValueError("OPENROUTER_API_KEY not set -- cannot run fact-check fallback")
+        payload = json.dumps({
+            "model": OR_FACTCHECK_MODEL,
+            "messages": [{"role": "user", "content": prompt}],
+            # The task echoes the COMPLETE article; on a reasoning model the
+            # reasoning tokens count against max_tokens, so keep headroom and
+            # cap the reasoning effort.
+            "max_tokens": 8192,
+            "reasoning": {"effort": "low"},
+            "temperature": 0.1,
         }).encode()
-        gem_fc_req = urllib.request.Request(
-            gem_fc_url, data=gem_fc_payload,
-            headers={"Content-Type": "application/json"}, method="POST"
-        )
-        with urllib.request.urlopen(gem_fc_req, timeout=60) as r:
-            gem_fc_data = json.loads(r.read())
-        cleaned = gem_fc_data["candidates"][0]["content"]["parts"][0]["text"].strip()
+        or_fc_headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {or_fc_key}",
+            **OR_HEADERS_EXTRA,
+        }
+        raw     = http_post(OPENROUTER_URL, payload, or_fc_headers, label="FactCheck-OR",
+                            timeout=60, retries=2, backoff_base=60)
+        cleaned = _extract_or_content(raw, "FactCheck-OR")
         sanitized = _sanitize_factcheck_output(cleaned, content)
         if sanitized is None:
             return content
-        log(f"  Fact-check fallback ok ({FACTCHECK_FALLBACK}): {len(content)} -> {len(sanitized)} chars")
+        log(f"  Fact-check fallback ok ({OR_FACTCHECK_MODEL}): {len(content)} -> {len(sanitized)} chars")
         return sanitized
     except Exception as exc:
         log(f"  Fact-check fallback failed: {exc} -- keeping original", "WARN")
@@ -962,97 +1058,33 @@ def review_and_rewrite(title: str, keyword: str, content: str, api_key: str, or_
         log_reviewer(f"  REVIEW attempt {attempt}/{MAX_REVIEW_ATTEMPTS}")
         log_reviewer(f"  REVIEW pre-sleep {REVIEW_PRE_SLEEP}s...")
         time.sleep(REVIEW_PRE_SLEEP)
+        review_prompt = make_review_prompt(title, keyword, content)
+        scorecard = None
+
+        # --- Primary: Claude Haiku 4.5 via OpenRouter, schema-enforced JSON ---
+        # Cross-family judge (Gemini writes, Claude reviews) + server-side schema
+        # validation: the old regex-repair passes and REVIEWER_JSON_ERROR class
+        # existed because free models returned malformed scorecards.
         try:
-            _or_key     = or_key or os.environ.get("OPENROUTER_API_KEY", "").strip()
-            _gemini_key = os.environ.get("GEMINI_API_KEY", "").strip()
-            raw = None
+            scorecard = _call_openrouter_reviewer(review_prompt)
+            log_reviewer(f"  Reviewer: {REVIEWER_MODEL} (via OpenRouter, schema-enforced)")
+        except Exception as _claude_exc:
+            log_reviewer(f"  Haiku reviewer error: {_claude_exc} -- falling back to Gemini", "WARN")
 
-            # --- Primary: Gemini gemini-2.5-flash-lite (direct API) ---
-            # OR gpt-oss-20b:free fails 9/10 runs from GHA; Gemini is the reliable primary
-            if _gemini_key:
-                try:
-                    gem_url     = f"https://generativelanguage.googleapis.com/v1beta/models/{REVIEWER_MODEL}:generateContent?key={_gemini_key}"
-                    gem_payload = json.dumps({
-                        "contents": [{"parts": [{"text": make_review_prompt(title, keyword, content)}]}],
-                        "generationConfig": {"maxOutputTokens": 4000, "temperature": 0.1}
-                    }).encode()
-                    gem_req = urllib.request.Request(gem_url, data=gem_payload,
-                                                     headers={"Content-Type": "application/json"}, method="POST")
-                    with urllib.request.urlopen(gem_req, timeout=60) as r:
-                        gem_data = json.loads(r.read())
-                    raw = gem_data["candidates"][0]["content"]["parts"][0]["text"].strip()
-                    if not raw:
-                        raise ValueError("empty content from Gemini reviewer")
-                    log_reviewer(f"  Reviewer: {REVIEWER_MODEL} (Gemini primary)")
-                except Exception as _gem_exc:
-                    log_reviewer(f"  Gemini reviewer error: {_gem_exc} -- falling back to OR", "WARN")
-                    raw = None
-            else:
-                log_reviewer("  GEMINI_API_KEY not set -- skipping Gemini reviewer", "WARN")
+        # --- Fallback: Gemini Flash Lite with responseSchema ---
+        if scorecard is None:
+            try:
+                raw = _call_gemini(REVIEWER_FALLBACK, review_prompt,
+                                   max_tokens=4000, temperature=0.1,
+                                   label="Reviewer-Gemini-Fallback", log_fn=log_reviewer,
+                                   json_schema=REVIEW_SCHEMA_GEMINI, timeout=60)
+                scorecard = json.loads(raw)
+                log_reviewer(f"  Reviewer fallback: {REVIEWER_FALLBACK} (Gemini, responseSchema)")
+            except Exception as _gem_exc:
+                log_reviewer(f"  Gemini reviewer error: {_gem_exc}", "WARN")
 
-            # --- Fallback: OR gpt-oss-20b:free ---
-            if raw is None:
-                log_reviewer(f"  Gemini reviewer failed. Falling back to {REVIEWER_FALLBACK} (OR)")
-                if _or_key:
-                    try:
-                        fb_payload = json.dumps({
-                            "model": REVIEWER_FALLBACK,
-                            "messages": [{"role": "user", "content": make_review_prompt(title, keyword, content)}],
-                            "max_tokens": 4000,
-                            "temperature": 0.1,
-                        }).encode()
-                        fb_headers = {
-                            "Content-Type": "application/json",
-                            "Authorization": f"Bearer {_or_key}",
-                            "HTTP-Referer": "https://happypetproductreviews.com",
-                            "X-Title": "HappyPet Reviewer",
-                        }
-                        raw_resp = http_post(OPENROUTER_URL, fb_payload, fb_headers,
-                                            label=f"Reviewer-Fallback({REVIEWER_FALLBACK})",
-                                            log_fn=log_reviewer, timeout=60,
-                                            backoff_base=30, backoff_exp=True)
-                        raw = json.loads(raw_resp)["choices"][0]["message"]["content"].strip()
-                        if not raw:
-                            raise ValueError(f"empty content from {REVIEWER_FALLBACK}")
-                        log_reviewer(f"  Reviewer fallback: {REVIEWER_FALLBACK} (OR)")
-                    except Exception as _or_exc:
-                        log_reviewer(f"  OR reviewer error: {_or_exc}", "WARN")
-                        raw = None
-                else:
-                    log_reviewer("  OPENROUTER_API_KEY not set -- cannot use OR fallback", "WARN")
-
-            if raw is None:
-                log_reviewer("  review call failed after retries -- article held as UNREVIEWED", "WARN")
-                return content, False, ["REVIEWER_UNAVAILABLE"]
-            # Normalize common Gemini/OR response wrapper patterns
-            raw = re.sub(r"```json|```", "", raw).strip()
-            raw = re.sub(r"<think>.*?</think>", "", raw, flags=re.DOTALL).strip()
-            # Extract outermost JSON object
-            m = re.search(r"\{.*\}", raw, re.DOTALL)
-            raw = m.group(0) if m else raw
-            # Attempt parse with progressive repair for common Gemini breakage
-            scorecard = None
-            for _attempt, _raw in enumerate([
-                raw,
-                # Repair 1: collapse unescaped literal newlines inside string values
-                re.sub(r'(?<=: ")(.*?)(?="(?:\s*[,}]))', lambda x: x.group(0).replace('\n', ' ').replace('\r', ''), raw, flags=re.DOTALL),
-                # Repair 2: strip trailing commas before } or ]
-                re.sub(r',\s*([}\]])', r'\1', raw),
-            ]):
-                try:
-                    scorecard = json.loads(_raw)
-                    if _attempt > 0:
-                        log_reviewer(f"  review JSON repaired on attempt {_attempt + 1}")
-                    break
-                except json.JSONDecodeError:
-                    continue
-            if scorecard is None:
-                raise json.JSONDecodeError("all parse attempts failed", raw, 0)
-        except json.JSONDecodeError as e:
-            log_reviewer(f"  review JSON parse failed: {e} -- article held as UNREVIEWED", "WARN")
-            return content, False, ["REVIEWER_JSON_ERROR"]
-        except Exception as e:
-            log_reviewer(f"  review call failed: {e} -- article held as UNREVIEWED", "WARN")
+        if scorecard is None:
+            log_reviewer("  review failed on both providers -- article held as UNREVIEWED", "WARN")
             return content, False, ["REVIEWER_UNAVAILABLE"]
         passed     = scorecard.get("pass", False)
         flags      = scorecard.get("flags", [])
@@ -1105,46 +1137,29 @@ def review_and_rewrite(title: str, keyword: str, content: str, api_key: str, or_
                 time.sleep(RPM_SLEEP)
                 rw_prompt_text = make_rewrite_prompt(title, keyword, content, instructions, affiliate_url=affiliate_url, product_name=product_name)
                 rw_content = None
-                # Tier 1: Gemini direct API (Groq removed -- CF error 1010 blocks GHA)
-                _gemini_key_rw = os.environ.get("GEMINI_API_KEY", "").strip()
+                # Tier 1: Gemini Flash Lite (different model than attempt 1's generator)
                 try:
-                    if not _gemini_key_rw:
-                        raise ValueError("GEMINI_API_KEY not set")
-                    gem_rw_url = (
-                        f"https://generativelanguage.googleapis.com/v1beta/models/"
-                        f"{GEMINI_REWRITE_MODEL}:generateContent?key={_gemini_key_rw}"
-                    )
-                    gem_rw_payload = json.dumps({
-                        "contents": [{"parts": [{"text": rw_prompt_text}]}],
-                        "generationConfig": {"maxOutputTokens": 8192, "temperature": 0.7}
-                    }).encode()
-                    gem_rw_req = urllib.request.Request(
-                        gem_rw_url, data=gem_rw_payload,
-                        headers={"Content-Type": "application/json"}, method="POST"
-                    )
-                    with urllib.request.urlopen(gem_rw_req, timeout=90) as r:
-                        gem_rw_data = json.loads(r.read())
-                    rw_content = gem_rw_data["candidates"][0]["content"]["parts"][0]["text"].strip()
-                    log_reviewer(f"  Gemini rewrite ok ({GEMINI_REWRITE_MODEL}): {len(rw_content)} chars")
+                    rw_content = _call_gemini(GEMINI_REWRITE_MODEL, rw_prompt_text,
+                                              max_tokens=8192, temperature=0.7,
+                                              label="Rewriter-Gemini", log_fn=log_reviewer)
                 except Exception as e:
                     log_reviewer(f"  Gemini rewrite failed: {e} -- trying OR fallback", "WARN")
                 # Tier 2: OpenRouter gpt-oss-120b:free
                 if not rw_content:
                     try:
-                        or_key = os.environ.get("OPENROUTER_API_KEY", "").strip()
+                        or_fb_key = os.environ.get("OPENROUTER_API_KEY", "").strip()
                         rw_or_payload = json.dumps({
-                            "model": REWRITE_FALLBACK,
+                            "model": OR_GEN_MODEL,
                             "messages": [{"role": "user", "content": rw_prompt_text}],
                             "max_tokens": 8192, "temperature": 0.7,
                         }).encode()
                         rw_or_headers = {"Content-Type": "application/json",
-                                         "Authorization": f"Bearer {or_key}",
+                                         "Authorization": f"Bearer {or_fb_key}",
                                          **OR_HEADERS_EXTRA}
                         raw_rw     = http_post(OPENROUTER_URL, rw_or_payload, rw_or_headers,
                                                label="Rewriter-OR", log_fn=log_reviewer,
                                                timeout=90, retries=2, backoff_base=60)
-                        rw_content = json.loads(raw_rw)["choices"][0]["message"]["content"]
-                        log_reviewer(f"  OR rewrite ok: {len(rw_content)} chars")
+                        rw_content = _extract_or_content(raw_rw, "Rewriter-OR")
                     except Exception as e:
                         log_reviewer(f"  WARN: OR rewrite failed: {e}")
                         return content, False, flags
@@ -1271,7 +1286,7 @@ def main() -> None:
         POSTS_DIR.mkdir(parents=True, exist_ok=True)
         today     = datetime.date.today().isoformat()
         generated = skipped = failed = held = 0
-        log(f"START v21.4 -- {len(topics)} topics -- generator=openrouter/{OR_GEN_MODEL} reviewer={'ON' if REVIEWER_ENABLED else 'OFF'}")
+        log(f"START v22.0 -- {len(topics)} topics -- generator={GEMINI_GEN_MODEL} reviewer={REVIEWER_MODEL if REVIEWER_ENABLED else 'OFF'}")
 
         for i, (slug, title, keyword, fmt) in enumerate(topics, 1):
             # Inter-article delay at the TOP of the loop so every path pays it.

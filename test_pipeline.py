@@ -481,5 +481,58 @@ class TestSilentLegRegressions(unittest.TestCase):
         self.assertFalse(ok)  # unchanged helper behavior
 
 
+class TestReviewerSchema(unittest.TestCase):
+    """Hybrid model strategy: reviewer JSON is schema-enforced server-side.
+    The OpenAI-dialect json_schema (used via OpenRouter) requires
+    additionalProperties:false on every object; Gemini's responseSchema
+    rejects the same key -- both variants must be right or the respective
+    provider 400s and the article is held unreviewed."""
+
+    def _walk_objects(self, schema):
+        if isinstance(schema, dict):
+            if schema.get("type") == "object":
+                yield schema
+            for v in schema.values():
+                yield from self._walk_objects(v)
+        elif isinstance(schema, list):
+            for item in schema:
+                yield from self._walk_objects(item)
+
+    def test_openrouter_schema_objects_forbid_additional_properties(self):
+        import generate_posts as gp
+        objects = list(self._walk_objects(gp.REVIEW_SCHEMA))
+        self.assertGreater(len(objects), 0)
+        for obj in objects:
+            self.assertIs(obj.get("additionalProperties"), False)
+
+    def test_gemini_schema_has_no_additional_properties(self):
+        import generate_posts as gp
+        self.assertNotIn("additionalProperties", json.dumps(gp.REVIEW_SCHEMA_GEMINI))
+
+    def test_schema_covers_all_scorecard_keys(self):
+        import generate_posts as gp
+        required = set(gp.REVIEW_SCHEMA["required"])
+        for key in ("pass", "scores", "affiliate_link_present", "em_dash_count",
+                    "ai_patterns_found", "flags", "rewrite_instructions"):
+            self.assertIn(key, required)
+
+    def test_reviewer_routes_through_openrouter(self):
+        # Derek's constraint: no direct Anthropic account -- Claude access goes
+        # through OpenRouter on the existing OPENROUTER_API_KEY, with schema
+        # enforcement requested and routing pinned to providers that honor it
+        source = (REPO / "generate_posts.py").read_text()
+        self.assertNotIn("api.anthropic.com", source)
+        self.assertNotIn("ANTHROPIC_API_KEY", source)
+        self.assertIn('"response_format"', source)
+        self.assertIn('"json_schema"', source)
+        self.assertIn("require_parameters", source)
+        import generate_posts as gp
+        self.assertTrue(gp.REVIEWER_MODEL.startswith("anthropic/"))
+
+    def test_generate_yml_has_no_anthropic_secret(self):
+        workflow = (REPO / ".github/workflows/generate.yml").read_text()
+        self.assertNotIn("ANTHROPIC_API_KEY", workflow)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
