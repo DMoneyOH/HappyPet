@@ -206,7 +206,7 @@ def send_queue_alert(unpublished_count: int) -> None:
         msg['Subject'] = subject
         msg['From']    = smtp_user
         msg['To']      = ALERT_TO
-        with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as s:
+        with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=30) as s:
             s.starttls()
             s.login(smtp_login, smtp_pass)
             s.sendmail(smtp_user, [ALERT_TO], msg.as_string())
@@ -215,24 +215,30 @@ def send_queue_alert(unpublished_count: int) -> None:
         log(f'ALERT EMAIL failed: {e}', 'ERROR')
 
 
-def get_next_fb_sched_date(ws) -> str:
-    """Read all rows in Facebook Queue sheet, find latest SchedDate, return +1 day."""
-    try:
-        rows = ws.get_all_values()
-        # Col index 5 = SchedDate (0-indexed), skip header row
-        dates = []
-        for row in rows[1:]:
-            if len(row) > 5 and row[5].strip():
-                try:
-                    dates.append(_dt.date.fromisoformat(row[5].strip()))
-                except ValueError:
-                    pass
-        if dates:
-            return (max(dates) + _dt.timedelta(days=1)).isoformat()
-    except Exception as e:
-        log(f'  Could not determine last FB sched date: {e}', 'WARN')
-    # Fallback: tomorrow
-    return (_dt.date.today() + _dt.timedelta(days=1)).isoformat()
+def read_fb_queue_state(ws) -> tuple[set, _dt.date]:
+    """
+    Single read of the Facebook Queue sheet. Returns:
+      - set of article URLs already queued (col B) -- the dedup authority
+      - the first free SchedDate (latest existing + 1 day; tomorrow if empty)
+    One read per run instead of one per pin, and callers increment the date
+    per appended row so a batch never collides on the same day.
+    Raises on read failure -- appending blind would create duplicates.
+    """
+    rows = ws.get_all_values()
+    urls  = set()
+    dates = []
+    for row in rows[1:]:  # skip header
+        if len(row) > 1 and row[1].strip():
+            urls.add(row[1].strip())
+        if len(row) > 5 and row[5].strip():
+            try:
+                dates.append(_dt.date.fromisoformat(row[5].strip()))
+            except ValueError:
+                pass
+    next_date = (max(dates) if dates else _dt.date.today()) + _dt.timedelta(days=1)
+    if next_date <= _dt.date.today():
+        next_date = _dt.date.today() + _dt.timedelta(days=1)
+    return urls, next_date
 
 
 def main():
@@ -278,6 +284,17 @@ def main():
     fb_sheet = gc.open_by_key(fb_sheet_id)
     fb_ws    = fb_sheet.get_worksheet(0)
 
+    # Dedup against the sheet itself, not against sent/ location. post_pins.py
+    # used to move fired files into sent/ before this script ran, so the old
+    # "name exists in sent/" check skipped every freshly pinned article and no
+    # FB row was ever appended. The sheet is the only duplicate-proof record.
+    try:
+        queued_urls, sched_cursor = read_fb_queue_state(fb_ws)
+    except Exception as read_exc:
+        log(f'Could not read FB Queue sheet: {read_exc} -- aborting (appending blind would duplicate rows)', 'ERROR')
+        sys.exit(1)
+    log(f'FB Queue state: {len(queued_urls)} rows queued, next SchedDate={sched_cursor.isoformat()}')
+
     today     = _dt.date.today().isoformat()
     processed = 0
     failed    = 0
@@ -285,10 +302,6 @@ def main():
 
     for qf in queue_files:
         try:
-            if (sent_dir / qf.name).exists():
-                log(f'SKIP (already sent): {qf.name}')
-                continue
-
             data        = json.loads(qf.read_text())
             title       = data['title']
             article_url = data['article_url']
@@ -296,23 +309,44 @@ def main():
             species     = data.get('species', 'both')
             slug        = data.get('slug', qf.stem)
 
+            def _mark_processed(note=''):
+                """Move the queue file into sent/ (this script's marker). Handles
+                the file already living in sent/ and stale root+sent duplicates."""
+                if qf.parent == sent_dir:
+                    return
+                if (sent_dir / qf.name).exists():
+                    qf.unlink()
+                    log(f'CLEANED: stale duplicate {qf.name} removed from queue root{note}')
+                else:
+                    shutil.move(str(qf), str(sent_dir / qf.name))
+                    log(f'SENT: {qf.name} -> _pin_queue/sent/{note}')
+
+            if article_url.strip() in queued_urls:
+                log(f'SKIP (already in FB Queue sheet): {qf.name}')
+                # Ensure the processed marker exists even if a prior run died
+                # between append and move.
+                _mark_processed(' (backfilled marker)')
+                continue
+
             # image_url is written by generate_posts.py via build_pin_image_url_for_queue()
             # which guarantees ?v=YYYYMMDD is present. No late-append needed.
             # Build Facebook message -- personable hook derived from slug/title
             message = _build_fb_message(slug, title, article_url)
 
-            # Determine next schedule date (+1 from last row in sheet)
-            sched_date = get_next_fb_sched_date(fb_ws)
+            # Next free schedule date from the cached read; advance per row so a
+            # batch never lands multiple posts on the same day
+            sched_date = sched_cursor.isoformat()
 
             # Append to Facebook Queue: Title, URL, Message, Image, OrigDate, SchedDate, Species, Posted, PostID
             fb_row = [title, article_url, message, image_url, today, sched_date, species, 'FALSE', '']
             fb_ws.append_row(fb_row)
+            queued_urls.add(article_url.strip())
+            sched_cursor += _dt.timedelta(days=1)
             log(f'FB QUEUE: appended {slug} -> SchedDate={sched_date}')
 
             retire_from_products(slug)
 
-            shutil.move(str(qf), str(sent_dir / qf.name))
-            log(f'SENT: {qf.name} -> _pin_queue/sent/')
+            _mark_processed()
 
             if not alert_sent:
                 unpub = count_unpublished()

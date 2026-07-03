@@ -1,11 +1,10 @@
 name: Stage 3 — Post Pins
 
 on:
-  # Automatic: fires when Stage 2 completes successfully (H3 fix)
-  workflow_run:
-    workflows: ["Stage 2 — Publish Articles"]
-    types: [completed]
-  # Manual: override slugs or force re-fire
+  # Single automatic path: deploy.yml dispatches this workflow (with slugs)
+  # AFTER the site deploy succeeds -- that guarantees articles are live before
+  # pins fire. The old direct workflow_run trigger on Stage 2 ran in parallel
+  # with the deploy-dispatched run (no concurrency group), double-firing pins.
   workflow_dispatch:
     inputs:
       slugs:
@@ -21,14 +20,14 @@ permissions:
   contents: write
   issues: write
 
+concurrency:
+  group: happypet-pin
+  cancel-in-progress: false
+
 jobs:
   pin:
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    # On workflow_run: only proceed if Stage 2 succeeded
-    if: >
-      github.event_name == 'workflow_dispatch' ||
-      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
 
     steps:
       - name: Checkout repo
@@ -81,11 +80,6 @@ jobs:
           echo "slugs=${SLUGS}" >> "$GITHUB_OUTPUT"
           echo "nothing_to_pin=false" >> "$GITHUB_OUTPUT"
           echo "Resolved slugs: ${SLUGS}"
-
-      - name: Write GCP service account key
-        if: steps.resolve.outputs.nothing_to_pin != 'true'
-        run: |
-          echo "${{ secrets.GCP_SA_KEY_B64 }}" | base64 -d > happypet-sheets-key.json
 
       - name: Wait for article and image liveness
         id: liveness
@@ -162,10 +156,8 @@ jobs:
         if: steps.resolve.outputs.nothing_to_pin != 'true'
         run: |
           PENDING="_pin_queue/.pending-slugs"
-          git checkout happypet-sheets-key.json 2>/dev/null || true
-          git clean -f happypet-sheets-key.json 2>/dev/null || true
           git pull --rebase origin main
-          git add products.json _pin_queue/ LOGS/ 2>/dev/null || true
+          git add products.json _pin_queue/ 2>/dev/null || true
           if [ -f "$PENDING" ]; then
             git rm "$PENDING" -q
           fi

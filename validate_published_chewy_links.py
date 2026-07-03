@@ -103,21 +103,34 @@ def validate_chewy_url(chewy_url: str, product_name: str) -> tuple[str, str]:
         return "REVIEW", f"sentinel value: {chewy_url[:60]}"
 
     try:
-        from chewy_lookup import lookup, _first_brand_token
+        from chewy_lookup import lookup, ChewyAPIError
+    except ImportError as ie:
+        # A broken import must be loud -- this exact failure mode (importing a
+        # function that didn't exist at module level) silently rubber-stamped
+        # every URL as OK for weeks.
+        return "ERROR", f"chewy_lookup not importable: {ie}"
+
+    try:
         result = lookup(product_name)
-        matched_name = result.get("chewy_matched_name", "")
-        ok, reason = check_brand_match(product_name, matched_name)
-        if ok:
-            return "OK", f"brand confirmed: {matched_name[:60]}"
-        else:
-            return "MISMATCH", f"{reason} | stored: {chewy_url[:60]} | matched: {matched_name[:60]}"
-    except ImportError:
-        # chewy_lookup not importable (missing creds or deps) — check URL domain only
-        if "chewy.com" in chewy_url or "chewy.sjv.io" in chewy_url:
-            return "OK", "URL domain appears valid (lookup unavailable)"
-        return "ERROR", "chewy_lookup not importable and URL domain unexpected"
+    except ChewyAPIError as e:
+        # API outage / bad creds is NOT evidence of a bad link. Reporting it as
+        # MISMATCH once meant --fix could clear every stored Chewy link during
+        # an Impact.com blip.
+        return "ERROR", f"Impact API unavailable: {e}"
     except Exception as e:
         return "ERROR", f"lookup exception: {e}"
+
+    matched_name = result.get("chewy_matched_name") or ""
+    if not matched_name:
+        # Lookup ran but found nothing to compare against -- needs a human, but
+        # it is not a positive contradiction of the stored link.
+        return "REVIEW", "lookup found no Chewy match to compare -- verify stored URL manually"
+
+    ok, reason = check_brand_match(product_name, matched_name)
+    if ok:
+        return "OK", f"brand confirmed: {matched_name[:60]}"
+    # Positive contradiction: lookup matched a real product of a different brand
+    return "MISMATCH", f"{reason} | stored: {chewy_url[:60]} | matched: {matched_name[:60]}"
 
 
 def main() -> None:
@@ -136,6 +149,7 @@ def main() -> None:
     reviews    = 0
     no_url     = 0
     ok_count   = 0
+    errors     = 0
 
     for md in posts:
         slug = extract_slug(md)
@@ -175,6 +189,7 @@ def main() -> None:
                 products[slug]["chewy_rating"] = None
                 log(f"  FIX: cleared chewy_url for {slug}")
         else:
+            errors += 1
             log(f"  ERROR {slug} -- {detail}", "WARN")
 
     summary = {
@@ -184,10 +199,11 @@ def main() -> None:
         "no_url":     no_url,
         "review":     reviews,
         "mismatches": mismatches,
+        "errors":     errors,
         "results":    results,
     }
 
-    log(f"DONE -- {ok_count} OK, {no_url} no URL, {reviews} REVIEW, {mismatches} MISMATCHES")
+    log(f"DONE -- {ok_count} OK, {no_url} no URL, {reviews} REVIEW, {mismatches} MISMATCHES, {errors} ERRORS")
 
     if args.fix and mismatches > 0:
         json_path = REPO_DIR / "products.json"
@@ -207,7 +223,9 @@ def main() -> None:
         report_path.write_text(json.dumps(summary, indent=2))
         log(f"Report written: {report_path.name}")
 
-    if mismatches > 0:
+    # Non-zero on errors too: an import failure or API outage previously left
+    # this job green while validating nothing.
+    if mismatches > 0 or errors > 0:
         sys.exit(1)
 
 

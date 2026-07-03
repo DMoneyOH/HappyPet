@@ -427,5 +427,59 @@ class TestPendingDraftsJSON(unittest.TestCase):
         self.assertIn("PENDING_DRAFTS.json", publish)
 
 
+class TestDraftSlugParsing(unittest.TestCase):
+    """DRAFT-*.md filenames must dedup correctly — a garbage slug caused
+    duplicate regeneration and draft clobbering"""
+
+    def test_dated_post_stem(self):
+        import generate_posts as gp
+        self.assertEqual(gp.slug_from_post_stem("2026-04-04-best-cat-feeder"), "best-cat-feeder")
+
+    def test_draft_stem(self):
+        import generate_posts as gp
+        self.assertEqual(gp.slug_from_post_stem("DRAFT-best-kitten-food"), "best-kitten-food")
+
+    def test_garbage_stem(self):
+        import generate_posts as gp
+        self.assertIsNone(gp.slug_from_post_stem("readme"))
+
+
+class TestSilentLegRegressions(unittest.TestCase):
+    """The two bugs the harness missed: FB-queue marker ownership (pins fired
+    but rows never appended) and the chewy validation import (weekly job
+    rubber-stamped every URL as OK)"""
+
+    def test_chewy_lookup_module_exports(self):
+        # validate_published_chewy_links imports these at call time; when
+        # _first_brand_token lived inside lookup(), the ImportError was
+        # swallowed and validation silently no-opped for weeks
+        from chewy_lookup import _first_brand_token, ChewyAPIError, lookup  # noqa: F401
+        self.assertEqual(_first_brand_token("Blue Buffalo Life Protection"), "blue")
+        self.assertEqual(_first_brand_token(""), "")
+
+    def test_post_pins_never_moves_to_sent(self):
+        # sent/ is push_pins_to_sheets.py's processed marker. When post_pins
+        # moved fired files there first, push_pins skipped them all and the
+        # FB Queue append became a permanent no-op.
+        source = (REPO / "post_pins.py").read_text()
+        self.assertNotIn("shutil.move", source,
+                         "post_pins must not move queue files -- sent/ belongs to push_pins")
+
+    def test_push_pins_dedups_on_sheet(self):
+        source = (REPO / "push_pins_to_sheets.py").read_text()
+        self.assertIn("read_fb_queue_state", source)
+        self.assertNotIn("SKIP (already sent)", source,
+                         "sent/-location dedup starves the FB queue; the sheet is the authority")
+
+    def test_validator_treats_api_failure_as_error_not_mismatch(self):
+        # An Impact.com outage must never look like a wrong-brand link --
+        # --fix would clear every stored Chewy URL
+        source = (REPO / "validate_published_chewy_links.py").read_text()
+        self.assertIn("ChewyAPIError", source)
+        from validate_published_chewy_links import check_brand_match
+        ok, _ = check_brand_match("Greenies Feline Dental Treats", "")
+        self.assertFalse(ok)  # unchanged helper behavior
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
