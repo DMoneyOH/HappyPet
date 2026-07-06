@@ -603,6 +603,41 @@ class TestRefillAgent(unittest.TestCase):
         # only exact topic matches count as published here (mirrors generator)
         self.assertEqual(rp.unpublished_count(products, {"best-a", "best-b"}), 1)
 
+    def test_image_validation_rejects_svg_placeholder(self):
+        # run #2 shipped an .svg sprite as a "product image" -- never again
+        import refill_products as rp
+        good = {"asin": "B0ABCD1234", "name": "Real Product",
+                "image": "https://m.media-amazon.com/images/I/71x._AC_UL320_.jpg"}
+        self.assertTrue(rp.validate_candidate(good))
+        self.assertFalse(rp.validate_candidate(
+            {**good, "image": "https://m.media-amazon.com/images/I/01rrzVoKd5L.svg"}))
+
+    def test_paapi_response_maps_to_cards(self):
+        import refill_products as rp
+        data = {"SearchResult": {"Items": [{
+            "ASIN": "B0PAAPI123",
+            "ItemInfo": {"Title": {"DisplayValue": "KONG Classic Dog Toy, Large"}},
+            "Images": {"Primary": {"Large": {"URL":
+                "https://m.media-amazon.com/images/I/61kong.jpg"}}},
+            "Offers": {"Listings": [{"Price": {"Amount": 12.5}}]},
+            "CustomerReviews": {"StarRating": {"Value": 4.7}},
+        }]}}
+        cards = rp._paapi_items_to_cards(data)
+        self.assertEqual(cards[0]["asin"], "B0PAAPI123")
+        self.assertEqual(cards[0]["price"], "12.50")
+        self.assertEqual(cards[0]["stars"], 4.7)
+        self.assertTrue(rp.validate_candidate(cards[0]))
+
+    def test_paapi_search_requires_keys(self):
+        import refill_products as rp
+        old = rp.PAAPI_ACCESS_KEY, rp.PAAPI_SECRET_KEY
+        rp.PAAPI_ACCESS_KEY = rp.PAAPI_SECRET_KEY = ""
+        try:
+            with self.assertRaises(RuntimeError):
+                rp.paapi_search("dog toy")
+        finally:
+            rp.PAAPI_ACCESS_KEY, rp.PAAPI_SECRET_KEY = old
+
     def test_refill_workflow_never_pushes_main(self):
         workflow = (REPO / ".github/workflows/refill.yml").read_text()
         self.assertNotIn("git push origin main", workflow)

@@ -168,6 +168,26 @@ def check_gmail() -> None:
         record("GMAIL_SMTP_USER+PASSWORD", "WARN", f"SMTP unreachable from runner: {exc}")
 
 
+def check_paapi() -> None:
+    """Amazon PA-API keys are optional (refill falls back to scraping),
+    but with them the refill agent gets ASIN/image/price from the real API."""
+    ak = os.environ.get("AMAZON_PAAPI_ACCESS_KEY", "").strip()
+    sk = os.environ.get("AMAZON_PAAPI_SECRET_KEY", "").strip()
+    if not ak or not sk:
+        record("AMAZON_PAAPI_KEYS", "WARN",
+               "not set -- refill agent uses the fragile Amazon scrape fallback; "
+               "sync AMAZON_PAAPI_ACCESS_KEY + AMAZON_PAAPI_SECRET_KEY from the Brain "
+               "(Associates Central > Tools > Product Advertising API) for API-grade data")
+        return
+    try:
+        import refill_products as rp
+        items = rp.paapi_search("dog toy")
+        record("AMAZON_PAAPI_KEYS", "PASS",
+               f"SearchItems OK -- {len(items)} items, first: {items[0]['name'][:50]}")
+    except Exception as exc:
+        record("AMAZON_PAAPI_KEYS", "FAIL", f"SearchItems rejected: {str(exc)[:150]}")
+
+
 def check_ifttt() -> None:
     if os.environ.get("IFTTT_MAKER_KEY", "").strip():
         record("IFTTT_MAKER_KEY", "WARN",
@@ -194,6 +214,7 @@ def main() -> None:
     print("HappyPet secrets preflight\n" + "=" * 60, flush=True)
     check_gemini()
     check_openrouter()
+    check_paapi()
     check_impact()
     check_sheets()
     check_gmail()

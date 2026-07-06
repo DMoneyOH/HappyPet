@@ -46,9 +46,18 @@ REPO_DIR      = Path(__file__).parent.resolve()
 PRODUCTS_PATH = REPO_DIR / "products.json"
 RESULT_PATH   = REPO_DIR / "REFILL_RESULT.json"
 
-AFFILIATE_TAG = "pawpicks04-20"
+AFFILIATE_TAG = os.environ.get("AMAZON_PAAPI_PARTNER_TAG", "pawpicks04-20")
 ASIN_RE       = re.compile(r"^B0[A-Z0-9]{8}$")
-IMAGE_HOST_RE = re.compile(r"^https://m\.media-amazon\.com/images/I/[^\s\"']+$")
+# Real product photos only -- .svg on this host is a placeholder sprite
+IMAGE_HOST_RE = re.compile(
+    r"^https://m\.media-amazon\.com/images/I/[^\s\"']+\.(?:jpg|jpeg|png|webp)$", re.IGNORECASE)
+
+# Amazon Product Advertising API v5 (preferred source when keys are synced
+# from the Brain to repo secrets; scrape below stays as the fallback)
+PAAPI_ACCESS_KEY = os.environ.get("AMAZON_PAAPI_ACCESS_KEY", "").strip()
+PAAPI_SECRET_KEY = os.environ.get("AMAZON_PAAPI_SECRET_KEY", "").strip()
+PAAPI_HOST       = "webservices.amazon.com"
+PAAPI_REGION     = "us-east-1"
 
 THRESHOLD = int(os.environ.get("REFILL_THRESHOLD", "1"))
 BATCH     = int(os.environ.get("REFILL_BATCH", "10"))
@@ -128,6 +137,97 @@ def published_slugs() -> set:
 
 def unpublished_count(products: list, pub: set) -> int:
     return sum(1 for e in products if e.get("topic") not in pub)
+
+
+# ------------------------------------------------------------- amazon pa-api
+
+def _sigv4_headers(payload: bytes, amz_date: str) -> dict:
+    """AWS Signature V4 for PA-API v5 SearchItems (stdlib hmac/hashlib)."""
+    import hashlib
+    import hmac
+    date_stamp = amz_date[:8]
+    scope = f"{date_stamp}/{PAAPI_REGION}/ProductAdvertisingAPI/aws4_request"
+    signed = "content-encoding;content-type;host;x-amz-date;x-amz-target"
+    target = "com.amazon.paapi5.v1.ProductAdvertisingAPIv1.SearchItems"
+    canonical = "\n".join([
+        "POST", "/paapi5/searchitems", "",
+        "content-encoding:amz-1.0",
+        "content-type:application/json; charset=utf-8",
+        f"host:{PAAPI_HOST}",
+        f"x-amz-date:{amz_date}",
+        f"x-amz-target:{target}",
+        "", signed, hashlib.sha256(payload).hexdigest(),
+    ])
+    to_sign = "\n".join(["AWS4-HMAC-SHA256", amz_date, scope,
+                         hashlib.sha256(canonical.encode()).hexdigest()])
+    key = f"AWS4{PAAPI_SECRET_KEY}".encode()
+    for part in (date_stamp, PAAPI_REGION, "ProductAdvertisingAPI", "aws4_request"):
+        key = hmac.new(key, part.encode(), hashlib.sha256).digest()
+    sig = hmac.new(key, to_sign.encode(), hashlib.sha256).hexdigest()
+    return {
+        "Content-Encoding": "amz-1.0",
+        "Content-Type": "application/json; charset=utf-8",
+        "X-Amz-Date": amz_date,
+        "X-Amz-Target": target,
+        "Authorization": (f"AWS4-HMAC-SHA256 Credential={PAAPI_ACCESS_KEY}/{scope}, "
+                          f"SignedHeaders={signed}, Signature={sig}"),
+    }
+
+
+def _paapi_items_to_cards(data: dict) -> list:
+    """Map a PA-API SearchItems response to the scrape-card shape."""
+    cards = []
+    for item in (data.get("SearchResult") or {}).get("Items", []):
+        title = ((item.get("ItemInfo") or {}).get("Title") or {}).get("DisplayValue")
+        image = (((item.get("Images") or {}).get("Primary") or {}).get("Large") or {}).get("URL")
+        listings = ((item.get("Offers") or {}).get("Listings") or [])
+        amount = (listings[0].get("Price") or {}).get("Amount") if listings else None
+        rating = ((item.get("CustomerReviews") or {}).get("StarRating") or {}).get("Value")
+        cards.append({
+            "asin":  item.get("ASIN"),
+            "name":  title,
+            "image": image,
+            "price": f"{float(amount):.2f}" if amount is not None else None,
+            "stars": float(rating) if rating is not None else None,
+        })
+    return cards
+
+
+def paapi_search(query: str) -> list:
+    """
+    SearchItems via PA-API v5. Returns cards or raises RuntimeError
+    (missing keys, auth failure, throttle, error body).
+    """
+    if not PAAPI_ACCESS_KEY or not PAAPI_SECRET_KEY:
+        raise RuntimeError("PA-API keys not configured")
+    payload = json.dumps({
+        "Keywords": query,
+        "SearchIndex": "PetSupplies",
+        "ItemCount": 5,
+        "PartnerTag": AFFILIATE_TAG,
+        "PartnerType": "Associates",
+        "Marketplace": "www.amazon.com",
+        "Resources": ["Images.Primary.Large", "ItemInfo.Title",
+                      "Offers.Listings.Price",
+                      "CustomerReviews.StarRating", "CustomerReviews.Count"],
+    }).encode()
+    amz_date = time.strftime("%Y%m%dT%H%M%SZ", time.gmtime())
+    headers = _sigv4_headers(payload, amz_date)
+    req = urllib.request.Request(f"https://{PAAPI_HOST}/paapi5/searchitems",
+                                 data=payload, headers=headers, method="POST")
+    try:
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            data = json.loads(resp.read().decode("utf-8", "replace"))
+    except urllib.error.HTTPError as exc:
+        raise RuntimeError(f"PA-API HTTP {exc.code}: {exc.read().decode('utf-8','replace')[:200]}") from exc
+    except (urllib.error.URLError, OSError, json.JSONDecodeError) as exc:
+        raise RuntimeError(f"PA-API request failed: {exc}") from exc
+    if data.get("Errors"):
+        raise RuntimeError(f"PA-API error: {data['Errors'][0].get('Message', '?')[:200]}")
+    cards = _paapi_items_to_cards(data)
+    if not cards:
+        raise RuntimeError("PA-API returned no items")
+    return cards
 
 
 # ------------------------------------------------------------- amazon scrape
@@ -268,18 +368,27 @@ def resolve_product(topic_title: str, query: str) -> dict | None:
     Search Amazon and return {name, asin, image, price, stars, runners_up}
     for the first verified card, or None (caller keeps placeholders).
     """
-    try:
-        body = fetch_search_html(query)
-        cards = parse_search_results(body)
-    except RuntimeError as exc:
-        log(f"'{query}': {exc}", "WARN")
-        return None
+    cards = []
+    if PAAPI_ACCESS_KEY and PAAPI_SECRET_KEY:
+        try:
+            cards = paapi_search(query)
+            time.sleep(1.2)  # PA-API default throttle is 1 request/second
+        except RuntimeError as exc:
+            log(f"'{query}': {exc} -- falling back to scrape", "WARN")
+    if not cards:
+        try:
+            body = fetch_search_html(query)
+            cards = parse_search_results(body)
+            if not any(validate_candidate(c) for c in cards):
+                asin_hits = len(re.findall(r'data-asin="B0', body))
+                log(f"'{query}': no parseable product cards "
+                    f"(body {len(body)} chars, {asin_hits} asin attrs, "
+                    f"head: {body[:120].replace(chr(10), ' ')!r})", "WARN")
+        except RuntimeError as exc:
+            log(f"'{query}': {exc}", "WARN")
+            return None
     valid = [c for c in cards if validate_candidate(c)]
     if not valid:
-        asin_hits = len(re.findall(r'data-asin="B0', body))
-        log(f"'{query}': no parseable product cards "
-            f"(body {len(body)} chars, {asin_hits} asin attrs, "
-            f"head: {body[:120].replace(chr(10), ' ')!r})", "WARN")
         return None
     top = valid[0]
     if not llm_fit_check(topic_title, top["name"]):
