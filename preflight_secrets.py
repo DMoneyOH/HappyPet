@@ -151,19 +151,35 @@ def check_sheets() -> None:
 def check_gmail() -> None:
     user = check_presence("GMAIL_SMTP_USER")
     pw = check_presence("GMAIL_APP_PASSWORD")
-    if os.environ.get("GMAIL_ACCOUNT", "").strip():
+    account = os.environ.get("GMAIL_ACCOUNT", "").strip()
+    if account:
         record("GMAIL_ACCOUNT", "PASS", "present (presence-only)")
     else:
         record("GMAIL_ACCOUNT", "FAIL", "secret missing or empty")
     if not user or not pw:
         return
+    # Mirror push_pins_to_sheets: log in as GMAIL_ACCOUNT (the real mailbox
+    # the app password belongs to); GMAIL_SMTP_USER is the send-as identity.
+    login = account or user
     try:
         with smtplib.SMTP("smtp.gmail.com", 587, timeout=TIMEOUT) as smtp:
             smtp.starttls(context=ssl.create_default_context())
-            smtp.login(user, pw)
-        record("GMAIL_SMTP_USER+PASSWORD", "PASS", "SMTP login OK (no email sent)")
+            smtp.login(login, pw)
+            if os.environ.get("SEND_TEST_EMAIL", "") == "1":
+                to = os.environ.get("TEST_EMAIL_TO", "hello@happypetproductreviews.com")
+                msg = (f"From: {user}\r\nTo: {to}\r\n"
+                       "Subject: [HappyPet] Preflight test email\r\n\r\n"
+                       "This is a test email from the HappyPet preflight workflow.\r\n"
+                       "If you are reading this, the SMTP alert channel works.\r\n")
+                smtp.sendmail(user, [to], msg.encode())
+                record("GMAIL_SMTP_USER+PASSWORD", "PASS",
+                       f"SMTP login OK as {login}; test email sent to {to}")
+                return
+        record("GMAIL_SMTP_USER+PASSWORD", "PASS",
+               f"SMTP login OK as {login} (no email sent)")
     except smtplib.SMTPAuthenticationError as exc:
-        record("GMAIL_SMTP_USER+PASSWORD", "FAIL", f"SMTP auth rejected: {exc.smtp_code}")
+        record("GMAIL_SMTP_USER+PASSWORD", "FAIL",
+               f"SMTP auth rejected for login '{login}': {exc.smtp_code}")
     except OSError as exc:
         record("GMAIL_SMTP_USER+PASSWORD", "WARN", f"SMTP unreachable from runner: {exc}")
 

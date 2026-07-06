@@ -5,6 +5,11 @@ name: Preflight — Secrets Readiness Check
 # fires no pins, appends no rows, sends no email.
 on:
   workflow_dispatch:
+    inputs:
+      send_test_email:
+        description: 'Send a real test email to hello@happypetproductreviews.com (true/false)'
+        required: false
+        default: 'false'
 
 permissions:
   contents: read
@@ -53,4 +58,5 @@ jobs:
           AMAZON_PAAPI_SECRET_KEY: ${{ secrets.AMAZON_PAAPI_SECRET_KEY }}
           AMAZON_PAAPI_PARTNER_TAG: ${{ secrets.AMAZON_PAAPI_PARTNER_TAG }}
           FACEBOOK_PAGE_TOKEN: ${{ secrets.FACEBOOK_PAGE_TOKEN }}
+          SEND_TEST_EMAIL: ${{ github.event.inputs.send_test_email == 'true' && '1' || '' }}
         run: python3 preflight_secrets.py
