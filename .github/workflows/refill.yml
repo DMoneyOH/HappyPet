@@ -1,14 +1,20 @@
 name: Stage 0 — Refill Product Queue
 
-# Keeps products.json fed. Runs after each publish (when the unpublished
-# count actually drops) and no-ops unless the queue is at or below the
-# threshold (default 1). Changes land as a PR for human review -- this
+# Keeps products.json fed. Changes land as a PR for human review -- this
 # workflow never commits to main.
+#
+# Auto-trigger HELD 2026-07-07: Amazon scraping (the fallback source while
+# PA-API keys are pending) degrades fast under repeated same-window traffic,
+# and GitHub-runner IPs are shared/datacenter -- worse for this than a
+# residential IP. Refill is HITL for now: run refill_products.py locally
+# from a residential IP and open the PR by hand. Re-enable the workflow_run
+# trigger below once PA-API keys are synced as repo secrets, or if scraping
+# is retired in favor of the API entirely.
 on:
-  workflow_run:
-    workflows: ["Stage 2 — Publish Articles"]
-    types: [completed]
-    branches: [main]
+  # workflow_run:
+  #   workflows: ["Stage 2 — Publish Articles"]
+  #   types: [completed]
+  #   branches: [main]
   workflow_dispatch:
     inputs:
       force:
