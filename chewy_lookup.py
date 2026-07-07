@@ -15,8 +15,8 @@ Output (JSON to stdout):
     }
 
 chewy_url sentinel values:
-    Full URL          score >= 4, auto-accepted, rating scraped
-    "REVIEW:{url}"    score 2-3, low confidence — human verification required
+    Full URL          score >= 4 AND word coverage >= 0.5 AND same brand -- auto-accepted, rating scraped
+    "REVIEW:{url}"    score 2-3, OR score >= 4 but low word coverage / brand conflict -- human verification required
     "REVIEW"          score < 2 or no match — product not found on Chewy
     null              API credentials missing or hard error
 
@@ -60,6 +60,17 @@ SCORE_AUTO_ACCEPT = 4    # >= this: accept, scrape rating
 SCORE_REVIEW      = 2    # >= this but < AUTO_ACCEPT: flag REVIEW:{url}
                          # <  SCORE_REVIEW: REVIEW (not found)
 
+# Word-coverage gate (see _word_coverage): raw score alone can clear
+# SCORE_AUTO_ACCEPT on common words (brand name, species, "treats"...) even
+# when the matched item is a different pack size/variant of the same brand
+# and product line -- e.g. "Blue Buffalo Bits Beef Soft & Chewy Dog Treats,
+# Bite-Sized for Training..." scored 6 against Chewy's "Blue Buffalo Blue
+# Bits Tender Beef Dog Treats" despite being (most likely) a different bag
+# size at a different price. Jaccard coverage of 0.5 was picked as the line
+# that separates known-good matches (Fumoi litter box 0.545, the existing
+# Outward Hound brand-gate fixture 0.5) from that regression case (0.375).
+COVERAGE_AUTO_ACCEPT = 0.5
+
 RATING_MAX_RETRY  = 3
 RATING_RETRY_WAIT = 4    # seconds between 429 retries
 
@@ -96,6 +107,30 @@ def _first_brand_token(text: str) -> str:
     disabled the weekly validation)."""
     words = [w for w in text.lower().split() if w not in STOP_WORDS and len(w) >= 4]
     return words[0] if words else ""
+
+
+_WORD_RE = re.compile(r"[a-z0-9][a-z0-9'-]*")
+
+
+def _tokenize(text: str) -> set[str]:
+    """Lowercase, punctuation-stripped meaningful words. Unlike the raw
+    `.split()` used for scoring, this treats "Box," and "Box" as the same
+    token -- retail titles are comma-heavy and that split() quirk otherwise
+    deflates coverage for no real reason."""
+    return {w for w in _WORD_RE.findall(text.lower()) if w not in STOP_WORDS}
+
+
+def _word_coverage(product_name: str, matched_name: str) -> float:
+    """Jaccard similarity of meaningful words between the searched product
+    name and a candidate Chewy match. Low coverage on an otherwise-scoring
+    match usually means the two names only share generic/brand words while
+    each has its own distinguishing vocabulary the other lacks -- the
+    signature of a same-brand, different-pack-size-or-variant mismatch
+    rather than the same product under a slightly different title."""
+    a, b = _tokenize(product_name), _tokenize(matched_name)
+    if not a or not b:
+        return 0.0
+    return len(a & b) / len(a | b)
 
 
 # ---------------------------------------------------------------------------
@@ -342,10 +377,14 @@ def scrape_chewy_rating(chewy_product_url: str) -> float | None:
 def lookup(product_name: str) -> dict:
     """
     Full lookup. chewy_url sentinel logic:
-      >= SCORE_AUTO_ACCEPT  → full URL, rating scraped
-      >= SCORE_REVIEW       → "REVIEW:{url}" — low confidence, human verify
-      < SCORE_REVIEW        → "REVIEW" — not found on Chewy
-      credentials missing   → all None
+      >= SCORE_AUTO_ACCEPT, no brand conflict, coverage >= COVERAGE_AUTO_ACCEPT
+                             → full URL, rating scraped
+      >= SCORE_AUTO_ACCEPT but brand conflict or low word coverage
+                             → "REVIEW:{url}" — likely wrong brand or a
+                               different pack size/variant, human verify
+      >= SCORE_REVIEW        → "REVIEW:{url}" — low confidence, human verify
+      < SCORE_REVIEW         → "REVIEW" — not found on Chewy
+      credentials missing    → all None
     """
     result = {
         "chewy_url":          None,
@@ -390,6 +429,21 @@ def lookup(product_name: str) -> dict:
         print(
             f"[chewy_lookup] Brand mismatch: searched='{searched_brand}' matched='{matched_brand}' "
             f"— downgrading score {score} -> {SCORE_AUTO_ACCEPT - 1} (REVIEW)",
+            file=sys.stderr
+        )
+        score = SCORE_AUTO_ACCEPT - 1  # force into REVIEW band
+
+    # Word-coverage gate (see COVERAGE_AUTO_ACCEPT / _word_coverage): a
+    # same-brand match can clear the score on common words alone while
+    # actually being a different pack size or variant. Require the two
+    # names to substantially overlap, not just share a brand + a few words,
+    # before trusting the matched price enough to show it in the article.
+    coverage = _word_coverage(product_name, matched_name)
+    if coverage < COVERAGE_AUTO_ACCEPT and score >= SCORE_AUTO_ACCEPT:
+        print(
+            f"[chewy_lookup] Low word coverage ({coverage:.2f}) despite score={score} "
+            f"— likely a different pack size/variant, not the same product "
+            f"— downgrading to REVIEW",
             file=sys.stderr
         )
         score = SCORE_AUTO_ACCEPT - 1  # force into REVIEW band
