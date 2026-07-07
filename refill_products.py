@@ -335,7 +335,14 @@ def parse_search_results(html_text: str, max_results: int = 8) -> list:
 
 
 def validate_candidate(card: dict) -> bool:
-    return bool(card.get("name")
+    name = card.get("name") or ""
+    # Some sponsored placements (seen on the mobile search endpoint) bake
+    # "Sponsored Ad - " straight into the image alt text, which sits outside
+    # the surrounding-markup ">Sponsored<" / popover-class checks above.
+    # Catch that case here so a paid placement never becomes the "best pick".
+    if name.strip().lower().startswith("sponsored"):
+        return False
+    return bool(name
                 and ASIN_RE.match(card.get("asin") or "")
                 and card.get("image") and IMAGE_HOST_RE.match(card["image"]))
 
