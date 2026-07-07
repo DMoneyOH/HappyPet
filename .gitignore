@@ -23,6 +23,9 @@ _site/
 .jekyll-cache/
 .jekyll-metadata
 
+# === Git Worktrees (local dev isolation, not source) ===
+.worktrees/
+
 # === OS Junk ===
 *:Zone.Identifier
 .DS_Store
