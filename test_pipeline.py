@@ -585,6 +585,11 @@ class TestRefillAgent(unittest.TestCase):
             {**good, "image": "https://example.com/evil.jpg"}))
         self.assertFalse(rp.validate_candidate({**good, "image": None}))
         self.assertFalse(rp.validate_candidate({**good, "name": None}))
+        # mobile-endpoint sponsored cards bake "Sponsored Ad - " into the alt
+        # text itself, outside the >Sponsored< / popover-class markup checks
+        # in parse_search_results -- validate_candidate is the last gate.
+        self.assertFalse(rp.validate_candidate(
+            {**good, "name": "Sponsored Ad - Some Product Title"}))
 
     def test_affiliate_url_uses_tag(self):
         import refill_products as rp
