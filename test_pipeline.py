@@ -651,6 +651,155 @@ class TestRefillAgent(unittest.TestCase):
         self.assertIn("concurrency", workflow)
 
 
+class TestManualResolve(unittest.TestCase):
+    """manual_resolve.py -- apply a browser-found product to a products.json
+    placeholder, reusing refill_products.py's validate_candidate/
+    apply_resolution/chewy_enrich. No Amazon or Chewy network code lives here."""
+
+    def test_happy_path_applies_and_writes(self):
+        import tempfile
+        import refill_products as rp
+        import manual_resolve as mr
+
+        products = [{
+            "topic": "best-automatic-litter-box",
+            "title": "Best Automatic Litter Boxes",
+            "keyword": "best automatic litter box",
+            "species": "cat", "category": "cat-gear", "format": "roundup",
+            "topical_sheet": "HAPPYPET_SHEET_ID_CATS",
+            "name": "NEEDS_ASIN placeholder for best automatic litter box",
+            "asin": "NEEDS_ASIN",
+            "affiliate_url": "https://www.amazon.com/dp/NEEDS_ASIN?tag=pawpicks04-20",
+            "image": "NEEDS_IMAGE", "price": None, "stars": None,
+            "chewy_url": None, "chewy_price": None,
+            "chewy_stock": None, "chewy_rating": None,
+        }]
+        with tempfile.TemporaryDirectory() as d:
+            path = Path(d) / "products.json"
+            path.write_text(json.dumps(products))
+            with patch.object(rp, "PRODUCTS_PATH", path):
+                mr.main([
+                    "--topic", "best-automatic-litter-box",
+                    "--name", "PETLIBRO Automatic Self-Cleaning Litter Box",
+                    "--asin", "B0ABCD1234",
+                    "--image", "https://m.media-amazon.com/images/I/71abcXYZ._AC_SX425_.jpg",
+                    "--price", "249.99", "--stars", "4.5",
+                    "--runners-up", "Litter-Robot 4; PetSafe ScoopFree",
+                ])
+            written = json.loads(path.read_text())
+
+        entry = written[0]
+        self.assertEqual(entry["asin"], "B0ABCD1234")
+        self.assertEqual(entry["name"], "PETLIBRO Automatic Self-Cleaning Litter Box")
+        self.assertEqual(entry["image"],
+                          "https://m.media-amazon.com/images/I/71abcXYZ._AC_SX425_.jpg")
+        self.assertEqual(entry["price"], "249.99")
+        self.assertEqual(entry["stars"], 4.5)
+        self.assertEqual(entry["runners_up"], "Litter-Robot 4; PetSafe ScoopFree")
+        self.assertEqual(entry["affiliate_url"],
+                          "https://www.amazon.com/dp/B0ABCD1234?tag=pawpicks04-20")
+        # chewy_enrich runs for real here (IMPACT_* creds unset in test env),
+        # which returns an all-None dict cleanly -- must not crash
+        self.assertIsNone(entry["chewy_url"])
+
+    def test_rejects_bad_asin_shape_and_does_not_write(self):
+        import tempfile
+        import refill_products as rp
+        import manual_resolve as mr
+
+        products = [{"topic": "best-dog-ramps", "asin": "NEEDS_ASIN", "image": "NEEDS_IMAGE"}]
+        with tempfile.TemporaryDirectory() as d:
+            path = Path(d) / "products.json"
+            path.write_text(json.dumps(products))
+            original = path.read_text()
+            with patch.object(rp, "PRODUCTS_PATH", path):
+                with self.assertRaises(SystemExit):
+                    mr.main([
+                        "--topic", "best-dog-ramps", "--name", "Some Ramp",
+                        "--asin", "NOTREAL123",
+                        "--image", "https://m.media-amazon.com/images/I/x.jpg",
+                        "--price", "39.99", "--stars", "4.2",
+                    ])
+            self.assertEqual(path.read_text(), original, "rejected candidate must not write")
+
+    def test_rejects_wrong_image_host_and_does_not_write(self):
+        import tempfile
+        import refill_products as rp
+        import manual_resolve as mr
+
+        products = [{"topic": "best-cat-carrier-backpacks",
+                     "asin": "NEEDS_ASIN", "image": "NEEDS_IMAGE"}]
+        with tempfile.TemporaryDirectory() as d:
+            path = Path(d) / "products.json"
+            path.write_text(json.dumps(products))
+            original = path.read_text()
+            with patch.object(rp, "PRODUCTS_PATH", path):
+                with self.assertRaises(SystemExit):
+                    mr.main([
+                        "--topic", "best-cat-carrier-backpacks", "--name", "Some Carrier",
+                        "--asin", "B0ABCD1234", "--image", "https://example.com/evil.jpg",
+                        "--price", "59.99", "--stars", "4.3",
+                    ])
+            self.assertEqual(path.read_text(), original)
+
+    def test_rejects_sponsored_prefixed_name_and_does_not_write(self):
+        import tempfile
+        import refill_products as rp
+        import manual_resolve as mr
+
+        products = [{"topic": "best-catnip-toys", "asin": "NEEDS_ASIN", "image": "NEEDS_IMAGE"}]
+        with tempfile.TemporaryDirectory() as d:
+            path = Path(d) / "products.json"
+            path.write_text(json.dumps(products))
+            original = path.read_text()
+            with patch.object(rp, "PRODUCTS_PATH", path):
+                with self.assertRaises(SystemExit):
+                    mr.main([
+                        "--topic", "best-catnip-toys",
+                        "--name", "Sponsored Ad - Fancy Catnip Toy",
+                        "--asin", "B0ABCD1234",
+                        "--image", "https://m.media-amazon.com/images/I/x.jpg",
+                        "--price", "12.99", "--stars", "4.1",
+                    ])
+            self.assertEqual(path.read_text(), original)
+
+    def test_rejects_unknown_topic(self):
+        import tempfile
+        import refill_products as rp
+        import manual_resolve as mr
+
+        products = [{"topic": "best-dog-ramps", "asin": "NEEDS_ASIN", "image": "NEEDS_IMAGE"}]
+        with tempfile.TemporaryDirectory() as d:
+            path = Path(d) / "products.json"
+            path.write_text(json.dumps(products))
+            with patch.object(rp, "PRODUCTS_PATH", path):
+                with self.assertRaises(SystemExit):
+                    mr.main([
+                        "--topic", "does-not-exist", "--name", "X",
+                        "--asin", "B0ABCD1234",
+                        "--image", "https://m.media-amazon.com/images/I/x.jpg",
+                        "--price", "9.99", "--stars", "4.0",
+                    ])
+
+    def test_rejects_already_resolved_topic(self):
+        import tempfile
+        import refill_products as rp
+        import manual_resolve as mr
+
+        products = [{"topic": "best-dog-cooling-mat", "asin": "B0GG8LR3RW",
+                     "image": "https://m.media-amazon.com/images/I/existing.jpg"}]
+        with tempfile.TemporaryDirectory() as d:
+            path = Path(d) / "products.json"
+            path.write_text(json.dumps(products))
+            with patch.object(rp, "PRODUCTS_PATH", path):
+                with self.assertRaises(SystemExit):
+                    mr.main([
+                        "--topic", "best-dog-cooling-mat", "--name", "X",
+                        "--asin", "B0NEWNEWNE",
+                        "--image", "https://m.media-amazon.com/images/I/y.jpg",
+                        "--price", "9.99", "--stars", "4.0",
+                    ])
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
