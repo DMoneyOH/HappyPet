@@ -10,8 +10,9 @@ full history and evidence). Until PA-API keys are available, resolve
 1. Pick a placeholder topic from `products.json` (any entry with
    `"asin": "NEEDS_ASIN"` or `"image": "NEEDS_IMAGE"`).
 2. In a live Claude Code session with the claude-in-chrome tools connected to
-   a Chrome logged into Amazon Associates Central, search Amazon for the
-   entry's `keyword` field.
+   a Chrome logged into Amazon Associates Central, search Amazon using the
+   entry's `amazon_search_query` field if present, otherwise its `keyword`
+   field (mirrors the fallback `refill_products.py` itself uses).
 3. Pick the best candidate against these criteria:
    - Prefer >=4.0 stars with a review count that looks substantial for the
      category (no fixed threshold -- use judgment).
@@ -41,6 +42,8 @@ full history and evidence). Until PA-API keys are available, resolve
 7. Ship it the same way every refill PR ships:
 
    ```bash
+   git checkout main
+   git pull
    git checkout -b refill/$(date +%Y-%m-%d-%H%M)
    git add products.json
    git commit -m "auto: manual refill $(date +%Y-%m-%d)"
