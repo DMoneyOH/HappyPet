@@ -387,6 +387,77 @@ class TestChewyBrandGate(unittest.TestCase):
         self.assertTrue(ok, f"No brand token should pass gate. Reason: {reason}")
 
 
+class TestChewyWordCoverage(unittest.TestCase):
+    """Same-brand matches that clear the raw score purely on common words
+    (dog, treats, beef...) but share little of the product's distinguishing
+    vocabulary are usually a different pack size/variant, not the same
+    product -- auto-accepting them puts a skewed Chewy price in the article."""
+
+    def test_terse_catalog_title_covers_descriptive_search_name(self):
+        from chewy_lookup import _word_coverage
+        coverage = _word_coverage(
+            "Fumoi Automatic Self-Cleaning Cat Litter Box, Large Capacity, App Control, Grey",
+            "Fumoi Automatic Self-Cleaning Cat Litter Box",
+        )
+        self.assertAlmostEqual(coverage, 0.545, places=2)
+
+    def test_same_brand_different_variant_has_low_coverage(self):
+        from chewy_lookup import _word_coverage
+        coverage = _word_coverage(
+            "Blue Buffalo Bits Beef Soft & Chewy Dog Treats, Bite-Sized for "
+            "Training, Made with Real Beef & Enhanced with DHA, Heart-Shaped",
+            "Blue Buffalo Blue Bits Tender Beef Dog Treats",
+        )
+        self.assertAlmostEqual(coverage, 0.375, places=2)
+
+    def test_punctuation_does_not_split_tokens(self):
+        # The raw score's `.split()` leaves "Box," and "Box" as different
+        # tokens; _word_coverage strips punctuation so this doesn't
+        # artificially deflate coverage for comma-heavy retail titles.
+        from chewy_lookup import _word_coverage
+        self.assertGreater(_word_coverage("Litter Box, Grey", "Litter Box"), 0.5)
+
+    def test_lookup_downgrades_high_score_low_coverage_match_to_review(self):
+        # Regression case: this exact pair scores 6 under the raw word-overlap
+        # formula (well past SCORE_AUTO_ACCEPT=4) purely on shared common
+        # words, with no pack-size/variant signal either way -- it must not
+        # auto-accept and surface a possibly-wrong Chewy price.
+        import chewy_lookup as cl
+        search_name = (
+            "Blue Buffalo Bits Beef Soft & Chewy Dog Treats, Bite-Sized for "
+            "Training, Made with Real Beef & Enhanced with DHA, Heart-Shaped"
+        )
+        item = {
+            "Name": "Blue Buffalo Blue Bits Tender Beef Dog Treats",
+            "Manufacturer": "Blue Buffalo",
+            "StockAvailability": "InStock",
+            "Url": "https://chewy.example/blue-bits-tender-beef",
+            "CurrentPrice": "41.99",
+        }
+        with patch.object(cl, "ACCOUNT_SID", "x"), \
+             patch.object(cl, "AUTH_TOKEN", "y"), \
+             patch.object(cl, "search_catalog", return_value=[item]):
+            result = cl.lookup(search_name)
+        self.assertTrue(str(result["chewy_url"]).startswith("REVIEW"))
+
+    def test_lookup_still_auto_accepts_genuine_high_coverage_match(self):
+        import chewy_lookup as cl
+        search_name = "Fumoi Automatic Self-Cleaning Cat Litter Box, Large Capacity, App Control, Grey"
+        item = {
+            "Name": "Fumoi Automatic Self-Cleaning Cat Litter Box",
+            "Manufacturer": "Fumoi",
+            "StockAvailability": "InStock",
+            "Url": "https://chewy.example/fumoi-litter-box",
+            "CurrentPrice": "199.95",
+        }
+        with patch.object(cl, "ACCOUNT_SID", "x"), \
+             patch.object(cl, "AUTH_TOKEN", "y"), \
+             patch.object(cl, "search_catalog", return_value=[item]), \
+             patch.object(cl, "scrape_chewy_rating", return_value=None):
+            result = cl.lookup(search_name)
+        self.assertEqual(result["chewy_url"], "https://chewy.example/fumoi-litter-box")
+
+
 class TestGenerationResultJSON(unittest.TestCase):
     """GENERATION_RESULT.json is written on pipeline completion — P4"""
 
