@@ -7,7 +7,7 @@ match on Chewy before spending time on live Amazon resolution for them.
 Never merged to main -- lives only on a scratch branch / CI run.
 """
 import json
-from chewy_lookup import lookup
+from chewy_lookup import lookup, ChewyAPIError
 
 TOPICS = [
     "best-elevated-dog-beds",
@@ -28,7 +28,11 @@ print("-" * 100)
 for t in TOPICS:
     p = by_topic[t]
     name = p["name"]
-    r = lookup(name)
+    try:
+        r = lookup(name)
+    except ChewyAPIError as e:
+        print(f"{t:32s} {'API_ERROR':10s} {'-':8s} {name[:40]} ({e})")
+        continue
     url = r.get("chewy_url")
     if url is None:
         status = "NO_CREDS"
