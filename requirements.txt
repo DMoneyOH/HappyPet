@@ -12,3 +12,6 @@ python-dotenv==1.2.2
 # to None gracefully if these aren't installed at all.
 sqlcipher3-wheels==0.5.7; sys_platform == "win32"
 keyring==25.7.0; sys_platform == "win32"
+# Cross-platform (already a transitive dep of google-auth) -- pinned explicitly
+# now that brain_secrets.py imports it directly for vault decryption.
+cryptography==49.0.0
