@@ -458,6 +458,76 @@ class TestChewyWordCoverage(unittest.TestCase):
         self.assertEqual(result["chewy_url"], "https://chewy.example/fumoi-litter-box")
 
 
+class TestBrainSecretsVaultFallback(unittest.TestCase):
+    """brain_secrets.py reads Maeve's SecretVault (in the sibling MaeveJarvis
+    repo) so chewy_lookup.py can get IMPACT_* creds locally without them
+    being exported by hand. Every failure mode here must degrade to None,
+    never raise -- CI has no MaeveJarvis checkout next to this repo at all,
+    and chewy_lookup.py's own credential fallback must not crash imports."""
+
+    def setUp(self):
+        import brain_secrets as bs
+        self.bs = bs
+        # Reset the lazy-vault cache so each test controls it explicitly.
+        self._orig_vault, self._orig_tried = bs._vault, bs._vault_tried
+        bs._vault, bs._vault_tried = None, False
+
+    def tearDown(self):
+        self.bs._vault, self.bs._vault_tried = self._orig_vault, self._orig_tried
+
+    def test_get_secret_tries_project_scope_first(self):
+        fake_vault = MagicMock()
+        fake_vault.use.return_value = "sid-value"
+        with patch.object(self.bs, "_get_vault", return_value=fake_vault):
+            self.assertEqual(self.bs.get_secret("IMPACT_ACCOUNT_SID", "HappyPet"), "sid-value")
+        fake_vault.use.assert_called_once_with("HAPPYPET__IMPACT_ACCOUNT_SID")
+
+    def test_get_secret_falls_back_to_global_scope(self):
+        fake_vault = MagicMock()
+
+        def use(name):
+            if name == "GLOBAL__SOME_KEY":
+                return "global-value"
+            raise KeyError(name)
+
+        fake_vault.use.side_effect = use
+        with patch.object(self.bs, "_get_vault", return_value=fake_vault):
+            self.assertEqual(self.bs.get_secret("SOME_KEY", "HappyPet"), "global-value")
+
+    def test_get_secret_returns_none_when_key_missing_in_both_scopes(self):
+        fake_vault = MagicMock()
+        fake_vault.use.side_effect = KeyError
+        with patch.object(self.bs, "_get_vault", return_value=fake_vault):
+            self.assertIsNone(self.bs.get_secret("NOPE", "HappyPet"))
+
+    def test_get_secret_returns_none_when_vault_unavailable(self):
+        with patch.object(self.bs, "_get_vault", return_value=None):
+            self.assertIsNone(self.bs.get_secret("IMPACT_ACCOUNT_SID", "HappyPet"))
+
+    def test_get_vault_returns_none_when_secrets_env_missing(self):
+        # Simulates CI: only this repo is checked out, no sibling MaeveJarvis.
+        with patch.object(self.bs, "_SECRETS_ENV", Path("Z:/does/not/exist/secrets.env")):
+            self.assertIsNone(self.bs._get_vault())
+
+    def test_chewy_lookup_survives_reimport_when_brain_secrets_unimportable(self):
+        # Simulates a deployment missing brain_secrets.py entirely (e.g. a
+        # stripped CI checkout) -- chewy_lookup.py's `except ImportError:
+        # pass` guard around `from brain_secrets import get_secret` must
+        # hold, leaving ACCOUNT_SID/AUTH_TOKEN as empty strings, not crash.
+        import importlib
+        import os
+        import chewy_lookup as cl
+
+        with patch.dict(os.environ, {"IMPACT_ACCOUNT_SID": "", "IMPACT_AUTH_TOKEN": ""}), \
+             patch.dict(sys.modules, {"brain_secrets": None}):
+            importlib.reload(cl)
+        try:
+            self.assertEqual(cl.ACCOUNT_SID, "")
+            self.assertEqual(cl.AUTH_TOKEN, "")
+        finally:
+            importlib.reload(cl)  # restore real module state for later tests
+
+
 class TestGenerationResultJSON(unittest.TestCase):
     """GENERATION_RESULT.json is written on pipeline completion — P4"""
 
@@ -753,6 +823,7 @@ class TestManualResolve(unittest.TestCase):
         import tempfile
         import refill_products as rp
         import manual_resolve as mr
+        import chewy_lookup as cl
 
         products = [{
             "topic": "best-automatic-litter-box",
@@ -770,7 +841,13 @@ class TestManualResolve(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             path = Path(d) / "products.json"
             path.write_text(json.dumps(products))
-            with patch.object(rp, "PRODUCTS_PATH", path):
+            # Force the no-credentials path explicitly rather than relying on
+            # the ambient environment/vault lacking IMPACT_* -- chewy_lookup
+            # now falls back to Maeve's SecretVault when the env vars are
+            # unset, so this test must not depend on that vault being absent.
+            with patch.object(rp, "PRODUCTS_PATH", path), \
+                 patch.object(cl, "ACCOUNT_SID", ""), \
+                 patch.object(cl, "AUTH_TOKEN", ""):
                 mr.main([
                     "--topic", "best-automatic-litter-box",
                     "--name", "PETLIBRO Automatic Self-Cleaning Litter Box",
@@ -791,7 +868,7 @@ class TestManualResolve(unittest.TestCase):
         self.assertEqual(entry["runners_up"], "Litter-Robot 4; PetSafe ScoopFree")
         self.assertEqual(entry["affiliate_url"],
                           "https://www.amazon.com/dp/B0ABCD1234?tag=pawpicks04-20")
-        # chewy_enrich runs for real here (IMPACT_* creds unset in test env),
+        # chewy_enrich runs for real here with credentials forced empty,
         # which returns an all-None dict cleanly -- must not crash
         self.assertIsNone(entry["chewy_url"])
 
