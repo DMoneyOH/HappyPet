@@ -42,7 +42,10 @@ from pathlib import Path
 
 try:
     from dotenv import load_dotenv
-    load_dotenv(Path(__file__).parent.parent.parent / ".env")
+    # Repo root (this file's own directory) -- .env is gitignored there.
+    # Previously pointed three parents up (C:\Users\<user>\.env on a typical
+    # checkout), so a local .env was silently never loaded.
+    load_dotenv(Path(__file__).parent / ".env")
 except ImportError:
     pass
 
@@ -52,6 +55,20 @@ except ImportError:
 
 ACCOUNT_SID       = os.environ.get("IMPACT_ACCOUNT_SID", "")
 AUTH_TOKEN        = os.environ.get("IMPACT_AUTH_TOKEN", "")
+
+# CI (GitHub Actions) injects these as real env vars via repo secrets, so the
+# above already covers that case. Locally, fall back to Maeve's encrypted
+# vault (see brain_secrets.py) rather than requiring them to be exported by
+# hand -- best-effort: any failure here (module missing, vault unavailable,
+# key not found) just leaves the env-var value ("") in place.
+if not ACCOUNT_SID or not AUTH_TOKEN:
+    try:
+        from brain_secrets import get_secret as _vault_get_secret
+        ACCOUNT_SID = ACCOUNT_SID or _vault_get_secret("IMPACT_ACCOUNT_SID") or ""
+        AUTH_TOKEN  = AUTH_TOKEN  or _vault_get_secret("IMPACT_AUTH_TOKEN")  or ""
+    except ImportError:
+        pass
+
 CATALOG_ID        = os.environ.get("CHEWY_CATALOG_ID", "24727")
 CAMPAIGN_ID       = os.environ.get("CHEWY_CAMPAIGN_ID", "32975")
 BASE_URL          = f"https://api.impact.com/Mediapartners/{ACCOUNT_SID}"

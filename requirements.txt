@@ -4,3 +4,11 @@ pillow==12.1.1
 gspread==6.2.1
 google-auth==2.49.1
 python-dotenv==1.2.2
+# Read-only access to Maeve's encrypted SecretVault (brain_secrets.py) -- versions
+# pinned to match MaeveJarvis's own pyproject.toml so the on-disk vault format matches.
+# Windows-only: sqlcipher3-wheels ships no Linux wheel, and CI (ubuntu-latest) never
+# needs it -- GitHub Actions secrets are injected as real env vars there, so
+# chewy_lookup.py's vault fallback never triggers; brain_secrets.py itself degrades
+# to None gracefully if these aren't installed at all.
+sqlcipher3-wheels==0.5.7; sys_platform == "win32"
+keyring==25.7.0; sys_platform == "win32"
