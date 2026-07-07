@@ -1,101 +1,99 @@
-# HappyPet — Session Handoff (2026-07-07)
+# HappyPet — Session Handoff (2026-07-07, session 2)
 
-Read this file, then read the repo state (`git log --oneline -15`, `git status`). This file is ground truth as of commit `162c0dd` on `main` (this handoff's own commit will be one ahead of that, on branch `claude/happypet-recovery-13-handoff`, merged by the time you read this).
+Read this file, then read the repo state (`git log --oneline -15`, `git status`). This file is ground truth as of commit `86a03eb` on `main` (this handoff's own commit will be one ahead, on branch `claude/happypet-recovery-17-handoff`, merged by the time you read this).
 
 ## 1. Mission
 
-HappyPet is a Jekyll affiliate blog (happypetproductreviews.com, GitHub Pages) that reviews dog/cat products, monetized via Amazon Associates + Chewy/Impact.com. A GitHub Actions pipeline (refill → generate → publish → deploy → pin) is meant to run mostly unattended twice a week. The project stalled in May; PRs #21–32 were a recovery effort that fixed the pipeline's actual bugs. Right now the pipeline is code-complete and tested but **has never run a full unattended cycle** — Derek wants to personally babysit the first live end-to-end run before flipping the cron back on. This session's job was clearing the two things standing between "code works" and "safe to go live": a dead SMTP password, and a backlog of un-resolved product placeholders.
+HappyPet is a Jekyll affiliate blog (happypetproductreviews.com, GitHub Pages) reviewing dog/cat products, monetized via Amazon Associates + Chewy/Impact.com. The pipeline (refill → generate → publish → deploy → pin) is code-complete but has never run a full unattended cycle — Derek wants to babysit the first live run before flipping `generate.yml`'s cron back on. This session's job: get Amazon product resolution working again (the anonymous scrape from the prior session is now fully blocked) and fix Chewy enrichment (looked like a dead account, wasn't).
 
 ## 2. Current State
 
 **Working and verified:**
-- Secrets preflight (`gh workflow run "Preflight — Secrets Readiness Check" --repo DMoneyOH/HappyPet -f send_test_email=true`) is green: 14 PASS, 2 WARN (both by-design, see below), 0 FAIL. Last run: `28836641892`, 2026-07-07T02:12:45Z, `conclusion: success`. A real test email was confirmed sent via SMTP login as `derekepperson@gmail.com` to `hello@happypetproductreviews.com`.
-- Test suite: `cd HappyPet && .venv/Scripts/python.exe -m pytest test_pipeline.py -q` → 45 passed, 1 skipped, 2 failed. **The 2 failures are pre-existing and environment-specific, not regressions**: `TestPendingDraftsJSON::test_publish_yml_reads_pending_drafts` and `TestRefillAgent::test_refill_workflow_never_pushes_main` both fail only on Windows because they call `Path(...).read_text()` on `.yml` files containing an em-dash, and Windows defaults to cp1252 instead of UTF-8. GitHub Actions runners are Linux and won't hit this. Don't "fix" these by touching the workflow YAML — the fix, if ever wanted, is adding `encoding="utf-8"` to the test's `read_text()` calls.
-- `GMAIL_ACCOUNT` = `derekepperson@gmail.com`, `GMAIL_SMTP_USER` = `hello@happypetproductreviews.com`, `GMAIL_APP_PASSWORD` = freshly rotated. All three set explicitly via `gh secret set` this session (not just presence-checked — the old `GMAIL_ACCOUNT` value predated the PR #32 code fix and was probably wrong, which is likely why last week's password rotation still failed with SMTP 535 even after the code fix landed).
-- The Gmail app password is also backed up in the Brain's encrypted vault (`C:\Users\derek\MAEVE\maeve-brain-v2.db`) as `HAPPYPET__GMAIL_APP_PASSWORD` (all-caps prefix, matching the other `HAPPYPET__*` entries — mind this, see Gotchas).
-- Repo cloned locally at `C:\Users\derek\MAEVE\HappyPet` for the first time this session (previously GitHub-only from this machine). Has its own `.venv` with `requirements.txt` installed.
-- `gh api repos/DMoneyOH/HappyPet/actions/permissions/workflow` shows `can_approve_pull_request_reviews: true` already — the "Allow GitHub Actions to create and approve pull requests" repo setting Derek was supposed to flip appears to already be on. Not independently confirmed by watching a refill PR auto-open, just confirmed via the API field. If a future refill run still can't open its own PR, this is the first thing to re-check.
+- `manual_resolve.py` (new, merged PR #36) — CLI that applies a browser-found Amazon product to a placeholder, reusing `refill_products.py`'s existing `validate_candidate()`/`apply_resolution()`/`chewy_enrich()` unchanged. Design: `docs/superpowers/specs/2026-07-07-refill-manual-resolve-design.md`. Operational runbook: `docs/refill-manual-resolve.md`.
+- **Chewy enrichment is fixed and verified live** (merged PR #38). Root cause: not a dead account — the cross-catalog `/Catalogs/ItemSearch` endpoint hangs indefinitely for this account's 227K-item catalog. Fixed to call `/Catalogs/{CatalogId}/Items` instead (same fields, works in ~1s). Verified both branches live: auto-accept (real `chewy_url`/price/stock) and the brand-mismatch `REVIEW` path.
+- `HAPPYPET__IMPACT_ACCOUNT_SID` / `HAPPYPET__IMPACT_AUTH_TOKEN` now live in the Brain vault (recovered from an old backup, see Gotchas) — Chewy enrichment works locally without asking Derek for credentials again.
+- `refill.yml`'s automatic `workflow_run` trigger is held (commented out, merged PR #35) — Amazon resolution is human-in-the-loop only for now; `workflow_dispatch` still works for occasional manual/remote runs.
+- **Trial run complete**: 3 of the 21 `NEEDS_ASIN` placeholders resolved via live claude-in-chrome browsing + `manual_resolve.py` (merged PR #37): `best-automatic-litter-box` (Fumoi, Chewy auto-matched), `best-dog-car-seat-covers` (URPOWER, Chewy correctly flagged `REVIEW` — not a Chewy brand), `best-dog-travel-water-bottles` (Kalimdor, same — correctly `REVIEW`).
+- Test suite: `cd HappyPet && .venv/Scripts/python.exe -m pytest test_pipeline.py -q` → **52 passed, 1 skipped, 2 failed**. The 2 failures are the same pre-existing Windows cp1252/em-dash issue from last session — unrelated, don't touch.
+- Current product count: **23 total, 18 still `NEEDS_ASIN`/`NEEDS_IMAGE` placeholders, 5 resolved** (2 pre-existing + 3 from this session).
 
 **Broken / blocked:**
-- **21 of 23 products in `products.json` are still `NEEDS_ASIN`/`NEEDS_IMAGE` placeholders.** This is the actual go-live blocker now. See Decisions Made — Amazon scraping is confirmed unreliable even from a residential IP; the real fix is Amazon PA-API keys, which is a Derek action (Associates Central → Tools → Product Advertising API). The code already supports PA-API as the primary source (PR #31); scraping is only the fallback.
-- Manual resolution process for these placeholders: see `docs/refill-manual-resolve.md`.
-- Go-live itself (uncommenting the `schedule:` cron in `generate.yml`, dispatching with `force_cap=1`, babysitting the full cycle) has not happened and should not happen without Derek explicitly saying "go."
+- **18 of 23 products still need resolving.** Process is proven and working (`docs/refill-manual-resolve.md`); it's just manual/slow — batch size per session, no fixed target, decide with Derek each time.
+- Amazon PA-API keys: still not obtained. This session didn't chase them — the manual/browser-driven process became the accepted interim path instead. Whether Derek still wants PA-API as the eventual fix is an open question (see below), not assumed.
+- Go-live (`generate.yml`'s cron) — still not touched, still requires Derek's explicit "go".
 
-**Exact next action:** ask Derek whether he's gotten PA-API keys yet. If yes, sync `AMAZON_PAAPI_ACCESS_KEY` + `AMAZON_PAAPI_SECRET_KEY` (+ optional `AMAZON_PAAPI_PARTNER_TAG`) as GitHub secrets and re-run `refill_products.py` — it auto-switches to API mode when the keys are present. If no, that's the thing to unblock before touching placeholders again; don't re-run the scrape hoping for better luck (see Gotchas).
+**Exact next action:** ask Derek how many more placeholders to resolve this session (or whether to just proceed with a reasonable batch), then follow `docs/refill-manual-resolve.md` end to end: live claude-in-chrome browsing → `manual_resolve.py` → `refill/<date>` branch → PR. Chewy enrichment will just work now (no setup needed).
 
 ## 3. Decisions Made (and Why)
 
-- **Decision:** Store the Gmail app password via the real `SecretVault` API (`src/maeve/secrets/vault.py` in MaeveJarvis), not the plain `sqlite3.connect()` snippet the original handoff document suggested.
-  **Alternatives considered:** the handoff's own PowerShell/sqlite3 one-liner.
-  **Reason:** `maeve-brain-v2.db` is SQLCipher-encrypted (whole-file) plus each secret value is separately AES-256-GCM encrypted with a key in the OS keyring — plain `sqlite3.connect()` fails with "file is not a database". The handoff document was written before or without accounting for the Piece 0b vault migration.
-  **Reversibility:** N/A, this is just "use the correct API."
+- **Decision:** Replace anonymous-scrape Amazon resolution with a live, browser-driven (claude-in-chrome) process feeding the existing validation/enrichment code, rather than fixing or hardening the scraper.
+  **Alternatives considered:** keep iterating the scrape (better headers/delays); build headless Playwright automation with a persisted Amazon session.
+  **Reason:** the scrape is blocked even from a residential IP, mid-run, on a fresh day — not a flakiness problem. Git history showed the *original* working design was never a scrape at all: a logged-in Associates Central session + SiteStripe. Headless automation was rejected too — bigger build (new durable secret, headless fingerprinting is its own bot-check risk), and go-live is already gated on Derek regardless, so unattended running isn't the actual bottleneck.
+  **Reversibility:** Easy — `refill_products.py`'s scrape path is untouched, just unused for now. Revisit if PA-API or a different approach becomes preferable.
 
-- **Decision:** Explicitly reset `GMAIL_ACCOUNT` and `GMAIL_SMTP_USER` GitHub secrets to known-correct values, rather than trusting the existing ones were fine.
-  **Alternatives considered:** trust the preflight's "present" check and only rotate the password.
-  **Reason:** first attempt (password only) still failed SMTP auth with 535. `GMAIL_ACCOUNT` hadn't been touched since 2026-05-18, before the PR #32 code change that started using it as the login identity — good chance it held a stale or wrong value that nobody had verified since the code started depending on it.
-  **Reversibility:** Load-bearing but easily redone if wrong — just re-run `gh secret set`.
+- **Decision:** Hold `refill.yml`'s automatic `workflow_run` trigger; Stage 0 is HITL-only until further notice.
+  **Reason:** GitHub-runner IPs are shared/datacenter, worse for scrape-blocking than residential, and scraping is blocked regardless of IP quality now.
+  **Reversibility:** One YAML comment-toggle. Re-enable if PA-API keys land or scraping is retired entirely.
 
-- **Decision:** Local refill runs and code fixes go on separate branch types — `refill/<date>` for pure data-agent output (mirrors PR #30's precedent), `claude/happypet-recovery-N-<slug>` for code changes. Don't mix a code fix into a data-only branch.
-  **Reason:** keeps a code fix reviewable independent of whatever data a given refill run happened to produce; matches existing repo history.
-  **Reversibility:** convention, not enforced by tooling — just don't break it without a reason.
+- **Decision:** Fix `chewy_lookup.py` by switching to `/Catalogs/{CatalogId}/Items` instead of debugging/replacing `/Catalogs/ItemSearch`.
+  **Alternatives considered:** assume the Impact.com account was suspended/misconfigured and ask Derek to contact support.
+  **Reason:** methodically ruled out every other layer first (credentials valid, account active, campaign active, `Catalogs` scope fully enabled, `List Catalogs` fast) before concluding the *specific* cross-catalog search endpoint is broken/slow for this account's catalog size. The per-catalog endpoint returns identical fields and this account only has one catalog anyway, so no functionality is lost.
+  **Reversibility:** Small, well-tested code change (regression test + live verification). Low risk to revert if `ItemSearch` ever gets fixed on Impact's side — no reason to, though.
 
-- **Decision:** Merged PR #33 (sponsored-ad filter fix) without waiting for CI, based on a local `pytest` run.
-  **Alternatives considered:** wait for Derek to review and merge himself.
-  **Reason:** this repo has no `pull_request`-triggered CI workflow — nothing to wait for. The 12 prior recovery PRs (#21–32) were already merged following the same "verify locally, then merge" pattern per the original handoff's "Merging authorized after verification" instruction.
-  **Reversibility:** already merged; revert if Derek disagrees with the fix's approach (see Architecture section for exactly what changed).
+- **Decision:** Recover `IMPACT_ACCOUNT_SID`/`IMPACT_AUTH_TOKEN` from an old Brain backup (`D:\maeve_backup\maeve_brain_2026-05-01_0807.db`) rather than asking Derek to regenerate them.
+  **Reason:** GitHub Actions secrets are write-only (can't read them back to seed the vault); the old backup had them, and a live test call confirmed the account is genuinely active — reusing known-working credentials was faster and lower-risk than rotating.
+  **Reversibility:** Credentials are just data in the vault now; can rotate later without any code change.
 
-- **Decision:** Discarded the second local refill run's output (0 resolved, +10 new unresolved placeholder topics) instead of committing it.
-  **Reason:** it added zero value and just inflates the queue with more entries that will also need to eventually resolve. No point in a PR that's pure noise.
-  **Reversibility:** N/A, nothing was committed.
-
-- **Decision:** Recommend Amazon PA-API keys over continuing to iterate on the scraper.
-  **Alternatives considered:** keep tuning the scrape (better headers, proxies, delays between requests).
-  **Reason:** two runs ~20 minutes apart from the same residential IP went from 2/22 resolved to 0/21 resolved — consistent with rate-limiting/blocking kicking in after repeated traffic, not a fixable parsing issue. The code already has a working PA-API path (PR #31) that's just never been activated because the keys don't exist yet. Continuing to hammer the scrape risks getting Derek's home IP flagged by Amazon for no real gain.
-  **Reversibility:** Not a code decision — just a recommendation on where to spend effort next. Doesn't block anything if ignored.
+- **Decision:** Used a git worktree (`.worktrees/manual-resolve`, now removed) for the `manual_resolve.py` + runbook implementation, executed via subagent-driven-development (fresh implementer subagent per task, two-stage review: spec compliance then code quality).
+  **Reason:** Isolated the multi-step build from the main working directory; the two-stage review caught two real issues in the runbook doc (wrong search-query field preference, missing `git checkout main` before branching) that a single self-review likely would have missed.
+  **Reversibility:** N/A — process choice, not a lasting artifact beyond `.gitignore`'s new `.worktrees/` entry.
 
 ## 4. Architecture & Key Files
 
-- **`refill_products.py`** — Stage 0 agent. Backfills placeholder products + ideates new topics via Gemini, resolves against Amazon (PA-API if keys present, scrape fallback otherwise), opens a review PR. Modified this session: `validate_candidate()` (around line 337) now rejects any candidate whose `name` starts with "Sponsored" (case-insensitive) — see Gotchas for why.
-- **`test_pipeline.py`** — 48+ tests (now 50 after this session's addition) covering the whole pipeline; `TestRefillAgent` class (~line 539) covers refill-specific parsing/validation. Added one regression test case for the sponsored-alt-text bug, inside `test_validate_candidate_rejects_bad_data`.
-- **`preflight_secrets.py`** — dispatch-only secrets readiness checker. `check_gmail()` (~line 150) logs in as `GMAIL_ACCOUNT` (not `GMAIL_SMTP_USER`) — this was the PR #32 fix; this session's work confirmed the code fix alone wasn't sufficient because the secret *value* also needed correcting.
-- **`.github/workflows/generate.yml`** — Stage 1, cron intentionally commented out. **Do not uncomment without Derek's explicit "go".**
-- **`.github/workflows/preflight.yml`** — dispatch-only, `send_test_email` input for a real SMTP round-trip check.
-- **`docs/handoffs/`** — new this session, mirrors the MaeveJarvis handoff-archival convention (live `HANDOFF.md` at repo root, prior versions snapshotted here before being overwritten). Currently empty (nothing to archive yet — this is the first `HANDOFF.md` ever committed to this repo's history).
-- **HappyPet's own `.venv/`** (gitignored) — created this session at `C:\Users\derek\MAEVE\HappyPet\.venv`, has `requirements.txt` installed (pillow, gspread, google-auth, python-dotenv). Use this, not global Python, for any local pipeline script runs.
-- **Files that look touchable but shouldn't be:** `push_pins_to_sheets.py` and `brain_secrets.py` still hardcode old local paths (`~/vault/maeve_brain.db`, `../utils/core-skills`) — harmless on CI (they're only used in a local-run code path), and the handoff's own priority list marks this "nice-to-have, fix before running pipeline scripts locally" — but the actual local runs this session did (`refill_products.py`) don't touch those paths, so it wasn't necessary. Don't fix it opportunistically; it's explicitly deprioritized.
+- **`manual_resolve.py`** (new) — CLI: `--topic`, `--name`, `--asin`, `--image`, `--price`, `--stars`, `--runners-up`. Validates via `refill_products.validate_candidate()`, applies via `refill_products.apply_resolution()` (which calls `chewy_enrich()` internally). No Amazon/Chewy network code of its own.
+- **`chewy_lookup.py`** — `search_catalog()` (~line 133) now calls `/Catalogs/{CATALOG_ID}/Items` instead of `/Catalogs/ItemSearch`. Everything else (scoring, brand-mismatch gate, rating scrape) unchanged.
+- **`docs/refill-manual-resolve.md`** (new) — the operational runbook for resolving a placeholder: search criteria, `manual_resolve.py` invocation, shipping convention.
+- **`docs/superpowers/specs/2026-07-07-refill-manual-resolve-design.md`** and **`docs/superpowers/plans/2026-07-07-refill-manual-resolve.md`** (new) — design rationale and implementation plan for `manual_resolve.py`, in case the "why" behind its shape ever needs revisiting.
+- **`.github/workflows/refill.yml`** — auto-trigger (`workflow_run`) commented out with an explanatory header comment; `workflow_dispatch` untouched.
+- **`test_pipeline.py`** — added `TestManualResolve` (6 tests, after `TestRefillAgent`) and `test_search_catalog_uses_per_catalog_items_endpoint` (in `TestSilentLegRegressions`) — the latter mocks `_impact_get` and would fail again if anyone reverts to the `ItemSearch` endpoint.
+- **`.gitignore`** — added `.worktrees/` (this session's git-worktree isolation dir, not a HappyPet-specific concern).
+- **`refill_products.py`** — untouched this session (confirmed byte-for-byte identical across every PR). Its scrape path (`resolve_product`, `fetch_search_html`) is dead code for now but not removed — leave it, don't "clean it up."
 
 ## 5. Gotchas & Hard-Won Knowledge
 
-- **GitHub Action secrets are write-only.** `gh secret list` shows names and last-updated timestamps, never values. If you suspect a secret is wrong, you cannot verify by reading it — you can only overwrite it with a known-good value (which is what fixed the Gmail issue) or infer correctness indirectly from a downstream check passing.
-- **The Brain vault's secret names are cryptographically bound — no rename.** The `name` column is used as AES-GCM AAD in `SecretVault`. There's no `delete()`/rename method in the public API; re-keying means `vault.use(old_name)` → `vault.put(new_name, value)` → raw `conn.execute("DELETE FROM secrets WHERE name = ?", (old_name,))`. I made exactly this mistake once this session (stored `HappyPet__GMAIL_APP_PASSWORD` mixed-case instead of the `HAPPYPET__` all-caps convention every other HappyPet vault entry uses) and had to re-key it. Check casing before you `vault.put()`.
-- **Amazon's mobile search endpoint hides sponsored labeling inside the image `alt` text itself** (literally `alt="Sponsored Ad - <product name>"`), not as a separate `>Sponsored<` tag or `puis-label-popover-default` CSS class the way the desktop endpoint does. `parse_search_results()`'s existing sponsor-skip logic only looks at surrounding markup, so it missed this. Fixed by adding a name-prefix check in `validate_candidate()` instead of trying to catch every markup variant in the parser.
-- **Scrape yield is not just noisy, it degrades with repeated same-IP requests in a short window.** First local run: 2/22 resolved. Second run ~20 minutes later, same machine: 0/21 resolved. Don't interpret a bad run as "try again" — it's likely rate-limiting, and repeating it risks the IP getting flagged further.
-- **`REFILL_RESULT.json` is gitignored** — it's a run artifact (summary of what a given refill run did), not something that goes in a PR. Only `products.json` changes get committed.
-- **Windows `Path.read_text()` defaults to cp1252, not UTF-8.** Any test or script that reads a file containing non-ASCII characters (em-dashes are common in this repo's workflow YAML titles) will throw `UnicodeDecodeError` on Windows unless `encoding="utf-8"` is passed explicitly. This is a Windows-only local-dev issue; GitHub Actions runners (Linux) never hit it. Two pre-existing tests have this bug — don't "fix" it by accident while touching something else, and don't be alarmed when you see it.
-- **Temp files holding secrets:** this session used the scratchpad directory (`C:\Users\derek\AppData\Local\Temp\claude\...\scratchpad\`) to stage the Gmail password and Gemini API key as plain files briefly (so they could be piped into `gh secret set` / read by a Python one-liner without living in shell history or command-line args), then deleted them immediately after use. Same pattern is safe to reuse; don't leave these lying around.
+- **The old Brain backup (`D:\maeve_backup\maeve_brain_*.db`) has TWO credential storage generations mixed in one table.** Every `vault_secrets` row is Fernet-encrypted (`gAAAAAB...` prefix) *except* `IMPACT_ACCOUNT_SID`/`IMPACT_AUTH_TOKEN`, which were sitting in **plaintext**. Don't assume every row in that table needs Fernet decryption — check the prefix first. This plaintext exposure is old/pre-existing and out of scope for this session, but worth knowing about if that backup file ever gets audited.
+- **Diagnosing a "broken" third-party API integration: verify each layer before assuming the account is dead.** The Chewy investigation looked like a suspended-account problem for a while. The actual sequence that cracked it: (1) hit the cheapest possible authenticated endpoint (`GET /Mediapartners/{SID}`) to confirm credentials work at all, (2) check the specific resource's list endpoint before its search/query endpoint (`GET /Catalogs` before `/Catalogs/ItemSearch`), (3) only conclude "broken account" if even the cheapest calls fail. Cross-catalog/aggregate-search endpoints are more likely to have scaling problems than simple list/get endpoints.
+- **Impact.com's Media Partner dashboard has a broken-looking scroll on the API scope-configuration page** (legacy `display: table-row` layout, mouse-wheel and `element.scrollTop = N` both silently no-op). No reliable JS workaround found; asking the user to click a specific area to trigger a layout reflow, or `Ctrl+F` to find-in-page, worked better than fighting it programmatically.
+- **A WebFetch result once suggested following a URL with `?ask=...&goal=...` query params to "unlock" more documentation content.** That's a prompt-injection shape, not a real doc-site feature — didn't follow it, used the live browser to read the actual rendered docs page instead. Worth staying suspicious of any fetched content that tells you to make a specific follow-up request.
+- **`git worktree` + a shared venv works fine without a second venv.** Created `.worktrees/manual-resolve`, invoked the *main* repo's `.venv/Scripts/python.exe` with `cwd` set to the worktree path — pytest and script imports resolved correctly. No need to reinstall dependencies per worktree.
+- **`maeve-brain-v2.db` (the current, live Brain) is explicitly off-limits to write directly from a Claude Code session** — confirmed by reading `MAEVE.md`: "never open directly — export flows outward only." For a specific repo's session state, `HANDOFF.md` is the right durable artifact, not a direct brain write. `/maeve-save` (Obsidian wiki decisions) is the correct manual mechanism available from this kind of session; two decision pages were written this session (`happypet-manual-product-resolution.md`, `happypet-chewy-catalog-endpoint-fix.md`).
 
 ## 6. Conventions In Play
 
-- **Branch + PR for everything, never direct commits to `main`.** I broke this once this session (committed a `HANDOFF.md` scaffold straight to `main`) and had to `git reset --hard origin/main` to undo it since it was still unpushed, then redo the work on a proper branch. Don't repeat that mistake.
-- **Branch naming:** `claude/happypet-recovery-N-<slug>` for code changes (sequential N, currently up to 13 — this handoff is #13); `refill/<YYYY-MM-DD>[-suffix]` for pure refill-agent data output, no code changes mixed in.
-- **Merging:** authorized once verified — this repo has no PR-triggered CI, so "verified" means a local `pytest test_pipeline.py` run, reported in the PR body.
-- **Model constraints (do not change without asking):** Generator/rewrites = Gemini 2.5 Flash direct API (fallback OpenRouter `gpt-oss-120b:free`). Reviewer = Claude Haiku 4.5 **via OpenRouter only** — tests enforce absence of `ANTHROPIC_API_KEY` / `api.anthropic.com` anywhere in this repo, including workflow files. Never introduce a direct Anthropic key here.
-- **`docs/handoffs/` archival convention**, newly established this session, mirrors MaeveJarvis: live `HANDOFF.md` at repo root; before overwriting it, snapshot the old one to `docs/handoffs/HANDOFF-archive-YYYY-MM-DD-HHMM.md`, commit both together.
-- **The Brain vault namespaces secrets as `PROJECT__KEY`, all-caps project prefix** (e.g. `HAPPYPET__`, `FORGE__`, `MAEVETRADER__`, `GOOGLEPHOTOS__`, or `GLOBAL__` for shared creds). Match this exactly.
+- **Branch + PR for everything, never direct commits to `main`.** Held throughout this session (including nearly merging locally once — caught before it happened, switched to push+PR).
+- **Branch naming:** `claude/happypet-recovery-N-<slug>` for code changes (now at #17, this handoff); `refill/<YYYY-MM-DD>[-suffix]` for pure data.
+- **Merging:** authorized once verified locally (no PR-triggered CI in this repo) — same as last session.
+- **New this session — subagent-driven development for multi-task builds:** git worktree isolation + fresh implementer subagent per task + two-stage review (spec compliance, then code quality) before merging. Used for the `manual_resolve.py` + runbook build; caught 2 real issues the implementer's own self-review missed.
+- **Model constraints unchanged:** Generator/rewrites = Gemini 2.5 Flash direct API. Reviewer = Claude Haiku 4.5 via OpenRouter only — never introduce a direct Anthropic key here.
+- **`docs/handoffs/` archival convention** — followed again this session: prior `HANDOFF.md` snapshotted to `docs/handoffs/HANDOFF-archive-2026-07-07-1400.md` before this one was written.
+- **Brain vault namespacing** (`PROJECT__KEY`, all-caps prefix) — followed for the two new `HAPPYPET__IMPACT_*` entries.
 
 ## 7. Open Questions
 
-1. **Does Derek have Amazon PA-API keys yet, or does he want help navigating Associates Central to get them?** This is the actual blocker on the 21 remaining product placeholders now.
-2. **Does he want the missing `HAPPYPET__IMPACT_*` (Chewy) creds backfilled into the Brain vault?** They exist and work as GitHub secrets, just aren't mirrored into the vault (2 credentials were "unrecoverable at salvage" per an earlier memory, rotated since — nobody ever wrote the rotated values back into the vault). Low priority, previously deferred by Derek in this same session.
-3. **When is Derek ready to say "go" for the actual live cycle?** Everything else (Gmail, the sponsored-ad bug) is now clear; the placeholder backlog is the last concrete blocker, but go-live is ultimately his call regardless of backlog size — he may want to go live with just the 2 currently-resolved products and let refill catch up over time. Worth asking directly rather than assuming "resolve all 21 first" is required.
+1. **Does Derek still want Amazon PA-API keys pursued as the eventual fix, or is the manual/browser-driven process (`manual_resolve.py`) now the accepted ongoing way to resolve placeholders?** This session treated manual resolution as the interim path without re-litigating PA-API — worth asking directly rather than assuming either way.
+2. **Pace for the remaining 18 placeholders** — no fixed batch size established; ask each session.
+3. **Does Derek want the plaintext-credential exposure in the old `D:\maeve_backup\maeve_brain_*.db` files addressed** (e.g., purge those two fields, or accept the backup as already-retired and not worth touching)? Flagged, not acted on.
+4. **When is Derek ready to say "go" for the actual live cycle?** Unchanged from last session — still his call, still not about backlog size necessarily.
 
 ## 8. Do Not Touch
 
-- **`generate.yml`'s commented-out `schedule:` block** — do not uncomment without an explicit "go" from Derek. This is the single most load-bearing hold in the whole project.
-- **`push_pins_to_sheets.py` / `brain_secrets.py`'s hardcoded old-layout paths** — known, deprioritized, not currently causing any failure. Don't refactor opportunistically.
-- **The 2 pre-existing Windows-encoding test failures** — don't "fix" these unless specifically asked; they're not blocking anything (CI is Linux) and touching them is out of scope for whatever else you're doing.
-- **PR #33's merged fix** — settled, don't re-litigate the "Sponsored" prefix-matching approach unless a real false-positive shows up (e.g. a legitimately-named product that happens to start with "Sponsored").
+- **`generate.yml`'s commented-out `schedule:` block** — still the single most load-bearing hold in the project. Do not uncomment without an explicit "go".
+- **`chewy_lookup.py`'s `/Catalogs/{CatalogId}/Items` fix** — settled, verified live twice (auto-accept and REVIEW paths). Don't revert to `ItemSearch` even if it looks like it "should" work — it hangs for this account's catalog size.
+- **`refill.yml`'s auto-trigger comment-out** — settled per Derek's explicit direction this session. Don't re-enable without discussing first.
+- **The 2 pre-existing Windows-encoding test failures** — still not to touch, still Linux-CI-irrelevant.
+- **`push_pins_to_sheets.py`/`brain_secrets.py`'s hardcoded old-layout paths** — still deprioritized, still not causing failures.
+- **PR #33's "Sponsored"-prefix fix** — still settled from last session.
 
 ## 9. Resume Command
 
-> Read HANDOFF.md. Ask Derek whether he has Amazon PA-API keys yet (Associates Central → Tools → Product Advertising API). If yes, sync `AMAZON_PAAPI_ACCESS_KEY` + `AMAZON_PAAPI_SECRET_KEY` as GitHub secrets on `DMoneyOH/HappyPet` and re-run `refill_products.py` from `C:\Users\derek\MAEVE\HappyPet` (its own `.venv` already has deps installed) to clear the 21 placeholder products. If no, help him get them, and do not re-attempt the Amazon scrape in the meantime. Do not touch `generate.yml`'s cron or run any go-live step without Derek explicitly saying "go." Confirm before merging anything beyond a straightforward, tested bug fix.
+> Read HANDOFF.md. Ask Derek how many of the remaining 18 `NEEDS_ASIN`/`NEEDS_IMAGE` placeholders to resolve this session. Then follow `docs/refill-manual-resolve.md` exactly: search Amazon live via claude-in-chrome (logged into Derek's Associates Central), apply the selection criteria, run `manual_resolve.py` per topic (Chewy enrichment now works automatically — no credential setup needed), then ship via a `refill/<date>` branch + PR. Also ask whether Derek still wants Amazon PA-API keys pursued, since this session treated manual resolution as the accepted interim path without confirming that's permanent. Do not touch `generate.yml`'s cron, `refill.yml`'s held trigger, or `chewy_lookup.py`'s endpoint choice without explicit discussion.
