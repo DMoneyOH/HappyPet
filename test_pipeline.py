@@ -457,6 +457,28 @@ class TestSilentLegRegressions(unittest.TestCase):
         self.assertEqual(_first_brand_token("Blue Buffalo Life Protection"), "blue")
         self.assertEqual(_first_brand_token(""), "")
 
+    def test_search_catalog_uses_per_catalog_items_endpoint(self):
+        # The cross-catalog /Catalogs/ItemSearch endpoint hangs indefinitely
+        # against the real Impact.com API for this account's 227K-item catalog
+        # (confirmed live 2026-07-07) -- every chewy_enrich() call silently
+        # never returned. /Catalogs/{CatalogId}/Items is the equivalent,
+        # working per-catalog endpoint and must be used instead.
+        import chewy_lookup as cl
+        calls = []
+
+        def fake_impact_get(path, params=None):
+            calls.append((path, params))
+            return {"Items": [{"Name": "Test Item"}]}
+
+        with patch.object(cl, "_impact_get", side_effect=fake_impact_get):
+            items = cl.search_catalog("dog water bottle", page_size=5)
+
+        self.assertEqual(len(calls), 1)
+        path, params = calls[0]
+        self.assertEqual(path, f"/Catalogs/{cl.CATALOG_ID}/Items")
+        self.assertEqual(params, {"Keyword": "dog water bottle", "PageSize": 5})
+        self.assertEqual(items, [{"Name": "Test Item"}])
+
     def test_post_pins_never_moves_to_sent(self):
         # sent/ is push_pins_to_sheets.py's processed marker. When post_pins
         # moved fired files there first, push_pins skipped them all and the

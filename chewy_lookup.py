@@ -131,7 +131,11 @@ def _impact_get(path: str, params: dict = None) -> dict:
 
 
 def search_catalog(keyword: str, page_size: int = 10) -> list:
-    data = _impact_get("/Catalogs/ItemSearch", {"Keyword": keyword, "PageSize": page_size})
+    # The cross-catalog /Catalogs/ItemSearch endpoint hangs indefinitely against
+    # the real API for this account's 227K-item catalog -- confirmed live
+    # 2026-07-07. /Catalogs/{CatalogId}/Items is the equivalent, working
+    # per-catalog endpoint (this account has exactly one catalog: Chewy).
+    data = _impact_get(f"/Catalogs/{CATALOG_ID}/Items", {"Keyword": keyword, "PageSize": page_size})
     return data.get("Items", [])
 
 
