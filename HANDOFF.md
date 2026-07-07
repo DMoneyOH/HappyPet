@@ -18,6 +18,7 @@ HappyPet is a Jekyll affiliate blog (happypetproductreviews.com, GitHub Pages) t
 
 **Broken / blocked:**
 - **21 of 23 products in `products.json` are still `NEEDS_ASIN`/`NEEDS_IMAGE` placeholders.** This is the actual go-live blocker now. See Decisions Made — Amazon scraping is confirmed unreliable even from a residential IP; the real fix is Amazon PA-API keys, which is a Derek action (Associates Central → Tools → Product Advertising API). The code already supports PA-API as the primary source (PR #31); scraping is only the fallback.
+- Manual resolution process for these placeholders: see `docs/refill-manual-resolve.md`.
 - Go-live itself (uncommenting the `schedule:` cron in `generate.yml`, dispatching with `force_cap=1`, babysitting the full cycle) has not happened and should not happen without Derek explicitly saying "go."
 
 **Exact next action:** ask Derek whether he's gotten PA-API keys yet. If yes, sync `AMAZON_PAAPI_ACCESS_KEY` + `AMAZON_PAAPI_SECRET_KEY` (+ optional `AMAZON_PAAPI_PARTNER_TAG`) as GitHub secrets and re-run `refill_products.py` — it auto-switches to API mode when the keys are present. If no, that's the thing to unblock before touching placeholders again; don't re-run the scrape hoping for better luck (see Gotchas).
