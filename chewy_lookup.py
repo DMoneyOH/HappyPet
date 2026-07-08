@@ -15,6 +15,8 @@ Output (JSON to stdout):
     }
 
 chewy_url sentinel values:
+    Full URL          GTIN match (known Amazon UPC == a candidate's Gtin) --
+                      auto-accepted, brand/coverage gates bypassed, rating scraped
     Full URL          score >= 4 AND word coverage >= 0.5 AND same brand -- auto-accepted, rating scraped
     "REVIEW:{url}"    score 2-3, OR score >= 4 but low word coverage / brand conflict -- human verification required
     "REVIEW"          score < 2 or no match — product not found on Chewy
@@ -150,6 +152,15 @@ def _word_coverage(product_name: str, matched_name: str) -> float:
     return len(a & b) / len(a | b)
 
 
+def _normalize_gtin(code: str | None) -> str:
+    """Digits-only, leading-zeros stripped. GTIN-14, EAN-13, and UPC-A are
+    the same code at different check-digit widths -- stripping padding lets
+    an exact-UPC match compare cleanly against whatever width Chewy's
+    catalog happens to report. Empty/None input returns "" (never matches)."""
+    digits = re.sub(r"[^0-9]", "", code or "")
+    return digits.lstrip("0")
+
+
 # ---------------------------------------------------------------------------
 # Impact.com API
 # ---------------------------------------------------------------------------
@@ -273,10 +284,27 @@ def best_match(items: list, product_name: str) -> tuple[dict | None, int]:
     return top, top_score
 
 
-def find_best_match(product_name: str) -> tuple[dict | None, int]:
+def _find_gtin_match(items: list, upc: str | None) -> dict | None:
+    """First filtered candidate (see _filter_candidates) whose Gtin exactly
+    matches the known Amazon UPC, normalized for width/padding differences.
+    Returns None if upc is falsy or no candidate's Gtin matches -- callers
+    fall through to the ordinary name-scoring path in that case."""
+    target = _normalize_gtin(upc)
+    if not target:
+        return None
+    for item in _filter_candidates(items):
+        if _normalize_gtin(item.get("Gtin", "")) == target:
+            return item
+    return None
+
+
+def find_best_match(product_name: str, upc: str | None = None) -> tuple[dict | None, int, bool]:
     """
-    Try keyword variants in order. Return (best_item, score) across all attempts.
-    Stops early if score >= SCORE_AUTO_ACCEPT.
+    Try keyword variants in order. Return (best_item, score, gtin_matched)
+    across all attempts. A GTIN hit against the known Amazon UPC (see
+    _find_gtin_match) short-circuits immediately -- it's a definitive match,
+    not a heuristic guess, so there's no reason to keep searching variants
+    or scoring by name overlap. Otherwise stops early once score >= SCORE_AUTO_ACCEPT.
     """
     variants = _keyword_variants(product_name)
     best = None
@@ -287,6 +315,11 @@ def find_best_match(product_name: str) -> tuple[dict | None, int]:
         items = search_catalog(kw, page_size=10)
         if not items:
             continue
+        if upc:
+            gtin_hit = _find_gtin_match(items, upc)
+            if gtin_hit:
+                print(f"[chewy_lookup] GTIN match: {gtin_hit.get('Name','')[:70]}", file=sys.stderr)
+                return gtin_hit, SCORE_AUTO_ACCEPT, True
         match, score = best_match(items, product_name)
         if match and score > best_score:
             best, best_score = match, score
@@ -294,7 +327,7 @@ def find_best_match(product_name: str) -> tuple[dict | None, int]:
             if best_score >= SCORE_AUTO_ACCEPT:
                 break
 
-    return best, best_score
+    return best, best_score, False
 
 
 # ---------------------------------------------------------------------------
@@ -391,9 +424,14 @@ def scrape_chewy_rating(chewy_product_url: str) -> float | None:
 # Main lookup
 # ---------------------------------------------------------------------------
 
-def lookup(product_name: str) -> dict:
+def lookup(product_name: str, upc: str | None = None) -> dict:
     """
     Full lookup. chewy_url sentinel logic:
+      GTIN match (upc given, exact catalog hit)
+                             -> full URL, rating scraped -- brand-conflict
+                               and word-coverage gates are skipped entirely,
+                               since an exact UPC match is definitive, not
+                               a name-similarity guess
       >= SCORE_AUTO_ACCEPT, no brand conflict, coverage >= COVERAGE_AUTO_ACCEPT
                              → full URL, rating scraped
       >= SCORE_AUTO_ACCEPT but brand conflict or low word coverage
@@ -415,7 +453,7 @@ def lookup(product_name: str) -> dict:
         print("[chewy_lookup] IMPACT_ACCOUNT_SID or IMPACT_AUTH_TOKEN not set", file=sys.stderr)
         return result
 
-    match, score = find_best_match(product_name)
+    match, score, gtin_matched = find_best_match(product_name, upc)
 
     if not match or score < SCORE_REVIEW:
         print(f"[chewy_lookup] No match — setting REVIEW sentinel", file=sys.stderr)
@@ -429,41 +467,44 @@ def lookup(product_name: str) -> dict:
     matched_name = match.get("Name", "")
     result["chewy_matched_name"] = matched_name
 
-    # Brand identity gate (see _first_brand_token at module level): if the
-    # searched product has a recognisable brand token and it does not appear
-    # anywhere in the matched Chewy product name, the match is likely a
-    # category-similar product from a different brand. Cap the effective score
-    # below SCORE_AUTO_ACCEPT so it is flagged for human review.
-    searched_brand  = _first_brand_token(product_name)
-    matched_brand   = _first_brand_token(matched_name)
-    brand_conflict  = (
-        searched_brand
-        and matched_brand
-        and searched_brand not in matched_name.lower()
-        and matched_brand  not in product_name.lower()
-    )
-    if brand_conflict and score >= SCORE_AUTO_ACCEPT:
-        print(
-            f"[chewy_lookup] Brand mismatch: searched='{searched_brand}' matched='{matched_brand}' "
-            f"— downgrading score {score} -> {SCORE_AUTO_ACCEPT - 1} (REVIEW)",
-            file=sys.stderr
+    if not gtin_matched:
+        # Brand identity gate (see _first_brand_token at module level): if the
+        # searched product has a recognisable brand token and it does not appear
+        # anywhere in the matched Chewy product name, the match is likely a
+        # category-similar product from a different brand. Cap the effective score
+        # below SCORE_AUTO_ACCEPT so it is flagged for human review.
+        searched_brand  = _first_brand_token(product_name)
+        matched_brand   = _first_brand_token(matched_name)
+        brand_conflict  = (
+            searched_brand
+            and matched_brand
+            and searched_brand not in matched_name.lower()
+            and matched_brand  not in product_name.lower()
         )
-        score = SCORE_AUTO_ACCEPT - 1  # force into REVIEW band
+        if brand_conflict and score >= SCORE_AUTO_ACCEPT:
+            print(
+                f"[chewy_lookup] Brand mismatch: searched='{searched_brand}' matched='{matched_brand}' "
+                f"— downgrading score {score} -> {SCORE_AUTO_ACCEPT - 1} (REVIEW)",
+                file=sys.stderr
+            )
+            score = SCORE_AUTO_ACCEPT - 1  # force into REVIEW band
 
-    # Word-coverage gate (see COVERAGE_AUTO_ACCEPT / _word_coverage): a
-    # same-brand match can clear the score on common words alone while
-    # actually being a different pack size or variant. Require the two
-    # names to substantially overlap, not just share a brand + a few words,
-    # before trusting the matched price enough to show it in the article.
-    coverage = _word_coverage(product_name, matched_name)
-    if coverage < COVERAGE_AUTO_ACCEPT and score >= SCORE_AUTO_ACCEPT:
-        print(
-            f"[chewy_lookup] Low word coverage ({coverage:.2f}) despite score={score} "
-            f"— likely a different pack size/variant, not the same product "
-            f"— downgrading to REVIEW",
-            file=sys.stderr
-        )
-        score = SCORE_AUTO_ACCEPT - 1  # force into REVIEW band
+        # Word-coverage gate (see COVERAGE_AUTO_ACCEPT / _word_coverage): a
+        # same-brand match can clear the score on common words alone while
+        # actually being a different pack size or variant. Require the two
+        # names to substantially overlap, not just share a brand + a few words,
+        # before trusting the matched price enough to show it in the article.
+        coverage = _word_coverage(product_name, matched_name)
+        if coverage < COVERAGE_AUTO_ACCEPT and score >= SCORE_AUTO_ACCEPT:
+            print(
+                f"[chewy_lookup] Low word coverage ({coverage:.2f}) despite score={score} "
+                f"— likely a different pack size/variant, not the same product "
+                f"— downgrading to REVIEW",
+                file=sys.stderr
+            )
+            score = SCORE_AUTO_ACCEPT - 1  # force into REVIEW band
+    else:
+        print(f"[chewy_lookup] GTIN-matched — skipping brand/coverage heuristics", file=sys.stderr)
 
     if score >= SCORE_AUTO_ACCEPT:
         print(f"[chewy_lookup] Auto-accepted (score={score}): {matched_name[:60]}", file=sys.stderr)

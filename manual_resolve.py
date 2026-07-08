@@ -16,7 +16,8 @@ Usage:
       --asin B0ABCD1234 \
       --image https://m.media-amazon.com/images/I/71abcXYZ._AC_SX425_.jpg \
       --price 249.99 --stars 4.5 \
-      --runners-up "Litter-Robot 4; PetSafe ScoopFree"
+      --runners-up "Litter-Robot 4; PetSafe ScoopFree" \
+      --upc 810189030893
 
 Exits non-zero and writes nothing if:
   - --topic doesn't match an existing products.json entry
@@ -50,6 +51,10 @@ def main(argv: list | None = None) -> None:
     parser.add_argument("--price", required=True)
     parser.add_argument("--stars", required=True, type=float)
     parser.add_argument("--runners-up", dest="runners_up", default=None)
+    parser.add_argument("--upc", default=None,
+                        help="Amazon UPC/GTIN, if visible in the product's "
+                             "'Product information' section -- enables an "
+                             "exact-match fast path in Chewy enrichment")
     args = parser.parse_args(argv)
 
     products = rp.load_products()
@@ -67,6 +72,8 @@ def main(argv: list | None = None) -> None:
     }
     if args.runners_up:
         resolved["runners_up"] = args.runners_up
+    if args.upc:
+        resolved["upc"] = args.upc
 
     rp.apply_resolution(entry, resolved)
     rp.PRODUCTS_PATH.write_text(json.dumps(products, indent=2) + "\n")

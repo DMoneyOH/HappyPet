@@ -410,7 +410,7 @@ def resolve_product(topic_title: str, query: str) -> dict | None:
     return {**top, "runners_up": "; ".join(runners)}
 
 
-def chewy_enrich(name: str) -> dict:
+def chewy_enrich(name: str, upc: str | None = None) -> dict:
     empty = {"chewy_url": None, "chewy_price": None,
              "chewy_stock": None, "chewy_rating": None}
     try:
@@ -418,7 +418,7 @@ def chewy_enrich(name: str) -> dict:
     except ImportError:
         return empty
     try:
-        r = lookup(name)
+        r = lookup(name, upc)
         if r.get("chewy_url"):
             return {"chewy_url": r.get("chewy_url"), "chewy_price": r.get("chewy_price"),
                     "chewy_stock": r.get("chewy_stock"), "chewy_rating": r.get("chewy_rating")}
@@ -438,7 +438,9 @@ def apply_resolution(entry: dict, resolved: dict) -> None:
     entry["stars"]         = resolved["stars"]
     if resolved.get("runners_up"):
         entry["runners_up"] = resolved["runners_up"]
-    entry.update(chewy_enrich(resolved["name"]))
+    if resolved.get("upc"):
+        entry["upc"] = resolved["upc"]
+    entry.update(chewy_enrich(resolved["name"], resolved.get("upc")))
 
 
 # ------------------------------------------------------------ topic ideation

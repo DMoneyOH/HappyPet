@@ -458,6 +458,144 @@ class TestChewyWordCoverage(unittest.TestCase):
         self.assertEqual(result["chewy_url"], "https://chewy.example/fumoi-litter-box")
 
 
+class TestChewyGtinMatch(unittest.TestCase):
+    """An exact UPC match against Chewy's catalog Gtin field is definitive --
+    it should bypass the brand-conflict and word-coverage heuristics entirely,
+    since those exist only to guess whether two *names* describe the same
+    product. A verified UPC makes that guess unnecessary."""
+
+    def test_normalize_gtin_strips_punctuation_and_leading_zeros(self):
+        from chewy_lookup import _normalize_gtin
+        self.assertEqual(_normalize_gtin("700603718714"), "700603718714")
+        self.assertEqual(_normalize_gtin("00700603718714"), "700603718714")
+        self.assertEqual(_normalize_gtin("0070-0603-718714"), "700603718714")
+
+    def test_normalize_gtin_handles_gtin14_vs_upc12_padding(self):
+        # GTIN-14 is UPC-A left-padded with zeros to 14 digits -- the two
+        # must normalize to the same value or a real match gets missed.
+        from chewy_lookup import _normalize_gtin
+        self.assertEqual(_normalize_gtin("00000700603718714"[-14:]),
+                         _normalize_gtin("700603718714"))
+
+    def test_normalize_gtin_empty_input_returns_empty(self):
+        from chewy_lookup import _normalize_gtin
+        self.assertEqual(_normalize_gtin(""), "")
+        self.assertEqual(_normalize_gtin(None), "")
+
+    def test_find_gtin_match_returns_item_with_matching_gtin(self):
+        from chewy_lookup import _find_gtin_match
+        items = [
+            {"Name": "Wrong Item", "Gtin": "111111111111", "StockAvailability": "InStock"},
+            {"Name": "Right Item", "Gtin": "700603718714", "StockAvailability": "InStock"},
+        ]
+        match = _find_gtin_match(items, "700603718714")
+        self.assertEqual(match["Name"], "Right Item")
+
+    def test_find_gtin_match_normalizes_before_comparing(self):
+        from chewy_lookup import _find_gtin_match
+        items = [{"Name": "Right Item", "Gtin": "00700603718714", "StockAvailability": "InStock"}]
+        match = _find_gtin_match(items, "700603718714")
+        self.assertEqual(match["Name"], "Right Item")
+
+    def test_find_gtin_match_returns_none_when_no_upc_given(self):
+        from chewy_lookup import _find_gtin_match
+        items = [{"Name": "Item", "Gtin": "700603718714", "StockAvailability": "InStock"}]
+        self.assertIsNone(_find_gtin_match(items, ""))
+        self.assertIsNone(_find_gtin_match(items, None))
+
+    def test_find_gtin_match_returns_none_when_nothing_matches(self):
+        from chewy_lookup import _find_gtin_match
+        items = [{"Name": "Item", "Gtin": "999999999999", "StockAvailability": "InStock"}]
+        self.assertIsNone(_find_gtin_match(items, "700603718714"))
+
+    def test_lookup_gtin_match_bypasses_low_coverage_downgrade(self):
+        # Same regression pair as
+        # test_lookup_downgrades_high_score_low_coverage_match_to_review, but
+        # this time the searched product's known UPC exactly matches the
+        # candidate's Gtin -- it must auto-accept despite low word coverage.
+        import chewy_lookup as cl
+        search_name = (
+            "Blue Buffalo Bits Beef Soft & Chewy Dog Treats, Bite-Sized for "
+            "Training, Made with Real Beef & Enhanced with DHA, Heart-Shaped"
+        )
+        item = {
+            "Name": "Blue Buffalo Blue Bits Tender Beef Dog Treats",
+            "Manufacturer": "Blue Buffalo",
+            "StockAvailability": "InStock",
+            "Url": "https://chewy.example/blue-bits-tender-beef",
+            "CurrentPrice": "41.99",
+            "Gtin": "840243160563",
+        }
+        with patch.object(cl, "ACCOUNT_SID", "x"), \
+             patch.object(cl, "AUTH_TOKEN", "y"), \
+             patch.object(cl, "search_catalog", return_value=[item]), \
+             patch.object(cl, "scrape_chewy_rating", return_value=4.6):
+            result = cl.lookup(search_name, upc="840243160563")
+        self.assertEqual(result["chewy_url"], "https://chewy.example/blue-bits-tender-beef")
+        self.assertEqual(result["chewy_rating"], 4.6)
+
+    def test_lookup_gtin_match_bypasses_brand_conflict_gate(self):
+        import chewy_lookup as cl
+        item = {
+            "Name": "Invenho Cooling Dog Crate Mat Anti-Slip",
+            "Manufacturer": "Invenho",
+            "StockAvailability": "InStock",
+            "Url": "https://chewy.example/invenho-cooling-mat",
+            "CurrentPrice": "39.99",
+            "Gtin": "612345678901",
+        }
+        with patch.object(cl, "ACCOUNT_SID", "x"), \
+             patch.object(cl, "AUTH_TOKEN", "y"), \
+             patch.object(cl, "search_catalog", return_value=[item]), \
+             patch.object(cl, "scrape_chewy_rating", return_value=None):
+            result = cl.lookup("EHEYCIGA Cooling Mat for Dogs, 41x28 inches, Washable, Non-Slip, Blue",
+                               upc="612345678901")
+        self.assertEqual(result["chewy_url"], "https://chewy.example/invenho-cooling-mat")
+
+    def test_lookup_without_upc_argument_keeps_existing_behavior(self):
+        # Backward compatibility: omitting upc must reproduce the pre-GTIN
+        # REVIEW outcome for the same regression pair -- the fast path must
+        # never activate implicitly.
+        import chewy_lookup as cl
+        search_name = (
+            "Blue Buffalo Bits Beef Soft & Chewy Dog Treats, Bite-Sized for "
+            "Training, Made with Real Beef & Enhanced with DHA, Heart-Shaped"
+        )
+        item = {
+            "Name": "Blue Buffalo Blue Bits Tender Beef Dog Treats",
+            "Manufacturer": "Blue Buffalo",
+            "StockAvailability": "InStock",
+            "Url": "https://chewy.example/blue-bits-tender-beef",
+            "CurrentPrice": "41.99",
+            "Gtin": "840243160563",
+        }
+        with patch.object(cl, "ACCOUNT_SID", "x"), \
+             patch.object(cl, "AUTH_TOKEN", "y"), \
+             patch.object(cl, "search_catalog", return_value=[item]):
+            result = cl.lookup(search_name)
+        self.assertTrue(str(result["chewy_url"]).startswith("REVIEW"))
+
+    def test_lookup_upc_given_but_no_match_falls_back_to_scoring(self):
+        # upc provided but doesn't match any candidate's Gtin -- must fall
+        # through to the normal score/coverage/brand path unchanged.
+        import chewy_lookup as cl
+        search_name = "Fumoi Automatic Self-Cleaning Cat Litter Box, Large Capacity, App Control, Grey"
+        item = {
+            "Name": "Fumoi Automatic Self-Cleaning Cat Litter Box",
+            "Manufacturer": "Fumoi",
+            "StockAvailability": "InStock",
+            "Url": "https://chewy.example/fumoi-litter-box",
+            "CurrentPrice": "199.95",
+            "Gtin": "111111111111",
+        }
+        with patch.object(cl, "ACCOUNT_SID", "x"), \
+             patch.object(cl, "AUTH_TOKEN", "y"), \
+             patch.object(cl, "search_catalog", return_value=[item]), \
+             patch.object(cl, "scrape_chewy_rating", return_value=None):
+            result = cl.lookup(search_name, upc="999999999999")
+        self.assertEqual(result["chewy_url"], "https://chewy.example/fumoi-litter-box")
+
+
 class TestBrainSecretsVaultFallback(unittest.TestCase):
     """brain_secrets.py reads Maeve's SecretVault (in the sibling MaeveJarvis
     repo) so chewy_lookup.py can get IMPACT_* creds locally without them
@@ -872,6 +1010,20 @@ class TestManualResolve(unittest.TestCase):
         # which returns an all-None dict cleanly -- must not crash
         self.assertIsNone(entry["chewy_url"])
 
+    def test_apply_resolution_passes_upc_to_chewy_enrich(self):
+        import refill_products as rp
+
+        entry = {"topic": "best-x", "asin": "NEEDS_ASIN", "image": "NEEDS_IMAGE"}
+        resolved = {"name": "Some Product", "asin": "B0ABCD1234",
+                    "image": "https://m.media-amazon.com/images/I/x.jpg",
+                    "price": "9.99", "stars": 4.0, "upc": "810189030893"}
+        with patch.object(rp, "chewy_enrich", return_value={
+                "chewy_url": None, "chewy_price": None,
+                "chewy_stock": None, "chewy_rating": None}) as fake_enrich:
+            rp.apply_resolution(entry, resolved)
+        fake_enrich.assert_called_once_with("Some Product", "810189030893")
+        self.assertEqual(entry["upc"], "810189030893")
+
     def test_rejects_bad_asin_shape_and_does_not_write(self):
         import tempfile
         import refill_products as rp
@@ -969,6 +1121,55 @@ class TestManualResolve(unittest.TestCase):
                         "--image", "https://m.media-amazon.com/images/I/y.jpg",
                         "--price", "9.99", "--stars", "4.0",
                     ])
+
+    def test_upc_flag_is_optional_and_populates_entry_when_provided(self):
+        import tempfile
+        import refill_products as rp
+        import manual_resolve as mr
+        import chewy_lookup as cl
+
+        products = [{"topic": "best-automatic-litter-box",
+                     "asin": "NEEDS_ASIN", "image": "NEEDS_IMAGE"}]
+        with tempfile.TemporaryDirectory() as d:
+            path = Path(d) / "products.json"
+            path.write_text(json.dumps(products))
+            with patch.object(rp, "PRODUCTS_PATH", path), \
+                 patch.object(cl, "ACCOUNT_SID", ""), \
+                 patch.object(cl, "AUTH_TOKEN", ""):
+                mr.main([
+                    "--topic", "best-automatic-litter-box",
+                    "--name", "PETLIBRO Automatic Self-Cleaning Litter Box",
+                    "--asin", "B0ABCD1234",
+                    "--image", "https://m.media-amazon.com/images/I/71abcXYZ._AC_SX425_.jpg",
+                    "--price", "249.99", "--stars", "4.5",
+                    "--upc", "810189030893",
+                ])
+            written = json.loads(path.read_text())
+        self.assertEqual(written[0]["upc"], "810189030893")
+
+    def test_upc_omitted_leaves_entry_without_upc_key(self):
+        import tempfile
+        import refill_products as rp
+        import manual_resolve as mr
+        import chewy_lookup as cl
+
+        products = [{"topic": "best-automatic-litter-box",
+                     "asin": "NEEDS_ASIN", "image": "NEEDS_IMAGE"}]
+        with tempfile.TemporaryDirectory() as d:
+            path = Path(d) / "products.json"
+            path.write_text(json.dumps(products))
+            with patch.object(rp, "PRODUCTS_PATH", path), \
+                 patch.object(cl, "ACCOUNT_SID", ""), \
+                 patch.object(cl, "AUTH_TOKEN", ""):
+                mr.main([
+                    "--topic", "best-automatic-litter-box",
+                    "--name", "PETLIBRO Automatic Self-Cleaning Litter Box",
+                    "--asin", "B0ABCD1234",
+                    "--image", "https://m.media-amazon.com/images/I/71abcXYZ._AC_SX425_.jpg",
+                    "--price", "249.99", "--stars", "4.5",
+                ])
+            written = json.loads(path.read_text())
+        self.assertNotIn("upc", written[0])
 
 
 if __name__ == "__main__":
