@@ -150,6 +150,15 @@ def _word_coverage(product_name: str, matched_name: str) -> float:
     return len(a & b) / len(a | b)
 
 
+def _normalize_gtin(code: str | None) -> str:
+    """Digits-only, leading-zeros stripped. GTIN-14, EAN-13, and UPC-A are
+    the same code at different check-digit widths -- stripping padding lets
+    an exact-UPC match compare cleanly against whatever width Chewy's
+    catalog happens to report. Empty/None input returns "" (never matches)."""
+    digits = re.sub(r"[^0-9]", "", code or "")
+    return digits.lstrip("0")
+
+
 # ---------------------------------------------------------------------------
 # Impact.com API
 # ---------------------------------------------------------------------------

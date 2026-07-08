@@ -458,6 +458,31 @@ class TestChewyWordCoverage(unittest.TestCase):
         self.assertEqual(result["chewy_url"], "https://chewy.example/fumoi-litter-box")
 
 
+class TestChewyGtinMatch(unittest.TestCase):
+    """An exact UPC match against Chewy's catalog Gtin field is definitive --
+    it should bypass the brand-conflict and word-coverage heuristics entirely,
+    since those exist only to guess whether two *names* describe the same
+    product. A verified UPC makes that guess unnecessary."""
+
+    def test_normalize_gtin_strips_punctuation_and_leading_zeros(self):
+        from chewy_lookup import _normalize_gtin
+        self.assertEqual(_normalize_gtin("700603718714"), "700603718714")
+        self.assertEqual(_normalize_gtin("00700603718714"), "700603718714")
+        self.assertEqual(_normalize_gtin("0070-0603-718714"), "700603718714")
+
+    def test_normalize_gtin_handles_gtin14_vs_upc12_padding(self):
+        # GTIN-14 is UPC-A left-padded with zeros to 14 digits -- the two
+        # must normalize to the same value or a real match gets missed.
+        from chewy_lookup import _normalize_gtin
+        self.assertEqual(_normalize_gtin("00000700603718714"[-14:]),
+                         _normalize_gtin("700603718714"))
+
+    def test_normalize_gtin_empty_input_returns_empty(self):
+        from chewy_lookup import _normalize_gtin
+        self.assertEqual(_normalize_gtin(""), "")
+        self.assertEqual(_normalize_gtin(None), "")
+
+
 class TestBrainSecretsVaultFallback(unittest.TestCase):
     """brain_secrets.py reads Maeve's SecretVault (in the sibling MaeveJarvis
     repo) so chewy_lookup.py can get IMPACT_* creds locally without them
