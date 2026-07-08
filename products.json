@@ -94,10 +94,11 @@
     "stars": 4.5,
     "price": "28.34",
     "runners_up": "K&H Outdoor Elevated Dog Bed Cooling Raised Dog Bed; Simple Trending Elevated Dog Bed",
-    "chewy_url": "REVIEW:https://chewy.sjv.io/c/7160344/3054490/32975?prodsku=294607&u=https%3A%2F%2Fwww.chewy.com%2Fcoolaroo-steel-framed-elevated-dog%2Fdp%2F320957%3Futm_source%3Dgoogle-product%26utm_medium%3Dorganic%26utm_content%3DCoolaroo&intsrc=APIG_24727",
-    "chewy_price": "55.99",
+    "chewy_url": "https://chewy.sjv.io/c/7160344/3054490/32975?prodsku=68873&u=https%3A%2F%2Fwww.chewy.com%2Fcoolaroo-steel-framed-elevated-dog%2Fdp%2F53797%3Futm_source%3Dgoogle-product%26utm_medium%3Dorganic%26utm_content%3DCoolaroo&intsrc=APIG_24727",
+    "chewy_price": "31.46",
     "chewy_stock": "InStock",
-    "chewy_rating": null
+    "chewy_rating": null,
+    "upc": "799870317287"
   },
   {
     "topic": "best-gps-dog-trackers",
@@ -316,11 +317,12 @@
     "stars": 4.5,
     "price": "24.99",
     "runners_up": "BLACK+DECKER Pet Hair Remover Roller; Pet Hair Removal Glove for Cats and Dogs",
-    "chewy_url": "REVIEW:https://chewy.sjv.io/c/7160344/3054490/32975?prodsku=228605&u=https%3A%2F%2Fwww.chewy.com%2Fchomchom-roller-limited-edition-pet%2Fdp%2F255121%3Futm_source%3Dgoogle-product%26utm_medium%3Dorganic%26utm_content%3DChomChom%2520Roller&intsrc=APIG_24727",
+    "chewy_url": "https://chewy.sjv.io/c/7160344/3054490/32975?prodsku=136285&u=https%3A%2F%2Fwww.chewy.com%2Fchomchom-roller-pet-hair-remover%2Fdp%2F163270%3Futm_source%3Dgoogle-product%26utm_medium%3Dorganic%26utm_content%3DChomChom%2520Roller&intsrc=APIG_24727",
     "chewy_price": "24.99",
     "chewy_stock": "InStock",
     "chewy_rating": null,
-    "amazon_search_query": "pet hair remover laundry furniture"
+    "amazon_search_query": "pet hair remover laundry furniture",
+    "upc": "856957004000"
   },
   {
     "topic": "best-portable-pet-playpens",
@@ -404,7 +406,8 @@
     "chewy_price": "19.99",
     "chewy_stock": "InStock",
     "chewy_rating": null,
-    "amazon_search_query": "pet stain and odor eliminator spray"
+    "amazon_search_query": "pet stain and odor eliminator spray",
+    "upc": "820103188333"
   },
   {
     "topic": "best-calming-diffusers-pets",
@@ -421,11 +424,12 @@
     "stars": 4.0,
     "price": "29.99",
     "runners_up": "ADAPTIL Calm Home Diffuser Kit for Dogs; FELIWAY Classic Cat Calming Pheromone Diffuser",
-    "chewy_url": "REVIEW:https://chewy.sjv.io/c/7160344/3054490/32975?prodsku=315171&u=https%3A%2F%2Fwww.chewy.com%2Ffeliway-optimum-enhanced-calming-30%2Fdp%2F341463%3Futm_source%3Dgoogle-product%26utm_medium%3Dorganic%26utm_content%3DFeliway&intsrc=APIG_24727",
+    "chewy_url": "https://chewy.sjv.io/c/7160344/3054490/32975?prodsku=315171&u=https%3A%2F%2Fwww.chewy.com%2Ffeliway-optimum-enhanced-calming-30%2Fdp%2F341463%3Futm_source%3Dgoogle-product%26utm_medium%3Dorganic%26utm_content%3DFeliway&intsrc=APIG_24727",
     "chewy_price": "29.99",
     "chewy_stock": "InStock",
     "chewy_rating": null,
-    "amazon_search_query": "pet calming diffuser"
+    "amazon_search_query": "pet calming diffuser",
+    "upc": "850002593105"
   },
   {
     "topic": "best-outdoor-dog-tie-outs",
@@ -446,7 +450,8 @@
     "chewy_price": "21.99",
     "chewy_stock": "InStock",
     "chewy_rating": null,
-    "amazon_search_query": "dog tie out stake and cable"
+    "amazon_search_query": "dog tie out stake and cable",
+    "upc": "611056708644"
   },
   {
     "topic": "best-cat-grass-growing-kits",
@@ -467,6 +472,7 @@
     "chewy_price": "11.99",
     "chewy_stock": "InStock",
     "chewy_rating": null,
-    "amazon_search_query": "cat grass growing kit indoor"
+    "amazon_search_query": "cat grass growing kit indoor",
+    "upc": "53722010369"
   }
 ]
