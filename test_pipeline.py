@@ -1122,6 +1122,55 @@ class TestManualResolve(unittest.TestCase):
                         "--price", "9.99", "--stars", "4.0",
                     ])
 
+    def test_upc_flag_is_optional_and_populates_entry_when_provided(self):
+        import tempfile
+        import refill_products as rp
+        import manual_resolve as mr
+        import chewy_lookup as cl
+
+        products = [{"topic": "best-automatic-litter-box",
+                     "asin": "NEEDS_ASIN", "image": "NEEDS_IMAGE"}]
+        with tempfile.TemporaryDirectory() as d:
+            path = Path(d) / "products.json"
+            path.write_text(json.dumps(products))
+            with patch.object(rp, "PRODUCTS_PATH", path), \
+                 patch.object(cl, "ACCOUNT_SID", ""), \
+                 patch.object(cl, "AUTH_TOKEN", ""):
+                mr.main([
+                    "--topic", "best-automatic-litter-box",
+                    "--name", "PETLIBRO Automatic Self-Cleaning Litter Box",
+                    "--asin", "B0ABCD1234",
+                    "--image", "https://m.media-amazon.com/images/I/71abcXYZ._AC_SX425_.jpg",
+                    "--price", "249.99", "--stars", "4.5",
+                    "--upc", "810189030893",
+                ])
+            written = json.loads(path.read_text())
+        self.assertEqual(written[0]["upc"], "810189030893")
+
+    def test_upc_omitted_leaves_entry_without_upc_key(self):
+        import tempfile
+        import refill_products as rp
+        import manual_resolve as mr
+        import chewy_lookup as cl
+
+        products = [{"topic": "best-automatic-litter-box",
+                     "asin": "NEEDS_ASIN", "image": "NEEDS_IMAGE"}]
+        with tempfile.TemporaryDirectory() as d:
+            path = Path(d) / "products.json"
+            path.write_text(json.dumps(products))
+            with patch.object(rp, "PRODUCTS_PATH", path), \
+                 patch.object(cl, "ACCOUNT_SID", ""), \
+                 patch.object(cl, "AUTH_TOKEN", ""):
+                mr.main([
+                    "--topic", "best-automatic-litter-box",
+                    "--name", "PETLIBRO Automatic Self-Cleaning Litter Box",
+                    "--asin", "B0ABCD1234",
+                    "--image", "https://m.media-amazon.com/images/I/71abcXYZ._AC_SX425_.jpg",
+                    "--price", "249.99", "--stars", "4.5",
+                ])
+            written = json.loads(path.read_text())
+        self.assertNotIn("upc", written[0])
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
