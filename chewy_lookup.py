@@ -15,6 +15,8 @@ Output (JSON to stdout):
     }
 
 chewy_url sentinel values:
+    Full URL          GTIN match (known Amazon UPC == a candidate's Gtin) --
+                      auto-accepted, brand/coverage gates bypassed, rating scraped
     Full URL          score >= 4 AND word coverage >= 0.5 AND same brand -- auto-accepted, rating scraped
     "REVIEW:{url}"    score 2-3, OR score >= 4 but low word coverage / brand conflict -- human verification required
     "REVIEW"          score < 2 or no match — product not found on Chewy
