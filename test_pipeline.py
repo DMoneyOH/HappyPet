@@ -537,20 +537,20 @@ class TestChewyGtinMatch(unittest.TestCase):
     def test_lookup_gtin_match_bypasses_brand_conflict_gate(self):
         import chewy_lookup as cl
         item = {
-            "Name": "Coolaroo Steel-Framed Elevated Dog Bed",
-            "Manufacturer": "Coolaroo",
+            "Name": "Invenho Cooling Dog Crate Mat Anti-Slip",
+            "Manufacturer": "Invenho",
             "StockAvailability": "InStock",
-            "Url": "https://chewy.example/coolaroo-elevated-bed",
-            "CurrentPrice": "55.99",
-            "Gtin": "021234567890",
+            "Url": "https://chewy.example/invenho-cooling-mat",
+            "CurrentPrice": "39.99",
+            "Gtin": "612345678901",
         }
         with patch.object(cl, "ACCOUNT_SID", "x"), \
              patch.object(cl, "AUTH_TOKEN", "y"), \
              patch.object(cl, "search_catalog", return_value=[item]), \
              patch.object(cl, "scrape_chewy_rating", return_value=None):
-            result = cl.lookup("Gale Pacific Coolaroo The Original Cooling Elevated Dog Bed",
-                               upc="21234567890")
-        self.assertEqual(result["chewy_url"], "https://chewy.example/coolaroo-elevated-bed")
+            result = cl.lookup("EHEYCIGA Cooling Mat for Dogs, 41x28 inches, Washable, Non-Slip, Blue",
+                               upc="612345678901")
+        self.assertEqual(result["chewy_url"], "https://chewy.example/invenho-cooling-mat")
 
     def test_lookup_without_upc_argument_keeps_existing_behavior(self):
         # Backward compatibility: omitting upc must reproduce the pre-GTIN
