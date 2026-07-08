@@ -1010,6 +1010,20 @@ class TestManualResolve(unittest.TestCase):
         # which returns an all-None dict cleanly -- must not crash
         self.assertIsNone(entry["chewy_url"])
 
+    def test_apply_resolution_passes_upc_to_chewy_enrich(self):
+        import refill_products as rp
+
+        entry = {"topic": "best-x", "asin": "NEEDS_ASIN", "image": "NEEDS_IMAGE"}
+        resolved = {"name": "Some Product", "asin": "B0ABCD1234",
+                    "image": "https://m.media-amazon.com/images/I/x.jpg",
+                    "price": "9.99", "stars": 4.0, "upc": "810189030893"}
+        with patch.object(rp, "chewy_enrich", return_value={
+                "chewy_url": None, "chewy_price": None,
+                "chewy_stock": None, "chewy_rating": None}) as fake_enrich:
+            rp.apply_resolution(entry, resolved)
+        fake_enrich.assert_called_once_with("Some Product", "810189030893")
+        self.assertEqual(entry["upc"], "810189030893")
+
     def test_rejects_bad_asin_shape_and_does_not_write(self):
         import tempfile
         import refill_products as rp
