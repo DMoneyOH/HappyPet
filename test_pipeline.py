@@ -508,6 +508,93 @@ class TestChewyGtinMatch(unittest.TestCase):
         items = [{"Name": "Item", "Gtin": "999999999999", "StockAvailability": "InStock"}]
         self.assertIsNone(_find_gtin_match(items, "700603718714"))
 
+    def test_lookup_gtin_match_bypasses_low_coverage_downgrade(self):
+        # Same regression pair as
+        # test_lookup_downgrades_high_score_low_coverage_match_to_review, but
+        # this time the searched product's known UPC exactly matches the
+        # candidate's Gtin -- it must auto-accept despite low word coverage.
+        import chewy_lookup as cl
+        search_name = (
+            "Blue Buffalo Bits Beef Soft & Chewy Dog Treats, Bite-Sized for "
+            "Training, Made with Real Beef & Enhanced with DHA, Heart-Shaped"
+        )
+        item = {
+            "Name": "Blue Buffalo Blue Bits Tender Beef Dog Treats",
+            "Manufacturer": "Blue Buffalo",
+            "StockAvailability": "InStock",
+            "Url": "https://chewy.example/blue-bits-tender-beef",
+            "CurrentPrice": "41.99",
+            "Gtin": "840243160563",
+        }
+        with patch.object(cl, "ACCOUNT_SID", "x"), \
+             patch.object(cl, "AUTH_TOKEN", "y"), \
+             patch.object(cl, "search_catalog", return_value=[item]), \
+             patch.object(cl, "scrape_chewy_rating", return_value=4.6):
+            result = cl.lookup(search_name, upc="840243160563")
+        self.assertEqual(result["chewy_url"], "https://chewy.example/blue-bits-tender-beef")
+        self.assertEqual(result["chewy_rating"], 4.6)
+
+    def test_lookup_gtin_match_bypasses_brand_conflict_gate(self):
+        import chewy_lookup as cl
+        item = {
+            "Name": "Coolaroo Steel-Framed Elevated Dog Bed",
+            "Manufacturer": "Coolaroo",
+            "StockAvailability": "InStock",
+            "Url": "https://chewy.example/coolaroo-elevated-bed",
+            "CurrentPrice": "55.99",
+            "Gtin": "021234567890",
+        }
+        with patch.object(cl, "ACCOUNT_SID", "x"), \
+             patch.object(cl, "AUTH_TOKEN", "y"), \
+             patch.object(cl, "search_catalog", return_value=[item]), \
+             patch.object(cl, "scrape_chewy_rating", return_value=None):
+            result = cl.lookup("Gale Pacific Coolaroo The Original Cooling Elevated Dog Bed",
+                               upc="21234567890")
+        self.assertEqual(result["chewy_url"], "https://chewy.example/coolaroo-elevated-bed")
+
+    def test_lookup_without_upc_argument_keeps_existing_behavior(self):
+        # Backward compatibility: omitting upc must reproduce the pre-GTIN
+        # REVIEW outcome for the same regression pair -- the fast path must
+        # never activate implicitly.
+        import chewy_lookup as cl
+        search_name = (
+            "Blue Buffalo Bits Beef Soft & Chewy Dog Treats, Bite-Sized for "
+            "Training, Made with Real Beef & Enhanced with DHA, Heart-Shaped"
+        )
+        item = {
+            "Name": "Blue Buffalo Blue Bits Tender Beef Dog Treats",
+            "Manufacturer": "Blue Buffalo",
+            "StockAvailability": "InStock",
+            "Url": "https://chewy.example/blue-bits-tender-beef",
+            "CurrentPrice": "41.99",
+            "Gtin": "840243160563",
+        }
+        with patch.object(cl, "ACCOUNT_SID", "x"), \
+             patch.object(cl, "AUTH_TOKEN", "y"), \
+             patch.object(cl, "search_catalog", return_value=[item]):
+            result = cl.lookup(search_name)
+        self.assertTrue(str(result["chewy_url"]).startswith("REVIEW"))
+
+    def test_lookup_upc_given_but_no_match_falls_back_to_scoring(self):
+        # upc provided but doesn't match any candidate's Gtin -- must fall
+        # through to the normal score/coverage/brand path unchanged.
+        import chewy_lookup as cl
+        search_name = "Fumoi Automatic Self-Cleaning Cat Litter Box, Large Capacity, App Control, Grey"
+        item = {
+            "Name": "Fumoi Automatic Self-Cleaning Cat Litter Box",
+            "Manufacturer": "Fumoi",
+            "StockAvailability": "InStock",
+            "Url": "https://chewy.example/fumoi-litter-box",
+            "CurrentPrice": "199.95",
+            "Gtin": "111111111111",
+        }
+        with patch.object(cl, "ACCOUNT_SID", "x"), \
+             patch.object(cl, "AUTH_TOKEN", "y"), \
+             patch.object(cl, "search_catalog", return_value=[item]), \
+             patch.object(cl, "scrape_chewy_rating", return_value=None):
+            result = cl.lookup(search_name, upc="999999999999")
+        self.assertEqual(result["chewy_url"], "https://chewy.example/fumoi-litter-box")
+
 
 class TestBrainSecretsVaultFallback(unittest.TestCase):
     """brain_secrets.py reads Maeve's SecretVault (in the sibling MaeveJarvis
