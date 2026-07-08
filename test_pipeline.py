@@ -482,6 +482,32 @@ class TestChewyGtinMatch(unittest.TestCase):
         self.assertEqual(_normalize_gtin(""), "")
         self.assertEqual(_normalize_gtin(None), "")
 
+    def test_find_gtin_match_returns_item_with_matching_gtin(self):
+        from chewy_lookup import _find_gtin_match
+        items = [
+            {"Name": "Wrong Item", "Gtin": "111111111111", "StockAvailability": "InStock"},
+            {"Name": "Right Item", "Gtin": "700603718714", "StockAvailability": "InStock"},
+        ]
+        match = _find_gtin_match(items, "700603718714")
+        self.assertEqual(match["Name"], "Right Item")
+
+    def test_find_gtin_match_normalizes_before_comparing(self):
+        from chewy_lookup import _find_gtin_match
+        items = [{"Name": "Right Item", "Gtin": "00700603718714", "StockAvailability": "InStock"}]
+        match = _find_gtin_match(items, "700603718714")
+        self.assertEqual(match["Name"], "Right Item")
+
+    def test_find_gtin_match_returns_none_when_no_upc_given(self):
+        from chewy_lookup import _find_gtin_match
+        items = [{"Name": "Item", "Gtin": "700603718714", "StockAvailability": "InStock"}]
+        self.assertIsNone(_find_gtin_match(items, ""))
+        self.assertIsNone(_find_gtin_match(items, None))
+
+    def test_find_gtin_match_returns_none_when_nothing_matches(self):
+        from chewy_lookup import _find_gtin_match
+        items = [{"Name": "Item", "Gtin": "999999999999", "StockAvailability": "InStock"}]
+        self.assertIsNone(_find_gtin_match(items, "700603718714"))
+
 
 class TestBrainSecretsVaultFallback(unittest.TestCase):
     """brain_secrets.py reads Maeve's SecretVault (in the sibling MaeveJarvis

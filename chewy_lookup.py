@@ -260,6 +260,20 @@ def _filter_candidates(items: list) -> list:
     return in_stock if in_stock else clean
 
 
+def _find_gtin_match(items: list, upc: str | None) -> dict | None:
+    """First filtered candidate (see _filter_candidates) whose Gtin exactly
+    matches the known Amazon UPC, normalized for width/padding differences.
+    Returns None if upc is falsy or no candidate's Gtin matches -- callers
+    fall through to the ordinary name-scoring path in that case."""
+    target = _normalize_gtin(upc)
+    if not target:
+        return None
+    for item in _filter_candidates(items):
+        if _normalize_gtin(item.get("Gtin", "")) == target:
+            return item
+    return None
+
+
 def best_match(items: list, product_name: str) -> tuple[dict | None, int]:
     """
     Returns (best_item, score). Score is int; fractional bonuses used only for sorting.
