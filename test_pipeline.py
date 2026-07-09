@@ -909,6 +909,18 @@ class TestRefillAgent(unittest.TestCase):
         # only exact topic matches count as published here (mirrors generator)
         self.assertEqual(rp.unpublished_count(products, {"best-a", "best-b"}), 1)
 
+    def test_valid_categories_not_just_gear(self):
+        # run #22's queue ended up 20/23 dog-gear+cat-gear because the enum only
+        # offered gear/food/health -- every toy, bed, litter, tech topic had
+        # nowhere else to go. Guard against regressing to that 6-bucket set.
+        import refill_products as rp
+        specific = {"dog-toys", "cat-toys", "cat-litter", "dog-training", "pet-tech"}
+        self.assertTrue(specific.issubset(set(rp.VALID_CATEGORIES)))
+        # TOPIC_SCHEMA's enum is built from VALID_CATEGORIES -- keep them in sync
+        self.assertEqual(
+            rp.TOPIC_SCHEMA["properties"]["topics"]["items"]["properties"]["category"]["enum"],
+            list(rp.VALID_CATEGORIES))
+
     def test_image_validation_rejects_svg_placeholder(self):
         # run #2 shipped an .svg sprite as a "product image" -- never again
         import refill_products as rp

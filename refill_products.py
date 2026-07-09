@@ -66,8 +66,17 @@ FORCE     = os.environ.get("FORCE_REFILL", "") == "1"
 VALID_SHEETS     = ("HAPPYPET_SHEET_ID_DOGS", "HAPPYPET_SHEET_ID_CATS",
                     "HAPPYPET_SHEET_ID_HOME", "HAPPYPET_SHEET_ID_FOOD",
                     "HAPPYPET_SHEET_ID_TOYS", "HAPPYPET_SHEET_ID_HEALTH")
-VALID_CATEGORIES = ("dog-gear", "dog-food", "dog-health",
-                    "cat-gear", "cat-food", "cat-health")
+# Kept in sync with the categories already live in _posts/ front matter --
+# the old 6-bucket set forced every non-food/non-health topic (toys, beds,
+# training, grooming, tech...) into the generic "-gear" catch-all, which is
+# why the queue skewed 20/23 dog-gear+cat-gear. Widened to give the ideation
+# LLM a real bucket for each topic instead of defaulting to "-gear".
+VALID_CATEGORIES = ("dog-gear", "dog-food", "dog-health", "dog-toys",
+                    "dog-training", "dog-grooming", "dog-beds", "dog-collars",
+                    "dog-crates", "dog-harnesses",
+                    "cat-gear", "cat-food", "cat-health", "cat-toys",
+                    "cat-litter", "cat-scratching", "cat-carriers", "cat-feeders",
+                    "pet-tech", "pet-feeding")
 
 DESKTOP_UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
               "(KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36")
@@ -462,9 +471,15 @@ Rules:
 - title: an engaging article headline for that roundup
 - keyword: the primary SEO search phrase
 - species: dog, cat, or both
-- category and topical_sheet must fit the species
+- category must be the MOST SPECIFIC fit available (e.g. "dog-toys" for a toy topic,
+  "cat-litter" for a litter topic) -- only fall back to the generic "dog-gear"/"cat-gear"
+  bucket when nothing more specific applies. Do not let more than 2-3 of the {batch}
+  topics share the same category -- spread them across toys, training, grooming, beds,
+  collars/harnesses, crates, litter, scratching, carriers, feeders, tech, and feeding,
+  not just gear/food/health.
+- topical_sheet must fit the species
 - amazon_search_query: what a shopper would type into Amazon to find the single best mainstream product for this topic
-- Favor products relevant in {month} and the coming two months (seasonality), mixed across species and price points.
+- Favor products relevant in {month} and the coming two months (seasonality), mixed across species, category, and price points.
 Answer strictly as JSON."""
     # 2.5-flash spends thinking tokens from the same budget; 4096 truncated
     raw = gp._call_gemini(gp.GEMINI_GEN_MODEL, prompt, max_tokens=16384,
