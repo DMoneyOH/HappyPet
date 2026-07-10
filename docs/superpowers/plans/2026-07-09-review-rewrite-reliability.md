@@ -12,6 +12,8 @@
 
 **Amendment (2026-07-10, during Task 1 execution):** Task 1's scope necessarily extended beyond the enumerated STRUCTURE replacements: the WRITING STYLE section shared by all formats contained two more em dashes — the ban rule itself (`NEVER use em dashes (—).`, which exhibited the banned glyph inside the sentence banning it) and the SECTION HEADINGS line. Both were fixed in commit `9284926`: the ban rule now names the character without printing it (`NEVER use an em dash (the long dash character, U+2014).`), the other converted to house `--` style. Task 6's validation should be read against this shipped wording. Also noted for Task 6: spot-check that Gemini honors the ban when told "U+2014" rather than shown the glyph, and watch for en-dash (U+2013) substitution, which no current test or count covers.
 
+**Amendment (2026-07-10, during Task 2 execution):** The plan's Task 2 test code as written could never pass: the shared WRITING STYLE section quotes banned first-person phrases as negative examples in ALL formats ("We've all been there", "we all know", "put our paws"), which the plan's single-line exclusion didn't account for. Shipped test (commit `7d6d10e`) generalizes to a `FIRST_PERSON_EXCLUDE_MARKERS` tuple excluding exactly 4 quotation-of-banned-words lines, applied uniformly to all three format tests. Notes carried to Task 4: (a) once `gp.FIRST_PERSON_RE` exists, the test's private regex copy should reference it instead so the two can't drift; (b) consider whether the enforcement regex should cover "me"/"mine" beyond the rule text's illustrative list (I, we, us, our, my).
+
 ---
 
 ## Evidence (read before starting)
