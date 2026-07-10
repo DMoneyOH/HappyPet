@@ -803,7 +803,7 @@ def make_prompt(title: str, keyword: str, slug: str, fmt: str, product: dict,
         )
     if fmt == "single_review":
         structure = f"""ARTICLE FORMAT: In-depth single product review of {product_name}
-STRUCTURE: Opening (100+ words) | Product Overview (H2) | What We Like (H2, 4-5 features) | What Could Be Better (H2, 2-3 honest drawbacks) | Real Owner Experiences (H2) | Who Should Buy This (H2) | Verdict (H2, 80+ words with affiliate link) | Star rating: **Our Rating: X/5**"""
+STRUCTURE: Opening (100+ words) | Product Overview (H2) | What Stood Out (H2, 4-5 features) | What Could Be Better (H2, 2-3 honest drawbacks) | Real Owner Experiences (H2) | Who Should Buy This (H2) | Verdict (H2, 80+ words with affiliate link) | Star rating: **Rating: X/5**"""
     elif fmt == "roundup":
         # Build verified data block -- only include fields we actually have
         verified_data = ""
@@ -854,7 +854,7 @@ STRUCTURE:
   Closing (80+ words with affiliate link per LINKING RULE above, no heading: begin prose directly)"""
     else:
         structure = f"""ARTICLE FORMAT: Buying guide -- {title}
-STRUCTURE: Opening (100+ words, no heading: begin prose directly) | What to Look For (H2, 5-6 key factors) | Our Top Pick {product_name} (H2, 100 words, affiliate link) | Common Mistakes to Avoid (H2, 3-4 pitfalls) | FAQ (H2, 4-5 real questions) | Closing (80+ words with affiliate link, no heading: begin prose directly)"""
+STRUCTURE: Opening (100+ words, no heading: begin prose directly) | What to Look For (H2, 5-6 key factors) | Top Pick: {product_name} (H2, 100 words, affiliate link) | Common Mistakes to Avoid (H2, 3-4 pitfalls) | FAQ (H2, 4-5 real questions) | Closing (80+ words with affiliate link, no heading: begin prose directly)"""
     return f"""You are a senior writer for Happy Pet Product Reviews, a trusted budget-focused pet product review blog.
 
 Write a complete, publish-ready blog post. Title: "{title}". Focus keyword: "{keyword}".
@@ -873,7 +873,7 @@ WRITING STYLE:
 - FACTS: Only state product specs you are certain of from the product listing. If unsure, hedge with: "many owners report...", "tends to...", or "according to Amazon reviews...". Never invent dimensions, materials, weight, compatibility claims, percentages, statistics, or any number you were not given. Do NOT fabricate reviewer percentages like "85% of owners said..." -- if you don't have the real number, don't include one.
 - SECTION HEADINGS: Never start a section with "In conclusion" or "In summary". Use a specific, descriptive heading instead. Never use "Opening" or "Closing" as headings -- these are unheaded prose sections.
 - OPENING: If it makes sense for the article topic, open with a specific relatable moment a dog or cat owner would instantly recognize. Show, don't tell. Be SPECIFIC -- name a real scenario, not a generic one.
-  Good examples: "My dog chewed through a couch cushion on a 45-minute Zoom call." / "Our cat knocked the water bowl over three times in one week." / "I spent $40 on a toy my dog sniffed once and walked away from."
+  Good examples: "A couch cushion doesn't stand a chance against a bored dog during a 45-minute Zoom call." / "A knocked-over water bowl three times in one week is a familiar mess for a lot of cat owners." / "Forty dollars for a toy a dog sniffs once and walks away from is a familiar kind of frustrating."
   Bad examples (NEVER write openings like these): "We've all been there - [generic scenario]..." (cliché opener) / "As a pet owner, you know how important it is to..." (filler) / "Dogs need mental stimulation to stay happy and healthy." (generic) / "Standing in the kitchen when suddenly..." (AI-template setup) / Any opening that starts with a vague scenario followed by a product pitch.
   If the article topic is purely practical (e.g. flea prevention, nutrition), a direct factual opening is fine -- do not force an anecdote.
 - Use "{keyword}" naturally 4-6 times. Write in second person ("your dog", "you'll find") or third person ("owners report", "dogs tend to"). Never use first-person voice (I, we, us, our, my) -- the reviewer will fail any article that does.{link}

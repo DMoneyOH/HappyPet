@@ -322,6 +322,47 @@ class TestPromptHygiene(unittest.TestCase):
     def test_buying_guide_prompt_has_no_em_dashes(self):
         self.assertNotIn("—", self._prompt_for("buying_guide"))
 
+    FIRST_PERSON_RE = staticmethod(__import__("re").compile(r"\b(I|we|us|our|my)\b", __import__("re").IGNORECASE))
+
+    # Lines that legitimately name banned first-person words on purpose --
+    # the rule statement itself, or lines quoting bad/stock phrasings so the
+    # model knows what NOT to write (e.g. "we've all been there", "put our
+    # paws"). Those are excluded from the scan; only positive examples and
+    # structural headings are required to stay first-person-free.
+    FIRST_PERSON_EXCLUDE_MARKERS = (
+        "Never use first-person voice",
+        "Bad examples (NEVER write openings like these)",
+        "MINIMIZE stock phrases",
+        "stock pet-blog phrases",
+    )
+
+    def _first_person_hits(self, text: str) -> list:
+        return self.FIRST_PERSON_RE.findall(text)
+
+    def _body_excluding_rule_and_negative_examples(self, prompt: str) -> str:
+        return "\n".join(
+            line for line in prompt.splitlines()
+            if not any(marker in line for marker in self.FIRST_PERSON_EXCLUDE_MARKERS)
+        )
+
+    def test_roundup_prompt_has_no_first_person(self):
+        prompt = self._prompt_for("roundup")
+        body = self._body_excluding_rule_and_negative_examples(prompt)
+        hits = self._first_person_hits(body)
+        self.assertEqual(hits, [], f"Unexpected first-person words in prompt: {hits}")
+
+    def test_single_review_prompt_has_no_first_person(self):
+        prompt = self._prompt_for("single_review")
+        body = self._body_excluding_rule_and_negative_examples(prompt)
+        hits = self._first_person_hits(body)
+        self.assertEqual(hits, [], f"Unexpected first-person words in prompt: {hits}")
+
+    def test_buying_guide_prompt_has_no_first_person(self):
+        prompt = self._prompt_for("buying_guide")
+        body = self._body_excluding_rule_and_negative_examples(prompt)
+        hits = self._first_person_hits(body)
+        self.assertEqual(hits, [], f"Unexpected first-person words in prompt: {hits}")
+
 
 class TestFactCheckNotTruncated(unittest.TestCase):
     """Fact-check must not truncate below 60% of article — P3"""
