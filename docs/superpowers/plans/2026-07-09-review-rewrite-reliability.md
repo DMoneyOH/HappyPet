@@ -16,6 +16,8 @@
 
 **Amendment (2026-07-10, during Task 3 execution):** Task 3's shipped rule text (commit `01a2dcc`) names the em dash as "the long dash character, U+2014" instead of printing the glyph as the plan's literal text did, matching Task 1's convention, plus a 4th test locking `make_rewrite_prompt()` output em-dash-free. Note for future work: the new first-person rule line quotes the banned words literally — if `TestPromptHygiene`'s first-person scanner is ever extended to cover `make_rewrite_prompt()`, that line needs the `FIRST_PERSON_EXCLUDE_MARKERS` treatment.
 
+**Amendment (2026-07-10, during Task 4 execution):** Shipped (commit `a32e6e4`) with the controller-decided broader enforcement list (adds me/mine): `\b(I|we|us|our|my|me|mine)\b` case-insensitive. Zero fallout in templates/fixtures. Code-review carry-forwards: (a) Task 5 additionally extracts the three hard-override blocks into a pure `apply_hard_overrides()` helper so tests exercise production code instead of an inline replica; (b) Task 6 watch-item: `\bus\b` case-insensitive can false-positive on "US" (the country) in real prose — if `first_person_detected='US'` appears in a live run, split the pattern (case-insensitive main alternation + case-sensitive `\bus\b`); (c) known gap, tracked: en-dash (U+2013) substitution is not counted or banned anywhere.
+
 ---
 
 ## Evidence (read before starting)
