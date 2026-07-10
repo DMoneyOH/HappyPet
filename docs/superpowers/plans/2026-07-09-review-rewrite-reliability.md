@@ -14,6 +14,8 @@
 
 **Amendment (2026-07-10, during Task 2 execution):** The plan's Task 2 test code as written could never pass: the shared WRITING STYLE section quotes banned first-person phrases as negative examples in ALL formats ("We've all been there", "we all know", "put our paws"), which the plan's single-line exclusion didn't account for. Shipped test (commit `7d6d10e`) generalizes to a `FIRST_PERSON_EXCLUDE_MARKERS` tuple excluding exactly 4 quotation-of-banned-words lines, applied uniformly to all three format tests. Notes carried to Task 4: (a) once `gp.FIRST_PERSON_RE` exists, the test's private regex copy should reference it instead so the two can't drift; (b) consider whether the enforcement regex should cover "me"/"mine" beyond the rule text's illustrative list (I, we, us, our, my).
 
+**Amendment (2026-07-10, during Task 3 execution):** Task 3's shipped rule text (commit `01a2dcc`) names the em dash as "the long dash character, U+2014" instead of printing the glyph as the plan's literal text did, matching Task 1's convention, plus a 4th test locking `make_rewrite_prompt()` output em-dash-free. Note for future work: the new first-person rule line quotes the banned words literally — if `TestPromptHygiene`'s first-person scanner is ever extended to cover `make_rewrite_prompt()`, that line needs the `FIRST_PERSON_EXCLUDE_MARKERS` treatment.
+
 ---
 
 ## Evidence (read before starting)
