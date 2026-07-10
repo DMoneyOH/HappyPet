@@ -480,6 +480,40 @@ class TestEmDashBackstop(unittest.TestCase):
         self.assertNotIn("—", result)
         self.assertIn("https://amzn.to/3TestABC", result)
 
+    def test_abbreviations_pass_through_unchanged(self):
+        # Regression: the first implementation's blanket ". x" capitalization
+        # pass fired on ANY period-space in the text, mangling abbreviations
+        # ("vs. the" -> "vs. The"). Text the dash didn't touch must never be
+        # modified, even when an em dash exists elsewhere in the article.
+        import generate_posts as gp
+        result = gp.strip_em_dashes(
+            "This mat is vs. the competitor, e.g. this model — better in every way.")
+        self.assertNotIn("—", result)
+        self.assertIn("vs. the competitor", result)
+        self.assertIn("e.g. this model", result)
+        self.assertEqual(
+            result,
+            "This mat is vs. the competitor, e.g. this model. Better in every way.")
+
+    def test_ellipsis_survives_em_dash_removal(self):
+        # Regression: the first implementation's blanket doubled-period
+        # collapse regex could eat pre-existing '..'/'...' sequences.
+        import generate_posts as gp
+        result = gp.strip_em_dashes(
+            "Wait for it... the mat cools fast — and stays dry.")
+        self.assertNotIn("—", result)
+        self.assertIn("Wait for it...", result)
+        self.assertEqual(result, "Wait for it... the mat cools fast. And stays dry.")
+
+    def test_period_before_dash_still_yields_single_period(self):
+        # Contract case restated post-rewrite: a dash directly after a period
+        # must produce exactly one period (same guarantee as
+        # test_em_dash_immediately_after_period_does_not_double_period).
+        import generate_posts as gp
+        self.assertEqual(
+            gp.strip_em_dashes("Great color. — Also waterproof."),
+            "Great color. Also waterproof.")
+
     def test_only_em_dash_blocked_helper_true_when_everything_else_passes(self):
         import generate_posts as gp
         scores = {"human_voice": 4, "warmth": 4, "readability": 4, "accuracy": 4}

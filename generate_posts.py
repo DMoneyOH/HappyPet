@@ -1062,13 +1062,29 @@ def strip_em_dashes(text: str) -> str:
     two sentences. Last-resort mechanical fix -- only ever called when an
     article has already cleared every other pass criterion and em dashes
     are the sole remaining blocker, so meaning/tone are not at stake, only
-    punctuation."""
+    punctuation.
+
+    Single-pass callback: each dash run becomes a sentence break and ONLY
+    the character that directly followed the dash is capitalized. Text the
+    dash didn't touch is never modified -- abbreviations ('vs. the',
+    'e.g. this') and ellipses ('...') elsewhere pass through unchanged,
+    which blanket ". x"-capitalization / ".."-collapse regexes could not
+    guarantee."""
     if "—" not in text:
         return text
-    result = re.sub(r"\s*—\s*", ". ", text)
-    result = re.sub(r"\.\s*\.", ".", result)  # collapse "X.. Y" when a dash followed a period
-    result = re.sub(r"\. ([a-z])", lambda m: ". " + m.group(1).upper(), result)
-    return result
+
+    def _split(m):
+        following = m.group(1)
+        # If the character just before this dash run is already a period,
+        # don't insert another one -- prevents "X.. Y" at the source
+        # instead of collapsing doubled periods afterwards (which would
+        # also eat pre-existing '..'/'...' sequences).
+        start = m.start()
+        already_terminated = start > 0 and m.string[start - 1] == "."
+        sep = " " if already_terminated else ". "
+        return sep + following.upper()
+
+    return re.sub(r"\s*—\s*(\w?)", _split, text)
 
 
 def _only_em_dash_blocked(scores: dict, flags: list, affiliate_link_present: bool) -> bool:
