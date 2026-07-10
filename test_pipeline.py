@@ -293,6 +293,36 @@ class TestReviewerResponseParsing(unittest.TestCase):
             self.assertTrue(data["affiliate_link_present"])
 
 
+class TestPromptHygiene(unittest.TestCase):
+    """The generator's own prompt templates must not contain the characters
+    or voice they forbid the model from using -- a prompt that says 'never
+    use em dashes' while itself using em dashes as a separator primes the
+    model to do exactly what it's told not to do."""
+
+    SAMPLE_PRODUCT = {
+        "name": "EHEYCIGA Cooling Mat for Dogs",
+        "affiliate_url": "https://amzn.to/4cuvtEY",
+        "stars": 4.8,
+        "review_count": "1205",
+        "price": "34.99",
+    }
+
+    def _prompt_for(self, fmt: str) -> str:
+        import generate_posts as gp
+        return gp.make_prompt(
+            "Best Dog Cooling Mats", "best dog cooling mat", "best-dog-cooling-mat",
+            fmt, self.SAMPLE_PRODUCT, "", "")
+
+    def test_roundup_prompt_has_no_em_dashes(self):
+        self.assertNotIn("—", self._prompt_for("roundup"))
+
+    def test_single_review_prompt_has_no_em_dashes(self):
+        self.assertNotIn("—", self._prompt_for("single_review"))
+
+    def test_buying_guide_prompt_has_no_em_dashes(self):
+        self.assertNotIn("—", self._prompt_for("buying_guide"))
+
+
 class TestFactCheckNotTruncated(unittest.TestCase):
     """Fact-check must not truncate below 60% of article — P3"""
 
