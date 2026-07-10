@@ -299,27 +299,23 @@ class TestReviewerResponseParsing(unittest.TestCase):
         scorecard = json.loads(REVIEWER_PASS_JSON)
         scorecard["em_dash_count"] = 0  # reviewer missed it
         content = "This mat is soft — and dries fast."
-        # Replicate the hardened override logic from review_and_rewrite
-        actual_em_dashes = content.count("—")
-        em_dashes = max(scorecard.get("em_dash_count", 0), actual_em_dashes)
-        passed = scorecard["pass"]
-        if passed and em_dashes > 0:
-            passed = False
+        passed, flags = gp.apply_hard_overrides(True, [], scorecard, content)
         self.assertFalse(passed)
-        self.assertEqual(em_dashes, 1)
+        self.assertTrue(any("em_dash_count=1" in str(f) for f in flags))
 
     def test_first_person_override_forces_fail_even_if_reviewer_missed_it(self):
         """First-person voice must be code-enforced the same way em dashes
         already are -- not left entirely to the reviewer's judgment."""
         import generate_posts as gp
-        scorecard = json.loads(REVIEWER_PASS_JSON)  # reviewer said pass=true
+        scorecard = json.loads(REVIEWER_PASS_JSON)  # pass=true, em_dash_count=0
+        content = "Your dog stays cool. Owners report it holds up."
+        # sanity: clean text does NOT trip it
+        passed, flags = gp.apply_hard_overrides(True, [], scorecard, content)
+        self.assertTrue(passed)
         content = "I really like how quiet this mat is."
-        passed = scorecard["pass"]
-        first_person_hit = gp.FIRST_PERSON_RE.search(content)
-        if passed and first_person_hit:
-            passed = False
+        passed, flags = gp.apply_hard_overrides(True, [], scorecard, content)
         self.assertFalse(passed)
-        self.assertEqual(first_person_hit.group(0), "I")
+        self.assertTrue(any("first_person_detected" in str(f) for f in flags))
 
     def test_first_person_regex_covers_me_and_mine(self):
         """Enforcement list is broader than the rule text's illustrative
@@ -444,6 +440,66 @@ class TestRewritePromptRules(unittest.TestCase):
             "Best Dog Cooling Mats", "best dog cooling mat", "Some article body.",
             "Fix the pacing in paragraph 2.")
         self.assertNotIn("—", prompt)
+
+
+class TestEmDashBackstop(unittest.TestCase):
+    """strip_em_dashes(): last-resort mechanical fix, only ever invoked when
+    em dashes are the sole remaining reason an otherwise-passing article
+    would be held."""
+
+    def test_no_em_dash_is_a_noop(self):
+        import generate_posts as gp
+        text = "This mat stays cool for hours."
+        self.assertEqual(gp.strip_em_dashes(text), text)
+
+    def test_single_em_dash_splits_into_two_sentences(self):
+        import generate_posts as gp
+        result = gp.strip_em_dashes("This mat is soft — it also dries fast.")
+        self.assertNotIn("—", result)
+        self.assertEqual(result, "This mat is soft. It also dries fast.")
+
+    def test_multiple_em_dashes_all_removed(self):
+        import generate_posts as gp
+        result = gp.strip_em_dashes("Great fit — easy to clean — dries fast.")
+        self.assertNotIn("—", result)
+        self.assertEqual(result, "Great fit. Easy to clean. Dries fast.")
+
+    def test_em_dash_immediately_after_period_does_not_double_period(self):
+        import generate_posts as gp
+        result = gp.strip_em_dashes("Great color. — Also waterproof.")
+        self.assertNotIn("—", result)
+        self.assertNotIn("..", result)
+        self.assertEqual(result, "Great color. Also waterproof.")
+
+    def test_markdown_link_and_bullet_survive_em_dash_removal(self):
+        # Realistic markdown edge: em dash inside a bulleted line that also
+        # carries the affiliate link -- the link text/URL must not be mangled.
+        import generate_posts as gp
+        text = "- Great mat — comfy and cool. [Buy now](https://amzn.to/3TestABC)"
+        result = gp.strip_em_dashes(text)
+        self.assertNotIn("—", result)
+        self.assertIn("https://amzn.to/3TestABC", result)
+
+    def test_only_em_dash_blocked_helper_true_when_everything_else_passes(self):
+        import generate_posts as gp
+        scores = {"human_voice": 4, "warmth": 4, "readability": 4, "accuracy": 4}
+        self.assertTrue(gp._only_em_dash_blocked(scores, ["em_dash_count=1"], True))
+
+    def test_only_em_dash_blocked_helper_false_with_other_flags(self):
+        import generate_posts as gp
+        scores = {"human_voice": 4, "warmth": 4, "readability": 4, "accuracy": 4}
+        self.assertFalse(gp._only_em_dash_blocked(
+            scores, ["em_dash_count=1", "first_person_detected='I'"], True))
+
+    def test_only_em_dash_blocked_helper_false_when_score_too_low(self):
+        import generate_posts as gp
+        scores = {"human_voice": 2, "warmth": 4, "readability": 4, "accuracy": 4}
+        self.assertFalse(gp._only_em_dash_blocked(scores, ["em_dash_count=1"], True))
+
+    def test_only_em_dash_blocked_helper_false_without_affiliate_link(self):
+        import generate_posts as gp
+        scores = {"human_voice": 4, "warmth": 4, "readability": 4, "accuracy": 4}
+        self.assertFalse(gp._only_em_dash_blocked(scores, ["em_dash_count=1"], False))
 
 
 class TestFactCheckNotTruncated(unittest.TestCase):

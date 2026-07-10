@@ -1057,12 +1057,77 @@ def find_alternative_products(keyword: str, primary_product: str, groq_key: str,
         return ""
 
 
+def strip_em_dashes(text: str) -> str:
+    """Deterministically remove every em dash by splitting the clause into
+    two sentences. Last-resort mechanical fix -- only ever called when an
+    article has already cleared every other pass criterion and em dashes
+    are the sole remaining blocker, so meaning/tone are not at stake, only
+    punctuation."""
+    if "—" not in text:
+        return text
+    result = re.sub(r"\s*—\s*", ". ", text)
+    result = re.sub(r"\.\s*\.", ".", result)  # collapse "X.. Y" when a dash followed a period
+    result = re.sub(r"\. ([a-z])", lambda m: ". " + m.group(1).upper(), result)
+    return result
+
+
+def _only_em_dash_blocked(scores: dict, flags: list, affiliate_link_present: bool) -> bool:
+    """True if every other pass criterion is met and em_dash_count is the
+    sole remaining reason the article would fail."""
+    non_em_dash_flags = [f for f in flags if not str(f).lower().startswith("em_dash_count")]
+    return (
+        affiliate_link_present
+        and scores.get("human_voice", 0) >= 4
+        and scores.get("warmth", 0) >= 4
+        and scores.get("readability", 0) >= 3
+        and scores.get("accuracy", 0) >= 3
+        and not non_em_dash_flags
+    )
+
+
 # Mirrors the hard-fail rule stated in make_prompt()/make_rewrite_prompt()/
 # make_review_prompt(). Word-boundary + case-insensitive so it catches
 # sentence-start "We"/"I" too, without matching inside other words.
 # Enforcement list is deliberately broader than the rule text's illustrative
 # examples (adds me/mine): "Trust me" is author voice too.
 FIRST_PERSON_RE = re.compile(r"\b(I|we|us|our|my|me|mine)\b", re.IGNORECASE)
+
+
+def apply_hard_overrides(passed: bool, flags: list, scorecard: dict, content: str) -> tuple:
+    """Code-level ground-truth checks that can only tighten (True->False),
+    never loosen, the reviewer's pass decision. Extracted from
+    review_and_rewrite so tests exercise the production logic directly."""
+    # Hard override: em dash count > 0 always fails. Don't just trust the
+    # reviewer's self-reported count -- count the actual article text too,
+    # so a reviewer that under-reports (says 0 while dashes remain) can't
+    # let one slip through.
+    em_dashes = scorecard.get("em_dash_count", 0)
+    actual_em_dashes = content.count("—")
+    if actual_em_dashes > em_dashes:
+        em_dashes = actual_em_dashes
+    if passed and em_dashes > 0:
+        log_reviewer(f"  OVERRIDE: pass forced to FAIL -- {em_dashes} em dash(es) found "
+                     f"(reviewer reported {scorecard.get('em_dash_count', 0)}, code-counted {actual_em_dashes})", "WARN")
+        passed = False
+        flags = flags + [f"em_dash_count={em_dashes}"]
+    # Hard override: first-person author voice always fails, mirroring
+    # the em-dash override above. Previously this rule existed only in
+    # the reviewer's own prompt/judgment with no code-level backstop.
+    first_person_hit = FIRST_PERSON_RE.search(content)
+    if passed and first_person_hit:
+        log_reviewer(f"  OVERRIDE: pass forced to FAIL -- first-person voice found: "
+                     f"{first_person_hit.group(0)!r}", "WARN")
+        passed = False
+        flags = flags + [f"first_person_detected={first_person_hit.group(0)!r}"]
+    # Hard override: fabrication/accuracy flags always fail regardless of pass=true
+    if passed and flags:
+        accuracy_keywords = ("fabricat", "unverif", "invent", "statistic", "percentag",
+                              "specific number", "no source", "not verif", "made up",
+                              "cited", "claimed", "without source")
+        if any(kw in " ".join(flags).lower() for kw in accuracy_keywords):
+            log_reviewer(f"  OVERRIDE: pass forced to FAIL -- accuracy/fabrication flags detected", "WARN")
+            passed = False
+    return passed, flags
 
 
 def review_and_rewrite(title: str, keyword: str, content: str, api_key: str, or_key: str = "", affiliate_url: str = "", product_name: str = "") -> tuple:
@@ -1112,35 +1177,7 @@ def review_and_rewrite(title: str, keyword: str, content: str, api_key: str, or_
             log_reviewer(f"  AI PATTERNS: {'; '.join(ai_patterns[:5])}")
         if flags:
             log_reviewer(f"  FLAGS: {'; '.join(flags)}")
-        # Hard override: em dash count > 0 always fails. Don't just trust the
-        # reviewer's self-reported count -- count the actual article text too,
-        # so a reviewer that under-reports (says 0 while dashes remain) can't
-        # let one slip through.
-        actual_em_dashes = content.count("—")
-        if actual_em_dashes > em_dashes:
-            em_dashes = actual_em_dashes
-        if passed and em_dashes > 0:
-            log_reviewer(f"  OVERRIDE: pass forced to FAIL -- {em_dashes} em dash(es) found "
-                         f"(reviewer reported {scorecard.get('em_dash_count', 0)}, code-counted {actual_em_dashes})", "WARN")
-            passed = False
-            flags = flags + [f"em_dash_count={em_dashes}"]
-        # Hard override: first-person author voice always fails, mirroring
-        # the em-dash override above. Previously this rule existed only in
-        # the reviewer's own prompt/judgment with no code-level backstop.
-        first_person_hit = FIRST_PERSON_RE.search(content)
-        if passed and first_person_hit:
-            log_reviewer(f"  OVERRIDE: pass forced to FAIL -- first-person voice found: "
-                         f"{first_person_hit.group(0)!r}", "WARN")
-            passed = False
-            flags = flags + [f"first_person_detected={first_person_hit.group(0)!r}"]
-        # Hard override: fabrication/accuracy flags always fail regardless of pass=true
-        if passed and flags:
-            accuracy_keywords = ("fabricat", "unverif", "invent", "statistic", "percentag",
-                                  "specific number", "no source", "not verif", "made up",
-                                  "cited", "claimed", "without source")
-            if any(kw in " ".join(flags).lower() for kw in accuracy_keywords):
-                log_reviewer(f"  OVERRIDE: pass forced to FAIL -- accuracy/fabrication flags detected", "WARN")
-                passed = False
+        passed, flags = apply_hard_overrides(passed, flags, scorecard, content)
         if passed:
             return content, True, []
         instructions = scorecard.get("rewrite_instructions", "")
@@ -1197,6 +1234,17 @@ def review_and_rewrite(title: str, keyword: str, content: str, api_key: str, or_
                 content = rw_content
                 _, content = extract_pin_desc(content, "")
         else:
+            actual_em_dashes = content.count("—")
+            if actual_em_dashes > 0 and _only_em_dash_blocked(
+                scores, flags, scorecard.get("affiliate_link_present", False)
+            ):
+                cleaned = strip_em_dashes(content)
+                log_reviewer(
+                    f"  MECHANICAL FIX: stripped {actual_em_dashes} em dash(es) -- "
+                    f"every other pass criterion already met on this draft, accepting "
+                    f"without another rewrite round-trip"
+                )
+                return cleaned, True, []
             log_reviewer(f"  REVIEW FAILED after {attempt} attempt(s) -- creating GitHub issue", "WARN")
             return content, False, flags
     return content, False, []
