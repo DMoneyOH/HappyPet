@@ -1057,6 +1057,14 @@ def find_alternative_products(keyword: str, primary_product: str, groq_key: str,
         return ""
 
 
+# Mirrors the hard-fail rule stated in make_prompt()/make_rewrite_prompt()/
+# make_review_prompt(). Word-boundary + case-insensitive so it catches
+# sentence-start "We"/"I" too, without matching inside other words.
+# Enforcement list is deliberately broader than the rule text's illustrative
+# examples (adds me/mine): "Trust me" is author voice too.
+FIRST_PERSON_RE = re.compile(r"\b(I|we|us|our|my|me|mine)\b", re.IGNORECASE)
+
+
 def review_and_rewrite(title: str, keyword: str, content: str, api_key: str, or_key: str = "", affiliate_url: str = "", product_name: str = "") -> tuple:
     """Returns (final_content, passed, flags)"""
     if not REVIEWER_ENABLED:
@@ -1104,11 +1112,27 @@ def review_and_rewrite(title: str, keyword: str, content: str, api_key: str, or_
             log_reviewer(f"  AI PATTERNS: {'; '.join(ai_patterns[:5])}")
         if flags:
             log_reviewer(f"  FLAGS: {'; '.join(flags)}")
-        # Hard override: em dash count > 0 always fails
+        # Hard override: em dash count > 0 always fails. Don't just trust the
+        # reviewer's self-reported count -- count the actual article text too,
+        # so a reviewer that under-reports (says 0 while dashes remain) can't
+        # let one slip through.
+        actual_em_dashes = content.count("—")
+        if actual_em_dashes > em_dashes:
+            em_dashes = actual_em_dashes
         if passed and em_dashes > 0:
-            log_reviewer(f"  OVERRIDE: pass forced to FAIL -- {em_dashes} em dash(es) found", "WARN")
+            log_reviewer(f"  OVERRIDE: pass forced to FAIL -- {em_dashes} em dash(es) found "
+                         f"(reviewer reported {scorecard.get('em_dash_count', 0)}, code-counted {actual_em_dashes})", "WARN")
             passed = False
             flags = flags + [f"em_dash_count={em_dashes}"]
+        # Hard override: first-person author voice always fails, mirroring
+        # the em-dash override above. Previously this rule existed only in
+        # the reviewer's own prompt/judgment with no code-level backstop.
+        first_person_hit = FIRST_PERSON_RE.search(content)
+        if passed and first_person_hit:
+            log_reviewer(f"  OVERRIDE: pass forced to FAIL -- first-person voice found: "
+                         f"{first_person_hit.group(0)!r}", "WARN")
+            passed = False
+            flags = flags + [f"first_person_detected={first_person_hit.group(0)!r}"]
         # Hard override: fabrication/accuracy flags always fail regardless of pass=true
         if passed and flags:
             accuracy_keywords = ("fabricat", "unverif", "invent", "statistic", "percentag",

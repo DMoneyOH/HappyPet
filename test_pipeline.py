@@ -292,6 +292,49 @@ class TestReviewerResponseParsing(unittest.TestCase):
         if data["pass"]:
             self.assertTrue(data["affiliate_link_present"])
 
+    def test_em_dash_override_catches_under_reported_count(self):
+        """If the reviewer under-reports em_dash_count (says 0 while the
+        article still has one), code-level ground truth must still catch it."""
+        import generate_posts as gp
+        scorecard = json.loads(REVIEWER_PASS_JSON)
+        scorecard["em_dash_count"] = 0  # reviewer missed it
+        content = "This mat is soft — and dries fast."
+        # Replicate the hardened override logic from review_and_rewrite
+        actual_em_dashes = content.count("—")
+        em_dashes = max(scorecard.get("em_dash_count", 0), actual_em_dashes)
+        passed = scorecard["pass"]
+        if passed and em_dashes > 0:
+            passed = False
+        self.assertFalse(passed)
+        self.assertEqual(em_dashes, 1)
+
+    def test_first_person_override_forces_fail_even_if_reviewer_missed_it(self):
+        """First-person voice must be code-enforced the same way em dashes
+        already are -- not left entirely to the reviewer's judgment."""
+        import generate_posts as gp
+        scorecard = json.loads(REVIEWER_PASS_JSON)  # reviewer said pass=true
+        content = "I really like how quiet this mat is."
+        passed = scorecard["pass"]
+        first_person_hit = gp.FIRST_PERSON_RE.search(content)
+        if passed and first_person_hit:
+            passed = False
+        self.assertFalse(passed)
+        self.assertEqual(first_person_hit.group(0), "I")
+
+    def test_first_person_regex_covers_me_and_mine(self):
+        """Enforcement list is broader than the rule text's illustrative
+        examples: 'Trust me' / 'mine' are author voice too."""
+        import generate_posts as gp
+        self.assertIsNotNone(gp.FIRST_PERSON_RE.search("Trust me, this mat holds up."))
+        self.assertIsNotNone(gp.FIRST_PERSON_RE.search("A favorite of mine for hot days."))
+
+    def test_first_person_override_ignores_clean_text(self):
+        import generate_posts as gp
+        content = "Your dog will appreciate the cooling fabric on hot days."
+        self.assertIsNone(gp.FIRST_PERSON_RE.search(content))
+        # Word-boundary sanity: substrings must not trip it
+        self.assertIsNone(gp.FIRST_PERSON_RE.search("The mesh cover mimics home comfort."))
+
 
 class TestPromptHygiene(unittest.TestCase):
     """The generator's own prompt templates must not contain the characters
@@ -322,8 +365,6 @@ class TestPromptHygiene(unittest.TestCase):
     def test_buying_guide_prompt_has_no_em_dashes(self):
         self.assertNotIn("—", self._prompt_for("buying_guide"))
 
-    FIRST_PERSON_RE = staticmethod(__import__("re").compile(r"\b(I|we|us|our|my)\b", __import__("re").IGNORECASE))
-
     # Lines that legitimately name banned first-person words on purpose --
     # the rule statement itself, or lines quoting bad/stock phrasings so the
     # model knows what NOT to write (e.g. "we've all been there", "put our
@@ -337,7 +378,8 @@ class TestPromptHygiene(unittest.TestCase):
     )
 
     def _first_person_hits(self, text: str) -> list:
-        return self.FIRST_PERSON_RE.findall(text)
+        import generate_posts as gp
+        return gp.FIRST_PERSON_RE.findall(text)
 
     def _body_excluding_rule_and_negative_examples(self, prompt: str) -> str:
         return "\n".join(
