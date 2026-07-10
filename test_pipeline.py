@@ -364,6 +364,46 @@ class TestPromptHygiene(unittest.TestCase):
         self.assertEqual(hits, [], f"Unexpected first-person words in prompt: {hits}")
 
 
+class TestRewritePromptRules(unittest.TestCase):
+    """make_rewrite_prompt() runs on every review-failure retry. The two
+    hardest-fail rules (no em dashes, no first person) must be restated as
+    standing rules in the template itself, not left to whatever the
+    reviewer's dynamic EDITOR FEEDBACK text happens to say that attempt."""
+
+    def test_rewrite_prompt_restates_em_dash_rule(self):
+        import generate_posts as gp
+        prompt = gp.make_rewrite_prompt(
+            "Best Dog Cooling Mats", "best dog cooling mat", "Some article body.",
+            "Fix the pacing in paragraph 2.")
+        self.assertIn("em dash", prompt.lower())
+
+    def test_rewrite_prompt_restates_first_person_rule(self):
+        import generate_posts as gp
+        prompt = gp.make_rewrite_prompt(
+            "Best Dog Cooling Mats", "best dog cooling mat", "Some article body.",
+            "Fix the pacing in paragraph 2.")
+        self.assertIn("first-person", prompt.lower())
+
+    def test_rewrite_prompt_rules_present_even_with_unrelated_feedback(self):
+        # The whole point: these rules must survive regardless of what the
+        # reviewer's rewrite_instructions happened to focus on this attempt.
+        import generate_posts as gp
+        prompt = gp.make_rewrite_prompt(
+            "Best Dog Cooling Mats", "best dog cooling mat", "Some article body.",
+            "Tighten the buying guide section, it's too vague.")
+        self.assertIn("em dash", prompt.lower())
+        self.assertIn("first-person", prompt.lower())
+
+    def test_rewrite_prompt_contains_no_literal_em_dash(self):
+        # Same hygiene rule Task 1 established for make_prompt(): the template
+        # must name the banned character, never print it.
+        import generate_posts as gp
+        prompt = gp.make_rewrite_prompt(
+            "Best Dog Cooling Mats", "best dog cooling mat", "Some article body.",
+            "Fix the pacing in paragraph 2.")
+        self.assertNotIn("—", prompt)
+
+
 class TestFactCheckNotTruncated(unittest.TestCase):
     """Fact-check must not truncate below 60% of article — P3"""
 

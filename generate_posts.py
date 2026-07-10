@@ -763,6 +763,13 @@ ORIGINAL ARTICLE:
 
 REWRITE RULES:
 - Fix exactly what the editor flagged. Do not rewrite sections that passed.
+- NEVER use an em dash (the long dash character, U+2014) anywhere in the rewrite,
+  even in sections you are not otherwise touching. If the original text contains
+  one, remove it as part of this pass -- rewrite the sentence, don't just swap in
+  a different dash.
+- NEVER use first-person voice (I, we, us, our, my) anywhere in the rewrite,
+  even in sections you are not otherwise touching. Use second person ("your
+  dog") or third person ("owners report") instead.
 - Where the editor flagged generic or AI-patterned writing, replace with something SPECIFIC.
   A specific detail beats a fluent generality every time.
   BAD: "Many cat owners find this litter box easy to clean."
