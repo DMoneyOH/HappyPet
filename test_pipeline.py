@@ -1485,35 +1485,70 @@ class TestGenerationPromptHygiene(unittest.TestCase):
                      "stars": "4.5", "review_count": "1200", "price": "29.99",
                      "image": "img", "category": "dog-gear"}
 
-    def _prompt(self, fmt):
-        return self.gp.make_prompt("Best Test Mats", "best test mat", "best-test-mat",
-                                   fmt, self.prod, "", "")
+    def _full(self, fmt):
+        # The model receives the system rules AND the user task; assert on both.
+        return self.gp.GENERATOR_SYSTEM_PROMPT + "\n" + self.gp.make_prompt(
+            "Best Test Mats", "best test mat", "best-test-mat", fmt, self.prod, "", "")
 
     def test_roundup_prompt_models_no_em_dashes(self):
         # At most the single illustrative em dash in the "NEVER use em dashes (—)" rule.
-        self.assertLessEqual(self._prompt("roundup").count("—"), 1)
+        self.assertLessEqual(self._full("roundup").count("—"), 1)
 
     def test_buying_guide_prompt_models_no_em_dashes(self):
-        self.assertLessEqual(self._prompt("buying_guide").count("—"), 1)
+        self.assertLessEqual(self._full("buying_guide").count("—"), 1)
 
     def test_opening_examples_are_second_person(self):
-        p = self._prompt("roundup")
+        p = self._full("roundup")
         for fp in ["My dog", "Our cat", "I spent $40"]:
             self.assertNotIn(fp, p, "opening examples must not model first-person voice")
         self.assertIn("You step away", p)
 
     def test_bans_words_that_failed_review(self):
-        p = self._prompt("roundup")
+        p = self._full("roundup")
         for w in ["prioritize", "leverage", "the bottom line is"]:
             self.assertIn(w, p)
 
     def test_warns_against_rule_of_three(self):
-        self.assertIn("rule-of-three", self._prompt("roundup").lower())
+        self.assertIn("rule-of-three", self._full("roundup").lower())
 
     def test_affiliate_url_injected_not_search_engine(self):
-        p = self._prompt("roundup")
+        p = self._full("roundup")
         self.assertIn("https://amzn.to/testXYZ", p)
         self.assertNotIn("google.com/search", p)
+
+
+class TestGeneratorSystemPrompt(unittest.TestCase):
+    """Generator uses a system prompt (rules) + user task, XML-structured, for adherence."""
+
+    def setUp(self):
+        import generate_posts as gp
+        self.gp = gp
+
+    def test_system_prompt_carries_the_hard_rules(self):
+        sp = self.gp.GENERATOR_SYSTEM_PROMPT
+        low = sp.lower()
+        self.assertIn("em dash", low)
+        self.assertIn("first-person", low)
+        self.assertIn("<writing_rules>", sp)
+        self.assertIn("<output_format>", sp)
+
+    def test_system_prompt_models_no_em_dashes(self):
+        self.assertLessEqual(self.gp.GENERATOR_SYSTEM_PROMPT.count("—"), 1)
+
+    def test_call_generator_sends_system_then_user_at_low_temp(self):
+        from unittest.mock import patch
+        captured = {}
+        def fake_http_post(url, payload, headers, **kw):
+            captured["payload"] = json.loads(payload)
+            return json.dumps({"choices": [{"message": {"content": "X"}, "finish_reason": "stop"}],
+                               "usage": {}}).encode()
+        with patch.object(self.gp, "http_post", side_effect=fake_http_post), \
+             patch.dict(self.gp.os.environ, {"OPENROUTER_API_KEY": "k"}):
+            self.gp.call_generator("user task", "unused", system="SYSTEM RULES")
+        msgs = captured["payload"]["messages"]
+        self.assertEqual([m["role"] for m in msgs], ["system", "user"])
+        self.assertEqual(msgs[0]["content"], "SYSTEM RULES")
+        self.assertLessEqual(captured["payload"]["temperature"], 0.5)
 
 
 class TestRewritePromptGuardrails(unittest.TestCase):
