@@ -329,6 +329,49 @@ def scrub_banned_phrases(text: str, species: str = "dog") -> str:
     return text.strip()
 
 
+def scrub_typography(text: str) -> str:
+    """Convert AI-typography tells (em/en dashes) to what a human would type,
+    deterministically, before the anti-AI review gate. No LLM emits zero em
+    dashes and the reviewer rule is 'any em dash = FAIL', so prompting can't win
+    this -- code must. We convert rather than delete so the prose still reads:
+
+      - Em dashes: a matched pair inside one sentence brackets a parenthetical
+        appositive -> commas ('Buster—a Lab—runs' -> 'Buster, a Lab, runs'). A
+        lone em dash marks a break/reveal -> spaced hyphen (what a person types
+        without the alt-code). Pairs never cross sentence-ending punctuation, so
+        two separate breaks aren't mis-paired into commas.
+      - En dashes: a numeric range (5–10) -> plain hyphen (5-10); otherwise used
+        as a separator -> spaced hyphen. (The reviewer flags only em dashes, but
+        en dashes are the same typographic tell, so fold them in here.)
+
+    Idempotent: a second pass finds no em/en dashes and returns the text as-is.
+    Existing hyphens (high-quality) are left untouched.
+    """
+    # En dash: numeric range -> plain hyphen; separator use -> spaced hyphen.
+    text = re.sub(r"(?<=\d)\s*–\s*(?=\d)", "-", text)
+    text = re.sub(r"\s*–\s*", " - ", text)
+
+    if "—" not in text:
+        return text
+
+    # Process em dashes chunk by chunk, split on sentence-ending punctuation and
+    # newlines, so a parenthetical pair can never span two sentences.
+    chunks = re.split(r"([.!?\n]+)", text)
+    for i, chunk in enumerate(chunks):
+        count = chunk.count("—")
+        if count == 0:
+            continue
+        pieces = re.split(r"\s*—\s*", chunk)  # count+1 segments
+        rebuilt = pieces[0]
+        for j in range(count):
+            # Pair from the left: a dash is "lone" only when it's the last one
+            # in an odd-length run; every other dash closes/opens an appositive.
+            lone = (j == count - 1) and (count % 2 == 1)
+            rebuilt += (" - " if lone else ", ") + pieces[j + 1]
+        chunks[i] = rebuilt
+    return "".join(chunks)
+
+
 def clean_pin_desc(text: str, species: str = "dog") -> str:
     """Strip banned phrases from pin description before writing to queue."""
     return scrub_banned_phrases(text, species)
@@ -1153,6 +1196,12 @@ def review_and_rewrite(title: str, keyword: str, content: str, api_key: str, or_
     if not REVIEWER_ENABLED:
         return content, True, []
     for attempt in range(1, MAX_REVIEW_ATTEMPTS + 1):
+        # Deterministic typography fix, ahead of review: no LLM emits zero em
+        # dashes and the reviewer rule is 'any em dash = FAIL', so convert them
+        # (and en dashes) here -- before make_review_prompt and evaluate_scorecard
+        # -- so the reviewer's own em_dash_count and the deterministic gate both
+        # see clean text, and the returned/published body is clean too.
+        content = scrub_typography(content)
         log_reviewer(f"  REVIEW attempt {attempt}/{MAX_REVIEW_ATTEMPTS}")
         log_reviewer(f"  REVIEW pre-sleep {REVIEW_PRE_SLEEP}s...")
         time.sleep(REVIEW_PRE_SLEEP)
