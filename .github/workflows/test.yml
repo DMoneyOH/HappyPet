@@ -34,7 +34,7 @@ jobs:
           python-version: '3.12'
 
       - name: Install Python dependencies
-        run: pip install --quiet -r requirements.txt
+        run: pip install --quiet -r requirements.txt pytest
 
       - name: Run test suite
         run: python3 -m pytest test_pipeline.py -q
