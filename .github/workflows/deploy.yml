@@ -11,10 +11,9 @@ on:
       - '_config.yml'
       - 'Gemfile'
   workflow_dispatch:
-  workflow_run:
-    workflows: ["Stage 2 — Publish Articles"]
-    types: [completed]
-    branches: [main]
+  # NOTE: no workflow_run trigger. Stage 2's commit of the dated post already
+  # matches the push filter above and fires this deploy once. A second
+  # workflow_run trigger double-fired the deploy (and double-dispatched pins).
 
 # Job-scoped where elevated: trigger-pins gets actions:write, deploy gets pages/id-token
 permissions:

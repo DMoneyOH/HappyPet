@@ -92,6 +92,8 @@ COVERAGE_AUTO_ACCEPT = 0.5
 
 RATING_MAX_RETRY  = 3
 RATING_RETRY_WAIT = 4    # seconds between 429 retries
+API_MAX_RETRY     = 3
+API_RETRY_WAIT    = 3    # seconds between 429/503 retries on the catalog API
 
 # Stripped when building fallback keyword variants
 STOP_WORDS = {
@@ -181,16 +183,25 @@ def _impact_get(path: str, params: dict = None) -> dict:
         "Accept": "application/json",
         "Authorization": f"Basic {creds}",
     })
-    try:
-        with urllib.request.urlopen(req, timeout=15) as resp:
-            return json.loads(resp.read().decode())
-    except urllib.error.HTTPError as e:
-        body = e.read().decode(errors="replace")[:200]
-        print(f"[chewy_lookup] HTTP {e.code} on {path}: {body}", file=sys.stderr)
-        raise ChewyAPIError(f"Impact API HTTP {e.code} on {path}: {body}") from e
-    except Exception as e:
-        print(f"[chewy_lookup] Request error on {path}: {e}", file=sys.stderr)
-        raise ChewyAPIError(f"Impact API request failed on {path}: {e}") from e
+    for attempt in range(1, API_MAX_RETRY + 1):
+        try:
+            with urllib.request.urlopen(req, timeout=15) as resp:
+                return json.loads(resp.read().decode())
+        except urllib.error.HTTPError as e:
+            # Back off and retry on rate-limit / transient upstream errors. A refill
+            # run makes many catalog lookups in a burst; without this, the first 429
+            # raised ChewyAPIError and silently dropped Chewy enrichment for the whole
+            # remaining batch (chewy_enrich swallows it as "not found").
+            if e.code in (429, 503) and attempt < API_MAX_RETRY:
+                print(f"[chewy_lookup] HTTP {e.code} on {path} -- retry {attempt}/{API_MAX_RETRY} in {API_RETRY_WAIT}s", file=sys.stderr)
+                time.sleep(API_RETRY_WAIT)
+                continue
+            body = e.read().decode(errors="replace")[:200]
+            print(f"[chewy_lookup] HTTP {e.code} on {path}: {body}", file=sys.stderr)
+            raise ChewyAPIError(f"Impact API HTTP {e.code} on {path}: {body}") from e
+        except Exception as e:
+            print(f"[chewy_lookup] Request error on {path}: {e}", file=sys.stderr)
+            raise ChewyAPIError(f"Impact API request failed on {path}: {e}") from e
 
 
 def search_catalog(keyword: str, page_size: int = 10) -> list:

@@ -13,6 +13,15 @@ jobs:
         run: |
           RESPONSE=$(curl -s "https://graph.facebook.com/debug_token?input_token=${{ secrets.FACEBOOK_PAGE_TOKEN }}&access_token=${{ secrets.FACEBOOK_PAGE_TOKEN }}")
 
+          # Guard: a 5xx/timeout returns non-JSON, which would otherwise decode to
+          # empty strings and be misdiagnosed as "token invalid". Fail with the real
+          # cause instead.
+          if ! echo "$RESPONSE" | python3 -c "import sys,json; json.load(sys.stdin)" 2>/dev/null; then
+            echo "ERROR: Facebook API did not return JSON (API error/outage, not a token problem):"
+            echo "$RESPONSE" | head -c 300
+            exit 1
+          fi
+
           IS_VALID=$(echo $RESPONSE | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('data',{}).get('is_valid',''))" 2>/dev/null || echo "")
           EXPIRES_AT=$(echo $RESPONSE | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('data',{}).get('expires_at',''))" 2>/dev/null || echo "")
           TOKEN_TYPE=$(echo $RESPONSE | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('data',{}).get('type',''))" 2>/dev/null || echo "")

@@ -1400,5 +1400,45 @@ class TestArticlePersistence(unittest.TestCase):
         self.assertFalse(draft.exists(), "orphan draft must not exist when pin staging fails")
 
 
+class TestChewyApiRetry(unittest.TestCase):
+    """_impact_get retries on 429/503 instead of dropping Chewy enrichment for the
+    whole remaining batch on the first rate-limit (F8)."""
+
+    def _http_error(self, code):
+        import urllib.error, io
+        return urllib.error.HTTPError("https://api.impact.com/x", code, "err", {}, io.BytesIO(b"body"))
+
+    def test_retries_on_429_then_succeeds(self):
+        import chewy_lookup as cl
+        from unittest.mock import patch, MagicMock
+        calls = {"n": 0}
+        def fake_urlopen(req, timeout=15):
+            calls["n"] += 1
+            if calls["n"] == 1:
+                raise self._http_error(429)
+            resp = MagicMock()
+            resp.read.return_value = json.dumps({"Items": [{"Name": "ok"}]}).encode()
+            cm = MagicMock()
+            cm.__enter__.return_value = resp
+            cm.__exit__.return_value = False
+            return cm
+        with patch("urllib.request.urlopen", side_effect=fake_urlopen), patch("time.sleep"):
+            result = cl._impact_get("/Catalogs/1/Items", {"Keyword": "x"})
+        self.assertEqual(calls["n"], 2, "should have retried once after the 429")
+        self.assertEqual(result["Items"][0]["Name"], "ok")
+
+    def test_non_transient_error_raises_without_retry(self):
+        import chewy_lookup as cl
+        from unittest.mock import patch
+        calls = {"n": 0}
+        def fake_urlopen(req, timeout=15):
+            calls["n"] += 1
+            raise self._http_error(500)
+        with patch("urllib.request.urlopen", side_effect=fake_urlopen), patch("time.sleep"):
+            with self.assertRaises(cl.ChewyAPIError):
+                cl._impact_get("/x")
+        self.assertEqual(calls["n"], 1, "a 500 must not be retried")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
