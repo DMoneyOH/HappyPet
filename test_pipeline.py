@@ -811,7 +811,7 @@ class TestGenerationResultJSON(unittest.TestCase):
 
         result_path = REPO / "GENERATION_RESULT.json"
         # Check the attribute exists in module (structural test)
-        source = (REPO / "generate_posts.py").read_text()
+        source = (REPO / "generate_posts.py").read_text(encoding="utf-8")
         self.assertIn("GENERATION_RESULT.json", source,
                       "generate_posts.py must write GENERATION_RESULT.json")
         self.assertIn("articles_generated", source)
@@ -823,7 +823,7 @@ class TestGenerationResultJSON(unittest.TestCase):
         result_path = REPO / "GENERATION_RESULT.json"
         if not result_path.exists():
             self.skipTest("No GENERATION_RESULT.json from a prior run")
-        data = json.loads(result_path.read_text())
+        data = json.loads(result_path.read_text(encoding="utf-8"))
         for key in ("articles_generated", "articles_held", "articles_skipped", "articles_failed"):
             self.assertIn(key, data, f"Missing key: {key}")
 
@@ -832,13 +832,13 @@ class TestPendingDraftsJSON(unittest.TestCase):
     """PENDING_DRAFTS.json is written when articles are generated — P7"""
 
     def test_pending_drafts_written_in_source(self):
-        source = (REPO / "generate_posts.py").read_text()
+        source = (REPO / "generate_posts.py").read_text(encoding="utf-8")
         self.assertIn("PENDING_DRAFTS.json", source)
         self.assertIn('"drafts"', source)
         self.assertIn('"generated"', source)
 
     def test_publish_yml_reads_pending_drafts(self):
-        publish = (REPO / ".github/workflows/publish.yml").read_text()
+        publish = (REPO / ".github/workflows/publish.yml").read_text(encoding="utf-8")
         self.assertIn("PENDING_DRAFTS.json", publish)
 
 
@@ -898,12 +898,12 @@ class TestSilentLegRegressions(unittest.TestCase):
         # sent/ is push_pins_to_sheets.py's processed marker. When post_pins
         # moved fired files there first, push_pins skipped them all and the
         # FB Queue append became a permanent no-op.
-        source = (REPO / "post_pins.py").read_text()
+        source = (REPO / "post_pins.py").read_text(encoding="utf-8")
         self.assertNotIn("shutil.move", source,
                          "post_pins must not move queue files -- sent/ belongs to push_pins")
 
     def test_push_pins_dedups_on_sheet(self):
-        source = (REPO / "push_pins_to_sheets.py").read_text()
+        source = (REPO / "push_pins_to_sheets.py").read_text(encoding="utf-8")
         self.assertIn("read_fb_queue_state", source)
         self.assertNotIn("SKIP (already sent)", source,
                          "sent/-location dedup starves the FB queue; the sheet is the authority")
@@ -911,7 +911,7 @@ class TestSilentLegRegressions(unittest.TestCase):
     def test_validator_treats_api_failure_as_error_not_mismatch(self):
         # An Impact.com outage must never look like a wrong-brand link --
         # --fix would clear every stored Chewy URL
-        source = (REPO / "validate_published_chewy_links.py").read_text()
+        source = (REPO / "validate_published_chewy_links.py").read_text(encoding="utf-8")
         self.assertIn("ChewyAPIError", source)
         from validate_published_chewy_links import check_brand_match
         ok, _ = check_brand_match("Greenies Feline Dental Treats", "")
@@ -957,7 +957,7 @@ class TestReviewerSchema(unittest.TestCase):
         # Derek's constraint: no direct Anthropic account -- Claude access goes
         # through OpenRouter on the existing OPENROUTER_API_KEY, with schema
         # enforcement requested and routing pinned to providers that honor it
-        source = (REPO / "generate_posts.py").read_text()
+        source = (REPO / "generate_posts.py").read_text(encoding="utf-8")
         self.assertNotIn("api.anthropic.com", source)
         self.assertNotIn("ANTHROPIC_API_KEY", source)
         self.assertIn('"response_format"', source)
@@ -967,7 +967,7 @@ class TestReviewerSchema(unittest.TestCase):
         self.assertTrue(gp.REVIEWER_MODEL.startswith("anthropic/"))
 
     def test_generate_yml_has_no_anthropic_secret(self):
-        workflow = (REPO / ".github/workflows/generate.yml").read_text()
+        workflow = (REPO / ".github/workflows/generate.yml").read_text(encoding="utf-8")
         self.assertNotIn("ANTHROPIC_API_KEY", workflow)
 
 
@@ -1093,7 +1093,7 @@ class TestRefillAgent(unittest.TestCase):
             rp.PAAPI_ACCESS_KEY, rp.PAAPI_SECRET_KEY = old
 
     def test_refill_workflow_never_pushes_main(self):
-        workflow = (REPO / ".github/workflows/refill.yml").read_text()
+        workflow = (REPO / ".github/workflows/refill.yml").read_text(encoding="utf-8")
         self.assertNotIn("git push origin main", workflow)
         self.assertIn("gh pr create", workflow)
         self.assertIn("workflow_dispatch", workflow)
@@ -1142,7 +1142,7 @@ class TestManualResolve(unittest.TestCase):
                     "--price", "249.99", "--stars", "4.5",
                     "--runners-up", "Litter-Robot 4; PetSafe ScoopFree",
                 ])
-            written = json.loads(path.read_text())
+            written = json.loads(path.read_text(encoding="utf-8"))
 
         entry = written[0]
         self.assertEqual(entry["asin"], "B0ABCD1234")
@@ -1181,7 +1181,7 @@ class TestManualResolve(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             path = Path(d) / "products.json"
             path.write_text(json.dumps(products))
-            original = path.read_text()
+            original = path.read_text(encoding="utf-8")
             with patch.object(rp, "PRODUCTS_PATH", path):
                 with self.assertRaises(SystemExit):
                     mr.main([
@@ -1190,7 +1190,7 @@ class TestManualResolve(unittest.TestCase):
                         "--image", "https://m.media-amazon.com/images/I/x.jpg",
                         "--price", "39.99", "--stars", "4.2",
                     ])
-            self.assertEqual(path.read_text(), original, "rejected candidate must not write")
+            self.assertEqual(path.read_text(encoding="utf-8"), original, "rejected candidate must not write")
 
     def test_rejects_wrong_image_host_and_does_not_write(self):
         import tempfile
@@ -1202,7 +1202,7 @@ class TestManualResolve(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             path = Path(d) / "products.json"
             path.write_text(json.dumps(products))
-            original = path.read_text()
+            original = path.read_text(encoding="utf-8")
             with patch.object(rp, "PRODUCTS_PATH", path):
                 with self.assertRaises(SystemExit):
                     mr.main([
@@ -1210,7 +1210,7 @@ class TestManualResolve(unittest.TestCase):
                         "--asin", "B0ABCD1234", "--image", "https://example.com/evil.jpg",
                         "--price", "59.99", "--stars", "4.3",
                     ])
-            self.assertEqual(path.read_text(), original)
+            self.assertEqual(path.read_text(encoding="utf-8"), original)
 
     def test_rejects_sponsored_prefixed_name_and_does_not_write(self):
         import tempfile
@@ -1221,7 +1221,7 @@ class TestManualResolve(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             path = Path(d) / "products.json"
             path.write_text(json.dumps(products))
-            original = path.read_text()
+            original = path.read_text(encoding="utf-8")
             with patch.object(rp, "PRODUCTS_PATH", path):
                 with self.assertRaises(SystemExit):
                     mr.main([
@@ -1231,7 +1231,7 @@ class TestManualResolve(unittest.TestCase):
                         "--image", "https://m.media-amazon.com/images/I/x.jpg",
                         "--price", "12.99", "--stars", "4.1",
                     ])
-            self.assertEqual(path.read_text(), original)
+            self.assertEqual(path.read_text(encoding="utf-8"), original)
 
     def test_rejects_unknown_topic(self):
         import tempfile
@@ -1292,7 +1292,7 @@ class TestManualResolve(unittest.TestCase):
                     "--price", "249.99", "--stars", "4.5",
                     "--upc", "810189030893",
                 ])
-            written = json.loads(path.read_text())
+            written = json.loads(path.read_text(encoding="utf-8"))
         self.assertEqual(written[0]["upc"], "810189030893")
 
     def test_upc_omitted_leaves_entry_without_upc_key(self):
@@ -1316,7 +1316,7 @@ class TestManualResolve(unittest.TestCase):
                     "--image", "https://m.media-amazon.com/images/I/71abcXYZ._AC_SX425_.jpg",
                     "--price", "249.99", "--stars", "4.5",
                 ])
-            written = json.loads(path.read_text())
+            written = json.loads(path.read_text(encoding="utf-8"))
         self.assertNotIn("upc", written[0])
 
 

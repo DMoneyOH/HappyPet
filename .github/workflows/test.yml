@@ -1,0 +1,40 @@
+name: CI — Tests
+
+# Runs the pipeline test suite on every PR to main (and on pushes to main).
+# The suite mocks all provider APIs, so no secrets are required. This is the
+# gate that makes tests like the products.json affiliate-link data contract
+# actually protective: a red suite blocks the merge instead of only failing
+# on a developer's machine.
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: happypet-tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pytest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Python dependencies
+        run: pip install --quiet -r requirements.txt
+
+      - name: Run test suite
+        run: python3 -m pytest test_pipeline.py -q
