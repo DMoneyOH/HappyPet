@@ -838,15 +838,18 @@ ORIGINAL ARTICLE:
 
 REWRITE RULES:
 - Fix exactly what the editor flagged. Do not rewrite sections that passed.
-- Where the editor flagged generic or AI-patterned writing, replace with something SPECIFIC.
+- These hard rules from the original brief still apply -- breaking any one fails the article again:
+  - NEVER use em dashes (—). Use hyphens, commas, or shorter sentences.
+  - NEVER use first-person voice (I, we, us, our, my). No personal stories and no named pets. Write in second or third person.
+  - NEVER invent numbers -- no percentages, review counts, prices, dates, or specs you were not given. If a number is not already in the article, do not add one.
+- Where the editor flagged generic or AI-patterned writing, replace with something SPECIFIC and concrete.
   A specific detail beats a fluent generality every time.
   BAD: "Many cat owners find this litter box easy to clean."
   GOOD: "The front-entry design means you scoop from the top instead of kneeling on the floor."
-- Where warmth is flagged, add a concrete human moment -- a scenario, a frustration, a small observation.
-  Do not add hollow affirmations ("Great news!", "You'll love..."). Real warmth is specific.
+- Where warmth or human voice is flagged, get MORE SPECIFIC in second person -- name a scenario the reader recognizes ("your dog paces the kitchen at 5am") or a concrete frustration. Do NOT invent a personal anecdote, a named pet, a testimonial, or a statistic to sound warmer. Real warmth is specific and grounded, never fabricated.
 - Where transitions feel templated, cut them or rewrite as a direct statement.
-  Never use: "Overall", "In summary", "Whether you", "At the end of the day", "Ultimately".
-- Read your output. If any sentence could have been written by a content farm, rewrite it.
+  Never use: "Overall", "In summary", "Whether you", "At the end of the day", "Ultimately", "However", "Furthermore", "Moreover".
+- Read your output before returning it. If any sentence could have been written by a content farm, rewrite it. If you added an em dash, a first-person word, or a number that was not in the original, remove it.
 
 Return ONLY clean Markdown. No YAML. No preamble. First line must be:
 PIN_DESC: [one punchy sentence, max 20 words, Pinterest stop-scroll hook]

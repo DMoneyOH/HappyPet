@@ -1516,5 +1516,30 @@ class TestGenerationPromptHygiene(unittest.TestCase):
         self.assertNotIn("google.com/search", p)
 
 
+class TestRewritePromptGuardrails(unittest.TestCase):
+    """The rewrite prompt must re-assert the hard rules so rewrites don't degrade a
+    clean draft into fabrication/first-person (the observed 'My Lab Buster' failure)."""
+
+    def setUp(self):
+        import generate_posts as gp
+        self.gp = gp
+        self.p = gp.make_rewrite_prompt("Title", "kw", "body content here",
+                                        "warmth is low", "https://amzn.to/x", "Prod")
+
+    def test_rewrite_forbids_em_dashes(self):
+        self.assertIn("em dash", self.p.lower())
+
+    def test_rewrite_forbids_first_person(self):
+        self.assertIn("first-person", self.p.lower())
+
+    def test_rewrite_forbids_inventing_numbers_and_anecdotes(self):
+        self.assertIn("invent", self.p.lower())
+        self.assertIn("anecdote", self.p.lower())
+
+    def test_rewrite_does_not_ask_for_a_human_moment(self):
+        # The instruction that produced first-person anecdotes must be gone.
+        self.assertNotIn("add a concrete human moment", self.p)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
