@@ -87,7 +87,7 @@ jobs:
             --repo "${{ github.repository }}" \
             --title "Chewy link validation: problems detected $(date '+%Y-%m-%d')" \
             --body "$ISSUE_BODY" \
-            --assignee DMoneyOH || true
+            --assignee DMoneyOH || echo "::warning::gh issue create failed -- chewy validation problems went unreported"
 
       - name: Commit fix if applied
         if: github.event.inputs.fix == 'true'
