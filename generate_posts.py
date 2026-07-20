@@ -62,6 +62,11 @@ GROQ_URL             = "https://api.groq.com/openai/v1/chat/completions"
 OPENROUTER_URL       = "https://openrouter.ai/api/v1/chat/completions"
 GEMINI_GEN_MODEL     = "gemini-2.5-flash"
 OR_GEN_MODEL         = "openai/gpt-oss-120b:free"
+# Primary generator: Claude Sonnet via OpenRouter. Claude follows the style
+# contract (no em dashes, no first-person, no fabricated stats) far more reliably
+# than Gemini Flash, which the reviewer kept rejecting. Bump this slug for a newer
+# Sonnet if desired -- same OpenRouter account already runs anthropic/claude-haiku-4.5.
+OR_GEN_MODEL_CLAUDE  = "anthropic/claude-sonnet-4.5"
 REVIEWER_MODEL       = "anthropic/claude-haiku-4.5"
 REVIEWER_FALLBACK    = "gemini-2.5-flash-lite"
 REVIEWER_ENABLED     = True
@@ -619,36 +624,38 @@ def evaluate_scorecard(scorecard: dict, content: str) -> tuple:
 def call_generator(prompt: str, api_key: str) -> str:
     """
     Generator call chain:
-      1. Gemini 2.5 Flash (paid, direct API) -- primary
-      2. OpenRouter gpt-oss-120b:free -- emergency fallback only
-    Raises RuntimeError if both exhausted. A failed run that retries Thursday
-    beats a flaky free-tier article published Monday, so there is no tier 3.
+      1. Claude Sonnet via OpenRouter (paid) -- primary
+      2. Gemini 2.5 Flash (direct API) -- emergency fallback only
+    Claude clears the anti-AI reviewer bar (no em dashes / first-person /
+    fabricated stats) that Gemini Flash consistently failed; Gemini stays as a
+    safety net for when OpenRouter is unavailable. Raises if both are exhausted.
     """
-    # --- Tier 1: Gemini 2.5 Flash (primary) ---
-    try:
-        return _call_gemini(GEMINI_GEN_MODEL, prompt, max_tokens=8192, temperature=0.75,
-                            label="Gemini-Gen-Primary")
-    except Exception as exc:
-        log(f"  Gemini generator failed: {exc} -- failing over to OpenRouter", "WARN")
-
-    # --- Tier 2: OpenRouter gpt-oss-120b:free (emergency fallback) ---
+    # --- Tier 1: Claude Sonnet via OpenRouter (primary) ---
     or_gen_key = os.environ.get("OPENROUTER_API_KEY", "").strip()
-    if not or_gen_key:
-        raise RuntimeError("Gemini generator failed and OPENROUTER_API_KEY not set")
-    or_fb_payload = json.dumps({
-        "model": OR_GEN_MODEL,
-        "messages": [{"role": "user", "content": prompt}],
-        "max_tokens": 8192,
-        "temperature": 0.75,
-    }).encode()
-    or_fb_headers = {
-        "Content-Type": "application/json",
-        "Authorization": f"Bearer {or_gen_key}",
-        **OR_HEADERS_EXTRA,
-    }
-    raw = http_post(OPENROUTER_URL, or_fb_payload, or_fb_headers, label="OR-Gen-Fallback",
-                    timeout=90, retries=2, backoff_base=60)
-    return _extract_or_content(raw, "OR gpt-oss-120b:free fallback")
+    if or_gen_key:
+        try:
+            payload = json.dumps({
+                "model": OR_GEN_MODEL_CLAUDE,
+                "messages": [{"role": "user", "content": prompt}],
+                "max_tokens": 8192,
+                "temperature": 0.7,
+            }).encode()
+            headers = {
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {or_gen_key}",
+                **OR_HEADERS_EXTRA,
+            }
+            raw = http_post(OPENROUTER_URL, payload, headers, label="Gen-Claude-Sonnet-OR",
+                            timeout=120, retries=2, backoff_base=30)
+            return _extract_or_content(raw, f"Gen {OR_GEN_MODEL_CLAUDE}")
+        except Exception as exc:
+            log(f"  Claude Sonnet generator failed: {exc} -- failing over to Gemini", "WARN")
+    else:
+        log("  OPENROUTER_API_KEY not set -- using Gemini generator directly", "WARN")
+
+    # --- Tier 2: Gemini 2.5 Flash (emergency fallback) ---
+    return _call_gemini(GEMINI_GEN_MODEL, prompt, max_tokens=8192, temperature=0.75,
+                        label="Gemini-Gen-Fallback")
 
 
 def _extract_or_content(raw: bytes, label: str) -> str:
@@ -1358,7 +1365,7 @@ def main() -> None:
         POSTS_DIR.mkdir(parents=True, exist_ok=True)
         today     = datetime.date.today().isoformat()
         generated = skipped = failed = held = 0
-        log(f"START v22.0 -- {len(topics)} topics -- generator={GEMINI_GEN_MODEL} reviewer={REVIEWER_MODEL if REVIEWER_ENABLED else 'OFF'}")
+        log(f"START v22.0 -- {len(topics)} topics -- generator={OR_GEN_MODEL_CLAUDE} (fallback {GEMINI_GEN_MODEL}) reviewer={REVIEWER_MODEL if REVIEWER_ENABLED else 'OFF'}")
 
         for i, (slug, title, keyword, fmt) in enumerate(topics, 1):
             # Inter-article delay at the TOP of the loop so every path pays it.
