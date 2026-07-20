@@ -621,7 +621,7 @@ def evaluate_scorecard(scorecard: dict, content: str) -> tuple:
     return passed, flags
 
 
-def call_generator(prompt: str, api_key: str) -> str:
+def call_generator(prompt: str, api_key: str, system: str = "") -> str:
     """
     Generator call chain:
       1. Claude Sonnet via OpenRouter (paid) -- primary
@@ -634,11 +634,13 @@ def call_generator(prompt: str, api_key: str) -> str:
     or_gen_key = os.environ.get("OPENROUTER_API_KEY", "").strip()
     if or_gen_key:
         try:
+            messages = ([{"role": "system", "content": system}] if system else []) \
+                       + [{"role": "user", "content": prompt}]
             payload = json.dumps({
                 "model": OR_GEN_MODEL_CLAUDE,
-                "messages": [{"role": "user", "content": prompt}],
+                "messages": messages,
                 "max_tokens": 8192,
-                "temperature": 0.7,
+                "temperature": 0.5,
             }).encode()
             headers = {
                 "Content-Type": "application/json",
@@ -654,7 +656,8 @@ def call_generator(prompt: str, api_key: str) -> str:
         log("  OPENROUTER_API_KEY not set -- using Gemini generator directly", "WARN")
 
     # --- Tier 2: Gemini 2.5 Flash (emergency fallback) ---
-    return _call_gemini(GEMINI_GEN_MODEL, prompt, max_tokens=8192, temperature=0.75,
+    gemini_prompt = f"{system}\n\n{prompt}" if system else prompt
+    return _call_gemini(GEMINI_GEN_MODEL, gemini_prompt, max_tokens=8192, temperature=0.6,
                         label="Gemini-Gen-Fallback")
 
 
@@ -856,6 +859,35 @@ PIN_DESC: [one punchy sentence, max 20 words, Pinterest stop-scroll hook]
 Then article body immediately after."""
 
 
+# Static persona + rules for the generator, sent as the `system` message. Claude
+# follows rules placed in the system role and delimited by XML tags far more
+# reliably than the same rules buried in a flat user prompt.
+GENERATOR_SYSTEM_PROMPT = """You are a senior writer for Happy Pet Product Reviews, a trusted budget-focused pet product review blog. You write complete, publish-ready posts that read like honest advice from a real, budget-conscious pet owner, never like AI or marketing copy.
+
+An automated reviewer rejects any article that breaks the rules in <writing_rules>. Follow every one of them.
+
+<writing_rules>
+- Tone: conversational, grounded, and slightly skeptical. Avoid the hyper-enthusiastic, overly polished "salesperson" voice.
+- Cadence: vary sentence length. Mix short, punchy sentences with a few longer flowing ones. Do not make every sentence the same length; keep it readable and do not overuse one-word fragments.
+- Voice: write ONLY in second person ("your dog", "you'll find") or third person ("owners report", "dogs tend to"). NEVER use first-person voice (I, we, us, our, my). No personal stories, no named pets, no invented testimonials. The reviewer fails any article that uses first person.
+- Dashes: NEVER use em dashes (—). Use hyphens, commas, or shorter sentences.
+- Transitions: never use "Furthermore", "Moreover", "Additionally", "Consequently", "Therefore", "However", "That said". Start sentences with the subject or an action; an occasional plain "But", "And", or "So" is fine, but do not lean on them.
+- No decorative bold inside prose paragraphs.
+- Avoid rule-of-three overuse: do not stack three-item parallel phrases ("X, Y, and Z"). Use one or two, or restructure. At most one such list per article.
+- Never use these words or phrases: "delve", "tapestry", "testament", "paramount", "crucial", "elevate", "beacon", "multifaceted", "seamlessly", "realm", "bustling", "unleash", "prioritize", "leverage", "robust", "the bottom line is", "it's worth noting", "in conclusion", "look no further", "game-changer", "comprehensive guide", "navigate", "when it comes to", "at the end of the day", "we all know", "as pet owners", "as dog owners", "as cat owners", "paw-some", "fur baby", "pet parent", "furry friend". Use "dog owner" or "cat owner".
+- Facts: only state specs given in the product data. When you lack a number, be concretely specific ("owners of large breeds", "on hardwood floors") rather than vague ("many owners report..."). NEVER invent dimensions, materials, weight, percentages, statistics, prices, review counts, or dates you were not given.
+- Headings: sentence case, not Title Case. Never start a section with "In conclusion" or "In summary". Never use "Opening" or "Closing" as headings.
+- Openings: when it fits, open with a specific second-person moment the reader recognizes ("You step away for a 45-minute Zoom call and come back to a shredded couch cushion."). Show, don't tell. Never open with "We've all been there", "As a pet owner...", a generic fact, or a vague scenario before a product pitch. For purely practical topics, a direct factual opening is fine.
+- Use the focus keyword naturally 4-6 times.
+</writing_rules>
+
+<output_format>
+Return ONLY clean Markdown. No YAML, no preamble, no code fences. The FIRST line must be exactly:
+PIN_DESC: [one punchy sentence, max 20 words, a Pinterest stop-scroll hook]
+Then the article body immediately after.
+</output_format>"""
+
+
 def make_prompt(title: str, keyword: str, slug: str, fmt: str, product: dict,
                 related_url: str, related_anchor: str) -> str:
     affiliate_url = product.get("affiliate_url", "")
@@ -933,35 +965,19 @@ STRUCTURE:
     else:
         structure = f"""ARTICLE FORMAT: Buying guide -- {title}
 STRUCTURE: Opening (100+ words, NO heading - begin prose directly) | What to Look For (H2, 5-6 key factors) | Our Top Pick {product_name} (H2, 100 words, affiliate link) | Common Mistakes to Avoid (H2, 3-4 pitfalls) | FAQ (H2, 4-5 real questions) | Closing (80+ words with affiliate link, NO heading - begin prose directly)"""
-    return f"""You are a senior writer for Happy Pet Product Reviews, a trusted budget-focused pet product review blog.
+    return f"""<task>
+Write a complete, publish-ready blog post using the product data and structure below.
+Title: "{title}"
+Focus keyword: "{keyword}"
+Length: 950-1100 words of body content. This is firm. Complete every section; do not stop early.
+</task>
 
-Write a complete, publish-ready blog post. Title: "{title}". Focus keyword: "{keyword}".
+<featured_product>
+{affiliate_block}</featured_product>
 
-{affiliate_block}
-LENGTH: 950-1100 words of body content. Firm requirement. CRITICAL: Complete ALL sections before stopping. Do not stop early. Write every section in STRUCTURE completely.
-
+<structure>
 {structure}
-
-WRITING STYLE & HUMANIZATION RULES:
-- Tone: conversational, grounded, and slightly skeptical. Avoid the hyper-enthusiastic, overly polished "salesperson" voice common in AI copy. Write like a real, budget-conscious dog or cat owner giving a friend honest, practical advice.
-- Cadence: vary sentence length. Mix short, punchy sentences with a few longer flowing ones for a natural human rhythm. Do not make every sentence the same length; keep it readable and do not overuse one-word fragments.
-- Transitions: do not use robotic transitions ("Furthermore", "Moreover", "Additionally", "Consequently", "Therefore", "However", "That said"). Start sentences with the subject or an action; an occasional plain "But", "And", or "So" is fine, but do not lean on them.
-- No decorative bold: do not bold words or phrases inside prose paragraphs for emphasis. Keep prose styling plain.
-- Use hyphens (-) for compound words and standard dashes where needed. NEVER use em dashes (—). Rewrite the sentence instead.
-- Avoid rule-of-three overuse: do not stack three-item parallel phrases ("X, Y, and Z"). Use one or two items or restructure. More than one such list per article reads as AI-written.
-- BANNED words and phrases, never use: "delve", "tapestry", "testament", "paramount", "crucial", "elevate", "beacon", "multifaceted", "seamlessly", "realm", "bustling", "unleash", "prioritize", "leverage", "robust", "the bottom line is", "it's worth noting", "in conclusion", "look no further", "game-changer", "comprehensive guide", "navigate", "we've all been there", "there's nothing quite like", "we've got you covered", "for good reason", "without breaking the bank", "in today's world", "when it comes to", "at the end of the day", "we all know", "as pet owners", "as dog owners", "as cat owners".
-- Avoid stock pet-blog phrases that signal AI copy: never use "paw-some", "put our paws", "tail wagging" as metaphor, "furry family member", "fur baby", "pet parent", or "furry friend". Use "dog owner" or "cat owner" instead. Natural warmth through genuine voice is encouraged; forced wordplay is not.
-- FACTS: only state product specs you are certain of from the product listing. When you lack a number, be concretely specific ("owners of large breeds", "on hardwood floors") rather than repeating a vague "many owners report...". Never invent dimensions, materials, weight, compatibility claims, percentages, statistics, prices, or review counts you were not given.
-- SECTION HEADINGS: never start a section with "In conclusion" or "In summary". Use a specific, descriptive heading in sentence case (not Title Case). Never use "Opening" or "Closing" as headings; those are unheaded prose sections.
-- OPENING: when it fits the topic, open with a specific, relatable moment a dog or cat owner would recognize, written in SECOND person. Show, don't tell.
-  Good examples: "You step away for a 45-minute Zoom call and come back to a shredded couch cushion." / "Your cat knocks the water bowl over three times in one afternoon." / "You spend $40 on a toy your dog sniffs once and abandons."
-  Bad examples (NEVER write openings like these): "We've all been there..." (cliche) / "As a pet owner, you know how important it is to..." (filler) / "Dogs need mental stimulation to stay happy and healthy." (generic) / "Standing in the kitchen when suddenly..." (AI-template setup) / any opening that starts with a vague scenario followed by a product pitch.
-  If the article topic is purely practical (e.g. flea prevention, nutrition), a direct factual opening is fine; do not force an anecdote.
-- Use "{keyword}" naturally 4-6 times. Write ONLY in second person ("your dog", "you'll find") or third person ("owners report", "dogs tend to"). Never use first-person voice (I, we, us, our, my); the reviewer fails any article that does.{link}
-
-FORMAT: Return ONLY clean Markdown. No YAML. No preamble. Start writing immediately.
-FIRST LINE must be: PIN_DESC: [one punchy sentence, max 20 words, Pinterest stop-scroll hook]
-Then article body immediately after."""
+</structure>{link}"""
 
 
 def _sanitize_factcheck_output(cleaned: str, original: str) -> str | None:
@@ -1441,7 +1457,7 @@ def main() -> None:
                 else:
                     prompt = prompt.replace("{{ALTERNATIVE_PRODUCTS}}", "EXACTLY 3 alternatives -- use well-known brands you are confident exist. Do not fabricate products.")
                 
-                content = call_generator(prompt, groq_key)
+                content = call_generator(prompt, groq_key, system=GENERATOR_SYSTEM_PROMPT)
                 log(f"  [timing] generate: {time.monotonic()-_t0:.1f}s")
 
                 pin_desc, content = extract_pin_desc(content, f"{title} - expert reviews and buying guide.")
