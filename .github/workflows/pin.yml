@@ -165,8 +165,13 @@ jobs:
             echo "Nothing staged — no commit needed"
           else
             git commit -m "chore: retire slug and consume pending-slugs after pin run"
-            git push origin main
-            echo "Committed and pushed cleanup"
+            for attempt in 1 2 3 4 5; do
+              if git push origin main; then echo "Pushed cleanup (attempt ${attempt})"; break; fi
+              if [ "$attempt" = "5" ]; then echo "ERROR: push failed after 5 attempts"; exit 1; fi
+              echo "Push rejected -- rebasing and retrying (attempt ${attempt})"
+              git pull --rebase origin main
+              sleep 3
+            done
           fi
 
       - name: Upload logs as artifact

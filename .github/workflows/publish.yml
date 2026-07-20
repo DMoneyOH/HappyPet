@@ -172,8 +172,14 @@ jobs:
           COUNT="${{ steps.stage.outputs.publish_count }}"
           TODAY=$(date '+%Y-%m-%d')
           git commit -m "auto: publish ${TODAY} [${COUNT} post(s)]"
-          git push origin main
-          echo "Pushed — deploy and pin workflows will follow"
+          # Push with bounded retry so a concurrent push doesn't drop this cycle.
+          for attempt in 1 2 3 4 5; do
+            if git push origin main; then echo "Pushed (attempt ${attempt}) — deploy and pin workflows will follow"; break; fi
+            if [ "$attempt" = "5" ]; then echo "ERROR: push failed after 5 attempts"; exit 1; fi
+            echo "Push rejected -- rebasing and retrying (attempt ${attempt})"
+            git pull --rebase origin main
+            sleep 3
+          done
 
       - name: Queue low — create GitHub issue
         if: steps.stage.outputs.nothing_to_publish == 'false'

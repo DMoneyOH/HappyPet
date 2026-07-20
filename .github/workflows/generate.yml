@@ -53,18 +53,33 @@ jobs:
       - name: Check products.json queue
         id: queue_check
         run: |
+          # Count topics with neither a dated post nor a DRAFT -- i.e. real work
+          # remaining. Counting total entries (the old behaviour) meant a fully
+          # drained queue still ran the generator, produced nothing, and tripped
+          # the "0 generated / 0 held" hard-fail below -- a false red that also
+          # blocked Stage 2's workflow_run trigger.
           count=$(python3 -c "
-          import json, sys
+          import json
+          from pathlib import Path
           try:
-              data = json.load(open('products.json'))
-              print(len(data))
+              products = json.loads(Path('products.json').read_text(encoding='utf-8'))
           except Exception:
-              print(0)
+              products = []
+          done = set()
+          for md in Path('_posts').glob('*.md'):
+              stem = md.stem
+              if stem.startswith('DRAFT-'):
+                  done.add(stem[len('DRAFT-'):])
+              else:
+                  parts = stem.split('-', 3)
+                  if len(parts) == 4:
+                      done.add(parts[3])
+          print(sum(1 for p in products if p.get('topic') not in done))
           ")
           echo "queue_count=${count}" >> "$GITHUB_OUTPUT"
-          echo "Products in queue: ${count}"
+          echo "Unpublished topics remaining: ${count}"
           if [ "$count" -eq 0 ]; then
-            echo "Queue empty — nothing to generate"
+            echo "Queue drained -- nothing to generate (generator + validate steps skip)"
           fi
 
       - name: Determine cap
@@ -157,8 +172,19 @@ jobs:
             echo "No files changed -- no commit needed"
           else
             git commit -m "auto: stage generated files $(date '+%Y-%m-%d')"
-            git push origin main
-            echo "Committed generated files"
+            # Push with bounded retry: a concurrent push (e.g. Stage 2) can reject
+            # ours non-fast-forward. Rebase onto the new tip and retry rather than
+            # failing the run and losing all its generated drafts.
+            pushed=0
+            for attempt in 1 2 3 4 5; do
+              if git push origin main; then
+                echo "Committed generated files (push attempt ${attempt})"; pushed=1; break
+              fi
+              echo "Push rejected -- rebasing onto origin/main and retrying (attempt ${attempt})"
+              git pull --rebase origin main || { echo "ERROR: rebase failed"; exit 1; }
+              sleep 3
+            done
+            if [ "$pushed" = "0" ]; then echo "ERROR: push failed after 5 attempts"; exit 1; fi
           fi
 
       - name: Upload logs as artifact

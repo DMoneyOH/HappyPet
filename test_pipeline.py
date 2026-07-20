@@ -1369,5 +1369,36 @@ class TestJsonIO(unittest.TestCase):
             self.json_io.read_json(self.path)
 
 
+class TestArticlePersistence(unittest.TestCase):
+    """persist_generated_article() -- draft is written LAST so a crash never
+    leaves a publishable draft with no pin queued (F5, orphan-draft prevention)."""
+
+    def setUp(self):
+        import generate_posts as gp
+        self.gp = gp
+        import tempfile
+        self.tmp = Path(tempfile.mkdtemp())
+
+    def tearDown(self):
+        import shutil
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def test_writes_pin_queue_and_draft(self):
+        draft = self.tmp / "DRAFT-x.md"
+        pq = self.tmp / "_pin_queue" / "x.json"
+        self.gp.persist_generated_article(draft, "body text", pq, {"slug": "x"})
+        self.assertEqual(draft.read_text(encoding="utf-8"), "body text")
+        self.assertEqual(json.loads(pq.read_text(encoding="utf-8")), {"slug": "x"})
+
+    def test_draft_not_written_if_pin_queue_fails(self):
+        # A non-serializable pin_data makes json.dumps raise BEFORE the draft is
+        # written -- the draft must not exist, or Stage 2 would publish an orphan.
+        draft = self.tmp / "DRAFT-x.md"
+        pq = self.tmp / "_pin_queue" / "x.json"
+        with self.assertRaises(TypeError):
+            self.gp.persist_generated_article(draft, "body text", pq, {"bad": object()})
+        self.assertFalse(draft.exists(), "orphan draft must not exist when pin staging fails")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

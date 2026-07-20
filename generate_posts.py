@@ -1283,6 +1283,18 @@ def front_matter(title: str, keyword: str, affiliate_url: str, slug: str,
     return fm
 
 
+def persist_generated_article(draft_path, article_text: str, pin_queue_path, pin_data: dict) -> None:
+    """Stage the pin-queue entry, THEN write the draft.
+
+    The draft file is the last thing written on the success path. If anything
+    here fails (serialization, disk, a mid-write crash), no draft exists -- so
+    Stage 2 can never publish a draft that has no pin queued for it (an orphan).
+    """
+    pin_queue_path.parent.mkdir(exist_ok=True)
+    pin_queue_path.write_text(json.dumps(pin_data, indent=2), encoding="utf-8")
+    draft_path.write_text(article_text, encoding="utf-8")
+
+
 def main() -> None:
     # Load .env first -- local runs need this; GHA already has env vars from secrets
     if DOTENV_AVAILABLE:
@@ -1469,8 +1481,6 @@ def main() -> None:
                 content_clean = content.lstrip()
                 while content_clean.startswith("---"):
                     content_clean = content_clean[3:].lstrip()
-                fpath.write_text(fm + "\n" + content_clean, encoding="utf-8")
-                log(f"  SAVED {fname} ({fpath.stat().st_size} bytes) -- total: {time.monotonic()-_t0:.1f}s")
 
                 article_url = build_url(slug, utm=True)
                 asin        = product.get("asin", "")
@@ -1486,16 +1496,19 @@ def main() -> None:
                     except Exception as pe:
                         log_pin(f"  pin generation failed: {pe}", "WARN")
 
-                # Stage pin data for publish.yml -> post_pins.py -> push_pins_to_sheets.py
-                pin_queue_dir = REPO_DIR / "_pin_queue"
-                pin_queue_dir.mkdir(exist_ok=True)
+                # Stage the pin entry, THEN write the draft (draft-last): a failure
+                # here can never leave an orphan draft that Stage 2 would publish
+                # with no pin queued. See persist_generated_article.
                 pin_data = {
                     "title": title, "article_url": article_url, "description": pin_desc,
                     "image_url": build_pin_image_url_for_queue(slug), "species": species, "slug": slug,
                     "topical_sheet": topical_sheet_key,
                 }
-                (pin_queue_dir / f"{slug}.json").write_text(json.dumps(pin_data, indent=2))
-                log(f"  QUEUE: staged pin data -> {slug}.json")
+                persist_generated_article(
+                    fpath, fm + "\n" + content_clean,
+                    REPO_DIR / "_pin_queue" / f"{slug}.json", pin_data,
+                )
+                log(f"  SAVED {fname} + staged pin {slug}.json -- total: {time.monotonic()-_t0:.1f}s")
 
                 generated += 1
                 used_slugs.add(slug)
