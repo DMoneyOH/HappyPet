@@ -21,6 +21,8 @@ import datetime
 import argparse
 from pathlib import Path
 
+from json_io import atomic_write_json, read_json
+
 REPO_DIR  = Path(__file__).parent.resolve()
 POSTS_DIR = REPO_DIR / "_posts"
 LOG_PATH  = REPO_DIR / "LOGS" / f"HappyPet_{datetime.date.today().isoformat()}.log"
@@ -57,7 +59,7 @@ def load_products() -> dict:
     p = REPO_DIR / "products.json"
     if not p.exists():
         return {}
-    data = json.loads(p.read_text())
+    data = read_json(p, default=[])
     return {e["topic"]: e for e in data if e.get("topic")}
 
 
@@ -215,7 +217,7 @@ def main() -> None:
                 entry["chewy_price"]  = None
                 entry["chewy_stock"]  = None
                 entry["chewy_rating"] = None
-        json_path.write_text(json.dumps(raw, indent=2))
+        atomic_write_json(json_path, raw)
         log(f"FIX: products.json updated -- {mismatches} bad chewy_url entries cleared")
 
     if not args.report_only:

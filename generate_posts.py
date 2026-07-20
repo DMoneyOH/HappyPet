@@ -14,6 +14,8 @@ Happy Pet Product Reviews Generator v22.0 — hybrid models: Gemini 2.5 Flash ge
 import os, re, json, datetime, time, urllib.request, urllib.error, urllib.parse, subprocess
 from pathlib import Path
 
+from json_io import atomic_write_json, read_json
+
 try:
     from dotenv import load_dotenv
     DOTENV_AVAILABLE = True
@@ -409,7 +411,7 @@ def enrich_with_chewy(slug: str, product: dict) -> bool:
                 entry["chewy_stock"]  = result.get("chewy_stock")
                 entry["chewy_rating"] = result.get("chewy_rating")
                 break
-        json_path.write_text(json.dumps(raw, indent=2))
+        atomic_write_json(json_path, raw)
         log(f"  [chewy] products.json updated for {slug}: {url[:60]}")
         return True
     except Exception as e:
@@ -427,8 +429,7 @@ def load_products() -> dict:
     if not p.exists():
         log(f"products.json not found", "WARN")
         return {}
-    with p.open() as f:
-        data = json.load(f)
+    data = read_json(p)
     if isinstance(data, list):
         result = {}
         for entry in data:
