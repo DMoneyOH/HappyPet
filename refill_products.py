@@ -40,6 +40,7 @@ import urllib.parse
 import urllib.request
 from pathlib import Path
 
+from json_io import atomic_write_json, read_json
 import generate_posts as gp
 
 REPO_DIR      = Path(__file__).parent.resolve()
@@ -131,7 +132,7 @@ def log(msg: str, level: str = "INFO") -> None:
 # ---------------------------------------------------------------- queue state
 
 def load_products() -> list:
-    return json.loads(PRODUCTS_PATH.read_text()) if PRODUCTS_PATH.exists() else []
+    return read_json(PRODUCTS_PATH, default=[])
 
 
 def published_slugs() -> set:
@@ -575,7 +576,7 @@ def main() -> None:
 
     changed = bool(backfilled or added_resolved or added_placeholder)
     if changed:
-        PRODUCTS_PATH.write_text(json.dumps(products, indent=2) + "\n")
+        atomic_write_json(PRODUCTS_PATH, products, trailing_newline=True)
 
     result = {
         "ran": True, "unpublished_before": count,

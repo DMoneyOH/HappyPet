@@ -1320,5 +1320,54 @@ class TestManualResolve(unittest.TestCase):
         self.assertNotIn("upc", written[0])
 
 
+class TestJsonIO(unittest.TestCase):
+    """json_io.atomic_write_json / read_json -- crash-safe products.json I/O (F7)"""
+
+    def setUp(self):
+        import json_io
+        self.json_io = json_io
+        import tempfile
+        self.tmpdir = Path(tempfile.mkdtemp())
+        self.path = self.tmpdir / "data.json"
+
+    def tearDown(self):
+        import shutil
+        shutil.rmtree(self.tmpdir, ignore_errors=True)
+
+    def test_atomic_write_roundtrip(self):
+        self.json_io.atomic_write_json(self.path, [{"topic": "x"}])
+        self.assertEqual(json.loads(self.path.read_text(encoding="utf-8")), [{"topic": "x"}])
+
+    def test_atomic_write_trailing_newline(self):
+        self.json_io.atomic_write_json(self.path, {"a": 1}, trailing_newline=True)
+        self.assertTrue(self.path.read_text(encoding="utf-8").endswith("}\n"))
+
+    def test_atomic_write_no_trailing_newline_by_default(self):
+        self.json_io.atomic_write_json(self.path, {"a": 1})
+        self.assertFalse(self.path.read_text(encoding="utf-8").endswith("\n"))
+
+    def test_atomic_write_leaves_no_temp_files(self):
+        self.json_io.atomic_write_json(self.path, {"a": 1})
+        leftovers = sorted(p.name for p in self.tmpdir.iterdir() if p.name != "data.json")
+        self.assertEqual(leftovers, [])
+
+    def test_atomic_write_overwrites_existing(self):
+        self.json_io.atomic_write_json(self.path, {"v": 1})
+        self.json_io.atomic_write_json(self.path, {"v": 2})
+        self.assertEqual(json.loads(self.path.read_text(encoding="utf-8")), {"v": 2})
+
+    def test_read_json_missing_returns_default(self):
+        self.assertEqual(self.json_io.read_json(self.path, default=[]), [])
+
+    def test_read_json_valid(self):
+        self.path.write_text('{"a": 1}', encoding="utf-8")
+        self.assertEqual(self.json_io.read_json(self.path), {"a": 1})
+
+    def test_read_json_corrupt_raises_clear_error(self):
+        self.path.write_text('{"a": 1', encoding="utf-8")  # truncated / corrupt
+        with self.assertRaises(self.json_io.CorruptJSONError):
+            self.json_io.read_json(self.path)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

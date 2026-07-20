@@ -26,8 +26,8 @@ Exits non-zero and writes nothing if:
     wrong image host, or a "Sponsored"-prefixed name)
 """
 import argparse
-import json
 
+from json_io import atomic_write_json
 import refill_products as rp
 
 
@@ -76,7 +76,7 @@ def main(argv: list | None = None) -> None:
         resolved["upc"] = args.upc
 
     rp.apply_resolution(entry, resolved)
-    rp.PRODUCTS_PATH.write_text(json.dumps(products, indent=2) + "\n")
+    atomic_write_json(rp.PRODUCTS_PATH, products, trailing_newline=True)
     print(f"APPLIED '{args.topic}': {args.name} ({args.asin})")
 
 
