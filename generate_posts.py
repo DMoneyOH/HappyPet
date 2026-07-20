@@ -891,14 +891,14 @@ STRUCTURE: Opening (100+ words) | Product Overview (H2) | What We Like (H2, 4-5 
         verified_block = ""
         if verified_data:
             verified_block = (
-                f"VERIFIED PRODUCT DATA (use exactly as shown — do not alter or invent):\n"
+                f"VERIFIED PRODUCT DATA (use exactly as shown, do not alter or invent):\n"
                 f"{verified_data}"
             )
         structure = f"""ARTICLE FORMAT: Roundup/comparison -- {title}
 
 {verified_block}
 STRUCTURE:
-  Opening (100+ words, NO heading — begin prose directly)
+  Opening (100+ words, NO heading - begin prose directly)
   Quick Picks (H2)
 
   Featured Pick: {product_name} (H3, 150-200 words)
@@ -911,25 +911,25 @@ STRUCTURE:
 
   Additional Picks: Use ONLY these real products from web search (H3 each, 60-75 words)
     {{ALTERNATIVE_PRODUCTS}}
-    - Write each as a single prose paragraph — NO bullet lists
+    - Write each as a single prose paragraph, NOT a bullet list
     - Naturally include 1-2 genuine strengths AND 1-2 honest limitations
     - DO NOT include star ratings, prices, specific specs, or fabricated statistics/percentages you cannot verify -- omit numbers entirely
     - Hedge unverified claims: "tends to...", "most owners find...", "works well for..."
     - DO NOT fabricate review data like "88% of owners reported..." -- if you don't have the number, don't include one
-    - Use ONLY the products listed above — do not add or invent others
+    - Use ONLY the products listed above; do not add or invent others
     - NO links for additional picks unless a URL is explicitly provided in the prompt
 
   Buying Guide (H2, 150+ words)
 
   Comparison Table (H2): Product | Best For | Price Range | Key Attribute
-    - Price Range: use $, $$, $$$ only — do not invent specific dollar amounts for additional picks
+    - Price Range: use $, $$, $$$ only; do not invent specific dollar amounts for additional picks
     - Key Attribute: choose the most relevant column header for this product category (e.g. Form, CFU Count, Flavor, Size). Never use "Chew Time" for non-consumable products.
-    - Do NOT include a ratings column — only use verified ratings from product data above
+    - Do NOT include a ratings column; only use verified ratings from product data above
 
-  Closing (80+ words with affiliate link per LINKING RULE above, NO heading — begin prose directly)"""
+  Closing (80+ words with affiliate link per LINKING RULE above, NO heading - begin prose directly)"""
     else:
         structure = f"""ARTICLE FORMAT: Buying guide -- {title}
-STRUCTURE: Opening (100+ words, NO heading — begin prose directly) | What to Look For (H2, 5-6 key factors) | Our Top Pick {product_name} (H2, 100 words, affiliate link) | Common Mistakes to Avoid (H2, 3-4 pitfalls) | FAQ (H2, 4-5 real questions) | Closing (80+ words with affiliate link, NO heading — begin prose directly)"""
+STRUCTURE: Opening (100+ words, NO heading - begin prose directly) | What to Look For (H2, 5-6 key factors) | Our Top Pick {product_name} (H2, 100 words, affiliate link) | Common Mistakes to Avoid (H2, 3-4 pitfalls) | FAQ (H2, 4-5 real questions) | Closing (80+ words with affiliate link, NO heading - begin prose directly)"""
     return f"""You are a senior writer for Happy Pet Product Reviews, a trusted budget-focused pet product review blog.
 
 Write a complete, publish-ready blog post. Title: "{title}". Focus keyword: "{keyword}".
@@ -939,19 +939,22 @@ LENGTH: 950-1100 words of body content. Firm requirement. CRITICAL: Complete ALL
 
 {structure}
 
-WRITING STYLE:
-- Conversational, warm, authoritative -- like advice from a trusted friend who owns pets
-- Vary sentence length. Short punchy sentences mixed with longer flowing ones.
+WRITING STYLE & HUMANIZATION RULES:
+- Tone: conversational, grounded, and slightly skeptical. Avoid the hyper-enthusiastic, overly polished "salesperson" voice common in AI copy. Write like a real, budget-conscious dog or cat owner giving a friend honest, practical advice.
+- Cadence: vary sentence length. Mix short, punchy sentences with a few longer flowing ones for a natural human rhythm. Do not make every sentence the same length; keep it readable and do not overuse one-word fragments.
+- Transitions: do not use robotic transitions ("Furthermore", "Moreover", "Additionally", "Consequently", "Therefore", "However", "That said"). Start sentences with the subject or an action; an occasional plain "But", "And", or "So" is fine, but do not lean on them.
+- No decorative bold: do not bold words or phrases inside prose paragraphs for emphasis. Keep prose styling plain.
 - Use hyphens (-) for compound words and standard dashes where needed. NEVER use em dashes (—). Rewrite the sentence instead.
-- MINIMIZE stock phrases -- avoid where possible: "delve", "it's worth noting", "in conclusion", "look no further", "game-changer", "comprehensive guide", "navigate", "we've all been there", "we've been there", "there's nothing quite like", "we've got you covered", "for good reason", "without breaking the bank", "in today's world", "when it comes to", "at the end of the day", "we all know", "as pet owners", "as dog owners", "as cat owners", "furry friend", "furry companion"
-- Write warmly but avoid stock pet-blog phrases that signal AI copy: never use "paw-some", "put our paws", "tail wagging" as metaphor, "furry family member", "fur baby", "pet parent", or "furry friend". Use "dog owner" or "cat owner" instead of "pet parent". Natural warmth through genuine voice is encouraged -- forced wordplay is not.
-- FACTS: Only state product specs you are certain of from the product listing. If unsure, hedge with: "many owners report...", "tends to...", or "according to Amazon reviews...". Never invent dimensions, materials, weight, compatibility claims, percentages, statistics, or any number you were not given. Do NOT fabricate reviewer percentages like "85% of owners said..." -- if you don't have the real number, don't include one.
-- SECTION HEADINGS: Never start a section with "In conclusion" or "In summary". Use a specific, descriptive heading instead. Never use "Opening" or "Closing" as headings — these are unheaded prose sections.
-- OPENING: If it makes sense for the article topic, open with a specific relatable moment a dog or cat owner would instantly recognize. Show, don't tell. Be SPECIFIC -- name a real scenario, not a generic one.
-  Good examples: "My dog chewed through a couch cushion on a 45-minute Zoom call." / "Our cat knocked the water bowl over three times in one week." / "I spent $40 on a toy my dog sniffed once and walked away from."
-  Bad examples (NEVER write openings like these): "We've all been there - [generic scenario]..." (cliché opener) / "As a pet owner, you know how important it is to..." (filler) / "Dogs need mental stimulation to stay happy and healthy." (generic) / "Standing in the kitchen when suddenly..." (AI-template setup) / Any opening that starts with a vague scenario followed by a product pitch.
-  If the article topic is purely practical (e.g. flea prevention, nutrition), a direct factual opening is fine -- do not force an anecdote.
-- Use "{keyword}" naturally 4-6 times. Write in second person ("your dog", "you'll find") or third person ("owners report", "dogs tend to"). Never use first-person voice (I, we, us, our, my) -- the reviewer will fail any article that does.{link}
+- Avoid rule-of-three overuse: do not stack three-item parallel phrases ("X, Y, and Z"). Use one or two items or restructure. More than one such list per article reads as AI-written.
+- BANNED words and phrases, never use: "delve", "tapestry", "testament", "paramount", "crucial", "elevate", "beacon", "multifaceted", "seamlessly", "realm", "bustling", "unleash", "prioritize", "leverage", "robust", "the bottom line is", "it's worth noting", "in conclusion", "look no further", "game-changer", "comprehensive guide", "navigate", "we've all been there", "there's nothing quite like", "we've got you covered", "for good reason", "without breaking the bank", "in today's world", "when it comes to", "at the end of the day", "we all know", "as pet owners", "as dog owners", "as cat owners".
+- Avoid stock pet-blog phrases that signal AI copy: never use "paw-some", "put our paws", "tail wagging" as metaphor, "furry family member", "fur baby", "pet parent", or "furry friend". Use "dog owner" or "cat owner" instead. Natural warmth through genuine voice is encouraged; forced wordplay is not.
+- FACTS: only state product specs you are certain of from the product listing. When you lack a number, be concretely specific ("owners of large breeds", "on hardwood floors") rather than repeating a vague "many owners report...". Never invent dimensions, materials, weight, compatibility claims, percentages, statistics, prices, or review counts you were not given.
+- SECTION HEADINGS: never start a section with "In conclusion" or "In summary". Use a specific, descriptive heading in sentence case (not Title Case). Never use "Opening" or "Closing" as headings; those are unheaded prose sections.
+- OPENING: when it fits the topic, open with a specific, relatable moment a dog or cat owner would recognize, written in SECOND person. Show, don't tell.
+  Good examples: "You step away for a 45-minute Zoom call and come back to a shredded couch cushion." / "Your cat knocks the water bowl over three times in one afternoon." / "You spend $40 on a toy your dog sniffs once and abandons."
+  Bad examples (NEVER write openings like these): "We've all been there..." (cliche) / "As a pet owner, you know how important it is to..." (filler) / "Dogs need mental stimulation to stay happy and healthy." (generic) / "Standing in the kitchen when suddenly..." (AI-template setup) / any opening that starts with a vague scenario followed by a product pitch.
+  If the article topic is purely practical (e.g. flea prevention, nutrition), a direct factual opening is fine; do not force an anecdote.
+- Use "{keyword}" naturally 4-6 times. Write ONLY in second person ("your dog", "you'll find") or third person ("owners report", "dogs tend to"). Never use first-person voice (I, we, us, our, my); the reviewer fails any article that does.{link}
 
 FORMAT: Return ONLY clean Markdown. No YAML. No preamble. Start writing immediately.
 FIRST LINE must be: PIN_DESC: [one punchy sentence, max 20 words, Pinterest stop-scroll hook]
