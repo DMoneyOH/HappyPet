@@ -512,6 +512,8 @@ def validate_product(slug: str, product: dict) -> list:
             errors.append(f"Missing required field: {field}")
     if product.get("image") == "NEEDS_IMAGE":
         errors.append("image URL not sourced (NEEDS_IMAGE) -- use SiteStripe to get the URL")
+    if product.get("asin") == "NEEDS_ASIN" or "NEEDS_ASIN" in product.get("affiliate_url", ""):
+        errors.append("ASIN not resolved (NEEDS_ASIN) -- affiliate link would be dead; resolve via manual_resolve.py")
     return errors
 
 
@@ -521,14 +523,24 @@ class GenerationStageError(Exception):
     pass
 
 
-def validate_output(stage: str, content: str, slug: str) -> None:
+# Accepted affiliate-link shapes in a published article body: short amzn.to links
+# OR tag-bearing amazon.com/dp links. refill_products.py emits the long-form
+# amazon.com/dp/{asin}?tag={tag} shape; both are valid Amazon Associates links.
+AFFILIATE_LINK_RE = re.compile(r"https?://(?:amzn\.to/\S+|(?:www\.)?amazon\.com/dp/[A-Za-z0-9]+)")
+
+
+def validate_output(stage: str, content: str, slug: str, affiliate_url: str = "") -> None:
     """
     Output contract gate. Raises GenerationStageError on violation.
     Called after each pipeline stage. GHA step captures non-zero exit.
+
+    At the post-review gate the affiliate link must be present. When the entry's
+    exact `affiliate_url` is supplied, it must appear verbatim in the body (this
+    also catches a wrong/hallucinated link); otherwise any recognized affiliate
+    link shape (amzn.to or amazon.com/dp) satisfies the gate.
     """
     MIN_WORD_COUNT   = 700
     MIN_CHARS        = 2000
-    REQUIRED_PATTERN = "https?://amzn[.]to/"
 
     if not content or not content.strip():
         raise GenerationStageError(f"[{stage}] {slug}: empty output")
@@ -542,10 +554,65 @@ def validate_output(stage: str, content: str, slug: str) -> None:
             f"[{stage}] {slug}: word count too low ({word_count} words, min {MIN_WORD_COUNT})"
         )
     # Affiliate link required only at Gate 2 (post-review); rewrite has a chance to inject it first
-    if stage == "review" and not re.search(REQUIRED_PATTERN, content):
-        raise GenerationStageError(
-            f"[{stage}] {slug}: no affiliate link (amzn.to) found in output"
-        )
+    if stage == "review":
+        if affiliate_url:
+            if affiliate_url not in content:
+                raise GenerationStageError(
+                    f"[{stage}] {slug}: expected affiliate link not found in output (looked for {affiliate_url})"
+                )
+        elif not AFFILIATE_LINK_RE.search(content):
+            raise GenerationStageError(
+                f"[{stage}] {slug}: no affiliate link (amzn.to or amazon.com/dp) found in output"
+            )
+
+
+# Minimum reviewer scores for a pass. Enforced in code (evaluate_scorecard), not
+# just stated in the reviewer prompt -- a miscalibrated LLM can return pass=true
+# with low scores, and we must not publish on its say-so alone.
+REVIEW_SCORE_MINIMUMS = {"human_voice": 4, "warmth": 4, "readability": 3, "accuracy": 3}
+
+
+def evaluate_scorecard(scorecard: dict, content: str) -> tuple:
+    """
+    Decide pass/fail from a reviewer scorecard WITHOUT trusting the model's
+    self-reported `pass`, numeric scores, or em-dash count on their own.
+
+    Deterministic overrides (any one fails the article):
+      - every numeric score must clear its minimum (REVIEW_SCORE_MINIMUMS)
+      - an em dash present in the actual body (checked here, not the model's count)
+      - a reported em_dash_count > 0
+      - accuracy/fabrication keywords in the flags
+
+    Returns (passed: bool, flags: list).
+    """
+    passed = bool(scorecard.get("pass", False))
+    flags  = list(scorecard.get("flags", []))
+    scores = scorecard.get("scores", {}) or {}
+
+    # Numeric thresholds enforced in code, not just in the prompt
+    for key, minimum in REVIEW_SCORE_MINIMUMS.items():
+        val = scores.get(key)
+        if not isinstance(val, (int, float)) or val < minimum:
+            if passed:
+                flags.append(f"{key}={val} below minimum {minimum}")
+            passed = False
+
+    # Em dashes: trust the real body, never the model's self-reported count alone
+    if "—" in content:
+        if passed:
+            flags.append("em_dash_in_body")
+        passed = False
+    if scorecard.get("em_dash_count", 0) and scorecard["em_dash_count"] > 0:
+        passed = False
+
+    # Accuracy/fabrication flags always fail regardless of pass=true
+    accuracy_keywords = ("fabricat", "unverif", "invent", "statistic", "percentag",
+                         "specific number", "no source", "not verif", "made up",
+                         "cited", "claimed", "without source")
+    if flags and any(kw in " ".join(str(f) for f in flags).lower() for kw in accuracy_keywords):
+        passed = False
+
+    return passed, flags
 
 
 def call_generator(prompt: str, api_key: str) -> str:
@@ -711,7 +778,7 @@ Check every category. Flag every violation found.
 - warmth >= 4
 - readability >= 3
 - accuracy >= 3
-- affiliate_link_present = true (amzn.to link present)
+- affiliate_link_present = true (an Amazon affiliate link -- amzn.to/... or amazon.com/dp/... -- is present)
 - em_dash_count = 0 (any em dash = FAIL, no exceptions)
 - NO first-person voice (I, we, us, our, my used as author voice = FAIL regardless of scores)
 - If roundup: alternative product sections must have specific distinguishing details, not generic filler
@@ -744,7 +811,7 @@ Rules:
 
 def make_rewrite_prompt(title: str, keyword: str, content: str, instructions: str, affiliate_url: str = "", product_name: str = "") -> str:
     affiliate_reminder = ""
-    if affiliate_url and not re.search(r"https?://amzn[.]to/", content):
+    if affiliate_url and affiliate_url not in content:
         affiliate_reminder = (
             f"\nCRITICAL: The article is missing its affiliate link. "
             f"You MUST include this exact markdown link at least once -- in the opening mention of the product and again in the closing call-to-action: "
@@ -905,8 +972,9 @@ def _sanitize_factcheck_output(cleaned: str, original: str) -> str | None:
     if len(text) < len(original) * 0.85:
         log(f"  Fact-check output too short ({len(text)} vs {len(original)}), keeping original", "WARN")
         return None
-    link_pattern = r"https?://amzn[.]to/[\w]+"
-    if sorted(re.findall(link_pattern, text)) != sorted(re.findall(link_pattern, original)):
+    # Protect all recognized affiliate-link shapes (amzn.to and amazon.com/dp),
+    # not just short links -- the fact-checker must not drop or alter them.
+    if sorted(AFFILIATE_LINK_RE.findall(text)) != sorted(AFFILIATE_LINK_RE.findall(original)):
         log("  Fact-check output altered affiliate links, keeping original", "WARN")
         return None
     return text
@@ -1086,30 +1154,21 @@ def review_and_rewrite(title: str, keyword: str, content: str, api_key: str, or_
         if scorecard is None:
             log_reviewer("  review failed on both providers -- article held as UNREVIEWED", "WARN")
             return content, False, ["REVIEWER_UNAVAILABLE"]
-        passed     = scorecard.get("pass", False)
-        flags      = scorecard.get("flags", [])
-        scores     = scorecard.get("scores", {})
-        em_dashes  = scorecard.get("em_dash_count", 0)
+        scores      = scorecard.get("scores", {})
+        em_dashes   = scorecard.get("em_dash_count", 0)
         ai_patterns = scorecard.get("ai_patterns_found", [])
+        # Decide pass/fail in code -- never trust the reviewer's self-reported
+        # `pass`, numeric scores, or em-dash count on their own (evaluate_scorecard).
+        model_pass    = scorecard.get("pass", False)
+        passed, flags = evaluate_scorecard(scorecard, content)
         log_reviewer(f"  REVIEW {'PASS' if passed else 'FAIL'} | human_voice={scores.get('human_voice')} "
             f"warmth={scores.get('warmth')} readability={scores.get('readability')} em_dashes={em_dashes}")
+        if passed != model_pass:
+            log_reviewer(f"  OVERRIDE: model pass={model_pass} -> {passed} (deterministic gate)", "WARN")
         if ai_patterns:
             log_reviewer(f"  AI PATTERNS: {'; '.join(ai_patterns[:5])}")
         if flags:
-            log_reviewer(f"  FLAGS: {'; '.join(flags)}")
-        # Hard override: em dash count > 0 always fails
-        if passed and em_dashes > 0:
-            log_reviewer(f"  OVERRIDE: pass forced to FAIL -- {em_dashes} em dash(es) found", "WARN")
-            passed = False
-            flags = flags + [f"em_dash_count={em_dashes}"]
-        # Hard override: fabrication/accuracy flags always fail regardless of pass=true
-        if passed and flags:
-            accuracy_keywords = ("fabricat", "unverif", "invent", "statistic", "percentag",
-                                  "specific number", "no source", "not verif", "made up",
-                                  "cited", "claimed", "without source")
-            if any(kw in " ".join(flags).lower() for kw in accuracy_keywords):
-                log_reviewer(f"  OVERRIDE: pass forced to FAIL -- accuracy/fabrication flags detected", "WARN")
-                passed = False
+            log_reviewer(f"  FLAGS: {'; '.join(str(f) for f in flags)}")
         if passed:
             return content, True, []
         instructions = scorecard.get("rewrite_instructions", "")
@@ -1393,7 +1452,7 @@ def main() -> None:
 
                 # Gate 2: post-review output contract
                 try:
-                    validate_output("review", content, slug)
+                    validate_output("review", content, slug, affiliate_url=product.get("affiliate_url", ""))
                 except GenerationStageError as e:
                     log(f"  HOLD {slug} -- post-review contract failed: {e}", "WARN")
                     held += 1; continue
