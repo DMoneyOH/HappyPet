@@ -1474,5 +1474,47 @@ class TestGeneratorModel(unittest.TestCase):
         self.assertEqual(gm.call_args[0][0], gp.GEMINI_GEN_MODEL)
 
 
+class TestGenerationPromptHygiene(unittest.TestCase):
+    """The generation prompt must not itself model the AI-tells it forbids
+    (em dashes, first-person openings), and must ban the words that failed review."""
+
+    def setUp(self):
+        import generate_posts as gp
+        self.gp = gp
+        self.prod = {"name": "Test Cooling Mat", "affiliate_url": "https://amzn.to/testXYZ",
+                     "stars": "4.5", "review_count": "1200", "price": "29.99",
+                     "image": "img", "category": "dog-gear"}
+
+    def _prompt(self, fmt):
+        return self.gp.make_prompt("Best Test Mats", "best test mat", "best-test-mat",
+                                   fmt, self.prod, "", "")
+
+    def test_roundup_prompt_models_no_em_dashes(self):
+        # At most the single illustrative em dash in the "NEVER use em dashes (—)" rule.
+        self.assertLessEqual(self._prompt("roundup").count("—"), 1)
+
+    def test_buying_guide_prompt_models_no_em_dashes(self):
+        self.assertLessEqual(self._prompt("buying_guide").count("—"), 1)
+
+    def test_opening_examples_are_second_person(self):
+        p = self._prompt("roundup")
+        for fp in ["My dog", "Our cat", "I spent $40"]:
+            self.assertNotIn(fp, p, "opening examples must not model first-person voice")
+        self.assertIn("You step away", p)
+
+    def test_bans_words_that_failed_review(self):
+        p = self._prompt("roundup")
+        for w in ["prioritize", "leverage", "the bottom line is"]:
+            self.assertIn(w, p)
+
+    def test_warns_against_rule_of_three(self):
+        self.assertIn("rule-of-three", self._prompt("roundup").lower())
+
+    def test_affiliate_url_injected_not_search_engine(self):
+        p = self._prompt("roundup")
+        self.assertIn("https://amzn.to/testXYZ", p)
+        self.assertNotIn("google.com/search", p)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
