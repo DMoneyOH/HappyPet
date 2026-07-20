@@ -360,6 +360,119 @@ class TestScorecardEvaluation(unittest.TestCase):
         self.assertFalse(passed)
 
 
+class TestTypographyScrub(unittest.TestCase):
+    """scrub_typography() -- deterministic em/en dash conversion before the
+    anti-AI review gate. No LLM emits zero em dashes and the reviewer rule is
+    'any em dash = FAIL', so the dashes are converted (not deleted) to the
+    equivalents a human would type: commas for parenthetical appositives, a
+    spaced hyphen for a break/reveal."""
+
+    def setUp(self):
+        import generate_posts as gp
+        self.scrub = gp.scrub_typography
+
+    def test_lone_em_dash_becomes_spaced_hyphen(self):
+        # A single em dash marks a break/reveal -> spaced hyphen
+        self.assertEqual(
+            self.scrub("The winner is clear—the Kong Classic."),
+            "The winner is clear - the Kong Classic.",
+        )
+
+    def test_paired_em_dashes_become_commas(self):
+        # A matched pair inside one sentence brackets an appositive -> commas
+        self.assertEqual(
+            self.scrub("Buster—a Labrador—loves this toy."),
+            "Buster, a Labrador, loves this toy.",
+        )
+
+    def test_pair_does_not_span_sentence_boundary(self):
+        # Two lone dashes in two sentences must NOT be paired into commas
+        self.assertEqual(
+            self.scrub("I ran—fast. She walked—slow."),
+            "I ran - fast. She walked - slow.",
+        )
+
+    def test_spaced_em_dash_collapses_surrounding_whitespace(self):
+        self.assertEqual(
+            self.scrub("The toy lasts — mostly."),
+            "The toy lasts - mostly.",
+        )
+
+    def test_odd_run_pairs_then_trailing_lone(self):
+        # 3 em dashes in one sentence: first two -> commas (appositive),
+        # trailing lone -> spaced hyphen
+        self.assertEqual(
+            self.scrub("Buster—a Lab—loves it, and wow—really."),
+            "Buster, a Lab, loves it, and wow - really.",
+        )
+
+    def test_en_dash_numeric_range_becomes_plain_hyphen(self):
+        self.assertEqual(
+            self.scrub("Give 5–10 treats daily."),
+            "Give 5-10 treats daily.",
+        )
+
+    def test_en_dash_separator_becomes_spaced_hyphen(self):
+        self.assertEqual(
+            self.scrub("The toy is durable – mostly."),
+            "The toy is durable - mostly.",
+        )
+
+    def test_existing_hyphens_untouched(self):
+        self.assertEqual(self.scrub("high-quality dog food"), "high-quality dog food")
+
+    def test_text_without_fancy_dashes_unchanged(self):
+        clean = "A clean sentence with no fancy dashes."
+        self.assertEqual(self.scrub(clean), clean)
+
+    def test_output_contains_no_em_or_en_dash(self):
+        out = self.scrub("Buster—a Lab—runs 5–10 miles; honestly—wow.")
+        self.assertNotIn("—", out)
+        self.assertNotIn("–", out)
+
+    def test_idempotent(self):
+        once = self.scrub("Buster—a Lab—runs 5–10 miles—fast.")
+        self.assertEqual(self.scrub(once), once)
+
+
+class TestReviewGateStripsEmDashes(unittest.TestCase):
+    """review_and_rewrite() must convert em dashes BEFORE the reviewer sees the
+    body, so the reviewer's own em_dash_count (and the deterministic gate) both
+    read zero. Otherwise a clean-reading body still fails on the reported count."""
+
+    def setUp(self):
+        import generate_posts as gp
+        self.gp = gp
+        self._orig = (gp.REVIEWER_ENABLED, gp.REVIEW_PRE_SLEEP,
+                      gp._call_openrouter_reviewer, gp.make_review_prompt)
+        gp.REVIEWER_ENABLED = True
+        gp.REVIEW_PRE_SLEEP = 0
+
+    def tearDown(self):
+        (self.gp.REVIEWER_ENABLED, self.gp.REVIEW_PRE_SLEEP,
+         self.gp._call_openrouter_reviewer, self.gp.make_review_prompt) = self._orig
+
+    def test_reviewer_and_output_never_see_an_em_dash(self):
+        # Capture the article content actually handed to the reviewer (the prompt
+        # template itself contains em dashes in its rubric, so assert on content).
+        seen = {}
+        orig_make = self.gp.make_review_prompt
+        def capture_make(title, keyword, content):
+            seen["content"] = content
+            return orig_make(title, keyword, content)
+        self.gp.make_review_prompt = capture_make
+        self.gp._call_openrouter_reviewer = lambda prompt: {
+            "pass": True,
+            "scores": {"human_voice": 4, "warmth": 4, "readability": 4, "accuracy": 4},
+            "em_dash_count": 0, "flags": [], "ai_patterns_found": [],
+        }
+        body = "This crate is roomy—big enough for a Lab—and folds flat."
+        final, passed, _ = self.gp.review_and_rewrite("T", "kw", body, api_key="")
+        self.assertNotIn("—", seen["content"], "reviewer must see scrubbed content")
+        self.assertNotIn("—", final, "published content must be scrubbed")
+        self.assertTrue(passed)
+
+
 class TestFirstPersonDetection(unittest.TestCase):
     """Reviewer prompt gates first-person voice — P2"""
 
