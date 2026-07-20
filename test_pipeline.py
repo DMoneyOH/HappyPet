@@ -1440,5 +1440,39 @@ class TestChewyApiRetry(unittest.TestCase):
         self.assertEqual(calls["n"], 1, "a 500 must not be retried")
 
 
+class TestGeneratorModel(unittest.TestCase):
+    """call_generator routes primary generation through Claude Sonnet via OpenRouter,
+    with Gemini as the fallback (generator quality fix)."""
+
+    def test_primary_uses_claude_sonnet_via_openrouter(self):
+        import generate_posts as gp
+        from unittest.mock import patch
+        captured = {}
+        def fake_http_post(url, payload, headers, **kw):
+            captured["url"] = url
+            captured["payload"] = json.loads(payload)
+            return json.dumps({
+                "choices": [{"message": {"content": "ARTICLE BODY"}, "finish_reason": "stop"}],
+                "usage": {"completion_tokens": 5},
+            }).encode()
+        with patch.object(gp, "http_post", side_effect=fake_http_post), \
+             patch.dict(gp.os.environ, {"OPENROUTER_API_KEY": "test-key"}):
+            out = gp.call_generator("write an article", "unused")
+        self.assertEqual(out, "ARTICLE BODY")
+        self.assertEqual(captured["url"], gp.OPENROUTER_URL)
+        self.assertEqual(captured["payload"]["model"], gp.OR_GEN_MODEL_CLAUDE)
+        self.assertIn("claude-sonnet", gp.OR_GEN_MODEL_CLAUDE)
+
+    def test_falls_back_to_gemini_when_openrouter_fails(self):
+        import generate_posts as gp
+        from unittest.mock import patch
+        with patch.object(gp, "http_post", side_effect=RuntimeError("OR down")), \
+             patch.object(gp, "_call_gemini", return_value="GEMINI FALLBACK BODY") as gm, \
+             patch.dict(gp.os.environ, {"OPENROUTER_API_KEY": "test-key"}):
+            out = gp.call_generator("write an article", "unused")
+        self.assertEqual(out, "GEMINI FALLBACK BODY")
+        self.assertEqual(gm.call_args[0][0], gp.GEMINI_GEN_MODEL)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
