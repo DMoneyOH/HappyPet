@@ -211,17 +211,153 @@ class TestOutputContract(unittest.TestCase):
         no_link = GOOD_ARTICLE.replace("https://amzn.to/3TestABC", "https://amazon.com/dp/B00AKOQYXY")
         self.gp.validate_output("generate", no_link, "test-slug")
 
-    def test_no_affiliate_link_fails_at_review_gate(self):
-        # Gate 2 (post-review) is the publish gate: missing link must raise
-        no_link = GOOD_ARTICLE.replace("https://amzn.to/3TestABC", "https://amazon.com/dp/B00AKOQYXY")
+    def test_amzn_to_link_passes_review_gate(self):
+        # Backward compat: short amzn.to links still satisfy the publish gate
+        self.gp.validate_output("review", GOOD_ARTICLE, "test-slug")
+
+    def test_amazon_com_tagged_link_passes_review_gate(self):
+        # A tag-bearing amazon.com/dp link is a valid affiliate link -- must pass
+        # (regression: this is the shape refill_products.py now emits for 22/23 entries)
+        art = GOOD_ARTICLE.replace(
+            "https://amzn.to/3TestABC",
+            "https://www.amazon.com/dp/B00AKOQYXY?tag=pawpicks04-20",
+        )
+        self.gp.validate_output("review", art, "test-slug")
+
+    def test_expected_affiliate_url_present_passes_review_gate(self):
+        # When the entry's exact affiliate_url is supplied, it must appear verbatim
+        url = "https://www.amazon.com/dp/B00AKOQYXY?tag=pawpicks04-20"
+        art = GOOD_ARTICLE.replace("https://amzn.to/3TestABC", url)
+        self.gp.validate_output("review", art, "test-slug", affiliate_url=url)
+
+    def test_missing_affiliate_link_fails_at_review_gate(self):
+        # Gate 2 (post-review) is the publish gate: a truly missing link must raise
+        no_link = GOOD_ARTICLE.replace("https://amzn.to/3TestABC", "")
         with self.assertRaises(self.gp.GenerationStageError):
             self.gp.validate_output("review", no_link, "test-slug")
+
+    def test_wrong_affiliate_link_fails_when_expected_url_given(self):
+        # A link different from the expected one (e.g. hallucinated) must raise
+        expected = "https://www.amazon.com/dp/B00AKOQYXY?tag=pawpicks04-20"
+        art = GOOD_ARTICLE.replace(
+            "https://amzn.to/3TestABC",
+            "https://www.amazon.com/dp/WRONG9999?tag=pawpicks04-20",
+        )
+        with self.assertRaises(self.gp.GenerationStageError):
+            self.gp.validate_output("review", art, "test-slug", affiliate_url=expected)
 
     def test_word_count_below_minimum_fails(self):
         # Has a link but too short
         short_with_link = "Short article. [Product](https://amzn.to/3TestABC). " * 5
         with self.assertRaises(self.gp.GenerationStageError):
             self.gp.validate_output("generate", short_with_link, "test-slug")
+
+
+class TestProductValidation(unittest.TestCase):
+    """validate_product() pre-publish gate -- must reject unresolved placeholders (F2)"""
+
+    def setUp(self):
+        import generate_posts as gp
+        self.gp = gp
+        self.valid = dict(SAMPLE_PRODUCT)  # all required fields, real values
+
+    def test_valid_product_passes(self):
+        self.assertEqual(self.gp.validate_product("slug", self.valid), [])
+
+    def test_missing_required_field_fails(self):
+        p = dict(self.valid); del p["name"]
+        self.assertTrue(self.gp.validate_product("slug", p))
+
+    def test_needs_image_placeholder_fails(self):
+        p = dict(self.valid); p["image"] = "NEEDS_IMAGE"
+        errs = self.gp.validate_product("slug", p)
+        self.assertTrue(any("NEEDS_IMAGE" in e for e in errs))
+
+    def test_needs_asin_placeholder_fails(self):
+        p = dict(self.valid); p["asin"] = "NEEDS_ASIN"
+        errs = self.gp.validate_product("slug", p)
+        self.assertTrue(any("NEEDS_ASIN" in e for e in errs))
+
+    def test_needs_asin_in_affiliate_url_fails_even_if_image_resolved(self):
+        # image is a real URL; only the affiliate_url still carries the placeholder
+        p = dict(self.valid)
+        p["affiliate_url"] = "https://www.amazon.com/dp/NEEDS_ASIN?tag=pawpicks04-20"
+        errs = self.gp.validate_product("slug", p)
+        self.assertTrue(any("NEEDS_ASIN" in e for e in errs))
+
+
+class TestProductsJsonAffiliateContract(unittest.TestCase):
+    """Every real products.json entry must satisfy the publish-gate link contract (F1).
+
+    This is the guard that was missing: prior tests validated the gate against
+    synthetic fixtures but never asserted the live queue could actually pass it.
+    """
+
+    def setUp(self):
+        import generate_posts as gp
+        self.gp = gp
+
+    def test_every_entry_affiliate_url_matches_gate(self):
+        products = json.loads((REPO / "products.json").read_text(encoding="utf-8"))
+        offenders = []
+        for e in products:
+            url = e.get("affiliate_url", "")
+            # Unresolved placeholders are legitimately held by validate_product,
+            # not by the affiliate-link gate -- skip them here.
+            if "NEEDS_ASIN" in url:
+                continue
+            if not self.gp.AFFILIATE_LINK_RE.search(url):
+                offenders.append((e.get("topic"), url))
+        self.assertEqual(offenders, [], f"affiliate_url(s) not recognized by publish gate: {offenders}")
+
+
+class TestScorecardEvaluation(unittest.TestCase):
+    """evaluate_scorecard() -- deterministic gating, never trust the LLM's self-report (F3)"""
+
+    def setUp(self):
+        import generate_posts as gp
+        self.gp = gp
+        self.clean = {
+            "pass":            True,
+            "scores":          {"human_voice": 4, "warmth": 4, "readability": 4, "accuracy": 4},
+            "em_dash_count":   0,
+            "flags":           [],
+            "ai_patterns_found": [],
+        }
+
+    def test_clean_scorecard_passes(self):
+        passed, _ = self.gp.evaluate_scorecard(self.clean, "a clean body with no dashes at all")
+        self.assertTrue(passed)
+
+    def test_pass_false_stays_false(self):
+        sc = dict(self.clean); sc["pass"] = False
+        passed, _ = self.gp.evaluate_scorecard(sc, "a clean body")
+        self.assertFalse(passed)
+
+    def test_low_human_voice_forces_fail(self):
+        sc = dict(self.clean); sc["scores"] = {**self.clean["scores"], "human_voice": 2}
+        passed, _ = self.gp.evaluate_scorecard(sc, "a clean body")
+        self.assertFalse(passed)
+
+    def test_low_readability_forces_fail(self):
+        sc = dict(self.clean); sc["scores"] = {**self.clean["scores"], "readability": 2}
+        passed, _ = self.gp.evaluate_scorecard(sc, "a clean body")
+        self.assertFalse(passed)
+
+    def test_em_dash_in_content_forces_fail_even_if_reported_zero(self):
+        # Model wrongly reports 0 em dashes, but the body actually contains one
+        passed, _ = self.gp.evaluate_scorecard(self.clean, "this body has an em dash — right here")
+        self.assertFalse(passed)
+
+    def test_reported_em_dash_count_forces_fail(self):
+        sc = dict(self.clean); sc["em_dash_count"] = 3
+        passed, _ = self.gp.evaluate_scorecard(sc, "a clean body")
+        self.assertFalse(passed)
+
+    def test_fabrication_flag_forces_fail(self):
+        sc = dict(self.clean); sc["flags"] = ["fabricated statistic with no source"]
+        passed, _ = self.gp.evaluate_scorecard(sc, "a clean body")
+        self.assertFalse(passed)
 
 
 class TestFirstPersonDetection(unittest.TestCase):
