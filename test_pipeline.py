@@ -1915,5 +1915,35 @@ class TestAuthoritativeGate(unittest.TestCase):
         self.assertFalse(passed)
 
 
+class TestSelectNextTopic(unittest.TestCase):
+    def setUp(self):
+        import generate_posts as gp
+        self.gp = gp
+
+    def _products(self):
+        return {
+            "a": {"topic": "a", "title": "A", "keyword": "ka", "format": "single_review"},
+            "b": {"topic": "b", "title": "B", "keyword": "kb", "format": "roundup"},
+            "c": {"topic": "c", "title": "C"},  # missing keyword/format -> skipped
+        }
+
+    def test_returns_first_unpublished_valid_topic(self):
+        slug, product = self.gp.select_next_topic(self._products(), used_slugs=set())
+        self.assertEqual(slug, "a")
+        self.assertEqual(product["format"], "single_review")
+
+    def test_skips_used_slugs(self):
+        slug, product = self.gp.select_next_topic(self._products(), used_slugs={"a"})
+        self.assertEqual(slug, "b")
+
+    def test_skips_entries_missing_required_fields(self):
+        # only 'c' left unused, but 'c' is invalid -> None
+        slug_product = self.gp.select_next_topic(self._products(), used_slugs={"a", "b"})
+        self.assertIsNone(slug_product)
+
+    def test_returns_none_when_queue_empty(self):
+        self.assertIsNone(self.gp.select_next_topic({}, used_slugs=set()))
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

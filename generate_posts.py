@@ -544,6 +544,19 @@ def build_used_slugs() -> set:
     return used
 
 
+def select_next_topic(products: dict, used_slugs: set):
+    """Return (slug, product) for the first products.json entry that is unpublished
+    and has the required fields, in dict order (same order main() consumes). Return
+    None when nothing is eligible. Mirrors the topic filter + dedup in main()."""
+    required = ("topic", "title", "keyword", "format")
+    for slug, p in products.items():
+        if slug in used_slugs:
+            continue
+        if all(k in p for k in required):
+            return slug, p
+    return None
+
+
 def find_related_published_slug(current_slug: str, current_category: str) -> tuple:
     """
     Find best internal link target at runtime from published _posts/.
@@ -1433,30 +1446,26 @@ def main() -> None:
         products = load_products()
         log(f"Loaded products.json: {len(products)} entries")
 
-        # TOPICS entirely from products.json -- no hardcoded list
-        topics = [
-            (p["topic"], p["title"], p["keyword"], p["format"])
-            for p in products.values()
-            if all(k in p for k in ("topic", "title", "keyword", "format"))
-        ]
-        log(f"Topics from products.json: {len(topics)}")
-
         # Startup validation pass -- warn on missing fields before any API calls
         for slug, p in products.items():
             errors = validate_product(slug, p)
             if errors:
                 log(f"  VALIDATION WARN [{slug}]: {'; '.join(errors)}", "WARN")
 
+        # TOPICS entirely from products.json -- no hardcoded list. Build the
+        # capped worklist by repeatedly selecting the next eligible topic so the
+        # ordering/dedup rule lives in one place (select_next_topic).
         used_slugs = build_used_slugs()
-        log(f"Dedup: {len(used_slugs)} slugs already published")
-
-        # Filter already-published slugs BEFORE applying cap so cap slots
-        # are never wasted on topics that will be skipped anyway.
-        topics = [t for t in topics if t[0] not in used_slugs]
-        log(f"Unpublished topics available: {len(topics)}")
-
-        topics = topics[:max_articles]
-        log(f"Cap: {max_articles} -- {len(topics)} topic(s) queued this run")
+        topics = []
+        remaining = dict(products)
+        while len(topics) < max_articles:
+            picked = select_next_topic(remaining, used_slugs)
+            if picked is None:
+                break
+            slug, p = picked
+            topics.append((p["topic"], p["title"], p["keyword"], p["format"]))
+            remaining.pop(slug, None)
+        log(f"Unpublished topics queued this run: {len(topics)}")
 
         POSTS_DIR.mkdir(parents=True, exist_ok=True)
         today     = datetime.date.today().isoformat()
