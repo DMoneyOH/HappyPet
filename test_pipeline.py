@@ -1979,5 +1979,39 @@ class TestBuildWriterInputs(unittest.TestCase):
         self.assertNotIn("{{ALTERNATIVE_PRODUCTS}}", out["user"])
 
 
+class TestStageArticle(unittest.TestCase):
+    def setUp(self):
+        import generate_posts as gp
+        self.gp = gp
+
+    def test_stages_draft_and_pin_queue(self):
+        import tempfile, json
+        from pathlib import Path
+        from unittest.mock import patch
+        gp = self.gp
+        product = {"topic": "best-x", "title": "Best X", "keyword": "best x",
+                   "format": "single_review", "name": "The X", "category": "dogs",
+                   "species": "dog", "affiliate_url": "https://amzn.to/abc"}
+        body = "## Heading\n\n" + ("word " * 800)  # >700 words, >2000 chars
+        with tempfile.TemporaryDirectory() as td:
+            posts = Path(td) / "_posts"; posts.mkdir()
+            pinq  = Path(td) / "_pin_queue"; pinq.mkdir()
+            with patch.object(gp, "POSTS_DIR", posts), \
+                 patch.object(gp, "REPO_DIR", Path(td)), \
+                 patch.object(gp, "PIN_GEN_AVAILABLE", False):
+                out = gp.stage_article("best-x", product, body,
+                                       pin_desc="Great mat for dogs.", index=0)
+            draft = posts / "DRAFT-best-x.md"
+            self.assertTrue(draft.exists())
+            text = draft.read_text(encoding="utf-8")
+            self.assertIn('layout: post', text)
+            self.assertIn('affiliate_url: "https://amzn.to/abc"', text)
+            pin_json = pinq / "best-x.json"
+            self.assertTrue(pin_json.exists())
+            data = json.loads(pin_json.read_text(encoding="utf-8"))
+            self.assertEqual(data["slug"], "best-x")
+            self.assertEqual(out["draft_path"], draft)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

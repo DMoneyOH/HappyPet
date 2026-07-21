@@ -1457,6 +1457,50 @@ def persist_generated_article(draft_path, article_text: str, pin_queue_path, pin
     draft_path.write_text(article_text, encoding="utf-8")
 
 
+def stage_article(slug: str, product: dict, body: str, pin_desc: str,
+                  index: int = 0) -> dict:
+    """Stage one passed article exactly as main() does: front-matter + pin image
+    + pin-queue entry + draft-last write. `body` must be the final, review-clean
+    article text (no PIN_DESC line). Returns {draft_path, pin_queue_path}."""
+    title    = product["title"]
+    keyword  = product["keyword"]
+    species  = product.get("species", "dog")
+    category = product.get("category", "")
+
+    fm = front_matter(title, keyword, product.get("affiliate_url", ""), slug,
+                      species, category, pin_desc, product.get("image", ""),
+                      build_pin_image_url_for_queue(slug),
+                      chewy_url=product.get("chewy_url") or "")
+
+    content_clean = body.lstrip()
+    while content_clean.startswith("---"):
+        content_clean = content_clean[3:].lstrip()
+
+    article_url = build_url(slug, utm=True)
+    asin    = product.get("asin", "")
+    pin_url = product.get("image", "")
+    if asin:
+        pin_url = f"https://images-na.ssl-images-amazon.com/images/P/{asin}.01.LZZZZZZZ.jpg"
+    if PIN_GEN_AVAILABLE:
+        try:
+            pin_url = make_pin_for_post(title, pin_desc, pin_url, category, slug, index)
+            log_pin(f"  PIN: {pin_url}")
+        except Exception as pe:
+            log_pin(f"  pin generation failed: {pe}", "WARN")
+
+    pin_data = {
+        "title": title, "article_url": article_url, "description": pin_desc,
+        "image_url": build_pin_image_url_for_queue(slug), "species": species,
+        "slug": slug, "topical_sheet": product.get("topical_sheet", ""),
+    }
+    draft_path = POSTS_DIR / f"DRAFT-{slugify(slug)}.md"
+    pin_queue_path = REPO_DIR / "_pin_queue" / f"{slug}.json"
+    persist_generated_article(draft_path, fm + "\n" + content_clean,
+                              pin_queue_path, pin_data)
+    log(f"  SAVED {draft_path.name} + staged pin {slug}.json")
+    return {"draft_path": draft_path, "pin_queue_path": pin_queue_path}
+
+
 def main() -> None:
     # Load .env first -- local runs need this; GHA already has env vars from secrets
     if DOTENV_AVAILABLE:
@@ -1595,45 +1639,7 @@ def main() -> None:
                     log(f"  HOLD {slug} -- post-review contract failed: {e}", "WARN")
                     held += 1; continue
 
-                fname = f"DRAFT-{slugify(slug)}.md"  # Stage 2 dates on publish
-                fpath = POSTS_DIR / fname
-                fm    = front_matter(title, keyword, product.get("affiliate_url", ""),
-                                     slug, species, category, pin_desc,
-                                     product.get("image", ""),
-                                     build_pin_image_url_for_queue(slug),
-                                     chewy_url=product.get("chewy_url") or "")
-                # Strip leading horizontal rules model sometimes prepends
-                content_clean = content.lstrip()
-                while content_clean.startswith("---"):
-                    content_clean = content_clean[3:].lstrip()
-
-                article_url = build_url(slug, utm=True)
-                asin        = product.get("asin", "")
-                pin_url     = product.get("image", "")
-                # Prefer canonical Amazon CDN format -- direct m.media-amazon.com URLs
-                # are blocked by GHA runner IPs; images-na CDN is consistently accessible
-                if asin:
-                    pin_url = f"https://images-na.ssl-images-amazon.com/images/P/{asin}.01.LZZZZZZZ.jpg"
-                if PIN_GEN_AVAILABLE:
-                    try:
-                        pin_url = make_pin_for_post(title, pin_desc, pin_url, category, slug, generated)
-                        log_pin(f"  PIN: {pin_url}")
-                    except Exception as pe:
-                        log_pin(f"  pin generation failed: {pe}", "WARN")
-
-                # Stage the pin entry, THEN write the draft (draft-last): a failure
-                # here can never leave an orphan draft that Stage 2 would publish
-                # with no pin queued. See persist_generated_article.
-                pin_data = {
-                    "title": title, "article_url": article_url, "description": pin_desc,
-                    "image_url": build_pin_image_url_for_queue(slug), "species": species, "slug": slug,
-                    "topical_sheet": topical_sheet_key,
-                }
-                persist_generated_article(
-                    fpath, fm + "\n" + content_clean,
-                    REPO_DIR / "_pin_queue" / f"{slug}.json", pin_data,
-                )
-                log(f"  SAVED {fname} + staged pin {slug}.json -- total: {time.monotonic()-_t0:.1f}s")
+                stage_article(slug, product, content, pin_desc, index=generated)
 
                 generated += 1
                 used_slugs.add(slug)
