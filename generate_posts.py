@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Happy Pet Product Reviews Generator v22.0 — hybrid models: Gemini 2.5 Flash generates, Claude Haiku 4.5 reviews (schema-enforced JSON)
+Happy Pet Product Reviews Generator v22.0 — 3-stage Writer-Judge-Fixer routing: each stage is an ordered OpenRouter fallback chain (generator / review / rewrite)
 - TOPICS derived entirely from products.json (no hardcoded list)
 - products.json is single source of truth: slug, title, keyword, format, category, species, topical_sheet
 - Dynamic internal links: resolved at runtime from published _posts/ by category
@@ -48,31 +48,41 @@ LOCK_PATH = Path("/tmp/happypet_gen.lock")
 LOG_PATH.parent.mkdir(exist_ok=True)  # ensure LOGS/ exists
 
 # --- Provider config ---
-# Hybrid model strategy (2026-07): paid Gemini generates, Claude reviews.
-# Generator:  Gemini 2.5 Flash (paid, direct API)    -> OpenRouter gpt-oss-120b:free (emergency fallback)
-# Reviewer:   Claude Haiku 4.5 via OpenRouter        -> Gemini 2.5 Flash Lite (responseSchema fallback)
-#             (schema-enforced JSON; routed through OpenRouter on the existing
-#             OPENROUTER_API_KEY -- no direct Anthropic account needed)
-# Rewriter:   call_generator/Gemini (attempt 1)      -> Gemini Flash Lite + OR fallback (attempt 2)
-# Fact-check: Gemini 2.5 Flash Lite (primary)        -> OpenRouter gpt-oss-20b:free (fallback)
-# Cross-family review is deliberate: a judge from the writer's own family
-# inflates pass rates, and schema enforcement makes REVIEWER_JSON_ERROR
-# structurally impossible instead of merely less likely.
+# 3-stage Writer-Judge-Fixer routing (2026-07). Each stage is an ORDERED
+# OpenRouter fallback chain: the primary is tried first, then fallback 1, then
+# fallback 2, on any rate-limit (429) / downtime (5xx) / bad-response. Every
+# stage routes through the single OPENROUTER_API_KEY -- no direct provider keys.
+#   generator (draft; warm, conversational pet-owner tone):
+#     anthropic/claude-3.5-haiku -> google/gemini-2.5-flash -> meta-llama/llama-3.3-70b-instruct
+#   review (strict JSON rubric grading; schema-enforced):
+#     openai/gpt-4o-mini -> qwen/qwen-2.5-72b-instruct -> mistralai/mistral-small-24b-instruct-2501
+#   rewrite (surgical edits from the JSON critique; tone preserved):
+#     deepseek/deepseek-chat -> qwen/qwen-2.5-coder-32b-instruct -> cohere/command-r-08-2024
+# Alt-product search and the roundup fact-checker keep their own models (below).
 GROQ_URL             = "https://api.groq.com/openai/v1/chat/completions"
 OPENROUTER_URL       = "https://openrouter.ai/api/v1/chat/completions"
-GEMINI_GEN_MODEL     = "gemini-2.5-flash"
-OR_GEN_MODEL         = "openai/gpt-oss-120b:free"
-# Primary generator: Claude Sonnet via OpenRouter. Claude follows the style
-# contract (no em dashes, no first-person, no fabricated stats) far more reliably
-# than Gemini Flash, which the reviewer kept rejecting. Bump this slug for a newer
-# Sonnet if desired -- same OpenRouter account already runs anthropic/claude-haiku-4.5.
-OR_GEN_MODEL_CLAUDE  = "anthropic/claude-sonnet-4.5"
-REVIEWER_MODEL       = "anthropic/claude-haiku-4.5"
-REVIEWER_FALLBACK    = "gemini-2.5-flash-lite"
+
+GENERATOR_CHAIN = [
+    "anthropic/claude-3.5-haiku",
+    "google/gemini-2.5-flash",
+    "meta-llama/llama-3.3-70b-instruct",
+]
+REVIEW_CHAIN = [
+    "openai/gpt-4o-mini",
+    "qwen/qwen-2.5-72b-instruct",
+    "mistralai/mistral-small-24b-instruct-2501",
+]
+REWRITE_CHAIN = [
+    "deepseek/deepseek-chat",
+    "qwen/qwen-2.5-coder-32b-instruct",
+    "cohere/command-r-08-2024",
+]
+
+# Auxiliary steps (outside the 3-stage chain).
+OR_GEN_MODEL         = "openai/gpt-oss-120b:free"   # alternative-product search
+OR_FACTCHECK_MODEL   = "openai/gpt-oss-20b:free"    # fact-check fallback
+FACTCHECK_MODEL      = "gemini-2.5-flash-lite"      # fact-check primary (Gemini direct)
 REVIEWER_ENABLED     = True
-GEMINI_REWRITE_MODEL = "gemini-2.5-flash-lite"
-OR_FACTCHECK_MODEL   = "openai/gpt-oss-20b:free"
-FACTCHECK_MODEL      = "gemini-2.5-flash-lite"
 OR_HEADERS_EXTRA     = {"HTTP-Referer": "https://happypetproductreviews.com", "X-Title": "HappyPetReviews"}
 MAX_REVIEW_ATTEMPTS  = 3
 INTER_DELAY          = 300
@@ -263,9 +273,10 @@ def _call_gemini(model: str, prompt: str, *, max_tokens: int, temperature: float
     return text
 
 
-# Reviewer scorecard schema. Enforced server-side by both reviewer paths:
-# Claude via output_config.format (needs additionalProperties: false),
-# Gemini via responseSchema (rejects additionalProperties -- stripped below).
+# Reviewer scorecard schema. Requested from the REVIEW_CHAIN as an OpenRouter
+# response_format json_schema (strict). GPT-4o-mini (primary) enforces it
+# natively; the fallback models return best-effort JSON that _parse_scorecard
+# reads, falling over to the next model if a response is not parseable.
 REVIEW_SCHEMA = {
     "type": "object",
     "properties": {
@@ -293,60 +304,30 @@ REVIEW_SCHEMA = {
 }
 
 
-def _strip_additional_properties(schema):
-    """Gemini's responseSchema rejects additionalProperties; Claude requires it."""
-    if isinstance(schema, dict):
-        return {k: _strip_additional_properties(v) for k, v in schema.items()
-                if k != "additionalProperties"}
-    if isinstance(schema, list):
-        return [_strip_additional_properties(s) for s in schema]
-    return schema
-
-
-REVIEW_SCHEMA_GEMINI = _strip_additional_properties(REVIEW_SCHEMA)
+def _parse_scorecard(text: str) -> dict:
+    """Parse a reviewer response into a scorecard dict. Tolerates a ```json```
+    fence; raises (to trigger chain fall-over) on anything that isn't JSON."""
+    text = re.sub(r"^```(?:json)?\s*|\s*```$", "", text.strip())
+    return json.loads(text)
 
 
 def _call_openrouter_reviewer(prompt: str) -> dict:
+    """Stage 2 (review): grade the draft via the REVIEW_CHAIN (GPT-4o-mini
+    primary) through OpenRouter, requesting the schema-enforced scorecard JSON
+    (response_format json_schema, strict). GPT-4o-mini honors the schema
+    natively; the fallbacks return best-effort JSON that _parse_scorecard reads.
+    A model that returns unparseable output falls over to the next in the chain.
+    Raises RuntimeError only when the whole chain is exhausted, so the caller
+    holds the article UNREVIEWED rather than publishing on a bad grade.
     """
-    Review via Claude Haiku 4.5 routed through OpenRouter with structured
-    output (response_format json_schema, strict) -- the response text is
-    schema-valid JSON, so no regex repair passes are needed. provider
-    require_parameters makes OpenRouter route only to providers that honor
-    response_format. Raises RuntimeError on any failure so the caller can
-    fail over to the independently schema-enforced Gemini path.
-    """
-    key = os.environ.get("OPENROUTER_API_KEY", "").strip()
-    if not key:
-        raise RuntimeError("OPENROUTER_API_KEY not set")
-    payload = json.dumps({
-        "model": REVIEWER_MODEL,
-        "max_tokens": 4096,
-        "temperature": 0.1,
-        "messages": [{"role": "user", "content": prompt}],
-        "response_format": {
-            "type": "json_schema",
-            "json_schema": {
-                "name": "review_scorecard",
-                "strict": True,
-                "schema": REVIEW_SCHEMA,
-            },
-        },
-        "provider": {"require_parameters": True},
-    }).encode()
-    headers = {
-        "Content-Type": "application/json",
-        "Authorization": f"Bearer {key}",
-        **OR_HEADERS_EXTRA,
+    response_format = {
+        "type": "json_schema",
+        "json_schema": {"name": "review_scorecard", "strict": True, "schema": REVIEW_SCHEMA},
     }
-    raw = http_post(OPENROUTER_URL, payload, headers, label="Reviewer-Haiku-OR",
-                    log_fn=log_reviewer, timeout=90, retries=2, backoff_base=30)
-    text = _extract_or_content(raw, "Reviewer-Haiku-OR")
-    # Belt and braces: strict schema enforcement should make this a no-op, but
-    # if a provider ever degrades it, a fence-wrapped scorecard still parses
-    # and anything worse raises into the Gemini fallback instead of holding
-    # the article unreviewed.
-    text = re.sub(r"^```(?:json)?\s*|\s*```$", "", text.strip())
-    return json.loads(text)
+    return call_openrouter_chain(
+        REVIEW_CHAIN, [{"role": "user", "content": prompt}], label="review",
+        max_tokens=4096, temperature=0.1, response_format=response_format,
+        parse=_parse_scorecard, log_fn=log_reviewer, timeout=90)
 
 
 def slugify(s: str) -> str:
@@ -693,7 +674,7 @@ def evaluate_scorecard(scorecard: dict, content: str) -> tuple:
             passed = False
 
     # Em dashes: trust ONLY the real body (deterministic, accurate). The model's
-    # self-reported em_dash_count is advisory -- Haiku mislabels hyphenated
+    # self-reported em_dash_count is advisory -- reviewer LLMs mislabel hyphenated
     # compounds ("extra-large") as em dashes, which would falsely hold a clean
     # article. Em dashes are stripped before review (scrub_typography) and any
     # real one left in the body is caught here.
@@ -712,44 +693,47 @@ def evaluate_scorecard(scorecard: dict, content: str) -> tuple:
     return passed, flags
 
 
-def call_generator(prompt: str, api_key: str, system: str = "") -> str:
+def call_openrouter_chain(chain, messages, *, label, max_tokens, temperature,
+                          response_format=None, parse=None, log_fn=None, timeout=120):
+    """Call the OpenRouter models in `chain` (primary first), returning the first
+    success. Falls over to the NEXT model on ANY failure -- rate limit (429),
+    downtime (5xx), truncation, malformed response, or (when `parse` is given) an
+    unparseable body. Returns the message content, or parse(content) if `parse`
+    is provided. Raises RuntimeError only when the whole chain is exhausted.
     """
-    Generator call chain:
-      1. Claude Sonnet via OpenRouter (paid) -- primary
-      2. Gemini 2.5 Flash (direct API) -- emergency fallback only
-    Claude clears the anti-AI reviewer bar (no em dashes / first-person /
-    fabricated stats) that Gemini Flash consistently failed; Gemini stays as a
-    safety net for when OpenRouter is unavailable. Raises if both are exhausted.
-    """
-    # --- Tier 1: Claude Sonnet via OpenRouter (primary) ---
-    or_gen_key = os.environ.get("OPENROUTER_API_KEY", "").strip()
-    if or_gen_key:
+    lf = log_fn or log
+    key = os.environ.get("OPENROUTER_API_KEY", "").strip()
+    if not key:
+        raise RuntimeError(f"{label}: OPENROUTER_API_KEY not set")
+    headers = {"Content-Type": "application/json",
+               "Authorization": f"Bearer {key}", **OR_HEADERS_EXTRA}
+    errors = []
+    for model in chain:
         try:
-            messages = ([{"role": "system", "content": system}] if system else []) \
-                       + [{"role": "user", "content": prompt}]
-            payload = json.dumps({
-                "model": OR_GEN_MODEL_CLAUDE,
-                "messages": messages,
-                "max_tokens": 8192,
-                "temperature": 0.5,
-            }).encode()
-            headers = {
-                "Content-Type": "application/json",
-                "Authorization": f"Bearer {or_gen_key}",
-                **OR_HEADERS_EXTRA,
-            }
-            raw = http_post(OPENROUTER_URL, payload, headers, label="Gen-Claude-Sonnet-OR",
-                            timeout=120, retries=2, backoff_base=30)
-            return _extract_or_content(raw, f"Gen {OR_GEN_MODEL_CLAUDE}")
+            body = {"model": model, "messages": messages,
+                    "max_tokens": max_tokens, "temperature": temperature}
+            if response_format is not None:
+                body["response_format"] = response_format
+            raw = http_post(OPENROUTER_URL, json.dumps(body).encode(), headers,
+                            label=f"{label}:{model}", log_fn=lf,
+                            timeout=timeout, retries=2, backoff_base=30)
+            content = _extract_or_content(raw, f"{label}:{model}")
+            return parse(content) if parse else content
         except Exception as exc:
-            log(f"  Claude Sonnet generator failed: {exc} -- failing over to Gemini", "WARN")
-    else:
-        log("  OPENROUTER_API_KEY not set -- using Gemini generator directly", "WARN")
+            errors.append(f"{model}: {exc}")
+            lf(f"  {label} model {model} failed ({exc}) -- falling over to next in chain", "WARN")
+    raise RuntimeError(f"{label}: all {len(chain)} models exhausted -- " + "; ".join(errors))
 
-    # --- Tier 2: Gemini 2.5 Flash (emergency fallback) ---
-    gemini_prompt = f"{system}\n\n{prompt}" if system else prompt
-    return _call_gemini(GEMINI_GEN_MODEL, gemini_prompt, max_tokens=8192, temperature=0.6,
-                        label="Gemini-Gen-Fallback")
+
+def call_generator(prompt: str, api_key: str = "", system: str = "") -> str:
+    """Stage 1 (generator): draft via the GENERATOR_CHAIN (Claude 3.5 Haiku
+    primary) through OpenRouter -- system rules + user task at temp 0.5. `api_key`
+    is vestigial, kept for call-site compatibility. Raises if the chain is
+    exhausted."""
+    messages = ([{"role": "system", "content": system}] if system else []) \
+               + [{"role": "user", "content": prompt}]
+    return call_openrouter_chain(GENERATOR_CHAIN, messages, label="generator",
+                                 max_tokens=8192, temperature=0.5)
 
 
 def _extract_or_content(raw: bytes, label: str) -> str:
@@ -937,9 +921,10 @@ PIN_DESC: [one punchy sentence, max 20 words, Pinterest stop-scroll hook]
 Then article body immediately after."""
 
 
-# Static persona + rules for the generator, sent as the `system` message. Claude
-# follows rules placed in the system role and delimited by XML tags far more
-# reliably than the same rules buried in a flat user prompt.
+# Static persona + rules for the generator, sent as the `system` message. Models
+# (Claude 3.5 Haiku primary, and the chat fallbacks) follow rules placed in the
+# system role and delimited by XML tags far more reliably than the same rules
+# buried in a flat user prompt.
 GENERATOR_SYSTEM_PROMPT = f"""You are a senior writer for Happy Pet Product Reviews, a trusted budget-focused pet product review blog. You write complete, publish-ready posts that read like honest advice from a real, budget-conscious pet owner, never like AI or marketing copy.
 
 An automated reviewer rejects any article that breaks the rules in <writing_rules>. It judges you on exactly these rules, so follow every one of them.
@@ -1250,30 +1235,18 @@ def review_and_rewrite(title: str, keyword: str, content: str, api_key: str, or_
         review_prompt = make_review_prompt(title, keyword, content)
         scorecard = None
 
-        # --- Primary: Claude Haiku 4.5 via OpenRouter, schema-enforced JSON ---
-        # Cross-family judge (Gemini writes, Claude reviews) + server-side schema
-        # validation: the old regex-repair passes and REVIEWER_JSON_ERROR class
-        # existed because free models returned malformed scorecards.
+        # --- Stage 2 (review): REVIEW_CHAIN via OpenRouter, schema-enforced JSON.
+        # A cross-family judge (a different model than the writer) avoids the
+        # pass-rate inflation of same-family grading; the chain itself fails over
+        # GPT-4o-mini -> Qwen -> Mistral on rate-limit/downtime/bad-JSON.
         try:
             scorecard = _call_openrouter_reviewer(review_prompt)
-            log_reviewer(f"  Reviewer: {REVIEWER_MODEL} (via OpenRouter, schema-enforced)")
-        except Exception as _claude_exc:
-            log_reviewer(f"  Haiku reviewer error: {_claude_exc} -- falling back to Gemini", "WARN")
-
-        # --- Fallback: Gemini Flash Lite with responseSchema ---
-        if scorecard is None:
-            try:
-                raw = _call_gemini(REVIEWER_FALLBACK, review_prompt,
-                                   max_tokens=4000, temperature=0.1,
-                                   label="Reviewer-Gemini-Fallback", log_fn=log_reviewer,
-                                   json_schema=REVIEW_SCHEMA_GEMINI, timeout=60)
-                scorecard = json.loads(raw)
-                log_reviewer(f"  Reviewer fallback: {REVIEWER_FALLBACK} (Gemini, responseSchema)")
-            except Exception as _gem_exc:
-                log_reviewer(f"  Gemini reviewer error: {_gem_exc}", "WARN")
+            log_reviewer(f"  Reviewer chain head: {REVIEW_CHAIN[0]} (via OpenRouter, schema-enforced)")
+        except Exception as _rev_exc:
+            log_reviewer(f"  review chain exhausted: {_rev_exc}", "WARN")
 
         if scorecard is None:
-            log_reviewer("  review failed on both providers -- article held as UNREVIEWED", "WARN")
+            log_reviewer("  review unavailable across the chain -- article held as UNREVIEWED", "WARN")
             return content, False, ["REVIEWER_UNAVAILABLE"]
         scores      = scorecard.get("scores", {})
         em_dashes   = scorecard.get("em_dash_count", 0)
@@ -1301,50 +1274,22 @@ def review_and_rewrite(title: str, keyword: str, content: str, api_key: str, or_
             instructions = "Fix each of these reviewer findings: " + "; ".join(str(p) for p in problems[:12])
             log_reviewer("  rewrite_instructions empty -- synthesized from flags/patterns", "WARN")
         if attempt < MAX_REVIEW_ATTEMPTS and instructions:
-            # Attempt 1 rewrite: use original model (Gemini)
-            # Attempt 2 rewrite: use failover model (Groq Llama 70B)
-            if attempt == 1:
-                log_reviewer("  REWRITING via Gemini (original model)...")
-                time.sleep(RPM_SLEEP)
-                try:
-                    content = call_generator(make_rewrite_prompt(title, keyword, content, instructions, affiliate_url=affiliate_url, product_name=product_name), api_key)
-                    _, content = extract_pin_desc(content, "")
-                except Exception as e:
-                    log_reviewer(f"  WARN: Gemini rewrite failed: {e}")
-                    return content, False, flags
-            else:
-                log_reviewer(f"  REWRITING via {GEMINI_REWRITE_MODEL} (attempt 2 failover)...")
-                time.sleep(RPM_SLEEP)
-                rw_prompt_text = make_rewrite_prompt(title, keyword, content, instructions, affiliate_url=affiliate_url, product_name=product_name)
-                rw_content = None
-                # Tier 1: Gemini Flash Lite (different model than attempt 1's generator)
-                try:
-                    rw_content = _call_gemini(GEMINI_REWRITE_MODEL, rw_prompt_text,
-                                              max_tokens=8192, temperature=0.7,
-                                              label="Rewriter-Gemini", log_fn=log_reviewer)
-                except Exception as e:
-                    log_reviewer(f"  Gemini rewrite failed: {e} -- trying OR fallback", "WARN")
-                # Tier 2: OpenRouter gpt-oss-120b:free
-                if not rw_content:
-                    try:
-                        or_fb_key = os.environ.get("OPENROUTER_API_KEY", "").strip()
-                        rw_or_payload = json.dumps({
-                            "model": OR_GEN_MODEL,
-                            "messages": [{"role": "user", "content": rw_prompt_text}],
-                            "max_tokens": 8192, "temperature": 0.7,
-                        }).encode()
-                        rw_or_headers = {"Content-Type": "application/json",
-                                         "Authorization": f"Bearer {or_fb_key}",
-                                         **OR_HEADERS_EXTRA}
-                        raw_rw     = http_post(OPENROUTER_URL, rw_or_payload, rw_or_headers,
-                                               label="Rewriter-OR", log_fn=log_reviewer,
-                                               timeout=90, retries=2, backoff_base=60)
-                        rw_content = _extract_or_content(raw_rw, "Rewriter-OR")
-                    except Exception as e:
-                        log_reviewer(f"  WARN: OR rewrite failed: {e}")
-                        return content, False, flags
-                content = rw_content
+            # Stage 3 (rewrite): surgical edits via the REWRITE_CHAIN (DeepSeek V3
+            # primary). Ingests the original draft PLUS the JSON critique's
+            # instructions and applies only the required changes; the chain fails
+            # over DeepSeek -> Qwen Coder -> Command R on rate-limit/downtime.
+            log_reviewer(f"  REWRITING via rewrite chain head {REWRITE_CHAIN[0]}...")
+            time.sleep(RPM_SLEEP)
+            rw_prompt_text = make_rewrite_prompt(title, keyword, content, instructions,
+                                                 affiliate_url=affiliate_url, product_name=product_name)
+            try:
+                content = call_openrouter_chain(
+                    REWRITE_CHAIN, [{"role": "user", "content": rw_prompt_text}],
+                    label="rewrite", max_tokens=8192, temperature=0.5, log_fn=log_reviewer)
                 _, content = extract_pin_desc(content, "")
+            except Exception as e:
+                log_reviewer(f"  rewrite chain exhausted: {e}", "WARN")
+                return content, False, flags
         else:
             log_reviewer(f"  REVIEW FAILED after {attempt} attempt(s) -- creating GitHub issue", "WARN")
             return content, False, flags
@@ -1478,7 +1423,9 @@ def main() -> None:
         POSTS_DIR.mkdir(parents=True, exist_ok=True)
         today     = datetime.date.today().isoformat()
         generated = skipped = failed = held = 0
-        log(f"START v22.0 -- {len(topics)} topics -- generator={OR_GEN_MODEL_CLAUDE} (fallback {GEMINI_GEN_MODEL}) reviewer={REVIEWER_MODEL if REVIEWER_ENABLED else 'OFF'}")
+        log(f"START v22.0 -- {len(topics)} topics -- generator={GENERATOR_CHAIN[0]} "
+            f"review={REVIEW_CHAIN[0]} rewrite={REWRITE_CHAIN[0]} (each with 2 fallbacks) "
+            f"reviewer={'ON' if REVIEWER_ENABLED else 'OFF'}")
 
         for i, (slug, title, keyword, fmt) in enumerate(topics, 1):
             # Inter-article delay at the TOP of the loop so every path pays it.
