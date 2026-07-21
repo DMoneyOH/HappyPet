@@ -1009,6 +1009,52 @@ Then the article body immediately after.
 </output_format>"""
 
 
+def build_writer_inputs(slug: str, product: dict) -> dict:
+    """Assemble the writer's system+user prompts for one topic, internal-only.
+    Roundup alternatives come from products.json `runners_up`; when absent, a
+    static instruction is used instead of the (external) Groq fallback. Returns
+    {system, user, title, keyword, fmt, species, affiliate_url}."""
+    title    = product["title"]
+    keyword  = product["keyword"]
+    fmt      = product["format"]
+    species  = product.get("species", "dog")
+    category = product.get("category", "")
+
+    related_url, related_anchor = find_related_published_slug(slug, category)
+    user = make_prompt(title, keyword, slug, fmt, product, related_url, related_anchor)
+
+    # NOTE: make_prompt's roundup STRUCTURE block is built inside an f-string
+    # where the placeholder is written as "{{ALTERNATIVE_PRODUCTS}}" -- f-string
+    # double-brace escaping collapses that to a literal single-brace
+    # "{ALTERNATIVE_PRODUCTS}" in the returned text (confirmed empirically).
+    # main()'s pre-existing .replace("{{ALTERNATIVE_PRODUCTS}}", ...) therefore
+    # never matched, so the placeholder was never substituted for roundups.
+    # Match the real (single-brace) placeholder here so the substitution
+    # actually fires.
+    if "{ALTERNATIVE_PRODUCTS}" in user:
+        runners_up = product.get("runners_up", "")
+        if runners_up:
+            if ";" in runners_up:
+                alt_count = len([a for a in runners_up.split(";") if a.strip()])
+            else:
+                alt_count = len([ln for ln in runners_up.splitlines() if ln.strip()])
+            alt_constraint = (
+                "EXACTLY " + str(alt_count) + " alternative product(s) listed below. "
+                "Use ONLY these " + str(alt_count) + " product(s). "
+                "Do NOT add, invent, or substitute any others.\n" + runners_up
+            )
+            user = user.replace("{ALTERNATIVE_PRODUCTS}", alt_constraint)
+        else:
+            user = user.replace(
+                "{ALTERNATIVE_PRODUCTS}",
+                "EXACTLY 3 alternatives -- use well-known brands you are confident "
+                "exist. Do not fabricate products.")
+
+    return {"system": GENERATOR_SYSTEM_PROMPT, "user": user, "title": title,
+            "keyword": keyword, "fmt": fmt, "species": species,
+            "affiliate_url": product.get("affiliate_url", "")}
+
+
 def make_prompt(title: str, keyword: str, slug: str, fmt: str, product: dict,
                 related_url: str, related_anchor: str) -> str:
     affiliate_url = product.get("affiliate_url", "")
@@ -1504,45 +1550,10 @@ def main() -> None:
             _t0 = time.monotonic()
             time.sleep(RPM_SLEEP)
 
-            # Dynamic internal link resolved from live _posts/
-            related_url, related_anchor = find_related_published_slug(slug, category)
-
             try:
-                # For roundup, use Apify runner-ups from products.json if available,
-                # otherwise fall back to Groq Compound
-                alternatives_text = ""
-                if fmt == "roundup":
-                    product_name = product.get("name", "")
-                    runners_up = product.get("runners_up", "")
-                    if runners_up:
-                        alternatives_text = runners_up
-                        log(f"  Alternatives: using Apify runner-ups from products.json")
-                    else:
-                        alternatives_text = find_alternative_products(keyword, product_name, groq_key, count=3)
-                        log(f"  Alternatives: Groq fallback (no runners_up in products.json)")
-                
-                prompt  = make_prompt(title, keyword, slug, fmt, product, related_url, related_anchor)
-                
-                # Inject alternatives into roundup prompt with explicit count constraint
-                if alternatives_text:
-                    # runners_up from products.json is ';'-delimited; the LLM
-                    # fallback returns a newline-separated numbered list --
-                    # counting ';' on the latter said "EXACTLY 1" while listing 3
-                    if ";" in alternatives_text:
-                        alt_count = len([a for a in alternatives_text.split(";") if a.strip()])
-                    else:
-                        alt_count = len([ln for ln in alternatives_text.splitlines() if ln.strip()])
-                    alt_constraint = (
-                        "EXACTLY " + str(alt_count) + " alternative product(s) listed below. "
-                        "Use ONLY these " + str(alt_count) + " product(s). "
-                        "Do NOT add, invent, or substitute any others.\n"
-                        + alternatives_text
-                    )
-                    prompt = prompt.replace("{{ALTERNATIVE_PRODUCTS}}", alt_constraint)
-                else:
-                    prompt = prompt.replace("{{ALTERNATIVE_PRODUCTS}}", "EXACTLY 3 alternatives -- use well-known brands you are confident exist. Do not fabricate products.")
-                
-                content = call_generator(prompt, groq_key, system=GENERATOR_SYSTEM_PROMPT)
+                writer = build_writer_inputs(slug, product)
+                prompt = writer["user"]
+                content = call_generator(prompt, groq_key, system=writer["system"])
                 log(f"  [timing] generate: {time.monotonic()-_t0:.1f}s")
 
                 pin_desc, content = extract_pin_desc(content, f"{title} - expert reviews and buying guide.")

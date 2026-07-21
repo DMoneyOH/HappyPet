@@ -1945,5 +1945,39 @@ class TestSelectNextTopic(unittest.TestCase):
         self.assertIsNone(self.gp.select_next_topic({}, used_slugs=set()))
 
 
+class TestBuildWriterInputs(unittest.TestCase):
+    def setUp(self):
+        import generate_posts as gp
+        self.gp = gp
+
+    def test_single_review_inputs_have_system_and_user(self):
+        product = {"topic": "best-x", "title": "Best X", "keyword": "best x",
+                   "format": "single_review", "name": "The X", "category": "dogs",
+                   "species": "dog", "affiliate_url": "https://amzn.to/abc"}
+        out = self.gp.build_writer_inputs("best-x", product)
+        self.assertEqual(out["system"], self.gp.GENERATOR_SYSTEM_PROMPT)
+        self.assertIn("Best X", out["user"])
+        self.assertEqual(out["fmt"], "single_review")
+        self.assertEqual(out["species"], "dog")
+        self.assertNotIn("{{ALTERNATIVE_PRODUCTS}}", out["user"])  # substituted
+
+    def test_roundup_uses_products_json_runners_up_not_groq(self):
+        product = {"topic": "best-mats", "title": "Best Mats", "keyword": "best mats",
+                   "format": "roundup", "name": "TopMat", "category": "dogs",
+                   "species": "dog", "runners_up": "MatA;MatB;MatC"}
+        out = self.gp.build_writer_inputs("best-mats", product)
+        self.assertIn("MatA", out["user"])
+        self.assertIn("EXACTLY 3", out["user"])
+        self.assertNotIn("{{ALTERNATIVE_PRODUCTS}}", out["user"])
+
+    def test_roundup_without_runners_up_uses_static_fallback_no_groq(self):
+        product = {"topic": "best-mats", "title": "Best Mats", "keyword": "best mats",
+                   "format": "roundup", "name": "TopMat", "category": "dogs",
+                   "species": "dog"}
+        out = self.gp.build_writer_inputs("best-mats", product)
+        self.assertIn("well-known brands", out["user"])
+        self.assertNotIn("{{ALTERNATIVE_PRODUCTS}}", out["user"])
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
