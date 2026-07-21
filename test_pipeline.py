@@ -473,6 +473,71 @@ class TestReviewGateStripsEmDashes(unittest.TestCase):
         self.assertTrue(passed)
 
 
+class TestPromptRuleConsistency(unittest.TestCase):
+    """Generator and reviewer must enforce ONE canonical rulebook -- a term the
+    generator is told to avoid is exactly a term the reviewer flags. The lists
+    are the union of both prior prompts, so nothing is dropped and the quality
+    bar is unchanged; they live in shared constants so the two can't drift."""
+
+    def setUp(self):
+        import generate_posts as gp
+        self.gp = gp
+        self.system = gp.GENERATOR_SYSTEM_PROMPT
+        self.review = gp.make_review_prompt("Best Dog Crates", "dog crate", "Body.")
+
+    @staticmethod
+    def _has(term, text):
+        return term.lower() in text.lower()
+
+    def test_banned_words_in_generator_and_reviewer(self):
+        self.assertTrue(self.gp.BANNED_WORDS)
+        for w in self.gp.BANNED_WORDS:
+            self.assertTrue(self._has(w, self.system), f"generator missing word: {w}")
+            self.assertTrue(self._has(w, self.review), f"reviewer missing word: {w}")
+
+    def test_banned_transitions_in_generator_and_reviewer(self):
+        self.assertTrue(self.gp.BANNED_TRANSITIONS)
+        for t in self.gp.BANNED_TRANSITIONS:
+            self.assertTrue(self._has(t, self.system), f"generator missing transition: {t}")
+            self.assertTrue(self._has(t, self.review), f"reviewer missing transition: {t}")
+
+    def test_banned_phrases_in_generator_and_reviewer(self):
+        self.assertTrue(self.gp.BANNED_PHRASES)
+        for p in self.gp.BANNED_PHRASES:
+            self.assertTrue(self._has(p, self.system), f"generator missing phrase: {p}")
+            self.assertTrue(self._has(p, self.review), f"reviewer missing phrase: {p}")
+
+    def test_hollow_intensifiers_taught_to_generator(self):
+        self.assertTrue(self.gp.BANNED_INTENSIFIERS)
+        for w in self.gp.BANNED_INTENSIFIERS:
+            self.assertTrue(self._has(w, self.system), f"generator missing intensifier: {w}")
+            self.assertTrue(self._has(w, self.review), f"reviewer missing intensifier: {w}")
+
+    def test_no_previously_flagged_term_was_dropped(self):
+        # Regression guard for "standards stay the same": every term either prompt
+        # used to flag before the reconciliation must still be canonical.
+        prior = {
+            # generator's original banned words
+            "delve", "tapestry", "testament", "paramount", "crucial", "elevate",
+            "multifaceted", "leverage", "robust", "navigate",
+            # reviewer's original #10 additions
+            "utilize", "facilitate", "comprehensive", "innovative", "seamless",
+            "streamline", "synergy", "pivotal", "foster",
+            # reviewer significance / transitions the generator hadn't been told
+            "revolutionize", "groundbreaking", "on the other hand", "in light of",
+            "with that in mind",
+        }
+        canonical = " ".join(self.gp.BANNED_WORDS + self.gp.BANNED_TRANSITIONS
+                             + self.gp.BANNED_PHRASES).lower()
+        for term in prior:
+            self.assertIn(term, canonical, f"reconciliation dropped a flagged term: {term}")
+
+    def test_participial_openings_taught_to_generator(self):
+        # reviewer #9 flags "Standing at.../Looking at..." openings; generator
+        # must now be told, or it can't comply.
+        self.assertIn("standing at", self.system.lower())
+
+
 class TestFirstPersonDetection(unittest.TestCase):
     """Reviewer prompt gates first-person voice — P2"""
 

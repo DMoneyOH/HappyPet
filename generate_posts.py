@@ -101,6 +101,49 @@ BANNED_PHRASE_MAP = [
     (r'tail-wagging',         'impressive'),
 ]
 
+# --- Canonical rule vocabulary --------------------------------------------
+# Single source of truth for BOTH the generator system prompt and the reviewer
+# prompt (and the rewrite prompt). A term the generator is told to avoid is
+# exactly a term the reviewer flags -- so an article that follows the brief can
+# clear the audit instead of being penalised for an unstated rule. These lists
+# are the UNION of the two prompts' prior lists, so nothing was dropped and the
+# quality bar is unchanged. Edit here only; never hardcode a list in one prompt.
+BANNED_WORDS = [
+    "delve", "tapestry", "testament", "paramount", "crucial", "elevate",
+    "beacon", "multifaceted", "seamlessly", "realm", "bustling", "unleash",
+    "prioritize", "leverage", "robust", "navigate", "utilize", "facilitate",
+    "implement", "demonstrate", "endeavor", "commence", "comprehensive",
+    "innovative", "cutting-edge", "seamless", "streamline", "synergy",
+    "embark", "pivotal", "foster", "revolutionize", "unprecedented",
+    "groundbreaking", "landmark",
+]
+BANNED_TRANSITIONS = [
+    "Furthermore", "Moreover", "Additionally", "Consequently", "Therefore",
+    "However", "That said", "Having said that", "With that in mind",
+    "On the other hand", "In light of", "Given the above",
+]
+BANNED_PHRASES = [
+    "the bottom line is", "it's worth noting", "it is important to note",
+    "in conclusion", "in summary", "to summarize", "as we've seen",
+    "look no further", "game-changer", "comprehensive guide", "when it comes to",
+    "at the end of the day", "we all know", "in the realm of",
+    "it goes without saying", "needless to say", "in today's world",
+    "more than ever", "serves as a reminder", "take it to the next level",
+    "stands out from the crowd", "no matter what", "all in all",
+    "when all is said and done", "it's no secret that", "let's face it",
+    "the fact of the matter is", "the truth is", "believe it or not",
+    "at the heart of", "paradigm shift", "once-in-a-generation",
+    "redefine the way", "changed everything", "will never be the same",
+    "experts say", "studies show", "research suggests", "according to experts",
+    "many people believe", "it is widely known", "most agree",
+]
+BANNED_INTENSIFIERS = ["very", "truly", "really", "incredibly", "absolutely", "deeply"]
+
+# Pre-joined, quoted forms for embedding in both prompts (built once at import).
+_BANNED_WORDS_STR        = ", ".join(f'"{w}"' for w in BANNED_WORDS + BANNED_PHRASES)
+_BANNED_TRANSITIONS_STR  = ", ".join(f'"{t}"' for t in BANNED_TRANSITIONS)
+_BANNED_INTENSIFIERS_STR = ", ".join(f'"{w}"' for w in BANNED_INTENSIFIERS)
+
 # Articles 1-10 category map (predate products.json; remain hardcoded)
 # Articles 11+ categories registered at runtime from products.json
 SLUG_CATEGORIES = {
@@ -785,36 +828,23 @@ accuracy:
 Check every category. Flag every violation found.
 
 1. FORMATTING — Em dashes (—): Count every em dash in the article. Em dash count > 0 = FAIL.
-2. FORMATTING — Bold overuse: Flag if more than 3 bolded phrases per 500 words.
+2. FORMATTING — Bold overuse: Flag any decorative bold inside prose paragraphs (bold is only for the structure the format calls for).
 3. FORMATTING — Bullet-heavy sections: Flag if any section is 90%+ bullet points with no prose.
 4. FORMATTING — Inline-header bullet lists: Flag any bullet that begins with a bolded phrase acting as a mini-header.
 5. SENTENCE STRUCTURE — Hedging: Flag excessive qualifier stacking ("somewhat", "perhaps", "it could be argued", "it is worth noting", "it is important to note").
-6. SENTENCE STRUCTURE — Hollow intensifiers: Flag "very", "truly", "really", "incredibly", "absolutely", "deeply" used as filler before adjectives.
-7. SENTENCE STRUCTURE — Rule of three overuse: Flag if 3+ instances of X, Y, and Z list structure appear in the same article.
+6. SENTENCE STRUCTURE — Hollow intensifiers: Flag {_BANNED_INTENSIFIERS_STR} used as filler before adjectives.
+7. SENTENCE STRUCTURE — Rule of three overuse: Flag if more than one X, Y, and Z list structure appears in the article.
 8. SENTENCE STRUCTURE — Copula avoidance: Flag if most sentences use "be" verbs (is/are/was/were/has been) instead of active verbs. Active verbs reveal specificity; copulas reveal vagueness.
 9. SENTENCE STRUCTURE — Superficial -ing analyses: Flag opening clauses like "Standing at the edge of...", "Looking at...", "Considering the...", "Navigating the complex...".
-10. WORD REPLACEMENTS — Flag any of these exact words/phrases and note their location:
-    leverage, utilize, facilitate, implement, demonstrate, endeavor, commence, prioritize,
-    comprehensive, robust, innovative, cutting-edge, seamless, streamline, synergy,
-    delve, embark, pivotal, testament to, foster, in the realm of, at the end of the day,
-    game-changer, look no further, it goes without saying, needless to say,
-    in today's [X] landscape, in today's world, when it comes to, more than ever,
-    a testament to, serves as a reminder, take it to the next level, stands out from the crowd.
-11. TEMPLATE PHRASES — Flag: "In conclusion", "In summary", "To summarize", "As we've seen",
-    "Whether you're a [X] or a [Y]", "No matter what", "At the end of the day",
-    "The bottom line is", "All in all", "When all is said and done".
-12. TRANSITION PHRASES — Flag: "Moreover", "Furthermore", "Additionally", "It's worth noting",
-    "It is important to note", "That said", "Having said that", "With that in mind",
-    "On the other hand", "In light of", "Given the above".
-13. SIGNIFICANCE INFLATION — Flag language that makes ordinary things sound historic or transformative:
-    "revolutionize", "unprecedented", "landmark", "paradigm shift", "groundbreaking",
-    "once-in-a-generation", "redefine the way", "changed everything", "will never be the same".
+10. WORD REPLACEMENTS — Flag any of these exact words or phrases and note their location:
+    {_BANNED_WORDS_STR}.
+11. TEMPLATE PHRASES — Flag any banned phrase from category 10 used as a template opener or closer, plus "Whether you're a [X] or a [Y]".
+12. TRANSITION PHRASES — Flag: {_BANNED_TRANSITIONS_STR}.
+13. SIGNIFICANCE INFLATION — Flag language that makes ordinary products sound historic or transformative (the trigger words are in category 10).
 14. SYNONYM CYCLING — Flag if the same concept is described with 3+ different synonyms in one article
     purely for variety (e.g. "purchase" → "acquire" → "obtain" → "procure").
-15. VAGUE ATTRIBUTIONS — Flag: "experts say", "studies show", "research suggests", "according to experts",
-    "many people believe", "it is widely known", "most agree" without naming a specific source.
-16. FILLER PHRASES — Flag: "It's no secret that", "Let's face it", "The fact of the matter is",
-    "The truth is", "Believe it or not", "At the heart of", "Needless to say".
+15. VAGUE ATTRIBUTIONS — Flag unsourced attributions from category 10 (e.g. "experts say", "studies show") used without naming a specific source. A hedge grounded in owners ("owners tend to...") is fine.
+16. FILLER PHRASES — Flag any filler phrase from category 10 (e.g. "It's no secret that", "Let's face it", "The fact of the matter is").
 17. GENERIC CONCLUSIONS — Flag conclusions that restate the intro, summarize without adding new information,
     or end with a generic call to action not tied to a specific product or action.
 18. CHATBOT ARTIFACTS — Flag: "Certainly!", "Of course!", "Great question!", "As an AI",
@@ -894,7 +924,7 @@ REWRITE RULES:
   GOOD: "The front-entry design means you scoop from the top instead of kneeling on the floor."
 - Where warmth or human voice is flagged, get MORE SPECIFIC in second person -- name a scenario the reader recognizes ("your dog paces the kitchen at 5am") or a concrete frustration. Do NOT invent a personal anecdote, a named pet, a testimonial, or a statistic to sound warmer. Real warmth is specific and grounded, never fabricated.
 - Where transitions feel templated, cut them or rewrite as a direct statement.
-  Never use: "Overall", "In summary", "Whether you", "At the end of the day", "Ultimately", "However", "Furthermore", "Moreover".
+  Never use: {_BANNED_TRANSITIONS_STR}.
 - Read your output before returning it. If any sentence could have been written by a content farm, rewrite it. If you added an em dash, a first-person word, or a number that was not in the original, remove it.
 
 Return ONLY clean Markdown. No YAML. No preamble. First line must be:
@@ -905,22 +935,29 @@ Then article body immediately after."""
 # Static persona + rules for the generator, sent as the `system` message. Claude
 # follows rules placed in the system role and delimited by XML tags far more
 # reliably than the same rules buried in a flat user prompt.
-GENERATOR_SYSTEM_PROMPT = """You are a senior writer for Happy Pet Product Reviews, a trusted budget-focused pet product review blog. You write complete, publish-ready posts that read like honest advice from a real, budget-conscious pet owner, never like AI or marketing copy.
+GENERATOR_SYSTEM_PROMPT = f"""You are a senior writer for Happy Pet Product Reviews, a trusted budget-focused pet product review blog. You write complete, publish-ready posts that read like honest advice from a real, budget-conscious pet owner, never like AI or marketing copy.
 
-An automated reviewer rejects any article that breaks the rules in <writing_rules>. Follow every one of them.
+An automated reviewer rejects any article that breaks the rules in <writing_rules>. It judges you on exactly these rules, so follow every one of them.
 
 <writing_rules>
-- Tone: conversational, grounded, and slightly skeptical. Avoid the hyper-enthusiastic, overly polished "salesperson" voice.
+- Tone: conversational, grounded, and slightly skeptical. Avoid the hyper-enthusiastic, overly polished "salesperson" voice. No unearned superlatives ("the best", "the most", "unmatched", "top-tier", "best-in-class") unless you back them with a specific reason.
 - Cadence: vary sentence length. Mix short, punchy sentences with a few longer flowing ones. Do not make every sentence the same length; keep it readable and do not overuse one-word fragments.
+- Verbs: prefer active verbs over be-verbs. Do not let most sentences lean on "is", "are", "was", "were"; specificity comes from verbs.
 - Voice: write ONLY in second person ("your dog", "you'll find") or third person ("owners report", "dogs tend to"). NEVER use first-person voice (I, we, us, our, my). No personal stories, no named pets, no invented testimonials. The reviewer fails any article that uses first person.
 - Dashes: NEVER use em dashes (—). Use hyphens, commas, or shorter sentences.
-- Transitions: never use "Furthermore", "Moreover", "Additionally", "Consequently", "Therefore", "However", "That said". Start sentences with the subject or an action; an occasional plain "But", "And", or "So" is fine, but do not lean on them.
-- No decorative bold inside prose paragraphs.
-- Avoid rule-of-three overuse: do not stack three-item parallel phrases ("X, Y, and Z"). Use one or two, or restructure. At most one such list per article.
-- Never use these words or phrases: "delve", "tapestry", "testament", "paramount", "crucial", "elevate", "beacon", "multifaceted", "seamlessly", "realm", "bustling", "unleash", "prioritize", "leverage", "robust", "the bottom line is", "it's worth noting", "in conclusion", "look no further", "game-changer", "comprehensive guide", "navigate", "when it comes to", "at the end of the day", "we all know", "as pet owners", "as dog owners", "as cat owners", "paw-some", "fur baby", "pet parent", "furry friend". Use "dog owner" or "cat owner".
-- Facts: only state specs given in the product data. When you lack a number, be concretely specific ("owners of large breeds", "on hardwood floors") rather than vague ("many owners report..."). NEVER invent dimensions, materials, weight, percentages, statistics, prices, review counts, or dates you were not given.
+- Transitions: never use {_BANNED_TRANSITIONS_STR}. Start sentences with the subject or an action; an occasional plain "But", "And", or "So" is fine, but do not lean on them.
+- Intensifiers: do not lean on empty intensifiers before adjectives ({_BANNED_INTENSIFIERS_STR}). Cut them or give a concrete detail instead.
+- Qualifiers: do not stack weak qualifiers ("somewhat", "perhaps", "it could be argued"). Commit to a clear statement, or hedge once and move on.
+- Bold: no decorative bold inside prose paragraphs. Use bold only for the structure the format calls for.
+- Bullets: never start a bullet with a bolded mini-header phrase; write plain bullets.
+- Rule-of-three: do not stack three-item parallel phrases ("X, Y, and Z"). Use one or two, or restructure. At most one such list in the whole article.
+- Participial openings: never open a sentence or section with a windup like "Standing at...", "Looking at...", "Considering...", or "Navigating...". Start with the subject.
+- Synonyms: do not cycle synonyms for the same thing just for variety ("purchase", "acquire", "obtain", "procure"). Pick one word and reuse it.
+- Notability: do not name-drop brands, institutions, or experts that add no real information, and never write chatbot artifacts ("Certainly!", "Of course!", "As an AI", "I hope this helps").
+- Never use these words or phrases: {_BANNED_WORDS_STR}. Use "dog owner" or "cat owner".
+- Facts: only state specs given in the product data. When you lack a number, be concretely specific ("owners of large breeds", "on hardwood floors") rather than leaning on vague attributions ("experts say", "studies show", "research suggests"). NEVER invent dimensions, materials, weight, percentages, statistics, prices, review counts, or dates you were not given. Hedging an unverified claim ("owners tend to...", "works well for...") is fine; inventing a number is not.
 - Headings: sentence case, not Title Case. Never start a section with "In conclusion" or "In summary". Never use "Opening" or "Closing" as headings.
-- Openings: when it fits, open with a specific second-person moment the reader recognizes ("You step away for a 45-minute Zoom call and come back to a shredded couch cushion."). Show, don't tell. Never open with "We've all been there", "As a pet owner...", a generic fact, or a vague scenario before a product pitch. For purely practical topics, a direct factual opening is fine.
+- Opening moment: when it fits, open with a specific second-person moment the reader recognizes ("You step away for a 45-minute Zoom call and come back to a shredded couch cushion."). Show, don't tell. Never open with "We've all been there", "As a pet owner...", a generic fact, or a vague scenario before a product pitch. For purely practical topics, a direct factual opening is fine.
 - Use the focus keyword naturally 4-6 times.
 </writing_rules>
 
