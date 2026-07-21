@@ -23,7 +23,11 @@ def test_gate_passes_clean_on_standard_article():
         out = json.loads(r.stdout)
         assert out["passed"] is True
 
-def test_gate_fails_on_em_dash():
+def test_gate_autofixes_em_dash_instead_of_holding():
+    # scrub_typography converts the em dash before the gate evaluates it, so an
+    # otherwise on-standard article is NOT held on a fixable em dash: it passes,
+    # and the scrubbed body (what staging writes) is clean. The raw-body backstop
+    # is covered separately by TestAuthoritativeGate.test_real_em_dash_in_body_fails.
     with tempfile.TemporaryDirectory() as td:
         body = Path(td) / "body.md"; body.write_text("has — dash", encoding="utf-8")
         card = Path(td) / "card.json"
@@ -32,8 +36,8 @@ def test_gate_fails_on_em_dash():
             encoding="utf-8")
         r = run("gate", "--body", str(body), "--scorecard", str(card))
         out = json.loads(r.stdout)
-        assert out["passed"] is False
-        assert "em_dash_in_body" in out["flags"]
+        assert out["passed"] is True
+        assert "—" not in out["scrubbed_body"]
 
 def test_review_prompt_contains_title_and_rubric():
     with tempfile.TemporaryDirectory() as td:

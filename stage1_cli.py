@@ -50,12 +50,14 @@ def cmd_review_prompt(args) -> int:
 def cmd_gate(args) -> int:
     body = _read(args.body)
     scorecard = json.loads(_read(args.scorecard))
-    # Gate on the RAW body -- scrub_typography deterministically converts every
-    # real em/en dash away, so gating on the scrubbed text would make the
-    # em-dash hard-check dead code. scrubbed_body is still returned so the
-    # agent can see what staging will actually write.
+    # Scrub first, then gate on the SCRUBBED body (spec 4.1). scrub_typography
+    # deterministically converts em/en dashes to human punctuation, so a fixable
+    # em dash is auto-corrected and never causes a hold -- the article passes and
+    # the scrubbed text is what staging writes (cmd_stage re-scrubs identically).
+    # The em-dash hard-check inside authoritative_gate is a backstop for the rare
+    # case a real em dash survives scrubbing.
     scrubbed = gp.scrub_typography(body)
-    passed, flags = gp.authoritative_gate(scorecard, body)
+    passed, flags = gp.authoritative_gate(scorecard, scrubbed)
     print(json.dumps({"passed": passed, "flags": flags, "scrubbed_body": scrubbed}))
     return 0
 
