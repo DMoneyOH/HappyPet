@@ -53,7 +53,11 @@ LOG_PATH.parent.mkdir(exist_ok=True)  # ensure LOGS/ exists
 # fallback 2, on any rate-limit (429) / downtime (5xx) / bad-response. Every
 # stage routes through the single OPENROUTER_API_KEY -- no direct provider keys.
 #   generator (draft; warm, conversational pet-owner tone):
-#     anthropic/claude-3.5-haiku -> google/gemini-2.5-flash -> meta-llama/llama-3.3-70b-instruct
+#     anthropic/claude-sonnet-5 -> google/gemini-2.5-flash -> meta-llama/llama-3.3-70b-instruct
+#     (primary promoted from claude-3.5-haiku 2026-07-21: the cheaper/weaker chain
+#      held live at human_voice=2 (run 29858720087); Sonnet 5 is newer + cheaper
+#      than the Sonnet 4.5 that previously cleared the bar. Gemini/Llama stay as the
+#      cross-provider don't-crash fallback net.)
 #   review (strict JSON rubric grading; schema-enforced):
 #     openai/gpt-4o-mini -> qwen/qwen-2.5-72b-instruct -> mistralai/mistral-small-24b-instruct-2501
 #   rewrite (surgical edits from the JSON critique; tone preserved):
@@ -63,7 +67,7 @@ GROQ_URL             = "https://api.groq.com/openai/v1/chat/completions"
 OPENROUTER_URL       = "https://openrouter.ai/api/v1/chat/completions"
 
 GENERATOR_CHAIN = [
-    "anthropic/claude-3.5-haiku",
+    "anthropic/claude-sonnet-5",
     "google/gemini-2.5-flash",
     "meta-llama/llama-3.3-70b-instruct",
 ]
