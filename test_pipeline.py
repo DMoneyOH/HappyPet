@@ -1147,10 +1147,6 @@ class TestReviewerSchema(unittest.TestCase):
         for obj in objects:
             self.assertIs(obj.get("additionalProperties"), False)
 
-    def test_gemini_schema_has_no_additional_properties(self):
-        import generate_posts as gp
-        self.assertNotIn("additionalProperties", json.dumps(gp.REVIEW_SCHEMA_GEMINI))
-
     def test_schema_covers_all_scorecard_keys(self):
         import generate_posts as gp
         required = set(gp.REVIEW_SCHEMA["required"])
@@ -1158,18 +1154,17 @@ class TestReviewerSchema(unittest.TestCase):
                     "ai_patterns_found", "flags", "rewrite_instructions"):
             self.assertIn(key, required)
 
-    def test_reviewer_routes_through_openrouter(self):
-        # Derek's constraint: no direct Anthropic account -- Claude access goes
-        # through OpenRouter on the existing OPENROUTER_API_KEY, with schema
-        # enforcement requested and routing pinned to providers that honor it
+    def test_all_stages_route_through_openrouter(self):
+        # Every stage routes through OpenRouter on the single OPENROUTER_API_KEY --
+        # no direct provider accounts. The review stage still requests schema-
+        # enforced JSON (GPT-4o-mini honors it natively; fallbacks best-effort).
         source = (REPO / "generate_posts.py").read_text(encoding="utf-8")
         self.assertNotIn("api.anthropic.com", source)
         self.assertNotIn("ANTHROPIC_API_KEY", source)
         self.assertIn('"response_format"', source)
         self.assertIn('"json_schema"', source)
-        self.assertIn("require_parameters", source)
         import generate_posts as gp
-        self.assertTrue(gp.REVIEWER_MODEL.startswith("anthropic/"))
+        self.assertEqual(gp.REVIEW_CHAIN[0], "openai/gpt-4o-mini")
 
     def test_generate_yml_has_no_anthropic_secret(self):
         workflow = (REPO / ".github/workflows/generate.yml").read_text(encoding="utf-8")
@@ -1645,11 +1640,101 @@ class TestChewyApiRetry(unittest.TestCase):
         self.assertEqual(calls["n"], 1, "a 500 must not be retried")
 
 
-class TestGeneratorModel(unittest.TestCase):
-    """call_generator routes primary generation through Claude Sonnet via OpenRouter,
-    with Gemini as the fallback (generator quality fix)."""
+class TestModelRoutingChains(unittest.TestCase):
+    """3-stage Writer-Judge-Fixer routing: each stage is an ordered OpenRouter
+    fallback chain (primary -> fallback 1 -> fallback 2), tried in order."""
 
-    def test_primary_uses_claude_sonnet_via_openrouter(self):
+    def setUp(self):
+        import generate_posts as gp
+        self.gp = gp
+
+    def test_generator_chain_models_and_order(self):
+        self.assertEqual(self.gp.GENERATOR_CHAIN, [
+            "anthropic/claude-3.5-haiku",
+            "google/gemini-2.5-flash",
+            "meta-llama/llama-3.3-70b-instruct",
+        ])
+
+    def test_review_chain_models_and_order(self):
+        self.assertEqual(self.gp.REVIEW_CHAIN, [
+            "openai/gpt-4o-mini",
+            "qwen/qwen-2.5-72b-instruct",
+            "mistralai/mistral-small-24b-instruct-2501",
+        ])
+
+    def test_rewrite_chain_models_and_order(self):
+        self.assertEqual(self.gp.REWRITE_CHAIN, [
+            "deepseek/deepseek-chat",
+            "qwen/qwen-2.5-coder-32b-instruct",
+            "cohere/command-r-08-2024",
+        ])
+
+    def _ok(self, content="OK"):
+        return json.dumps({
+            "choices": [{"message": {"content": content}, "finish_reason": "stop"}],
+            "usage": {"completion_tokens": 3},
+        }).encode()
+
+    def test_chain_uses_primary_first(self):
+        from unittest.mock import patch
+        seen = []
+        def fake_http_post(url, payload, headers, **kw):
+            seen.append(json.loads(payload)["model"])
+            return self._ok("PRIMARY")
+        with patch.object(self.gp, "http_post", side_effect=fake_http_post), \
+             patch.dict(self.gp.os.environ, {"OPENROUTER_API_KEY": "k"}):
+            out = self.gp.call_openrouter_chain(
+                ["m1", "m2", "m3"], [{"role": "user", "content": "x"}],
+                label="t", max_tokens=100, temperature=0.5)
+        self.assertEqual(out, "PRIMARY")
+        self.assertEqual(seen, ["m1"])  # only the primary was called
+
+    def test_chain_falls_over_to_next_on_failure(self):
+        from unittest.mock import patch
+        seen = []
+        def fake_http_post(url, payload, headers, **kw):
+            model = json.loads(payload)["model"]
+            seen.append(model)
+            if model in ("m1", "m2"):
+                raise RuntimeError(f"{model} rate limited")
+            return self._ok("FALLBACK2")
+        with patch.object(self.gp, "http_post", side_effect=fake_http_post), \
+             patch.dict(self.gp.os.environ, {"OPENROUTER_API_KEY": "k"}):
+            out = self.gp.call_openrouter_chain(
+                ["m1", "m2", "m3"], [{"role": "user", "content": "x"}],
+                label="t", max_tokens=100, temperature=0.5)
+        self.assertEqual(out, "FALLBACK2")
+        self.assertEqual(seen, ["m1", "m2", "m3"])  # tried in order until success
+
+    def test_chain_raises_when_all_models_exhausted(self):
+        from unittest.mock import patch
+        with patch.object(self.gp, "http_post", side_effect=RuntimeError("down")), \
+             patch.dict(self.gp.os.environ, {"OPENROUTER_API_KEY": "k"}):
+            with self.assertRaises(RuntimeError):
+                self.gp.call_openrouter_chain(
+                    ["m1", "m2", "m3"], [{"role": "user", "content": "x"}],
+                    label="t", max_tokens=100, temperature=0.5)
+
+    def test_chain_parse_failure_triggers_fallover(self):
+        # A model that returns unparseable output (e.g. non-JSON for the review
+        # stage) must fall over to the next model, not return junk.
+        from unittest.mock import patch
+        def fake_http_post(url, payload, headers, **kw):
+            model = json.loads(payload)["model"]
+            return self._ok("not json" if model == "m1" else '{"ok": true}')
+        with patch.object(self.gp, "http_post", side_effect=fake_http_post), \
+             patch.dict(self.gp.os.environ, {"OPENROUTER_API_KEY": "k"}):
+            out = self.gp.call_openrouter_chain(
+                ["m1", "m2"], [{"role": "user", "content": "x"}],
+                label="t", max_tokens=100, temperature=0.1, parse=json.loads)
+        self.assertEqual(out, {"ok": True})
+
+
+class TestGeneratorModel(unittest.TestCase):
+    """call_generator routes primary generation through the GENERATOR_CHAIN
+    (Claude 3.5 Haiku primary) via OpenRouter, falling over down the chain."""
+
+    def test_primary_uses_generator_chain_head_via_openrouter(self):
         import generate_posts as gp
         from unittest.mock import patch
         captured = {}
@@ -1665,18 +1750,25 @@ class TestGeneratorModel(unittest.TestCase):
             out = gp.call_generator("write an article", "unused")
         self.assertEqual(out, "ARTICLE BODY")
         self.assertEqual(captured["url"], gp.OPENROUTER_URL)
-        self.assertEqual(captured["payload"]["model"], gp.OR_GEN_MODEL_CLAUDE)
-        self.assertIn("claude-sonnet", gp.OR_GEN_MODEL_CLAUDE)
+        self.assertEqual(captured["payload"]["model"], gp.GENERATOR_CHAIN[0])
+        self.assertEqual(gp.GENERATOR_CHAIN[0], "anthropic/claude-3.5-haiku")
 
-    def test_falls_back_to_gemini_when_openrouter_fails(self):
+    def test_falls_over_to_second_generator_model_when_primary_fails(self):
         import generate_posts as gp
         from unittest.mock import patch
-        with patch.object(gp, "http_post", side_effect=RuntimeError("OR down")), \
-             patch.object(gp, "_call_gemini", return_value="GEMINI FALLBACK BODY") as gm, \
+        seen = []
+        def fake_http_post(url, payload, headers, **kw):
+            model = json.loads(payload)["model"]
+            seen.append(model)
+            if model == gp.GENERATOR_CHAIN[0]:
+                raise RuntimeError("primary down")
+            return json.dumps({"choices": [{"message": {"content": "FALLBACK BODY"},
+                               "finish_reason": "stop"}], "usage": {}}).encode()
+        with patch.object(gp, "http_post", side_effect=fake_http_post), \
              patch.dict(gp.os.environ, {"OPENROUTER_API_KEY": "test-key"}):
             out = gp.call_generator("write an article", "unused")
-        self.assertEqual(out, "GEMINI FALLBACK BODY")
-        self.assertEqual(gm.call_args[0][0], gp.GEMINI_GEN_MODEL)
+        self.assertEqual(out, "FALLBACK BODY")
+        self.assertEqual(seen[:2], [gp.GENERATOR_CHAIN[0], gp.GENERATOR_CHAIN[1]])
 
 
 class TestGenerationPromptHygiene(unittest.TestCase):
