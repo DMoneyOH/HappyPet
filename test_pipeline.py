@@ -1650,7 +1650,7 @@ class TestModelRoutingChains(unittest.TestCase):
 
     def test_generator_chain_models_and_order(self):
         self.assertEqual(self.gp.GENERATOR_CHAIN, [
-            "anthropic/claude-3.5-haiku",
+            "anthropic/claude-sonnet-5",
             "google/gemini-2.5-flash",
             "meta-llama/llama-3.3-70b-instruct",
         ])
@@ -1732,7 +1732,7 @@ class TestModelRoutingChains(unittest.TestCase):
 
 class TestGeneratorModel(unittest.TestCase):
     """call_generator routes primary generation through the GENERATOR_CHAIN
-    (Claude 3.5 Haiku primary) via OpenRouter, falling over down the chain."""
+    (Claude Sonnet 5 primary) via OpenRouter, falling over down the chain."""
 
     def test_primary_uses_generator_chain_head_via_openrouter(self):
         import generate_posts as gp
@@ -1751,7 +1751,7 @@ class TestGeneratorModel(unittest.TestCase):
         self.assertEqual(out, "ARTICLE BODY")
         self.assertEqual(captured["url"], gp.OPENROUTER_URL)
         self.assertEqual(captured["payload"]["model"], gp.GENERATOR_CHAIN[0])
-        self.assertEqual(gp.GENERATOR_CHAIN[0], "anthropic/claude-3.5-haiku")
+        self.assertEqual(gp.GENERATOR_CHAIN[0], "anthropic/claude-sonnet-5")
 
     def test_falls_over_to_second_generator_model_when_primary_fails(self):
         import generate_posts as gp
