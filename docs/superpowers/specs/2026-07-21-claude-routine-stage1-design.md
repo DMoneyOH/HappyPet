@@ -57,7 +57,8 @@ Claude routine (Opus main agent):
   commit on a branch → open PR
   toggle auto_merge?  ── off ─→ PR waits for human approval (HITL)
                       └─ on ──→ auto-merge when required checks green
-  merge to main → existing Stage 2 (publish) → deploy → Stage 3 (pin)
+  merge to main → routine DISPATCHES Stage 2 (see §9.2 — publish.yml has no
+                  push trigger) → deploy → Stage 3 (pin), all unchanged
 ```
 
 ### 4.1 Components
@@ -107,7 +108,7 @@ Claude routine (Opus main agent):
 ## 9. Open questions / verify items
 
 1. **Scheduled cloud routine feasibility (Phase 2 blocker):** does a scheduled Claude routine (a) run under the Max subscription allowance vs. separate credits, (b) have headroom for ~1–2 articles × several rewrites × 2/week of Opus+Sonnet, (c) perform authenticated git push + open-PR from its environment, (d) run reliably on cron? Verify via the Claude Code guide + a supervised dry run before flipping the cron.
-2. **Stage 2 trigger:** confirm Stage 2 (publish) fires on the routine's **merge commit** to `main` touching `_posts/` (today it triggers on push to `main`; a merge is such a push — verify the exact trigger).
+2. **Stage 1 → Stage 2 handoff — DECIDED: explicit dispatch.** `publish.yml` has **no `push` trigger**. It fires on `workflow_run` from the workflow named *"Stage 1 — Generate Articles"*, plus its own Mon+Thu 12:00 UTC cron (safety net) and manual dispatch. So deprecating `generate.yml` **breaks the automatic handoff** — a plain merge of `_posts/DRAFT-*.md` will NOT start publishing. **Chosen mechanism:** the routine runs `gh workflow run publish.yml` immediately after the merge. Rejected alternatives: adding a `push` trigger to `publish.yml` (any `_posts/` push would trip Stage 2 — too implicit); keeping a stub "Stage 1" workflow to preserve `workflow_run` (dead scaffolding). The Stage-2 Mon+Thu cron stays as a safety net. Downstream (deploy, Stage 3) is unaffected — it keys off Stage 2's dated-post push + `.pending-slugs`. Only remaining unknown: that the routine's environment can run an authenticated `gh workflow run` — folded into §9.1.
 3. **Cost fit:** measured in Phase 1 (tokens-per-article), projected against the autonomous cadence.
 
 ## 10. Decisions made (and why)
@@ -119,6 +120,7 @@ Claude routine (Opus main agent):
 - **Opus writer / Sonnet reviewer.** *Why:* strongest internal writer + a strong independent judge (avoids the Haiku false-positive class). *Reversibility:* easy (role config).
 - **Bar 4 aspired, 3 enforced until proven.** *Why:* reverting straight to 4 reintroduces the permanent-hold failure that PR #69 removed; prove reachability on real output first. *Reversibility:* config; do not commit to 4 without Director sign-off on Phase-1 evidence.
 - **Retire the roundup fact-check step.** *Why:* Opus hedges unverifiable stats as it writes, eliminating the rule-unaware re-emit that reintroduced today's em dash. *Reversibility:* medium.
+- **Stage 1 → Stage 2 handoff = explicit `gh workflow run publish.yml`** (not a `push` trigger). *Why:* `publish.yml` starts on a `workflow_run` from the now-deprecated Stage-1 workflow, so the handoff must be re-established; an explicit dispatch keeps Stage 2's start a single deliberate action rather than something any `_posts/` push could trip. *Reversibility:* easy (it's one call; the Stage-2 cron is a fallback).
 
 ## 11. Testing
 
