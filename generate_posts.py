@@ -661,7 +661,11 @@ def validate_output(stage: str, content: str, slug: str, affiliate_url: str = ""
 # Minimum reviewer scores for a pass. Enforced in code (evaluate_scorecard), not
 # just stated in the reviewer prompt -- a miscalibrated LLM can return pass=true
 # with low scores, and we must not publish on its say-so alone.
-REVIEW_SCORE_MINIMUMS = {"human_voice": 4, "warmth": 4, "readability": 3, "accuracy": 3}
+# human_voice/warmth lowered 4->3 by Director decision (Open Q1, 2026-07-21):
+# supervised runs held at 3/3 ("competent but generic"); em-dash / first-person /
+# fabrication remain hard holds below. The reviewer prompt's PASS CRITERIA are
+# derived from this dict so the stated bar and the enforced bar can never drift.
+REVIEW_SCORE_MINIMUMS = {"human_voice": 3, "warmth": 3, "readability": 3, "accuracy": 3}
 
 
 def evaluate_scorecard(scorecard: dict, content: str) -> tuple:
@@ -672,7 +676,6 @@ def evaluate_scorecard(scorecard: dict, content: str) -> tuple:
     Deterministic overrides (any one fails the article):
       - every numeric score must clear its minimum (REVIEW_SCORE_MINIMUMS)
       - an em dash present in the actual body (checked here, not the model's count)
-      - a reported em_dash_count > 0
       - accuracy/fabrication keywords in the flags
 
     Returns (passed: bool, flags: list).
@@ -689,12 +692,14 @@ def evaluate_scorecard(scorecard: dict, content: str) -> tuple:
                 flags.append(f"{key}={val} below minimum {minimum}")
             passed = False
 
-    # Em dashes: trust the real body, never the model's self-reported count alone
+    # Em dashes: trust ONLY the real body (deterministic, accurate). The model's
+    # self-reported em_dash_count is advisory -- Haiku mislabels hyphenated
+    # compounds ("extra-large") as em dashes, which would falsely hold a clean
+    # article. Em dashes are stripped before review (scrub_typography) and any
+    # real one left in the body is caught here.
     if "—" in content:
         if passed:
             flags.append("em_dash_in_body")
-        passed = False
-    if scorecard.get("em_dash_count", 0) and scorecard["em_dash_count"] > 0:
         passed = False
 
     # Accuracy/fabrication flags always fail regardless of pass=true
@@ -858,10 +863,10 @@ Check every category. Flag every violation found.
 
 === PASS CRITERIA (ALL must be true) ===
 
-- human_voice >= 4
-- warmth >= 4
-- readability >= 3
-- accuracy >= 3
+- human_voice >= {REVIEW_SCORE_MINIMUMS['human_voice']}
+- warmth >= {REVIEW_SCORE_MINIMUMS['warmth']}
+- readability >= {REVIEW_SCORE_MINIMUMS['readability']}
+- accuracy >= {REVIEW_SCORE_MINIMUMS['accuracy']}
 - affiliate_link_present = true (an Amazon affiliate link -- amzn.to/... or amazon.com/dp/... -- is present)
 - em_dash_count = 0 (any em dash = FAIL, no exceptions)
 - NO first-person voice (I, we, us, our, my used as author voice = FAIL regardless of scores)
@@ -889,7 +894,7 @@ Rules:
 - flags: list each specific problem as a plain string; empty array if none
 - rewrite_instructions: name exact sections and specific fixes if pass=false; empty string if pass=true. Keep under 250 words -- a truncated response fails JSON parsing and the article is held unreviewed.
 - em_dash_count: exact integer count of (—) characters in article
-- pass=false if em_dash_count > 0, first-person voice present, or human_voice < 4 or warmth < 4
+- pass=false if em_dash_count > 0, first-person voice present, or human_voice < {REVIEW_SCORE_MINIMUMS['human_voice']} or warmth < {REVIEW_SCORE_MINIMUMS['warmth']}
 """
 
 

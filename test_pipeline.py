@@ -349,13 +349,32 @@ class TestScorecardEvaluation(unittest.TestCase):
         passed, _ = self.gp.evaluate_scorecard(self.clean, "this body has an em dash — right here")
         self.assertFalse(passed)
 
-    def test_reported_em_dash_count_forces_fail(self):
+    def test_reported_em_dash_count_ignored_when_body_is_clean(self):
+        # The reviewer's self-reported em_dash_count is advisory only: it mislabels
+        # hyphenated compounds ("extra-large") as em dashes and would falsely hold
+        # a clean article. We trust the deterministic body check instead, so a
+        # clean body passes even when the model over-reports em dashes.
         sc = dict(self.clean); sc["em_dash_count"] = 3
-        passed, _ = self.gp.evaluate_scorecard(sc, "a clean body")
-        self.assertFalse(passed)
+        passed, _ = self.gp.evaluate_scorecard(sc, "a clean body with no dashes")
+        self.assertTrue(passed)
 
     def test_fabrication_flag_forces_fail(self):
         sc = dict(self.clean); sc["flags"] = ["fabricated statistic with no source"]
+        passed, _ = self.gp.evaluate_scorecard(sc, "a clean body")
+        self.assertFalse(passed)
+
+    def test_human_voice_and_warmth_of_three_now_pass(self):
+        # Director lowered the bar 4->3 (Open Q1) after the confirmation run held
+        # at 3/3. A competent-generic 3/3 article with no hard-fail flags passes;
+        # em-dash / first-person / fabrication stay hard holds.
+        sc = dict(self.clean)
+        sc["scores"] = {"human_voice": 3, "warmth": 3, "readability": 3, "accuracy": 3}
+        passed, _ = self.gp.evaluate_scorecard(sc, "a clean body with no dashes")
+        self.assertTrue(passed)
+
+    def test_scores_below_three_still_fail(self):
+        sc = dict(self.clean)
+        sc["scores"] = {"human_voice": 2, "warmth": 3, "readability": 3, "accuracy": 3}
         passed, _ = self.gp.evaluate_scorecard(sc, "a clean body")
         self.assertFalse(passed)
 
@@ -537,6 +556,14 @@ class TestPromptRuleConsistency(unittest.TestCase):
         # must now be told, or it can't comply.
         self.assertIn("standing at", self.system.lower())
 
+    def test_reviewer_prompt_states_the_gate_minimums(self):
+        # The stated PASS CRITERIA must match the enforced REVIEW_SCORE_MINIMUMS,
+        # or the reviewer scores against a different bar than the gate applies.
+        mins = self.gp.REVIEW_SCORE_MINIMUMS
+        for key in ("human_voice", "warmth", "readability", "accuracy"):
+            self.assertIn(f"{key} >= {mins[key]}", self.review,
+                          f"reviewer prompt bar for {key} != gate minimum {mins[key]}")
+
 
 class TestFirstPersonDetection(unittest.TestCase):
     """Reviewer prompt gates first-person voice — P2"""
@@ -590,16 +617,16 @@ class TestReviewerResponseParsing(unittest.TestCase):
         missing = self.REQUIRED_SCORE_KEYS - data["scores"].keys()
         self.assertEqual(missing, set(), f"Missing score keys: {missing}")
 
-    def test_em_dash_fail_overrides_pass_true(self):
-        """em_dash_count > 0 must force pass=false even if model returns pass=true"""
+    def test_em_dash_in_body_overrides_pass_true(self):
+        """A real em dash in the body forces pass=false even if the model returns
+        pass=true -- via the deterministic body check in evaluate_scorecard, not
+        the model's advisory em_dash_count."""
         import generate_posts as gp
-        scorecard = json.loads(REVIEWER_FAIL_JSON)
-        scorecard["pass"] = True  # Simulate model wrongly returning pass=true
-        scorecard["em_dash_count"] = 2
-        # Replicate the override logic from review_and_rewrite
-        if scorecard.get("em_dash_count", 0) > 0:
-            scorecard["pass"] = False
-        self.assertFalse(scorecard["pass"])
+        scorecard = json.loads(REVIEWER_PASS_JSON)
+        scorecard["pass"] = True
+        scorecard["em_dash_count"] = 0  # model claims clean...
+        passed, _ = gp.evaluate_scorecard(scorecard, "body with an em dash — here")
+        self.assertFalse(passed)  # ...but the real body has one
 
     def test_pass_requires_affiliate_link(self):
         data = self._parse(REVIEWER_PASS_JSON)
