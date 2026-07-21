@@ -697,6 +697,40 @@ def evaluate_scorecard(scorecard: dict, content: str) -> tuple:
     return passed, flags
 
 
+def authoritative_gate(scorecard: dict, content: str) -> tuple:
+    """Decide pass/fail for the internal Claude routine WITHOUT trusting the
+    reviewer's self-reported `pass`. Unlike evaluate_scorecard (which seeds from
+    `pass` and can only downgrade -- the asymmetry that held a clean article on a
+    hallucinated em-dash veto), this starts from PASS and downgrades only on:
+      - a numeric score below its REVIEW_SCORE_MINIMUMS floor,
+      - a real em dash in the actual body (deterministic, not the model's count),
+      - an accuracy/fabrication keyword in the flags.
+    Returns (passed: bool, flags: list).
+    """
+    passed = True
+    flags  = list(scorecard.get("flags", []))
+    scores = scorecard.get("scores", {}) or {}
+
+    for key, minimum in REVIEW_SCORE_MINIMUMS.items():
+        val = scores.get(key)
+        if not isinstance(val, (int, float)) or val < minimum:
+            passed = False
+            flags.append(f"{key}={val} below minimum {minimum}")
+
+    if "—" in content:  # real U+2014 em dash in the body
+        passed = False
+        flags.append("em_dash_in_body")
+
+    accuracy_keywords = ("fabricat", "unverif", "invent", "statistic", "percentag",
+                         "specific number", "no source", "not verif", "made up",
+                         "cited", "claimed", "without source")
+    if flags and any(kw in " ".join(str(f) for f in flags).lower()
+                     for kw in accuracy_keywords):
+        passed = False
+
+    return passed, flags
+
+
 def call_openrouter_chain(chain, messages, *, label, max_tokens, temperature,
                           response_format=None, parse=None, log_fn=None, timeout=120):
     """Call the OpenRouter models in `chain` (primary first), returning the first

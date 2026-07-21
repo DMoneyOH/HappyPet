@@ -1873,5 +1873,47 @@ class TestRewritePromptGuardrails(unittest.TestCase):
         self.assertNotIn("add a concrete human moment", self.p)
 
 
+class TestAuthoritativeGate(unittest.TestCase):
+    """authoritative_gate computes pass from scores + hard-checks and IGNORES
+    the reviewer's `pass` boolean -- unlike evaluate_scorecard, a reviewer
+    saying pass=false cannot hold an otherwise-clean, on-standard article."""
+
+    def setUp(self):
+        import generate_posts as gp
+        self.gp = gp
+
+    def _card(self, hv=4, wa=4, re=4, ac=4, **extra):
+        card = {"scores": {"human_voice": hv, "warmth": wa,
+                           "readability": re, "accuracy": ac}}
+        card.update(extra)
+        return card
+
+    def test_reviewer_pass_false_does_not_hold_a_clean_on_standard_article(self):
+        # scores all clear the bar, body clean -> PASS even though reviewer said fail
+        passed, flags = self.gp.authoritative_gate(
+            self._card(**{"pass": False, "ai_patterns_found": ["em dash present"]}),
+            "clean body without the forbidden character.")
+        self.assertTrue(passed)
+
+    def test_score_below_minimum_fails(self):
+        passed, flags = self.gp.authoritative_gate(self._card(hv=2), "clean body")
+        self.assertFalse(passed)
+        self.assertTrue(any("human_voice=2" in str(f) for f in flags))
+
+    def test_real_em_dash_in_body_fails(self):
+        passed, flags = self.gp.authoritative_gate(self._card(), "has an — em dash")
+        self.assertFalse(passed)
+        self.assertIn("em_dash_in_body", flags)
+
+    def test_fabrication_flag_fails(self):
+        passed, _ = self.gp.authoritative_gate(
+            self._card(flags=["fabricated statistic in section 2"]), "clean body")
+        self.assertFalse(passed)
+
+    def test_missing_score_fails(self):
+        passed, _ = self.gp.authoritative_gate(self._card(hv=None), "clean body")
+        self.assertFalse(passed)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
