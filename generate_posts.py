@@ -544,6 +544,19 @@ def build_used_slugs() -> set:
     return used
 
 
+def select_next_topic(products: dict, used_slugs: set):
+    """Return (slug, product) for the first products.json entry that is unpublished
+    and has the required fields, in dict order (same order main() consumes). Return
+    None when nothing is eligible. Mirrors the topic filter + dedup in main()."""
+    required = ("topic", "title", "keyword", "format")
+    for slug, p in products.items():
+        if slug in used_slugs:
+            continue
+        if all(k in p for k in required):
+            return slug, p
+    return None
+
+
 def find_related_published_slug(current_slug: str, current_category: str) -> tuple:
     """
     Find best internal link target at runtime from published _posts/.
@@ -697,6 +710,43 @@ def evaluate_scorecard(scorecard: dict, content: str) -> tuple:
     return passed, flags
 
 
+def authoritative_gate(scorecard: dict, content: str) -> tuple:
+    """Decide pass/fail for the internal Claude routine WITHOUT trusting the
+    reviewer's self-reported `pass`. Unlike evaluate_scorecard (which seeds from
+    `pass` and can only downgrade -- the asymmetry that held a clean article on a
+    hallucinated em-dash veto), this starts from PASS and downgrades only on:
+      - a numeric score below its REVIEW_SCORE_MINIMUMS floor,
+      - a real em dash in the actual body (deterministic, not the model's count),
+      - an EXPLICIT fabrication callout (fabricated/invented/made-up) in the flags.
+    Returns (passed: bool, flags: list).
+    """
+    passed = True
+    flags  = list(scorecard.get("flags", []))
+    scores = scorecard.get("scores", {}) or {}
+
+    for key, minimum in REVIEW_SCORE_MINIMUMS.items():
+        val = scores.get(key)
+        if not isinstance(val, (int, float)) or val < minimum:
+            passed = False
+            flags.append(f"{key}={val} below minimum {minimum}")
+
+    if "—" in content:  # real U+2014 em dash in the body
+        passed = False
+        flags.append("em_dash_in_body")
+
+    # Only UNAMBIGUOUS fabrication verbs hard-fail. Cautionary reviewer prose
+    # ("no source", "unverified", "statistic", "specific number") is NOT treated
+    # as fabrication: it false-positived on VERIFIED featured-product figures (the
+    # reviewer is not the source of truth for what was verified), and soft/
+    # unsourced claims are already governed by the accuracy score floor above.
+    fabrication_keywords = ("fabricat", "invent", "made up", "made-up")
+    if flags and any(kw in " ".join(str(f) for f in flags).lower()
+                     for kw in fabrication_keywords):
+        passed = False
+
+    return passed, flags
+
+
 def call_openrouter_chain(chain, messages, *, label, max_tokens, temperature,
                           response_format=None, parse=None, log_fn=None, timeout=120):
     """Call the OpenRouter models in `chain` (primary first), returning the first
@@ -767,12 +817,42 @@ def _extract_or_content(raw: bytes, label: str) -> str:
     log(f"  API ok ({label}): {len(content)} chars, {tokens} tokens, finish={finish}")
     return content
 
-def make_review_prompt(title: str, keyword: str, content: str) -> str:
+def build_verified_facts(product: dict) -> str:
+    """Featured-product figures already verified against the retailer, as a short
+    line for the reviewer so it does not flag them as unsourced/fabricated. Mirrors
+    the fields make_prompt marks 'verified'. Empty string when none are present."""
+    parts = []
+    stars = product.get("stars", "")
+    review_count = product.get("review_count", "")
+    price = product.get("price", "")
+    if stars:
+        parts.append(f"Star rating: {stars}/5")
+    if review_count:
+        parts.append(f"Review count: {int(review_count):,}")
+    if price:
+        parts.append(f"Price: ${price}")
+    return "; ".join(parts)
+
+
+def make_review_prompt(title: str, keyword: str, content: str, verified_facts: str = "") -> str:
     """
     Full 21-category AI writing audit built from the avoid-ai-writing catalog
     and beautiful-prose style contract. Replaces the 6-pattern legacy prompt.
+    `verified_facts` (optional): the featured product's retailer-verified figures;
+    when given, the reviewer is told to treat them as fact and not flag them.
     """
     content_sample = content[:15000] if len(content) > 15000 else content
+    verified_block = ""
+    if verified_facts:
+        verified_block = (
+            "=== VERIFIED PRODUCT DATA (do NOT flag as unsourced) ===\n"
+            "The featured product's figures below were already verified against the "
+            "retailer. Treat them as fact: do NOT flag them as unsourced, unverified, "
+            "invented, or fabricated, and do NOT lower the accuracy score for them. "
+            "Only specific numbers appearing in the ALTERNATIVE product sections are "
+            "unverified and may be flagged.\n"
+            f"{verified_facts}\n\n"
+        )
     return f"""You are a senior human editor for Happy Pet Product Reviews, a budget-focused pet product affiliate blog.
 Your job is to score this article honestly and catch every AI writing pattern it contains. Do not be generous.
 
@@ -786,7 +866,7 @@ ARTICLE CONTENT:
 {content_sample}
 ---
 
-=== SCORING RUBRIC ===
+{verified_block}=== SCORING RUBRIC ===
 
 human_voice:
   5 = Real opinion, specific details, natural imperfection, distinct point of view.
@@ -960,6 +1040,52 @@ Return ONLY clean Markdown. No YAML, no preamble, no code fences. The FIRST line
 PIN_DESC: [one punchy sentence, max 20 words, a Pinterest stop-scroll hook]
 Then the article body immediately after.
 </output_format>"""
+
+
+def build_writer_inputs(slug: str, product: dict) -> dict:
+    """Assemble the writer's system+user prompts for one topic, internal-only.
+    Roundup alternatives come from products.json `runners_up`; when absent, a
+    static instruction is used instead of the (external) Groq fallback. Returns
+    {system, user, title, keyword, fmt, species, affiliate_url}."""
+    title    = product["title"]
+    keyword  = product["keyword"]
+    fmt      = product["format"]
+    species  = product.get("species", "dog")
+    category = product.get("category", "")
+
+    related_url, related_anchor = find_related_published_slug(slug, category)
+    user = make_prompt(title, keyword, slug, fmt, product, related_url, related_anchor)
+
+    # NOTE: make_prompt's roundup STRUCTURE block is built inside an f-string
+    # where the placeholder is written as "{{ALTERNATIVE_PRODUCTS}}" -- f-string
+    # double-brace escaping collapses that to a literal single-brace
+    # "{ALTERNATIVE_PRODUCTS}" in the returned text (confirmed empirically).
+    # main()'s pre-existing .replace("{{ALTERNATIVE_PRODUCTS}}", ...) therefore
+    # never matched, so the placeholder was never substituted for roundups.
+    # Match the real (single-brace) placeholder here so the substitution
+    # actually fires.
+    if "{ALTERNATIVE_PRODUCTS}" in user:
+        runners_up = product.get("runners_up", "")
+        if runners_up:
+            if ";" in runners_up:
+                alt_count = len([a for a in runners_up.split(";") if a.strip()])
+            else:
+                alt_count = len([ln for ln in runners_up.splitlines() if ln.strip()])
+            alt_constraint = (
+                "EXACTLY " + str(alt_count) + " alternative product(s) listed below. "
+                "Use ONLY these " + str(alt_count) + " product(s). "
+                "Do NOT add, invent, or substitute any others.\n" + runners_up
+            )
+            user = user.replace("{ALTERNATIVE_PRODUCTS}", alt_constraint)
+        else:
+            user = user.replace(
+                "{ALTERNATIVE_PRODUCTS}",
+                "EXACTLY 3 alternatives -- use well-known brands you are confident "
+                "exist. Do not fabricate products.")
+
+    return {"system": GENERATOR_SYSTEM_PROMPT, "user": user, "title": title,
+            "keyword": keyword, "fmt": fmt, "species": species,
+            "affiliate_url": product.get("affiliate_url", "")}
 
 
 def make_prompt(title: str, keyword: str, slug: str, fmt: str, product: dict,
@@ -1364,6 +1490,50 @@ def persist_generated_article(draft_path, article_text: str, pin_queue_path, pin
     draft_path.write_text(article_text, encoding="utf-8")
 
 
+def stage_article(slug: str, product: dict, body: str, pin_desc: str,
+                  index: int = 0) -> dict:
+    """Stage one passed article exactly as main() does: front-matter + pin image
+    + pin-queue entry + draft-last write. `body` must be the final, review-clean
+    article text (no PIN_DESC line). Returns {draft_path, pin_queue_path}."""
+    title    = product["title"]
+    keyword  = product["keyword"]
+    species  = product.get("species", "dog")
+    category = product.get("category", "")
+
+    fm = front_matter(title, keyword, product.get("affiliate_url", ""), slug,
+                      species, category, pin_desc, product.get("image", ""),
+                      build_pin_image_url_for_queue(slug),
+                      chewy_url=product.get("chewy_url") or "")
+
+    content_clean = body.lstrip()
+    while content_clean.startswith("---"):
+        content_clean = content_clean[3:].lstrip()
+
+    article_url = build_url(slug, utm=True)
+    asin    = product.get("asin", "")
+    pin_url = product.get("image", "")
+    if asin:
+        pin_url = f"https://images-na.ssl-images-amazon.com/images/P/{asin}.01.LZZZZZZZ.jpg"
+    if PIN_GEN_AVAILABLE:
+        try:
+            pin_url = make_pin_for_post(title, pin_desc, pin_url, category, slug, index)
+            log_pin(f"  PIN: {pin_url}")
+        except Exception as pe:
+            log_pin(f"  pin generation failed: {pe}", "WARN")
+
+    pin_data = {
+        "title": title, "article_url": article_url, "description": pin_desc,
+        "image_url": build_pin_image_url_for_queue(slug), "species": species,
+        "slug": slug, "topical_sheet": product.get("topical_sheet", ""),
+    }
+    draft_path = POSTS_DIR / f"DRAFT-{slugify(slug)}.md"
+    pin_queue_path = REPO_DIR / "_pin_queue" / f"{slug}.json"
+    persist_generated_article(draft_path, fm + "\n" + content_clean,
+                              pin_queue_path, pin_data)
+    log(f"  SAVED {draft_path.name} + staged pin {slug}.json")
+    return {"draft_path": draft_path, "pin_queue_path": pin_queue_path}
+
+
 def main() -> None:
     # Load .env first -- local runs need this; GHA already has env vars from secrets
     if DOTENV_AVAILABLE:
@@ -1399,30 +1569,26 @@ def main() -> None:
         products = load_products()
         log(f"Loaded products.json: {len(products)} entries")
 
-        # TOPICS entirely from products.json -- no hardcoded list
-        topics = [
-            (p["topic"], p["title"], p["keyword"], p["format"])
-            for p in products.values()
-            if all(k in p for k in ("topic", "title", "keyword", "format"))
-        ]
-        log(f"Topics from products.json: {len(topics)}")
-
         # Startup validation pass -- warn on missing fields before any API calls
         for slug, p in products.items():
             errors = validate_product(slug, p)
             if errors:
                 log(f"  VALIDATION WARN [{slug}]: {'; '.join(errors)}", "WARN")
 
+        # TOPICS entirely from products.json -- no hardcoded list. Build the
+        # capped worklist by repeatedly selecting the next eligible topic so the
+        # ordering/dedup rule lives in one place (select_next_topic).
         used_slugs = build_used_slugs()
-        log(f"Dedup: {len(used_slugs)} slugs already published")
-
-        # Filter already-published slugs BEFORE applying cap so cap slots
-        # are never wasted on topics that will be skipped anyway.
-        topics = [t for t in topics if t[0] not in used_slugs]
-        log(f"Unpublished topics available: {len(topics)}")
-
-        topics = topics[:max_articles]
-        log(f"Cap: {max_articles} -- {len(topics)} topic(s) queued this run")
+        topics = []
+        remaining = dict(products)
+        while len(topics) < max_articles:
+            picked = select_next_topic(remaining, used_slugs)
+            if picked is None:
+                break
+            slug, p = picked
+            topics.append((p["topic"], p["title"], p["keyword"], p["format"]))
+            remaining.pop(slug, None)
+        log(f"Unpublished topics queued this run: {len(topics)}")
 
         POSTS_DIR.mkdir(parents=True, exist_ok=True)
         today     = datetime.date.today().isoformat()
@@ -1461,45 +1627,10 @@ def main() -> None:
             _t0 = time.monotonic()
             time.sleep(RPM_SLEEP)
 
-            # Dynamic internal link resolved from live _posts/
-            related_url, related_anchor = find_related_published_slug(slug, category)
-
             try:
-                # For roundup, use Apify runner-ups from products.json if available,
-                # otherwise fall back to Groq Compound
-                alternatives_text = ""
-                if fmt == "roundup":
-                    product_name = product.get("name", "")
-                    runners_up = product.get("runners_up", "")
-                    if runners_up:
-                        alternatives_text = runners_up
-                        log(f"  Alternatives: using Apify runner-ups from products.json")
-                    else:
-                        alternatives_text = find_alternative_products(keyword, product_name, groq_key, count=3)
-                        log(f"  Alternatives: Groq fallback (no runners_up in products.json)")
-                
-                prompt  = make_prompt(title, keyword, slug, fmt, product, related_url, related_anchor)
-                
-                # Inject alternatives into roundup prompt with explicit count constraint
-                if alternatives_text:
-                    # runners_up from products.json is ';'-delimited; the LLM
-                    # fallback returns a newline-separated numbered list --
-                    # counting ';' on the latter said "EXACTLY 1" while listing 3
-                    if ";" in alternatives_text:
-                        alt_count = len([a for a in alternatives_text.split(";") if a.strip()])
-                    else:
-                        alt_count = len([ln for ln in alternatives_text.splitlines() if ln.strip()])
-                    alt_constraint = (
-                        "EXACTLY " + str(alt_count) + " alternative product(s) listed below. "
-                        "Use ONLY these " + str(alt_count) + " product(s). "
-                        "Do NOT add, invent, or substitute any others.\n"
-                        + alternatives_text
-                    )
-                    prompt = prompt.replace("{{ALTERNATIVE_PRODUCTS}}", alt_constraint)
-                else:
-                    prompt = prompt.replace("{{ALTERNATIVE_PRODUCTS}}", "EXACTLY 3 alternatives -- use well-known brands you are confident exist. Do not fabricate products.")
-                
-                content = call_generator(prompt, groq_key, system=GENERATOR_SYSTEM_PROMPT)
+                writer = build_writer_inputs(slug, product)
+                prompt = writer["user"]
+                content = call_generator(prompt, groq_key, system=writer["system"])
                 log(f"  [timing] generate: {time.monotonic()-_t0:.1f}s")
 
                 pin_desc, content = extract_pin_desc(content, f"{title} - expert reviews and buying guide.")
@@ -1541,45 +1672,7 @@ def main() -> None:
                     log(f"  HOLD {slug} -- post-review contract failed: {e}", "WARN")
                     held += 1; continue
 
-                fname = f"DRAFT-{slugify(slug)}.md"  # Stage 2 dates on publish
-                fpath = POSTS_DIR / fname
-                fm    = front_matter(title, keyword, product.get("affiliate_url", ""),
-                                     slug, species, category, pin_desc,
-                                     product.get("image", ""),
-                                     build_pin_image_url_for_queue(slug),
-                                     chewy_url=product.get("chewy_url") or "")
-                # Strip leading horizontal rules model sometimes prepends
-                content_clean = content.lstrip()
-                while content_clean.startswith("---"):
-                    content_clean = content_clean[3:].lstrip()
-
-                article_url = build_url(slug, utm=True)
-                asin        = product.get("asin", "")
-                pin_url     = product.get("image", "")
-                # Prefer canonical Amazon CDN format -- direct m.media-amazon.com URLs
-                # are blocked by GHA runner IPs; images-na CDN is consistently accessible
-                if asin:
-                    pin_url = f"https://images-na.ssl-images-amazon.com/images/P/{asin}.01.LZZZZZZZ.jpg"
-                if PIN_GEN_AVAILABLE:
-                    try:
-                        pin_url = make_pin_for_post(title, pin_desc, pin_url, category, slug, generated)
-                        log_pin(f"  PIN: {pin_url}")
-                    except Exception as pe:
-                        log_pin(f"  pin generation failed: {pe}", "WARN")
-
-                # Stage the pin entry, THEN write the draft (draft-last): a failure
-                # here can never leave an orphan draft that Stage 2 would publish
-                # with no pin queued. See persist_generated_article.
-                pin_data = {
-                    "title": title, "article_url": article_url, "description": pin_desc,
-                    "image_url": build_pin_image_url_for_queue(slug), "species": species, "slug": slug,
-                    "topical_sheet": topical_sheet_key,
-                }
-                persist_generated_article(
-                    fpath, fm + "\n" + content_clean,
-                    REPO_DIR / "_pin_queue" / f"{slug}.json", pin_data,
-                )
-                log(f"  SAVED {fname} + staged pin {slug}.json -- total: {time.monotonic()-_t0:.1f}s")
+                stage_article(slug, product, content, pin_desc, index=generated)
 
                 generated += 1
                 used_slugs.add(slug)

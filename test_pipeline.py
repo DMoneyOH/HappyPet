@@ -1873,5 +1873,190 @@ class TestRewritePromptGuardrails(unittest.TestCase):
         self.assertNotIn("add a concrete human moment", self.p)
 
 
+class TestAuthoritativeGate(unittest.TestCase):
+    """authoritative_gate computes pass from scores + hard-checks and IGNORES
+    the reviewer's `pass` boolean -- unlike evaluate_scorecard, a reviewer
+    saying pass=false cannot hold an otherwise-clean, on-standard article."""
+
+    def setUp(self):
+        import generate_posts as gp
+        self.gp = gp
+
+    def _card(self, hv=4, wa=4, re=4, ac=4, **extra):
+        card = {"scores": {"human_voice": hv, "warmth": wa,
+                           "readability": re, "accuracy": ac}}
+        card.update(extra)
+        return card
+
+    def test_reviewer_pass_false_does_not_hold_a_clean_on_standard_article(self):
+        # scores all clear the bar, body clean -> PASS even though reviewer said fail
+        passed, flags = self.gp.authoritative_gate(
+            self._card(**{"pass": False, "ai_patterns_found": ["em dash present"]}),
+            "clean body without the forbidden character.")
+        self.assertTrue(passed)
+
+    def test_score_below_minimum_fails(self):
+        passed, flags = self.gp.authoritative_gate(self._card(hv=2), "clean body")
+        self.assertFalse(passed)
+        self.assertTrue(any("human_voice=2" in str(f) for f in flags))
+
+    def test_real_em_dash_in_body_fails(self):
+        passed, flags = self.gp.authoritative_gate(self._card(), "has an — em dash")
+        self.assertFalse(passed)
+        self.assertIn("em_dash_in_body", flags)
+
+    def test_fabrication_flag_fails(self):
+        passed, _ = self.gp.authoritative_gate(
+            self._card(flags=["fabricated statistic in section 2"]), "clean body")
+        self.assertFalse(passed)
+
+    def test_missing_score_fails(self):
+        passed, _ = self.gp.authoritative_gate(self._card(hv=None), "clean body")
+        self.assertFalse(passed)
+
+    def test_cautionary_unsourced_prose_flag_does_not_fail(self):
+        # A reviewer's cautionary prose about verified data ("no source", etc.)
+        # must NOT be treated as fabrication when the accuracy score passes -- this
+        # is the false positive that held a clean, verified-data article. Only
+        # explicit fabrication verbs (fabricated/invented/made up) hard-fail.
+        passed, _ = self.gp.authoritative_gate(
+            self._card(flags=["4.8/5 rating stated as fact with no source or hedge"]),
+            "clean body")
+        self.assertTrue(passed)
+
+
+class TestBuildVerifiedFacts(unittest.TestCase):
+    def setUp(self):
+        import generate_posts as gp
+        self.gp = gp
+
+    def test_builds_from_available_fields(self):
+        out = self.gp.build_verified_facts(
+            {"stars": "4.8", "review_count": 1200, "price": "34.99"})
+        self.assertIn("Star rating: 4.8/5", out)
+        self.assertIn("Review count: 1,200", out)
+        self.assertIn("Price: $34.99", out)
+
+    def test_empty_when_no_data(self):
+        self.assertEqual(self.gp.build_verified_facts({"name": "X"}), "")
+
+
+class TestReviewPromptVerifiedFacts(unittest.TestCase):
+    def setUp(self):
+        import generate_posts as gp
+        self.gp = gp
+
+    def test_verified_facts_block_present_and_instructs_not_to_flag(self):
+        p = self.gp.make_review_prompt("T", "k", "body",
+                                       verified_facts="Star rating: 4.8/5; Price: $34.99")
+        self.assertIn("Star rating: 4.8/5", p)
+        self.assertIn("Price: $34.99", p)
+        low = p.lower()
+        self.assertIn("verified", low)
+        self.assertIn("do not flag", low)
+
+    def test_no_block_when_no_verified_facts(self):
+        p = self.gp.make_review_prompt("T", "k", "body")
+        self.assertNotIn("VERIFIED PRODUCT DATA", p)
+
+
+class TestSelectNextTopic(unittest.TestCase):
+    def setUp(self):
+        import generate_posts as gp
+        self.gp = gp
+
+    def _products(self):
+        return {
+            "a": {"topic": "a", "title": "A", "keyword": "ka", "format": "single_review"},
+            "b": {"topic": "b", "title": "B", "keyword": "kb", "format": "roundup"},
+            "c": {"topic": "c", "title": "C"},  # missing keyword/format -> skipped
+        }
+
+    def test_returns_first_unpublished_valid_topic(self):
+        slug, product = self.gp.select_next_topic(self._products(), used_slugs=set())
+        self.assertEqual(slug, "a")
+        self.assertEqual(product["format"], "single_review")
+
+    def test_skips_used_slugs(self):
+        slug, product = self.gp.select_next_topic(self._products(), used_slugs={"a"})
+        self.assertEqual(slug, "b")
+
+    def test_skips_entries_missing_required_fields(self):
+        # only 'c' left unused, but 'c' is invalid -> None
+        slug_product = self.gp.select_next_topic(self._products(), used_slugs={"a", "b"})
+        self.assertIsNone(slug_product)
+
+    def test_returns_none_when_queue_empty(self):
+        self.assertIsNone(self.gp.select_next_topic({}, used_slugs=set()))
+
+
+class TestBuildWriterInputs(unittest.TestCase):
+    def setUp(self):
+        import generate_posts as gp
+        self.gp = gp
+
+    def test_single_review_inputs_have_system_and_user(self):
+        product = {"topic": "best-x", "title": "Best X", "keyword": "best x",
+                   "format": "single_review", "name": "The X", "category": "dogs",
+                   "species": "dog", "affiliate_url": "https://amzn.to/abc"}
+        out = self.gp.build_writer_inputs("best-x", product)
+        self.assertEqual(out["system"], self.gp.GENERATOR_SYSTEM_PROMPT)
+        self.assertIn("Best X", out["user"])
+        self.assertEqual(out["fmt"], "single_review")
+        self.assertEqual(out["species"], "dog")
+        self.assertNotIn("{{ALTERNATIVE_PRODUCTS}}", out["user"])  # substituted
+
+    def test_roundup_uses_products_json_runners_up_not_groq(self):
+        product = {"topic": "best-mats", "title": "Best Mats", "keyword": "best mats",
+                   "format": "roundup", "name": "TopMat", "category": "dogs",
+                   "species": "dog", "runners_up": "MatA;MatB;MatC"}
+        out = self.gp.build_writer_inputs("best-mats", product)
+        self.assertIn("MatA", out["user"])
+        self.assertIn("EXACTLY 3", out["user"])
+        self.assertNotIn("{{ALTERNATIVE_PRODUCTS}}", out["user"])
+
+    def test_roundup_without_runners_up_uses_static_fallback_no_groq(self):
+        product = {"topic": "best-mats", "title": "Best Mats", "keyword": "best mats",
+                   "format": "roundup", "name": "TopMat", "category": "dogs",
+                   "species": "dog"}
+        out = self.gp.build_writer_inputs("best-mats", product)
+        self.assertIn("well-known brands", out["user"])
+        self.assertNotIn("{{ALTERNATIVE_PRODUCTS}}", out["user"])
+
+
+class TestStageArticle(unittest.TestCase):
+    def setUp(self):
+        import generate_posts as gp
+        self.gp = gp
+
+    def test_stages_draft_and_pin_queue(self):
+        import tempfile, json
+        from pathlib import Path
+        from unittest.mock import patch
+        gp = self.gp
+        product = {"topic": "best-x", "title": "Best X", "keyword": "best x",
+                   "format": "single_review", "name": "The X", "category": "dogs",
+                   "species": "dog", "affiliate_url": "https://amzn.to/abc"}
+        body = "## Heading\n\n" + ("word " * 800)  # >700 words, >2000 chars
+        with tempfile.TemporaryDirectory() as td:
+            posts = Path(td) / "_posts"; posts.mkdir()
+            pinq  = Path(td) / "_pin_queue"; pinq.mkdir()
+            with patch.object(gp, "POSTS_DIR", posts), \
+                 patch.object(gp, "REPO_DIR", Path(td)), \
+                 patch.object(gp, "PIN_GEN_AVAILABLE", False):
+                out = gp.stage_article("best-x", product, body,
+                                       pin_desc="Great mat for dogs.", index=0)
+            draft = posts / "DRAFT-best-x.md"
+            self.assertTrue(draft.exists())
+            text = draft.read_text(encoding="utf-8")
+            self.assertIn('layout: post', text)
+            self.assertIn('affiliate_url: "https://amzn.to/abc"', text)
+            pin_json = pinq / "best-x.json"
+            self.assertTrue(pin_json.exists())
+            data = json.loads(pin_json.read_text(encoding="utf-8"))
+            self.assertEqual(data["slug"], "best-x")
+            self.assertEqual(out["draft_path"], draft)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
