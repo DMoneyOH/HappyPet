@@ -1057,6 +1057,41 @@ class TestPostPinsSecretFallback(unittest.TestCase):
             self.assertEqual(mk.call_args.args[0], fake_info)
 
 
+class TestPushPinsToSheetsSecretFallback(unittest.TestCase):
+    """push_pins_to_sheets.py (Sheets audit + Facebook-queue append) shares the
+    same vault-or-env contract as post_pins.py; on CI it must build Sheets creds
+    from GCP_SA_KEY_B64 when the vault is absent (regression: the Stage-3 Sheets
+    step failed with 'HAPPYPET_SHEETS_KEY not found in the vault')."""
+
+    def setUp(self):
+        import push_pins_to_sheets as pk
+        import brain_secrets as bs
+        self.pk = pk
+        self.bs = bs
+        self._orig = (bs._vault, bs._vault_tried)
+        bs._vault, bs._vault_tried = None, False
+
+    def tearDown(self):
+        self.bs._vault, self.bs._vault_tried = self._orig
+
+    def test_secret_falls_back_to_env_when_vault_unavailable(self):
+        import os
+        with patch.object(self.bs, "_get_vault", return_value=None), \
+             patch.dict(os.environ, {"FACEBOOK_QUEUE_SHEET_ID": "fbq-1"}):
+            self.assertEqual(self.pk.brain_get_secret("FACEBOOK_QUEUE_SHEET_ID"), "fbq-1")
+
+    def test_sheets_creds_fall_back_to_gcp_sa_key_b64(self):
+        import os, base64, json
+        fake_info = {"type": "service_account", "project_id": "x"}
+        b64 = base64.b64encode(json.dumps(fake_info).encode()).decode()
+        with patch.object(self.bs, "_get_vault", return_value=None), \
+             patch.dict(os.environ, {"GCP_SA_KEY_B64": b64}), \
+             patch("google.oauth2.service_account.Credentials.from_service_account_info",
+                   return_value="CREDS") as mk:
+            self.assertEqual(self.pk.get_sheets_creds(), "CREDS")
+            self.assertEqual(mk.call_args.args[0], fake_info)
+
+
 class TestGenerationResultJSON(unittest.TestCase):
     """GENERATION_RESULT.json is written on pipeline completion — P4"""
 
