@@ -1,6 +1,6 @@
 # HappyPet — Session Handoff (2026-07-22)
 
-Ground truth: `main` @ `cdd2b53`. **First live end-to-end publish happened 2026-07-22** (PRs #76–#80 all merged). Working tree clean except two long-standing untracked files (`CLAUDE.md`, `GENERATION_RESULT.json`) — leave them, pre-existing. Tests: `./.venv/Scripts/python.exe -m pytest test_pipeline.py test_stage1_cli.py -q` → **182 passed**. Prior handoff archived as `HANDOFF-archive-2026-07-22-1343.md`. Cross-session decision log: `~/.claude/projects/C--Users-derek-MAEVE-HappyPet/memory/happypet-autonomy-plan.md`.
+Ground truth: `main` @ `62eef3f`. **First live end-to-end publish happened 2026-07-22** (PRs #76–#81 all merged). Working tree clean except two long-standing untracked files (`CLAUDE.md`, `GENERATION_RESULT.json`) — leave them, pre-existing. Tests: `./.venv/Scripts/python.exe -m pytest test_pipeline.py test_stage1_cli.py -q` → **187 passed**. Prior handoff archived as `HANDOFF-archive-2026-07-22-1343.md`. Cross-session decision log: `~/.claude/projects/C--Users-derek-MAEVE-HappyPet/memory/happypet-autonomy-plan.md`.
 
 ## 0. GO-LIVE 2026-07-22 (the headline)
 
@@ -9,9 +9,12 @@ Ground truth: `main` @ `cdd2b53`. **First live end-to-end publish happened 2026-
 - Pinterest pins **fired** (IFTTT `happypet_pin_dogs` + `happypet_pin_home`); Google Sheets audit + Facebook queue **appended**; `.pending-slugs` consumed.
 - Getting here uncovered + fixed 4 defects: **#78** pin used an ASIN `/images/P/` placeholder (text-only pin); **#79** IFTTT posting silently broken since 2026-07-02 (`brain_secrets` env fallback was import-gated and dead on CI); **#80** same for the Sheets/FB-queue creds. #77 (the article) merged + published.
 
-**Two workflow gaps I had to nudge past MANUALLY (fix before autonomous cron — both are in the §8 do-not-touch workflows, so they need the Director's go):**
-1. **publish → deploy does not auto-fire.** Stage 2 (`publish.yml`) commits the dated post with `GITHUB_TOKEN`, which by GitHub design does **not** trigger `deploy.yml`. Result: article committed but site not rebuilt, pins not dispatched. I ran `gh workflow run deploy.yml` by hand. Autonomy needs `publish.yml` to dispatch the deploy explicitly (or push via a PAT).
-2. **`pin.yml` "Consume pending-slugs" step fails on a dirty tree.** It runs `git pull --rebase` before staging, but the prior Sheets step leaves the tree dirty → `cannot pull with rebase: You have unstaged changes` (exit 128). Pins/sheets still succeed; only the `.pending-slugs` cleanup fails, risking a duplicate FB-queue append on the next deploy. I consumed `.pending-slugs` by hand (`cdd2b53`). Fix: stash/stage before the rebase.
+**Two workflow gaps hit during go-live — now FIXED (PR #81, Director-authorized workflow edits):**
+1. **publish → deploy did not auto-fire.** Stage 2 (`publish.yml`) commits the dated post with `GITHUB_TOKEN`, which by GitHub design does **not** trigger `deploy.yml` — so the site wasn't rebuilt and pins weren't dispatched (I ran `deploy.yml` by hand during go-live). `publish.yml` now dispatches `deploy.yml` explicitly after the push (`actions: write` added).
+2. **`pin.yml` "Consume pending-slugs" failed on a dirty tree** (`git pull --rebase` before staging, tree left dirty by the Sheets step → exit 128). Added `--autostash` to both rebases.
+3. **FB-queue message was repetitive** ("Looking for the best X? Here's the one worth buying." on every uncurated slug). Replaced with a varied pool selected deterministically by slug hash (`push_pins_to_sheets.py`); curated `_FB_HOOKS` unchanged.
+
+These three were the last manual nudges. **The pipeline now runs publish → deploy → pin with no hand-holding** — the remaining step to full autonomy is the Phase-2 wiring (dispatch `publish.yml` after PR merge + flip `auto_merge` + enable the cron), still Director-gated.
 
 ## 1. Mission
 
