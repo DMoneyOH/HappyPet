@@ -1510,10 +1510,16 @@ def stage_article(slug: str, product: dict, body: str, pin_desc: str,
         content_clean = content_clean[3:].lstrip()
 
     article_url = build_url(slug, utm=True)
-    asin    = product.get("asin", "")
+    # Pin image source: prefer the curated /images/I/ image -- fetch_image reaches
+    # it directly and, if that host is blocked, recovers the same image id on the
+    # images-na host. Only derive from the ASIN's legacy /images/P/ scheme when no
+    # curated image exists: that scheme returns a 43-byte placeholder for modern
+    # (B0G...) ASINs, which silently renders a text-only pin.
     pin_url = product.get("image", "")
-    if asin:
-        pin_url = f"https://images-na.ssl-images-amazon.com/images/P/{asin}.01.LZZZZZZZ.jpg"
+    if not pin_url:
+        asin = product.get("asin", "")
+        if asin:
+            pin_url = f"https://images-na.ssl-images-amazon.com/images/P/{asin}.01.LZZZZZZZ.jpg"
     if PIN_GEN_AVAILABLE:
         try:
             pin_url = make_pin_for_post(title, pin_desc, pin_url, category, slug, index)
