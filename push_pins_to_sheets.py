@@ -38,6 +38,21 @@ _FB_HOOKS: dict[str, str] = {
     'brush':              "A good brush is the foundation of a healthy coat. Here's the one groomers reach for.",
 }
 
+# Varied fallback hooks for slugs without a curated _FB_HOOKS entry, so
+# uncurated posts don't all share one sentence. Selected deterministically by
+# slug hash: a given slug always renders the same message (idempotent re-runs),
+# different slugs spread across the pool. Keep these em-dash-free.
+_FB_FALLBACK_TEMPLATES: list[str] = [
+    "The best {topic}, without the endless scrolling. Here's our pick.",
+    "We did the digging on {topic} so you don't have to.",
+    "Shopping for {topic}? Here's where we landed.",
+    "Our top pick for {topic}, after comparing the field.",
+    "Everything we compared on {topic}, down to one clear winner.",
+    "Cut through the noise on {topic}. Here's the one we'd buy.",
+    "The {topic} actually worth your money. No fluff.",
+    "Less guesswork, better {topic}. Here's what we'd get.",
+]
+
 def _build_fb_message(slug: str, title: str, article_url: str) -> str:
     """Return a personable Facebook post message keyed to slug, fallback to title-derived hook."""
     clean_url = article_url.split('?')[0].rstrip('/') + '/'
@@ -45,14 +60,17 @@ def _build_fb_message(slug: str, title: str, article_url: str) -> str:
     for key, hook in _FB_HOOKS.items():
         if key in slug:
             return f'\U0001f43e {hook}\n{clean_url}'
-    # Fallback: convert title into a short punchy hook
-    # Strip leading 'Best ' and trailing category noise, build a direct hook
+    # Fallback: strip the 'Best ' prefix, then pick a varied hook keyed to the
+    # slug so uncurated posts don't all read the same. Deterministic per slug.
+    import hashlib
     hook_title = title
     for prefix in ('Best ', 'Top ', 'The Best '):
         if hook_title.startswith(prefix):
             hook_title = hook_title[len(prefix):]
             break
-    return f'\U0001f43e Looking for the best {hook_title.lower()}? Here\'s the one worth buying.\n{clean_url}'
+    topic = hook_title.lower()
+    idx = int(hashlib.md5(slug.encode('utf-8')).hexdigest(), 16) % len(_FB_FALLBACK_TEMPLATES)
+    return f'\U0001f43e {_FB_FALLBACK_TEMPLATES[idx].format(topic=topic)}\n{clean_url}'
 
 import argparse
 import json

@@ -156,7 +156,7 @@ jobs:
         if: steps.resolve.outputs.nothing_to_pin != 'true'
         run: |
           PENDING="_pin_queue/.pending-slugs"
-          git pull --rebase origin main
+          git pull --rebase --autostash origin main
           git add products.json _pin_queue/ 2>/dev/null || true
           if [ -f "$PENDING" ]; then
             git rm "$PENDING" -q
@@ -169,7 +169,7 @@ jobs:
               if git push origin main; then echo "Pushed cleanup (attempt ${attempt})"; break; fi
               if [ "$attempt" = "5" ]; then echo "ERROR: push failed after 5 attempts"; exit 1; fi
               echo "Push rejected -- rebasing and retrying (attempt ${attempt})"
-              git pull --rebase origin main
+              git pull --rebase --autostash origin main
               sleep 3
             done
           fi
