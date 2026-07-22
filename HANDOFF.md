@@ -1,6 +1,17 @@
 # HappyPet — Session Handoff (2026-07-22)
 
-Ground truth: `main` @ `676de93` (PR #78 merged — pin-image fix). Working tree clean except two long-standing untracked files (`CLAUDE.md`, `GENERATION_RESULT.json`) — leave them, pre-existing. Tests: `./.venv/Scripts/python.exe -m pytest test_pipeline.py test_stage1_cli.py -q` → **176 passed**. Prior handoff archived as `HANDOFF-archive-2026-07-22-1343.md`. Cross-session decision log: `~/.claude/projects/C--Users-derek-MAEVE-HappyPet/memory/happypet-autonomy-plan.md`.
+Ground truth: `main` @ `cdd2b53`. **First live end-to-end publish happened 2026-07-22** (PRs #76–#80 all merged). Working tree clean except two long-standing untracked files (`CLAUDE.md`, `GENERATION_RESULT.json`) — leave them, pre-existing. Tests: `./.venv/Scripts/python.exe -m pytest test_pipeline.py test_stage1_cli.py -q` → **182 passed**. Prior handoff archived as `HANDOFF-archive-2026-07-22-1343.md`. Cross-session decision log: `~/.claude/projects/C--Users-derek-MAEVE-HappyPet/memory/happypet-autonomy-plan.md`.
+
+## 0. GO-LIVE 2026-07-22 (the headline)
+
+**`best-dog-cooling-mat` is LIVE and fully distributed** — the first article through the internal-Claude Stage-1 → publish → deploy → pin pipeline, on the Director's explicit "go":
+- Live: https://happypetproductreviews.com/dog-gear/best-dog-cooling-mat/ (HTTP 200)
+- Pinterest pins **fired** (IFTTT `happypet_pin_dogs` + `happypet_pin_home`); Google Sheets audit + Facebook queue **appended**; `.pending-slugs` consumed.
+- Getting here uncovered + fixed 4 defects: **#78** pin used an ASIN `/images/P/` placeholder (text-only pin); **#79** IFTTT posting silently broken since 2026-07-02 (`brain_secrets` env fallback was import-gated and dead on CI); **#80** same for the Sheets/FB-queue creds. #77 (the article) merged + published.
+
+**Two workflow gaps I had to nudge past MANUALLY (fix before autonomous cron — both are in the §8 do-not-touch workflows, so they need the Director's go):**
+1. **publish → deploy does not auto-fire.** Stage 2 (`publish.yml`) commits the dated post with `GITHUB_TOKEN`, which by GitHub design does **not** trigger `deploy.yml`. Result: article committed but site not rebuilt, pins not dispatched. I ran `gh workflow run deploy.yml` by hand. Autonomy needs `publish.yml` to dispatch the deploy explicitly (or push via a PAT).
+2. **`pin.yml` "Consume pending-slugs" step fails on a dirty tree.** It runs `git pull --rebase` before staging, but the prior Sheets step leaves the tree dirty → `cannot pull with rebase: You have unstaged changes` (exit 128). Pins/sheets still succeed; only the `.pending-slugs` cleanup fails, risking a duplicate FB-queue append on the next deploy. I consumed `.pending-slugs` by hand (`cdd2b53`). Fix: stash/stage before the rebase.
 
 ## 1. Mission
 
