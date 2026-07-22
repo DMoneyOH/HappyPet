@@ -2200,5 +2200,47 @@ class TestStageArticle(unittest.TestCase):
                 "https://images-na.ssl-images-amazon.com/images/P/B0GG8LR3RW.01.LZZZZZZZ.jpg")
 
 
+class TestFbMessage(unittest.TestCase):
+    """The Facebook-queue message must not reuse one repetitive fallback for
+    every uncurated slug (Director feedback: 'Looking for the best... Here's
+    the one worth buying' appeared across multiple posts). Curated per-slug
+    hooks stay; the fallback now varies deterministically by slug."""
+
+    def setUp(self):
+        import push_pins_to_sheets as pk
+        self.pk = pk
+
+    def test_curated_hook_preserved(self):
+        msg = self.pk._build_fb_message(
+            "best-joint-supplement-dogs", "Best Joint Supplements", "https://x/y/")
+        self.assertIn("Stiff joints don't have to slow your dog down", msg)
+
+    def test_fallback_drops_old_repetitive_template(self):
+        msg = self.pk._build_fb_message(
+            "best-dog-cooling-mat", "Best Dog Cooling Mats to Beat the Summer Heat",
+            "https://happypetproductreviews.com/dog-gear/best-dog-cooling-mat/")
+        self.assertNotIn("Looking for the best", msg)
+        self.assertNotIn("Here's the one worth buying", msg)
+
+    def test_fallback_deterministic_per_slug(self):
+        args = ("best-dog-cooling-mat", "Best Dog Cooling Mats", "https://x/y/")
+        self.assertEqual(self.pk._build_fb_message(*args), self.pk._build_fb_message(*args))
+
+    def test_fallback_template_varies_by_slug_not_just_topic(self):
+        # Same title (same topic), different slugs -> the sentence itself must
+        # vary, not only the interpolated topic.
+        title = "Best Cooling Mats"
+        msgs = {self.pk._build_fb_message(f"best-cooling-mat-{i}", title, "https://x/y/")
+                for i in range(12)}
+        self.assertGreater(len(msgs), 1, "fallback sentence must vary across slugs")
+
+    def test_message_has_emoji_and_strips_query(self):
+        msg = self.pk._build_fb_message(
+            "best-widget", "Best Widgets", "https://x/dog-gear/best-widget/?utm=1")
+        self.assertTrue(msg.startswith("\U0001f43e"))
+        self.assertIn("https://x/dog-gear/best-widget/", msg)
+        self.assertNotIn("?utm=1", msg)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

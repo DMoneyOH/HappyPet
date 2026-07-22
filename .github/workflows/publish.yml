@@ -19,6 +19,7 @@ on:
 permissions:
   contents: write
   issues: write
+  actions: write   # dispatch deploy.yml (GITHUB_TOKEN pushes don't trigger workflows)
 
 concurrency:
   group: happypet-publish
@@ -180,6 +181,14 @@ jobs:
             git pull --rebase origin main
             sleep 3
           done
+
+      - name: Dispatch deploy (GITHUB_TOKEN pushes do not trigger workflows)
+        if: steps.stage.outputs.nothing_to_publish == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh workflow run deploy.yml --repo "${{ github.repository }}"
+          echo "Dispatched deploy.yml (rebuilds with the dated post, then dispatches pins)"
 
       - name: Queue low — create GitHub issue
         if: steps.stage.outputs.nothing_to_publish == 'false'
