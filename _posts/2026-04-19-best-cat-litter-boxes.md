@@ -2,7 +2,9 @@
 layout: post
 title: "Best Cat Litter Boxes for Easy Cleaning and Odor Control"
 date: 2026-04-19
-categories: [cat-gear]
+categories: [cat-litter]
+redirect_from:
+  - /cat-gear/best-cat-litter-boxes/
 species: cat
 tags: [best cat litter boxes]
 description: "The secret to a mess‑free litter room starts with the right box."

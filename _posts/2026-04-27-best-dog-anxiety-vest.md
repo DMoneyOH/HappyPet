@@ -2,7 +2,9 @@
 layout: post
 title: "Best Dog Anxiety Vest to Calm Nervous and Stressed Dogs"
 date: 2026-04-27
-categories: [dog-gear]
+categories: [dog-health]
+redirect_from:
+  - /dog-gear/best-dog-anxiety-vest/
 species: dog
 tags: [best dog anxiety vest]
 description: "Calm your nervous pup in minutes with the top-rated anxiety vest for dogs."

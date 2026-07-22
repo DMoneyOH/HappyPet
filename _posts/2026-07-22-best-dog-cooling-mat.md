@@ -2,7 +2,9 @@
 layout: post
 title: "Best Dog Cooling Mats to Beat the Summer Heat"
 date: 2026-07-22
-categories: [dog-gear]
+categories: [dog-beds]
+redirect_from:
+  - /dog-gear/best-dog-cooling-mat/
 species: dog
 tags: [best dog cooling mat]
 description: "Beat the summer heat: the cooling mats that keep your dog comfortable on the hottest days."

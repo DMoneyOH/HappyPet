@@ -2242,5 +2242,159 @@ class TestFbMessage(unittest.TestCase):
         self.assertNotIn("?utm=1", msg)
 
 
+# ---------------------------------------------------------------------------
+# Category -> homepage topic-button mapping guard (recovery #45)
+#
+# The topic pills in _layouts/home.html bucket a post by matching keywords IN
+# ITS CATEGORY SLUG. A category containing none of these keywords (the old
+# "dog-gear"/"cat-gear" catch-all) is invisible under every topic button --
+# the drift this guard exists to prevent from regressing. Keep PILL_KEYWORDS in
+# sync with the `{% if post_cat contains ... %}` chain in _layouts/home.html.
+# ---------------------------------------------------------------------------
+PILL_KEYWORDS = (
+    "toy", "scratch", "chew",                    # Toys
+    "bed", "crate",                              # Beds & Crates
+    "feed", "food", "water", "fountain",         # Feeding
+    "carrier", "travel", "stroller",             # Travel
+    "collar", "harness", "leash",                # Collars & Harnesses
+    "litter", "grooming", "health", "training",  # Care & Training
+    "tech", "camera", "gps",                     # Tech
+)
+
+# products.json topics deliberately left in a generic bucket because no
+# existing pill fits (Director call, 2026-07-22). A post must never *ship* in
+# one of these -- a real category gets assigned at publish time instead.
+KNOWN_UNMAPPED_QUEUE = {"best-dog-pools"}
+
+
+def _category_maps_to_pill(category: str) -> bool:
+    cat = (category or "").lower()
+    return any(kw in cat for kw in PILL_KEYWORDS)
+
+
+def _post_first_category(md_path: Path):
+    lines = md_path.read_text(encoding="utf-8").splitlines()
+    if not lines or lines[0].strip() != "---":
+        return None
+    for line in lines[1:]:
+        if line.strip() == "---":
+            break
+        s = line.strip()
+        if s.startswith("categories:"):
+            inside = s.split(":", 1)[1].strip().strip("[]")
+            first = inside.split(",")[0].strip().strip('"').strip("'")
+            return first or None
+    return None
+
+
+def _norm_path(url: str) -> str:
+    """Reduce a pin URL (or a bare path) to '/segment/segment/' -- host, query
+    and fragment stripped, leading+trailing slash guaranteed."""
+    path = url.split("://", 1)[-1]
+    if "/" in path and "://" in url:
+        path = "/" + path.split("/", 1)[1]
+    path = path.split("?", 1)[0].split("#", 1)[0]
+    if not path.startswith("/"):
+        path = "/" + path
+    if not path.endswith("/"):
+        path = path + "/"
+    return path
+
+
+def _post_file_for_slug(slug: str):
+    for h in (REPO / "_posts").glob(f"*-{slug}.md"):
+        parts = h.stem.split("-", 3)
+        if len(parts) == 4 and parts[3] == slug:
+            return h
+    return None
+
+
+def _post_redirect_paths(md_path: Path):
+    lines = md_path.read_text(encoding="utf-8").splitlines()
+    if not lines or lines[0].strip() != "---":
+        return []
+    out, in_block = [], False
+    for line in lines[1:]:
+        if line.strip() == "---":
+            break
+        stripped = line.strip()
+        if stripped.startswith("redirect_from:"):
+            rest = stripped.split(":", 1)[1].strip()
+            if rest.startswith("["):
+                for item in rest.strip("[]").split(","):
+                    it = item.strip().strip('"').strip("'")
+                    if it:
+                        out.append(_norm_path(it))
+            else:
+                in_block = True
+            continue
+        if in_block:
+            if stripped.startswith("- "):
+                out.append(_norm_path(stripped[2:].strip().strip('"').strip("'")))
+            elif stripped:
+                in_block = False
+    return out
+
+
+class TestCategoryPillMapping(unittest.TestCase):
+    """Every published post must sit in a category the homepage topic buttons
+    can surface. Guards against the dog-gear/cat-gear drift (recovery #45)."""
+
+    def test_every_published_post_maps_to_a_pill(self):
+        offenders = []
+        for md in sorted((REPO / "_posts").glob("*.md")):
+            cat = _post_first_category(md)
+            if not _category_maps_to_pill(cat):
+                offenders.append(f"{md.name} -> {cat}")
+        self.assertEqual(
+            offenders, [],
+            "posts orphaned from every topic button: " + "; ".join(offenders))
+
+    def test_products_json_categories_map_to_a_pill(self):
+        data = json.loads((REPO / "products.json").read_text(encoding="utf-8"))
+        entries = list(data.values()) if isinstance(data, dict) else data
+        offenders = []
+        for e in entries:
+            slug = e.get("topic", "?")
+            if slug in KNOWN_UNMAPPED_QUEUE:
+                continue
+            if not _category_maps_to_pill(e.get("category", "")):
+                offenders.append(f"{slug} -> {e.get('category')}")
+        self.assertEqual(
+            offenders, [],
+            "products.json topics with no pill: " + "; ".join(offenders))
+
+    def test_pill_keywords_stay_in_sync_with_home_html(self):
+        # If the pill chain in home.html changes, this flags PILL_KEYWORDS as
+        # stale so the two never silently diverge.
+        home = (REPO / "_layouts" / "home.html").read_text(encoding="utf-8")
+        for kw in PILL_KEYWORDS:
+            self.assertIn(
+                f'contains "{kw}"', home,
+                f'"{kw}" in PILL_KEYWORDS but not referenced in home.html')
+
+    def test_every_fired_pin_still_resolves(self):
+        # A pin was fired to Pinterest at /{old-category}/{slug}/. Re-categorizing
+        # a post changes its permalink; unless the post carries a redirect_from
+        # for the old path, that live pin 404s. Guards every already-sent pin.
+        sent = REPO / "_pin_queue" / "sent"
+        unresolved = []
+        for jf in sorted(sent.glob("*.json")):
+            url = json.loads(jf.read_text(encoding="utf-8")).get("article_url", "")
+            if not url:
+                continue
+            pinned = _norm_path(url)
+            post = _post_file_for_slug(jf.stem)
+            if post is None:
+                continue
+            current = _norm_path(f"/{_post_first_category(post)}/{jf.stem}/")
+            if current == pinned:
+                continue
+            if pinned not in _post_redirect_paths(post):
+                unresolved.append(f"{jf.stem}: pinned {pinned}, post now {current}, no redirect")
+        self.assertEqual(
+            unresolved, [], "fired pins that would 404: " + "; ".join(unresolved))
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

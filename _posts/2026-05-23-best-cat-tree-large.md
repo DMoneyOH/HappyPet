@@ -2,7 +2,9 @@
 layout: post
 title: "Best Large Cat Trees for Climbing, Scratching, and Lounging"
 date: 2026-05-23
-categories: [cat-gear]
+categories: [cat-scratching]
+redirect_from:
+  - /cat-gear/best-cat-tree-large/
 species: cat
 tags: [best large cat tree]
 description: "The ultimate cat tree that lets your kitty climb, scratch, and snooze in style—without breaking the bank."
