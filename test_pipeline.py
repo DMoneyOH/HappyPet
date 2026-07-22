@@ -2057,6 +2057,63 @@ class TestStageArticle(unittest.TestCase):
             self.assertEqual(data["slug"], "best-x")
             self.assertEqual(out["draft_path"], draft)
 
+    def test_pin_source_prefers_curated_image_over_asin(self):
+        # Regression: the legacy /images/P/{ASIN} scheme returns a 43-byte
+        # placeholder for modern (B0G...) ASINs, so the pin rendered text-only.
+        # stage_article must feed make_pin the curated /images/I/ image (which
+        # fetch_image handles), not rebuild the source from the ASIN.
+        import tempfile
+        from pathlib import Path
+        from unittest.mock import patch, MagicMock
+        gp = self.gp
+        curated = "https://m.media-amazon.com/images/I/71cMi1EJVIL._AC_SX425_.jpg"
+        product = {"topic": "best-x", "title": "Best X", "keyword": "best x",
+                   "format": "roundup", "name": "The X", "category": "dog-gear",
+                   "species": "dog", "affiliate_url": "https://amzn.to/abc",
+                   "asin": "B0GG8LR3RW", "image": curated}
+        body = "## Heading\n\n" + ("word " * 800)
+        fake_pin = MagicMock(return_value=curated)
+        with tempfile.TemporaryDirectory() as td:
+            posts = Path(td) / "_posts"; posts.mkdir()
+            pinq  = Path(td) / "_pin_queue"; pinq.mkdir()
+            with patch.object(gp, "POSTS_DIR", posts), \
+                 patch.object(gp, "REPO_DIR", Path(td)), \
+                 patch.object(gp, "PIN_GEN_AVAILABLE", True), \
+                 patch.object(gp, "make_pin_for_post", fake_pin):
+                gp.stage_article("best-x", product, body,
+                                 pin_desc="Great mat for dogs.", index=0)
+            pin_source = fake_pin.call_args.args[2]
+            self.assertEqual(pin_source, curated,
+                "pin must use the curated /images/I/ image, not an ASIN-derived URL")
+            self.assertNotIn("/images/P/", pin_source)
+
+    def test_pin_source_falls_back_to_asin_when_no_curated_image(self):
+        # When no curated image exists, derive the pin source from the ASIN so
+        # products without a hand-sourced image still attempt a product photo.
+        import tempfile
+        from pathlib import Path
+        from unittest.mock import patch, MagicMock
+        gp = self.gp
+        product = {"topic": "best-x", "title": "Best X", "keyword": "best x",
+                   "format": "roundup", "name": "The X", "category": "dog-gear",
+                   "species": "dog", "affiliate_url": "https://amzn.to/abc",
+                   "asin": "B0GG8LR3RW"}  # no curated image
+        body = "## Heading\n\n" + ("word " * 800)
+        fake_pin = MagicMock(return_value="x")
+        with tempfile.TemporaryDirectory() as td:
+            posts = Path(td) / "_posts"; posts.mkdir()
+            pinq  = Path(td) / "_pin_queue"; pinq.mkdir()
+            with patch.object(gp, "POSTS_DIR", posts), \
+                 patch.object(gp, "REPO_DIR", Path(td)), \
+                 patch.object(gp, "PIN_GEN_AVAILABLE", True), \
+                 patch.object(gp, "make_pin_for_post", fake_pin):
+                gp.stage_article("best-x", product, body,
+                                 pin_desc="Great mat for dogs.", index=0)
+            pin_source = fake_pin.call_args.args[2]
+            self.assertEqual(
+                pin_source,
+                "https://images-na.ssl-images-amazon.com/images/P/B0GG8LR3RW.01.LZZZZZZZ.jpg")
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
