@@ -1007,6 +1007,56 @@ class TestBrainSecretsVaultFallback(unittest.TestCase):
             importlib.reload(cl)  # restore real module state for later tests
 
 
+class TestPostPinsSecretFallback(unittest.TestCase):
+    """Regression: pin.yml failed with 'IFTTT_MAKER_KEY not set' though the key
+    was present as a GitHub Secret (env var). brain_secrets.get_secret returns
+    None on CI by design (no vault), and brain_secrets.py imports cleanly there,
+    so post_pins.py's env fallback -- which was gated on ImportError -- never
+    fired. The fallback must happen at call time: vault first, then env."""
+
+    def setUp(self):
+        import post_pins as pp
+        import brain_secrets as bs
+        self.pp = pp
+        self.bs = bs
+        self._orig = (bs._vault, bs._vault_tried)
+        bs._vault, bs._vault_tried = None, False
+
+    def tearDown(self):
+        self.bs._vault, self.bs._vault_tried = self._orig
+
+    def test_secret_falls_back_to_env_when_vault_unavailable(self):
+        import os
+        with patch.object(self.bs, "_get_vault", return_value=None), \
+             patch.dict(os.environ, {"IFTTT_MAKER_KEY": "env-key"}):
+            self.assertEqual(self.pp.brain_get_secret("IFTTT_MAKER_KEY", "global"), "env-key")
+
+    def test_secret_prefers_vault_over_env(self):
+        import os
+        fake_vault = MagicMock()
+        fake_vault.use.return_value = "vault-key"
+        with patch.object(self.bs, "_get_vault", return_value=fake_vault), \
+             patch.dict(os.environ, {"IFTTT_MAKER_KEY": "env-key"}):
+            self.assertEqual(self.pp.brain_get_secret("IFTTT_MAKER_KEY", "global"), "vault-key")
+
+    def test_sheet_id_secret_reads_env_on_ci(self):
+        import os
+        with patch.object(self.bs, "_get_vault", return_value=None), \
+             patch.dict(os.environ, {"HAPPYPET_SHEET_ID_DOGS": "sheet-1"}):
+            self.assertEqual(self.pp.brain_get_secret("HAPPYPET_SHEET_ID_DOGS"), "sheet-1")
+
+    def test_sheets_creds_fall_back_to_gcp_sa_key_b64(self):
+        import os, base64, json
+        fake_info = {"type": "service_account", "project_id": "x"}
+        b64 = base64.b64encode(json.dumps(fake_info).encode()).decode()
+        with patch.object(self.bs, "_get_vault", return_value=None), \
+             patch.dict(os.environ, {"GCP_SA_KEY_B64": b64}), \
+             patch("google.oauth2.service_account.Credentials.from_service_account_info",
+                   return_value="CREDS") as mk:
+            self.assertEqual(self.pp.get_sheets_creds(), "CREDS")
+            self.assertEqual(mk.call_args.args[0], fake_info)
+
+
 class TestGenerationResultJSON(unittest.TestCase):
     """GENERATION_RESULT.json is written on pipeline completion — P4"""
 
