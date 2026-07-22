@@ -9,6 +9,12 @@ __pycache__/
 *.pyc
 *.pyo
 
+# === Python Virtualenv (local/routine, not source) ===
+.venv/
+
+# === Stage-1 Routine Scratch (write/review/rewrite working dir) ===
+LOOP/
+
 # === Local Session / Dev Notes ===
 .session-context.md
 SESSION_STATE.md
