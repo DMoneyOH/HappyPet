@@ -43,7 +43,16 @@ def cmd_next_topic(args) -> int:
 
 def cmd_review_prompt(args) -> int:
     body = _read(args.body)
-    print(gp.make_review_prompt(args.title, args.keyword, body))
+    title, keyword, verified = args.title, args.keyword, ""
+    if args.slug:
+        product = gp.load_products().get(args.slug)
+        if product is None:
+            print(f"ERROR: unknown slug {args.slug!r}", file=sys.stderr)
+            return 2
+        title = title or product.get("title", "")
+        keyword = keyword or product.get("keyword", "")
+        verified = gp.build_verified_facts(product)
+    print(gp.make_review_prompt(title, keyword, body, verified))
     return 0
 
 
@@ -99,8 +108,10 @@ def build_parser() -> argparse.ArgumentParser:
     sub.add_parser("next-topic").set_defaults(func=cmd_next_topic)
 
     rp = sub.add_parser("review-prompt")
-    rp.add_argument("--body", required=True); rp.add_argument("--title", required=True)
-    rp.add_argument("--keyword", required=True); rp.set_defaults(func=cmd_review_prompt)
+    rp.add_argument("--body", required=True)
+    rp.add_argument("--slug", default="")  # derives title/keyword + verified facts
+    rp.add_argument("--title", default=""); rp.add_argument("--keyword", default="")
+    rp.set_defaults(func=cmd_review_prompt)
 
     g = sub.add_parser("gate")
     g.add_argument("--body", required=True); g.add_argument("--scorecard", required=True)

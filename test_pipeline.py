@@ -1914,6 +1914,51 @@ class TestAuthoritativeGate(unittest.TestCase):
         passed, _ = self.gp.authoritative_gate(self._card(hv=None), "clean body")
         self.assertFalse(passed)
 
+    def test_cautionary_unsourced_prose_flag_does_not_fail(self):
+        # A reviewer's cautionary prose about verified data ("no source", etc.)
+        # must NOT be treated as fabrication when the accuracy score passes -- this
+        # is the false positive that held a clean, verified-data article. Only
+        # explicit fabrication verbs (fabricated/invented/made up) hard-fail.
+        passed, _ = self.gp.authoritative_gate(
+            self._card(flags=["4.8/5 rating stated as fact with no source or hedge"]),
+            "clean body")
+        self.assertTrue(passed)
+
+
+class TestBuildVerifiedFacts(unittest.TestCase):
+    def setUp(self):
+        import generate_posts as gp
+        self.gp = gp
+
+    def test_builds_from_available_fields(self):
+        out = self.gp.build_verified_facts(
+            {"stars": "4.8", "review_count": 1200, "price": "34.99"})
+        self.assertIn("Star rating: 4.8/5", out)
+        self.assertIn("Review count: 1,200", out)
+        self.assertIn("Price: $34.99", out)
+
+    def test_empty_when_no_data(self):
+        self.assertEqual(self.gp.build_verified_facts({"name": "X"}), "")
+
+
+class TestReviewPromptVerifiedFacts(unittest.TestCase):
+    def setUp(self):
+        import generate_posts as gp
+        self.gp = gp
+
+    def test_verified_facts_block_present_and_instructs_not_to_flag(self):
+        p = self.gp.make_review_prompt("T", "k", "body",
+                                       verified_facts="Star rating: 4.8/5; Price: $34.99")
+        self.assertIn("Star rating: 4.8/5", p)
+        self.assertIn("Price: $34.99", p)
+        low = p.lower()
+        self.assertIn("verified", low)
+        self.assertIn("do not flag", low)
+
+    def test_no_block_when_no_verified_facts(self):
+        p = self.gp.make_review_prompt("T", "k", "body")
+        self.assertNotIn("VERIFIED PRODUCT DATA", p)
+
 
 class TestSelectNextTopic(unittest.TestCase):
     def setUp(self):

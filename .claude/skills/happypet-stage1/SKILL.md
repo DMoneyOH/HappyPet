@@ -24,7 +24,7 @@ step. Never call OpenRouter or any external model. Run from the repo root with
    to `LOOP/body.md` (utf-8). It must satisfy the writing rules in `system`.
    Also write a one-line Pinterest description to `LOOP/pindesc.txt`.
 3. **Review (Sonnet subagent):**
-   - `python stage1_cli.py review-prompt --body LOOP/body.md --title "<title>" --keyword "<keyword>" > LOOP/revprompt.txt`
+   - `python stage1_cli.py review-prompt --slug <slug> --body LOOP/body.md > LOOP/revprompt.txt` (the slug carries the title, keyword, and the featured product's verified figures so the reviewer does not flag them as unsourced)
    - Dispatch a subagent with `model: sonnet` whose entire task is: read
      `LOOP/revprompt.txt`, follow it, and return ONLY the scorecard JSON. Save its
      reply to `LOOP/card.json`.

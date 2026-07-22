@@ -717,7 +717,7 @@ def authoritative_gate(scorecard: dict, content: str) -> tuple:
     hallucinated em-dash veto), this starts from PASS and downgrades only on:
       - a numeric score below its REVIEW_SCORE_MINIMUMS floor,
       - a real em dash in the actual body (deterministic, not the model's count),
-      - an accuracy/fabrication keyword in the flags.
+      - an EXPLICIT fabrication callout (fabricated/invented/made-up) in the flags.
     Returns (passed: bool, flags: list).
     """
     passed = True
@@ -734,11 +734,14 @@ def authoritative_gate(scorecard: dict, content: str) -> tuple:
         passed = False
         flags.append("em_dash_in_body")
 
-    accuracy_keywords = ("fabricat", "unverif", "invent", "statistic", "percentag",
-                         "specific number", "no source", "not verif", "made up",
-                         "cited", "claimed", "without source")
+    # Only UNAMBIGUOUS fabrication verbs hard-fail. Cautionary reviewer prose
+    # ("no source", "unverified", "statistic", "specific number") is NOT treated
+    # as fabrication: it false-positived on VERIFIED featured-product figures (the
+    # reviewer is not the source of truth for what was verified), and soft/
+    # unsourced claims are already governed by the accuracy score floor above.
+    fabrication_keywords = ("fabricat", "invent", "made up", "made-up")
     if flags and any(kw in " ".join(str(f) for f in flags).lower()
-                     for kw in accuracy_keywords):
+                     for kw in fabrication_keywords):
         passed = False
 
     return passed, flags
@@ -814,12 +817,42 @@ def _extract_or_content(raw: bytes, label: str) -> str:
     log(f"  API ok ({label}): {len(content)} chars, {tokens} tokens, finish={finish}")
     return content
 
-def make_review_prompt(title: str, keyword: str, content: str) -> str:
+def build_verified_facts(product: dict) -> str:
+    """Featured-product figures already verified against the retailer, as a short
+    line for the reviewer so it does not flag them as unsourced/fabricated. Mirrors
+    the fields make_prompt marks 'verified'. Empty string when none are present."""
+    parts = []
+    stars = product.get("stars", "")
+    review_count = product.get("review_count", "")
+    price = product.get("price", "")
+    if stars:
+        parts.append(f"Star rating: {stars}/5")
+    if review_count:
+        parts.append(f"Review count: {int(review_count):,}")
+    if price:
+        parts.append(f"Price: ${price}")
+    return "; ".join(parts)
+
+
+def make_review_prompt(title: str, keyword: str, content: str, verified_facts: str = "") -> str:
     """
     Full 21-category AI writing audit built from the avoid-ai-writing catalog
     and beautiful-prose style contract. Replaces the 6-pattern legacy prompt.
+    `verified_facts` (optional): the featured product's retailer-verified figures;
+    when given, the reviewer is told to treat them as fact and not flag them.
     """
     content_sample = content[:15000] if len(content) > 15000 else content
+    verified_block = ""
+    if verified_facts:
+        verified_block = (
+            "=== VERIFIED PRODUCT DATA (do NOT flag as unsourced) ===\n"
+            "The featured product's figures below were already verified against the "
+            "retailer. Treat them as fact: do NOT flag them as unsourced, unverified, "
+            "invented, or fabricated, and do NOT lower the accuracy score for them. "
+            "Only specific numbers appearing in the ALTERNATIVE product sections are "
+            "unverified and may be flagged.\n"
+            f"{verified_facts}\n\n"
+        )
     return f"""You are a senior human editor for Happy Pet Product Reviews, a budget-focused pet product affiliate blog.
 Your job is to score this article honestly and catch every AI writing pattern it contains. Do not be generous.
 
@@ -833,7 +866,7 @@ ARTICLE CONTENT:
 {content_sample}
 ---
 
-=== SCORING RUBRIC ===
+{verified_block}=== SCORING RUBRIC ===
 
 human_voice:
   5 = Real opinion, specific details, natural imperfection, distinct point of view.

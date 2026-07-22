@@ -47,3 +47,12 @@ def test_review_prompt_contains_title_and_rubric():
         assert r.returncode == 0, r.stderr
         assert "Best Dog Mats" in r.stdout
         assert "human_voice" in r.stdout
+
+def test_review_prompt_slug_injects_verified_data_instruction():
+    # --slug derives title/keyword AND the verified-facts block from products.json
+    # so the reviewer is told not to flag the featured product's checked figures.
+    with tempfile.TemporaryDirectory() as td:
+        body = Path(td) / "body.md"; body.write_text("article body", encoding="utf-8")
+        r = run("review-prompt", "--slug", "best-dog-cooling-mat", "--body", str(body))
+        assert r.returncode == 0, r.stderr
+        assert "VERIFIED PRODUCT DATA" in r.stdout
