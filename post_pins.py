@@ -33,15 +33,39 @@ from pathlib import Path
 REPO_DIR  = Path(__file__).parent.resolve()
 import sys as _sys; _sys.path.insert(0, str(REPO_DIR))
 try:
-    from brain_secrets import get_sheets_creds, get_secret as brain_get_secret
-except Exception:  # brain vault code can raise beyond ImportError; env-var fallback either way
-    def brain_get_secret(key, *a, **kw): return os.environ.get(key, '')
-    def get_sheets_creds():
-        import base64, json as _j
-        from google.oauth2.service_account import Credentials
-        info = _j.loads(base64.b64decode(os.environ['GCP_SA_KEY_B64']))
-        return Credentials.from_service_account_info(info,
-            scopes=['https://www.googleapis.com/auth/spreadsheets'])
+    from brain_secrets import get_sheets_creds as _vault_sheets_creds, get_secret as _vault_get_secret
+except Exception:  # brain_secrets.py absent entirely (stripped checkout)
+    _vault_get_secret = None
+    _vault_sheets_creds = None
+
+def brain_get_secret(key, project="HappyPet"):
+    """Resolve a secret: Brain vault first (local dev), then env var (CI/GitHub
+    Secrets). brain_secrets.get_secret returns None on CI by design and the
+    module imports cleanly there, so the env fallback must run at CALL time --
+    gating it on ImportError (the old shape) left it dead, and pins failed with
+    'IFTTT_MAKER_KEY not set' though the key was in the environment."""
+    if _vault_get_secret is not None:
+        try:
+            val = _vault_get_secret(key, project)
+        except Exception:
+            val = None
+        if val:
+            return val
+    return os.environ.get(key, '')
+
+def get_sheets_creds():
+    """Sheets creds: Brain vault first, then base64 service-account JSON in
+    GCP_SA_KEY_B64 (the CI secret). Same vault-then-env contract as above."""
+    from google.oauth2.service_account import Credentials
+    if _vault_sheets_creds is not None:
+        try:
+            return _vault_sheets_creds()
+        except Exception:
+            pass
+    import base64, json as _j
+    info = _j.loads(base64.b64decode(os.environ['GCP_SA_KEY_B64']))
+    return Credentials.from_service_account_info(info,
+        scopes=['https://www.googleapis.com/auth/spreadsheets'])
 LOG_PATH  = REPO_DIR / "LOGS" / f"HappyPet_{_dt.date.today().isoformat()}.log"
 LOG_PATH.parent.mkdir(exist_ok=True)
 
