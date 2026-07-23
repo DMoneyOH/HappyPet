@@ -72,12 +72,16 @@ VALID_SHEETS     = ("HAPPYPET_SHEET_ID_DOGS", "HAPPYPET_SHEET_ID_CATS",
 # training, grooming, tech...) into the generic "-gear" catch-all, which is
 # why the queue skewed 20/23 dog-gear+cat-gear. Widened to give the ideation
 # LLM a real bucket for each topic instead of defaulting to "-gear".
+# Every non-gear bucket here maps to a homepage topic pill (see
+# _layouts/home.html); recovery #45 added carriers/travel/harnesses/beds/
+# grooming so re-categorized live posts (and future topics) stay reachable.
 VALID_CATEGORIES = ("dog-gear", "dog-food", "dog-health", "dog-toys",
                     "dog-training", "dog-grooming", "dog-beds", "dog-collars",
-                    "dog-crates", "dog-harnesses",
+                    "dog-crates", "dog-harnesses", "dog-carriers", "dog-travel",
                     "cat-gear", "cat-food", "cat-health", "cat-toys",
                     "cat-litter", "cat-scratching", "cat-carriers", "cat-feeders",
-                    "pet-tech", "pet-feeding")
+                    "cat-harnesses", "cat-beds",
+                    "pet-tech", "pet-feeding", "pet-grooming")
 
 DESKTOP_UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
               "(KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36")

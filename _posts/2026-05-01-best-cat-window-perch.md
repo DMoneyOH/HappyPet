@@ -2,7 +2,9 @@
 layout: post
 title: "Best Cat Window Perch for Birds-Eye Views and Sunny Naps"
 date: 2026-05-01
-categories: [cat-gear]
+categories: [cat-beds]
+redirect_from:
+  - /cat-gear/best-cat-window-perch/
 species: cat
 tags: [best cat window perch]
 description: "Give your cat the sky‑high window lounge they’ll love for sunny naps and bird‑watching."
