@@ -237,6 +237,7 @@ def make_pin(title, description, product_img_url, category, slug, theme_idx):
 
     IMG_Y = TOP_BAR
     prod_img = fetch_image(product_img_url) if product_img_url else None
+    photo_embedded = prod_img is not None
     stage_bg = get_stage_bg(prod_img) if prod_img else (255, 255, 255)
     draw.rectangle([0, IMG_Y, W, IMG_Y + IMG_H], fill=stage_bg)
 
@@ -289,13 +290,13 @@ def make_pin(title, description, product_img_url, category, slug, theme_idx):
 
     out_path = PINS_DIR / f'{slug}.jpg'
     img.save(str(out_path), 'JPEG', quality=93)
-    return out_path
+    return photo_embedded  # True if the product photo was fetched + composited
 
 def parse_posts():
     posts = []
     for fname in sorted(os.listdir(POSTS_DIR)):
         if not fname.endswith('.md'): continue
-        text = open(POSTS_DIR / fname).read()
+        text = open(POSTS_DIR / fname, encoding='utf-8').read()
         fm = {}
         m = re.match(r'^---\n(.*?)\n---', text, re.DOTALL)
         if m:
@@ -354,12 +355,22 @@ def update_sheets(posts_with_pins):
             ws.batch_update(updates)
             log_pin(f'{label}: updated {len(updates)} pin URLs')
 
-def make_pin_for_post(title, description, image_url, category, slug, theme_idx):
-    """Called by generate_posts.py. Generates pin image and returns hosted URL."""
+def make_pin_for_post(title, description, image_url, category, slug, theme_idx, strict=False):
+    """Generate the pin image and return its hosted URL.
+
+    Called tolerant (strict=False) by generate_posts.py's staging -- which may run
+    in the Claude cloud container, where Amazon's image hosts are unreachable, so a
+    photo-less pin is acceptable there because Stage 2 regenerates it. Called strict
+    (strict=True) by the --slug CLI on the GHA runner (reachable network): a photo
+    that STILL can't be fetched raises rather than shipping a blank pin."""
     if not PIL_AVAILABLE:
         log_pin('Pillow not available -- skipping pin image generation', 'WARN')
         return f'{SITE_URL}/assets/images/pins/{slug}.jpg'
-    make_pin(title, description, image_url, category, slug, theme_idx)
+    photo_embedded = make_pin(title, description, image_url, category, slug, theme_idx)
+    if strict and not photo_embedded:
+        raise RuntimeError(
+            f'pin for {slug}: product photo could not be fetched from {image_url!r} '
+            f'-- refusing to emit a photo-less pin')
     return f'{SITE_URL}/assets/images/pins/{slug}.jpg'
 
 def main(update_sheets_flag=True):
@@ -386,5 +397,28 @@ def main(update_sheets_flag=True):
     log_pin('Done.')
     return results
 
+def regen_one(slug, strict=True):
+    """Regenerate ONE published post's pin image from its front matter, on a host
+    with a reachable network (the GHA runner). This exists because the cloud routine
+    that first stages the post can't fetch Amazon product images, so its pin renders
+    photo-less; Stage 2 calls this to overwrite it with a real one."""
+    import zlib
+    match = next((p for p in parse_posts() if p['slug'] == slug), None)
+    if match is None:
+        log_pin(f'regen: no published post found for slug {slug!r}', 'ERROR')
+        raise SystemExit(2)
+    theme_idx = zlib.crc32(slug.encode()) % len(THEMES)
+    make_pin_for_post(match['title'], match['description'], match['image'],
+                      match['cat'], slug, theme_idx, strict=strict)
+    log_pin(f'regen: {slug} -> assets/images/pins/{slug}.jpg')
+
+
 if __name__ == '__main__':
-    main()
+    import argparse
+    ap = argparse.ArgumentParser()
+    ap.add_argument('--slug', help='Regenerate one published post pin (strict) and exit')
+    args = ap.parse_args()
+    if args.slug:
+        regen_one(args.slug)
+    else:
+        main()

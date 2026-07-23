@@ -162,6 +162,22 @@ jobs:
           echo "remaining=${REMAINING}" >> "$GITHUB_OUTPUT"
           echo "Staged ${#SELECTED[@]} post(s): ${SLUGS_CSV}"
 
+      - name: Regenerate pin images on the runner
+        if: steps.stage.outputs.nothing_to_publish == 'false'
+        run: |
+          # The Stage-1 routine stages posts in the Claude cloud container, which
+          # can't reach Amazon's image hosts -- so its pins render with a blank
+          # product area. Regenerate here on the GHA runner (reaches images-na) so
+          # the product photo composites. --slug is strict: if a photo STILL can't
+          # be fetched it fails loudly, so a blank pin never deploys or gets pinned.
+          IFS=',' read -ra SLUGS <<< "${{ steps.stage.outputs.slugs }}"
+          for slug in "${SLUGS[@]}"; do
+            [ -z "$slug" ] && continue
+            echo "Regenerating pin image for ${slug}"
+            python3 generate_pin_images.py --slug "${slug}"
+            git add "assets/images/pins/${slug}.jpg"
+          done
+
       - name: Write pending-slugs for Stage 3
         if: steps.stage.outputs.nothing_to_publish == 'false'
         run: |
