@@ -11,7 +11,10 @@ step. Never call OpenRouter or any external model. Run from the repo root with
 `./.venv/Scripts/python.exe`.
 
 ## Config
-- `AUTO_MERGE`: `off` for Phase 1 (open the PR and stop). Do NOT merge.
+- `AUTO_MERGE`:
+  - `off` (default) — open the PR and stop; a human reviews and merges.
+  - `on` (autonomous) — after the PR's CI is green, merge it and dispatch Stage 2
+    so the article goes live unattended. Runs steps 8–11 below.
 - `MAX_ATTEMPTS`: 4 (write + up to 3 rewrites).
 - `TARGET_BAR`: aim for reviewer scores of 4 on all axes; the enforced floor is
   whatever `stage1_cli gate` returns (currently 3). Record the best scores reached.
@@ -40,8 +43,35 @@ step. Never call OpenRouter or any external model. Run from the repo root with
    A non-zero exit means the content contract failed — treat as a hold.
 7. **PR:** create a branch, `git add _posts/ _pin_queue/ assets/images/pins/`, commit,
    push, and open a PR titled `stage1: <title>`. In the PR body include: attempts
-   used, final reviewer scores, and total tokens/cost if known. **Do not merge**
-   (Phase 1). Stop.
+   used, final reviewer scores, and total tokens/cost if known. Capture the PR
+   number. **Do not merge from inside the loop.**
+   - `AUTO_MERGE=off` → stop here and report; a human merges.
+   - `AUTO_MERGE=on` → continue to Phase 2 below.
+
+## Phase 2 — auto-merge + publish (only when `AUTO_MERGE=on`)
+The PR is green-by-construction (the in-loop gate already passed). `CI — Tests`
+(`test.yml`) independently re-runs the whole suite on the PR — including the
+category-pill and pin-resolution guards — so nothing bad merges even if the loop
+misbehaved. Requires the GitHub App to have PR-merge **and** `actions: write`
+(workflow-dispatch) permissions.
+
+8. **Wait for CI green:** `gh pr checks <pr> --watch --fail-fast`.
+   - Exit 0 → all checks passed; continue.
+   - Non-zero → a check failed/was cancelled. **Do NOT merge.** Report the failing
+     check and stop (treat as a hold — same as a gate failure).
+9. **Merge:** `gh pr merge <pr> --merge --delete-branch`. This lands
+   `_posts/DRAFT-<slug>.md` on `main`. Merging a draft cannot publish it early:
+   `deploy.yml` only builds DATED posts (`_posts/YYYY-MM-DD-*.md`), so a
+   `DRAFT-*.md` is inert until Stage 2 dates it. (If the merge also lands a pin
+   image under `assets/`, a harmless no-op rebuild may run — the draft is not in
+   it.)
+10. **Dispatch Stage 2:** `gh workflow run publish.yml --repo <owner/repo>`.
+    publish.yml dates the draft, pushes, and dispatches `deploy.yml` → `pin.yml`.
+    If this fails on permissions, the article is NOT lost: the Mon/Thu publish.yml
+    cron is a safety net that publishes leftover drafts. Report that a manual
+    `gh workflow run publish.yml` (or the next cron) is needed.
+11. **Verify live:** watch `publish.yml` → `deploy.yml` → `pin.yml` finish; confirm
+    the article returns HTTP 200 at its live URL and pins fired. Report the URL.
 
 ## Report
 Always end with: topic, outcome (staged-PR / held), attempts used, final scores,

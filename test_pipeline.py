@@ -2396,5 +2396,34 @@ class TestCategoryPillMapping(unittest.TestCase):
             unresolved, [], "fired pins that would 404: " + "; ".join(unresolved))
 
 
+class TestAutoMergePublishWiring(unittest.TestCase):
+    """Preconditions the AUTO_MERGE=on routine path (SKILL Phase 2) bets on. If a
+    workflow edit breaks one of these, the unattended publish would silently
+    misfire -- ship a draft, or never publish after merge."""
+
+    def _wf(self, name):
+        return (REPO / ".github" / "workflows" / name).read_text(encoding="utf-8")
+
+    def test_publish_is_workflow_dispatchable(self):
+        # The routine dispatches Stage 2 after merging its PR (GITHUB_TOKEN merges
+        # don't auto-trigger workflows), so publish.yml must accept dispatch.
+        self.assertIn("workflow_dispatch:", self._wf("publish.yml"))
+
+    def test_merged_draft_cannot_deploy_before_dating(self):
+        # A Stage-1 PR merges _posts/DRAFT-<slug>.md. deploy.yml must publish only
+        # DATED posts, so a draft is inert on main until Stage 2 dates it --
+        # otherwise auto-merge could ship an un-dated draft.
+        deploy = self._wf("deploy.yml")
+        self.assertIn("_posts/[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]-*.md", deploy)
+        self.assertNotIn("_posts/DRAFT", deploy)
+        self.assertNotIn("_posts/**", deploy)
+
+    def test_ci_backstop_runs_on_prs_to_main(self):
+        # test.yml is the independent gate step 8 waits on before merging.
+        ci = self._wf("test.yml")
+        self.assertIn("pull_request:", ci)
+        self.assertIn("test_pipeline.py", ci)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
