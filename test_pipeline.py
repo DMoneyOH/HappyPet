@@ -2405,9 +2405,18 @@ class TestAutoMergePublishWiring(unittest.TestCase):
         return (REPO / ".github" / "workflows" / name).read_text(encoding="utf-8")
 
     def test_publish_is_workflow_dispatchable(self):
-        # The routine dispatches Stage 2 after merging its PR (GITHUB_TOKEN merges
-        # don't auto-trigger workflows), so publish.yml must accept dispatch.
+        # The routine may dispatch Stage 2 as a fallback, so publish.yml must
+        # still accept workflow_dispatch.
         self.assertIn("workflow_dispatch:", self._wf("publish.yml"))
+
+    def test_publish_auto_fires_on_draft_merge(self):
+        # Durable path: a Stage-1 PR merge lands _posts/DRAFT-*.md on main. Because
+        # the routine merges via the GitHub App (not GITHUB_TOKEN), that push
+        # triggers publish.yml -- so publishing needs no actions:write dispatch.
+        # Guard the trigger so it can't silently regress back to dispatch-only.
+        pub = self._wf("publish.yml")
+        self.assertIn("push:", pub)
+        self.assertIn("_posts/DRAFT-*.md", pub)
 
     def test_merged_draft_cannot_deploy_before_dating(self):
         # A Stage-1 PR merges _posts/DRAFT-<slug>.md. deploy.yml must publish only
