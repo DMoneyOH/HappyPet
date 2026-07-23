@@ -1,6 +1,6 @@
-# HappyPet — Session Handoff (2026-07-22, post-go-live)
+# HappyPet — Session Handoff (2026-07-22b, category-fix shipped + auto-merge E2E armed)
 
-Ground truth: `main` @ `cd5f482`, clean working tree except two long-standing untracked files (`CLAUDE.md`, `GENERATION_RESULT.json`) — leave them, pre-existing. Tests: `./.venv/Scripts/python.exe -m pytest test_pipeline.py test_stage1_cli.py -q` → **187 passed**. Prior handoff archived as `HANDOFF-archive-2026-07-22-1512.md`. Cross-session decision log: `~/.claude/projects/C--Users-derek-MAEVE-HappyPet/memory/happypet-autonomy-plan.md`.
+Ground truth: `main` @ `59490e0`, clean working tree except two long-standing untracked files (`CLAUDE.md`, `GENERATION_RESULT.json`) — leave them, pre-existing. Tests: `./.venv/Scripts/python.exe -m pytest test_pipeline.py test_stage1_cli.py -q` → **194 passed**. This session merged **PR #82** (category-drift fix, deployed + verified live) and **PR #83** (AUTO_MERGE=on routine path); the scheduled routine's prompt is now set to AUTO_MERGE=on but **`enabled: false`** (no cron fires — only a manual run executes). Prior handoff archived as `HANDOFF-archive-2026-07-22-1512.md`. Cross-session decision log: `~/.claude/projects/C--Users-derek-MAEVE-HappyPet/memory/happypet-autonomy-plan.md`.
 
 ## 1. Mission
 
@@ -8,7 +8,12 @@ HappyPet is an affiliate pet-review blog (happypetproductreviews.com): a Jekyll 
 
 ## 2. Current State
 
-**LIVE (the headline):** `best-dog-cooling-mat` is published and fully distributed — the first article through the internal-Claude Stage-1 → publish → deploy → pin pipeline, on the Director's explicit "go".
+**NEWEST (2026-07-22b):**
+- **Category-drift defect FIXED + LIVE (PR #82).** The `dog-gear`/`cat-gear` catch-all matched no homepage topic-pill, so 11 published posts were invisible under every category button. Re-categorized all 11 to topical slugs + `jekyll-redirect-from` for the old `/*-gear/<slug>/` URLs (verified live: old URLs 302 to new, new URLs 200 — no fired pin 404s); backfilled `products.json` (19 gear entries; `best-dog-pools` left gear, no fitting pill); widened `VALID_CATEGORIES`; enabled `jekyll-redirect-from`. **Guarded forever:** `test_pipeline.py` (run by `test.yml` on every PR to main) fails if any published post OR any queued product (bar `best-dog-pools`) lands in a non-pill category — so drift can't be merged, and the auto-merge path hard-waits for green CI.
+- **AUTO_MERGE=on routine path BUILT + wired (PR #83).** `SKILL.md` Phase-2 steps 8–11: wait CI green → `gh pr merge --merge` → `gh workflow run publish.yml` → verify live. The routine `trig_01MeaAqB7AJsQTCsmBxYNWcM` prompt is now set to AUTO_MERGE=on (still `enabled: false`).
+- **E2E is armed, pending two Director-owned levers:** (1) grant the Claude GitHub App **`Actions: write`** (needed for the routine to dispatch `publish.yml`; can't be done by an agent — GitHub UI, repo/org admin); (2) manually run the routine to watch it end-to-end (publishes `best-automatic-litter-box` as `cat-litter`, fires real pins). If `actions:write` is missing the run merges safely and stops at dispatch (draft caught by the Mon/Thu cron).
+
+**LIVE (prior headline):** `best-dog-cooling-mat` is published and fully distributed — the first article through the internal-Claude Stage-1 → publish → deploy → pin pipeline, on the Director's explicit "go". (Its URL moved to `/dog-beds/best-dog-cooling-mat/` in PR #82, with a redirect from the old `/dog-gear/` path.)
 - Article: https://happypetproductreviews.com/dog-gear/best-dog-cooling-mat/ (HTTP 200).
 - Pinterest pins **fired** (IFTTT `happypet_pin_dogs` + `happypet_pin_home`); Google Sheets audit + Facebook queue **appended**; `_pin_queue/.pending-slugs` consumed. `.fired` sentinels committed on `main` so it will not re-pin.
 
@@ -37,6 +42,12 @@ New decisions this session:
 - **Decision:** `publish.yml` **explicitly dispatches `deploy.yml`** after pushing the dated post (added `actions: write`). **Reason:** `GITHUB_TOKEN` pushes do not trigger workflows, so the push-filter auto-deploy never fired. **Reversibility:** easy. (Supersedes the older assumption that Stage 2's commit auto-fires deploy.)
 - **Decision:** `pin.yml` consume step uses `git pull --rebase --autostash`. **Reason:** the Sheets step leaves the tree dirty; rebase-before-staging failed (exit 128). **Reversibility:** trivial.
 - **Decision:** FB-queue fallback message picks from a pool of 8 hooks **keyed deterministically by slug hash** (`push_pins_to_sheets.py`). **Alternatives:** curate every slug; random choice. **Reason:** every uncurated slug reused one sentence; deterministic keeps re-runs idempotent. **Reversibility:** trivial (edit the pool).
+
+Decisions 2026-07-22b (category fix + auto-merge):
+- **Decision:** Fix category drift by **re-categorizing the 11 live posts + adding redirects** (not URL-preserving theme hacks), and **stretch odd-fits into the nearest existing pill** (no new pills; cat-tree → Toys). **Reason:** Director's picks; proper topical URLs + working buttons, redirects protect already-fired pins/SEO. **Reversibility:** low for the live URL moves (redirects mitigate), easy for products.json/vocab.
+- **Decision:** Leave **`best-dog-pools`** as `dog-gear` (exempt in the queue guard). **Reason:** an outdoor pool maps to no existing pill and its only keyword ("water") would wrongly land it under Feeding. **Reversibility:** trivial; the post-guard (no exemptions) forces a real category before it can ever publish.
+- **Decision:** Auto-merge safety is **procedural (CI-gated), not branch-protection.** The routine waits on `gh pr checks --watch` then merges; no repo-settings change. **Reason:** `test.yml` already runs the suite on every PR and is a sufficient backstop; avoids an admin settings change. **Reversibility:** easy.
+- **Decision:** Set the routine prompt to **AUTO_MERGE=on while keeping `enabled: false`.** **Reason:** the Director wants a supervised manual E2E, not unattended cron publishing (go-live cron still HELD). **Reversibility:** trivial (RemoteTrigger update).
 
 ## 4. Architecture & Key Files
 
@@ -85,4 +96,4 @@ New decisions this session:
 
 ## 9. Resume Command
 
-> Read `HANDOFF.md`. HappyPet's first article is **live** (`best-dog-cooling-mat`, pins fired) and the `publish → deploy → pin` pipeline is hardened to run with no manual steps (`main` @ `cd5f482`, 187 tests — confirm with `./.venv/Scripts/python.exe -m pytest test_pipeline.py test_stage1_cli.py -q`). Nothing is blocked. First, confirm whether the scheduled routine `trig_01MeaAqB7AJsQTCsmBxYNWcM` is `enabled` (a new PR would appear Thu 08:15 UTC). Then ask the Director which path: **wire Phase-2 autonomy** (dispatch `publish.yml` on PR merge + flip `auto_merge` + enable/retire `generate.yml` cron) or **shepherd one more supervised article** through the hardened pipeline first. Do NOT publish another article, enable auto-merge, flip the go-live cron, or edit `deploy.yml`/`publish.yml`/`pin.yml` without the Director's explicit "go."
+> Read `HANDOFF.md`. `main` @ `59490e0`, 194 tests (`./.venv/Scripts/python.exe -m pytest test_pipeline.py test_stage1_cli.py -q`). The category-drift defect is fixed, deployed, and guarded (PR #82); the AUTO_MERGE=on routine path is built (PR #83) and the routine `trig_01MeaAqB7AJsQTCsmBxYNWcM` is set to AUTO_MERGE=on but `enabled: false`. **The auto-merge publish E2E is armed and waiting on the Director:** (1) he grants the Claude GitHub App `Actions: write`; (2) he manually runs the routine to watch it publish `best-automatic-litter-box` (as `cat-litter`) end-to-end with real pins. If the run happened, check its outcome (PR + live URL) and whether the App-perms/dispatch worked. Do NOT enable the routine's cron (that starts unattended Mon/Thu auto-publishing — still HELD), flip anything else to autonomous, or edit `deploy.yml`/`publish.yml`/`pin.yml` without the Director's explicit "go." Next recovery branch N = **47**.
