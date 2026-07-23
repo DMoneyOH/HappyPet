@@ -52,8 +52,9 @@ step. Never call OpenRouter or any external model. Run from the repo root with
 The PR is green-by-construction (the in-loop gate already passed). `CI — Tests`
 (`test.yml`) independently re-runs the whole suite on the PR — including the
 category-pill and pin-resolution guards — so nothing bad merges even if the loop
-misbehaved. Requires the GitHub App to have PR-merge **and** `actions: write`
-(workflow-dispatch) permissions.
+misbehaved. Requires **only** the GitHub App's existing PR-merge scope
+(`contents` + `pull_requests` write) — publishing **auto-fires on the merge**
+(step 10), so **no `actions: write` is needed**.
 
 8. **Wait for CI green:** `gh pr checks <pr> --watch --fail-fast`.
    - Exit 0 → all checks passed; continue.
@@ -65,11 +66,13 @@ misbehaved. Requires the GitHub App to have PR-merge **and** `actions: write`
    `DRAFT-*.md` is inert until Stage 2 dates it. (If the merge also lands a pin
    image under `assets/`, a harmless no-op rebuild may run — the draft is not in
    it.)
-10. **Dispatch Stage 2:** `gh workflow run publish.yml --repo <owner/repo>`.
-    publish.yml dates the draft, pushes, and dispatches `deploy.yml` → `pin.yml`.
-    If this fails on permissions, the article is NOT lost: the Mon/Thu publish.yml
-    cron is a safety net that publishes leftover drafts. Report that a manual
-    `gh workflow run publish.yml` (or the next cron) is needed.
+10. **Stage 2 auto-fires on the merge.** Merging the PR lands `_posts/DRAFT-<slug>.md`
+    on main, which triggers `publish.yml` automatically (the merge is via the GitHub
+    App, not `GITHUB_TOKEN`) — it dates the draft, pushes, and dispatches `deploy.yml`
+    → `pin.yml`. No `actions: write` required. As a belt-and-suspenders fallback you
+    MAY also run `gh workflow run publish.yml --repo <owner/repo>`; if that returns a
+    permissions error, **ignore it** — the merge already triggered publish (a second
+    run just finds no draft and exits). Never treat a failed dispatch as a hold.
 11. **Verify live:** watch `publish.yml` → `deploy.yml` → `pin.yml` finish; confirm
     the article returns HTTP 200 at its live URL and pins fired. Report the URL.
 

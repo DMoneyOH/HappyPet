@@ -15,6 +15,16 @@ on:
   workflow_run:
     workflows: ["Stage 1 — Generate Articles"]
     types: [completed]
+  push:
+    branches: [main]
+    # A Stage-1 PR merge lands _posts/DRAFT-*.md on main. The routine merges via
+    # the Claude GitHub App (NOT the Actions GITHUB_TOKEN), so this push DOES
+    # trigger workflows -- publishing auto-fires on merge and the routine never
+    # needs actions:write to dispatch. This workflow's own GITHUB_TOKEN pushes
+    # (the dated-post commit below) do not re-trigger it (anti-recursion), and
+    # they are not DRAFT-named anyway.
+    paths:
+      - '_posts/DRAFT-*.md'
 
 permissions:
   contents: write
