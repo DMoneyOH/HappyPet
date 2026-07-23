@@ -2434,5 +2434,52 @@ class TestAutoMergePublishWiring(unittest.TestCase):
         self.assertIn("test_pipeline.py", ci)
 
 
+class TestPinPhotoGuard(unittest.TestCase):
+    """The cloud container can't reach Amazon image hosts, so a routine-generated
+    pin renders photo-less (blank product area). Pins are regenerated on the GHA
+    runner (where fetch works), and a still-missing photo must fail LOUDLY rather
+    than ship a blank pin (recovery #48)."""
+
+    def setUp(self):
+        import generate_pin_images as g
+        self.g = g
+
+    @patch("generate_pin_images.PIL_AVAILABLE", True)
+    @patch("generate_pin_images.make_pin", return_value=False)
+    def test_strict_raises_when_photo_missing(self, _mk):
+        with self.assertRaises(RuntimeError):
+            self.g.make_pin_for_post("T", "D", "https://x/img.jpg", "cat-litter",
+                                     "slug-x", 0, strict=True)
+
+    @patch("generate_pin_images.PIL_AVAILABLE", True)
+    @patch("generate_pin_images.make_pin", return_value=False)
+    def test_non_strict_tolerates_missing_photo(self, _mk):
+        # The cloud stage stays tolerant (blank is overwritten by the GHA regen).
+        url = self.g.make_pin_for_post("T", "D", "https://x/img.jpg", "cat-litter",
+                                       "slug-x", 0)
+        self.assertIn("slug-x", url)
+
+    @patch("generate_pin_images.PIL_AVAILABLE", True)
+    @patch("generate_pin_images.make_pin", return_value=True)
+    def test_strict_ok_when_photo_present(self, _mk):
+        url = self.g.make_pin_for_post("T", "D", "https://x/img.jpg", "cat-litter",
+                                       "slug-x", 0, strict=True)
+        self.assertIn("slug-x", url)
+
+    def test_make_pin_reports_photo_embedded(self):
+        # make_pin must return whether the product photo was embedded, so callers
+        # (and strict mode) can tell a real pin from a blank one.
+        out = self.g.PINS_DIR / "guard-blank-test.jpg"
+        self.addCleanup(lambda: out.unlink(missing_ok=True))
+        with patch("generate_pin_images.fetch_image", return_value=None):
+            self.assertIs(
+                self.g.make_pin("T", "D", "https://x/i.jpg", "cat-litter",
+                                "guard-blank-test", 0), False)
+
+    def test_publish_regenerates_pins_on_runner(self):
+        pub = (REPO / ".github" / "workflows" / "publish.yml").read_text(encoding="utf-8")
+        self.assertIn("generate_pin_images.py --slug", pub)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
