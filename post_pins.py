@@ -33,33 +33,68 @@ from pathlib import Path
 REPO_DIR  = Path(__file__).parent.resolve()
 import sys as _sys; _sys.path.insert(0, str(REPO_DIR))
 try:
-    from brain_secrets import get_sheets_creds as _vault_sheets_creds, get_secret as _vault_get_secret
+    from brain_secrets import (get_sheets_creds as _vault_sheets_creds,
+                               get_secret as _vault_get_secret,
+                               BrainSecretsUnavailable)
 except Exception:  # brain_secrets.py absent entirely (stripped checkout)
     _vault_get_secret = None
     _vault_sheets_creds = None
+    class BrainSecretsUnavailable(RuntimeError):
+        """Stand-in so the except clauses below stay valid. Nothing can raise
+        the real one when brain_secrets did not import."""
 
 def brain_get_secret(key, project="HappyPet"):
     """Resolve a secret: Brain vault first (local dev), then env var (CI/GitHub
     Secrets). brain_secrets.get_secret returns None on CI by design and the
     module imports cleanly there, so the env fallback must run at CALL time --
     gating it on ImportError (the old shape) left it dead, and pins failed with
-    'IFTTT_MAKER_KEY not set' though the key was in the environment."""
+    'IFTTT_MAKER_KEY not set' though the key was in the environment.
+
+    BrainSecretsUnavailable is deliberately NOT swallowed: it means a vault is
+    configured on this host but cannot be unlocked, i.e. the credentials are
+    misconfigured rather than absent. Falling through to env there is what
+    produced a "successful" run with an empty audit trail."""
     if _vault_get_secret is not None:
         try:
             val = _vault_get_secret(key, project)
+        except BrainSecretsUnavailable:
+            raise
         except Exception:
             val = None
         if val:
             return val
     return os.environ.get(key, '')
 
+SHEET_ID_KEYS = ["HAPPYPET_SHEET_ID_FOOD", "HAPPYPET_SHEET_ID_HEALTH",
+                 "HAPPYPET_SHEET_ID_HOME", "HAPPYPET_SHEET_ID_TOYS",
+                 "HAPPYPET_SHEET_ID_CATS", "HAPPYPET_SHEET_ID_DOGS"]
+
+def resolve_sheet_ids(keys):
+    """Look up each sheet ID exactly once and return (found, missing).
+
+    Raises RuntimeError when EVERY key comes back blank. That is a credential or
+    config fault, not "no sheets configured": the old code built an empty dict,
+    logged 'audit trail marking active', and then handed {} to
+    mark_pinned_in_sheet(), whose loop body never executed -- a whole run of
+    pins with no audit trail and nothing in the log to say so."""
+    resolved = {k: brain_get_secret(k) for k in keys}
+    found    = {k: v for k, v in resolved.items() if v}
+    if not found:
+        raise RuntimeError(f"no sheet IDs resolved from the vault or the environment "
+                           f"({len(keys)} keys tried, all blank)")
+    return found, [k for k in keys if k not in found]
+
 def get_sheets_creds():
     """Sheets creds: Brain vault first, then base64 service-account JSON in
-    GCP_SA_KEY_B64 (the CI secret). Same vault-then-env contract as above."""
+    GCP_SA_KEY_B64 (the CI secret). Same vault-then-env contract as above --
+    including that a misconfigured vault (BrainSecretsUnavailable) is a hard
+    failure, not something to paper over with the CI fallback."""
     from google.oauth2.service_account import Credentials
     if _vault_sheets_creds is not None:
         try:
             return _vault_sheets_creds()
+        except BrainSecretsUnavailable:
+            raise
         except Exception:
             pass
     import base64, json as _j
@@ -254,13 +289,21 @@ def main():
         try:
             creds     = get_sheets_creds()
             gc        = gspread.Client(auth=creds)
-            _sheet_keys = ["HAPPYPET_SHEET_ID_FOOD", "HAPPYPET_SHEET_ID_HEALTH",
-                             "HAPPYPET_SHEET_ID_HOME", "HAPPYPET_SHEET_ID_TOYS",
-                             "HAPPYPET_SHEET_ID_CATS", "HAPPYPET_SHEET_ID_DOGS"]
-            sheet_ids = {k: brain_get_secret(k) for k in _sheet_keys if brain_get_secret(k)}
-            log("  gspread ready -- audit trail marking active")
+            sheet_ids, _missing = resolve_sheet_ids(SHEET_ID_KEYS)
+            if _missing:
+                log(f"  sheet IDs missing: {_missing} -- those tabs will NOT be marked", "ERROR")
+            log(f"  gspread ready -- audit trail marking active "
+                f"({len(sheet_ids)}/{len(SHEET_ID_KEYS)} sheets)")
+        except BrainSecretsUnavailable:
+            # A configured-but-unlockable vault is not a degraded mode: every
+            # other credential this run needs comes from the same place.
+            raise
         except Exception as _e:
-            log(f"  sheets creds failed: {_e} -- audit marking skipped", "WARN")
+            # gc is cleared so the run cannot go on to "mark" rows with an empty
+            # sheet_ids dict -- that call did nothing at all and logged nothing,
+            # which is what made this failure invisible.
+            gc = None
+            log(f"  sheets creds failed: {_e} -- audit marking skipped", "ERROR")
     except ImportError:
         log("  gspread not installed -- audit marking skipped", "WARN")
 

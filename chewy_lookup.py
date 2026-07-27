@@ -63,6 +63,11 @@ AUTH_TOKEN        = os.environ.get("IMPACT_AUTH_TOKEN", "")
 # vault (see brain_secrets.py) rather than requiring them to be exported by
 # hand -- best-effort: any failure here (module missing, vault unavailable,
 # key not found) just leaves the env-var value ("") in place.
+# ONE deliberate exception, not caught: brain_secrets.BrainSecretsUnavailable,
+# raised when a vault IS configured on this host but its unlock key cannot be
+# found anywhere. That is a misconfiguration rather than an absence, and
+# swallowing it is what makes Chewy links quietly disappear from a whole run.
+# It cannot fire on CI, where there is no vault to be configured.
 if not ACCOUNT_SID or not AUTH_TOKEN:
     try:
         from brain_secrets import get_secret as _vault_get_secret

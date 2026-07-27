@@ -15,6 +15,7 @@ Run: python3 -m pytest test_pipeline.py -v
 """
 
 import json
+import os
 import sys
 import types
 import unittest
@@ -984,8 +985,16 @@ class TestBrainSecretsVaultFallback(unittest.TestCase):
             self.assertIsNone(self.bs.get_secret("IMPACT_ACCOUNT_SID", "HappyPet"))
 
     def test_get_vault_returns_none_when_secrets_env_missing(self):
-        # Simulates CI: only this repo is checked out, no sibling MaeveJarvis.
-        with patch.object(self.bs, "_SECRETS_ENV", Path("Z:/does/not/exist/secrets.env")):
+        # Simulates CI: only this repo is checked out, no sibling MaeveJarvis
+        # and no brain/ directory either -- so _DEFAULT_DB_PATH must be pinned
+        # somewhere absent too, or on a developer box the last path candidate
+        # resolves to the real vault and this stops simulating CI at all.
+        # The env vars are cleared for the same reason: the answer must come
+        # from the checkout, not from whatever shell launched the tests.
+        with patch.object(self.bs, "_SECRETS_ENV", Path("Z:/does/not/exist/secrets.env")), \
+             patch.object(self.bs, "_DEFAULT_DB_PATH", "Z:/does/not/exist/maeve-brain-v2.db"), \
+             patch.dict(os.environ, {"COGNITIVE_DB_KEY": "", "COGNITIVE_DB_PATH": ""}):
+            del os.environ["COGNITIVE_DB_KEY"], os.environ["COGNITIVE_DB_PATH"]
             self.assertIsNone(self.bs._get_vault())
 
     def test_chewy_lookup_survives_reimport_when_brain_secrets_unimportable(self):
@@ -2479,6 +2488,578 @@ class TestPinPhotoGuard(unittest.TestCase):
     def test_publish_regenerates_pins_on_runner(self):
         pub = (REPO / ".github" / "workflows" / "publish.yml").read_text(encoding="utf-8")
         self.assertIn("generate_pin_images.py --slug", pub)
+
+
+# ---------------------------------------------------------------------------
+# Credential Manager fallback for the vault unlock key
+# ---------------------------------------------------------------------------
+
+
+def _real_credential_manager_available():
+    """True only where a genuine OS keyring backend is present -- never on the
+    ubuntu CI runner (keyring is a win32-only optional dep, see requirements)."""
+    try:
+        import keyring
+        from keyring.backends import fail
+        return not isinstance(keyring.get_keyring(), fail.Keyring)
+    except Exception:
+        return False
+
+
+class _FakeKeyring:
+    """Stands in for the `keyring` module. Records lookups so a test can prove
+    Credential Manager was NOT consulted when an earlier tier answered."""
+
+    def __init__(self, store=None, error=None):
+        self.store = dict(store or {})
+        self.error = error
+        self.calls = []
+
+    def get_password(self, service, name):
+        self.calls.append((service, name))
+        if self.error is not None:
+            raise self.error
+        return self.store.get((service, name))
+
+
+class TestVaultPathConstants(unittest.TestCase):
+    """Guards the module-level path constants themselves.
+
+    These are the one part of brain_secrets.py that no behavioural test can
+    cover, because every test that exercises _get_vault() patches them out --
+    which is exactly how a wrong value reaches production behind a green suite.
+    Reconciling the Credential Manager branch with the path fix produced that
+    defect for real: both sides had added their own _DEFAULT_DB_PATH in
+    different regions of the file, git merged both without a conflict, and the
+    later (bare-filename, CWD-relative) assignment silently won at import.
+    """
+
+    def _module_source(self):
+        import brain_secrets
+        return Path(brain_secrets.__file__).read_text(encoding="utf-8")
+
+    def test_no_module_level_constant_is_assigned_twice(self):
+        """The structural catch-all. Checks every module-level name rather than
+        the one that got hurt, because the next bad merge will land on a
+        different constant and a per-name assertion would not be looking."""
+        import ast
+        from collections import Counter
+
+        tree = ast.parse(self._module_source())
+        assigned = Counter(
+            target.id
+            for node in tree.body
+            if isinstance(node, ast.Assign)
+            for target in node.targets
+            if isinstance(target, ast.Name)
+        )
+        duplicates = {name: n for name, n in assigned.items() if n > 1}
+        self.assertEqual(
+            duplicates, {},
+            "a module-level constant is assigned more than once -- the later "
+            "assignment silently wins at import; this is the fingerprint of a "
+            "merge that took both sides")
+
+    def test_the_default_db_path_is_absolute_and_canonical(self):
+        """A bare filename resolves against the CWD, so the vault was found or
+        not depending on where the pipeline was launched from -- and connect()
+        then CREATED the missing file, turning it into a permanent 0-byte
+        'database'. The default must name one fixed location."""
+        import brain_secrets
+        default = Path(str(brain_secrets._DEFAULT_DB_PATH))
+        self.assertTrue(default.is_absolute(), f"{default} must be absolute")
+        self.assertEqual(default.name, "maeve-brain-v2.db")
+        self.assertEqual(default.parent.name, "brain")
+        self.assertEqual(
+            default, Path(brain_secrets.__file__).parent.parent / "brain" / "maeve-brain-v2.db")
+
+    def test_the_secrets_env_path_points_inside_the_archived_checkout(self):
+        """The MaeveJarvis checkout moved under _archive/ in the 2026-07-21
+        reorg. The pre-reorg path silently yielded no key at all."""
+        import brain_secrets
+        secrets_env = Path(str(brain_secrets._SECRETS_ENV))
+        self.assertTrue(secrets_env.is_absolute())
+        self.assertEqual(secrets_env.name, "secrets.env")
+        self.assertEqual(
+            [p.name for p in list(secrets_env.parents)[:2]], ["MaeveJarvis", "_archive"])
+
+
+class TestVaultKeyResolution(unittest.TestCase):
+    """COGNITIVE_DB_KEY is moving out of the plaintext secrets.env into Windows
+    Credential Manager. The order must stay env -> secrets.env -> Credential
+    Manager so nothing that works today changes, and a dead end must raise on a
+    host that HAS a vault -- the old silent None is what let a whole pin run
+    publish with an empty audit trail and nothing in the log."""
+
+    def setUp(self):
+        import brain_secrets as bs
+        import tempfile
+        self.bs = bs
+        self._orig = (bs._vault, bs._vault_tried, bs._vault_error)
+        bs._vault, bs._vault_tried, bs._vault_error = None, False, None
+        self.tmp = Path(tempfile.mkdtemp())
+        # Every test states its own environment explicitly.
+        self._env = patch.dict(os.environ, {"COGNITIVE_DB_KEY": "", "COGNITIVE_DB_PATH": ""})
+        self._env.start()
+        del os.environ["COGNITIVE_DB_KEY"], os.environ["COGNITIVE_DB_PATH"]
+        # _DEFAULT_DB_PATH is the LAST path candidate and it is a real, absolute
+        # path to the live brain DB on a developer machine. Left unpatched, any
+        # test here that means "there is no vault" instead finds the production
+        # vault and connects to it -- a false result on this box, a different
+        # false result on CI. Pinned for the whole class rather than per test,
+        # so a new test cannot reintroduce the leak by forgetting.
+        self._default_db = patch.object(
+            self.bs, "_DEFAULT_DB_PATH", str(self.tmp / "no-such-default-vault.db"))
+        self._default_db.start()
+
+    def tearDown(self):
+        self._default_db.stop()
+        self._env.stop()
+        self.bs._vault, self.bs._vault_tried, self.bs._vault_error = self._orig
+        import shutil
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def _secrets_env(self, body):
+        p = self.tmp / "secrets.env"
+        p.write_text(body, encoding="utf-8")
+        return patch.object(self.bs, "_SECRETS_ENV", p)
+
+    # --- resolution order ---------------------------------------------------
+
+    def test_environment_wins_over_both_lower_tiers(self):
+        fake = _FakeKeyring({("maeve", "COGNITIVE_DB_KEY"): "from-credman"})
+        with self._secrets_env("COGNITIVE_DB_KEY=from-file\n"), \
+             patch.dict(sys.modules, {"keyring": fake}), \
+             patch.dict(os.environ, {"COGNITIVE_DB_KEY": "from-env"}):
+            key, source, _ = self.bs._resolve_db_key(
+                self.bs._parse_env_file(self.bs._SECRETS_ENV))
+        self.assertEqual(key, "from-env")
+        self.assertEqual(source, "environment")
+        self.assertEqual(fake.calls, [], "Credential Manager must not be consulted")
+
+    def test_secrets_env_wins_over_credential_manager(self):
+        """The 'nothing breaks today' guarantee: while the key is still in the
+        file, the new tier must be unreachable."""
+        fake = _FakeKeyring({("maeve", "COGNITIVE_DB_KEY"): "from-credman"})
+        with self._secrets_env("COGNITIVE_DB_KEY=from-file\n"), \
+             patch.dict(sys.modules, {"keyring": fake}):
+            key, source, _ = self.bs._resolve_db_key(
+                self.bs._parse_env_file(self.bs._SECRETS_ENV))
+        self.assertEqual(key, "from-file")
+        self.assertIn("secrets.env", source)
+        self.assertEqual(fake.calls, [], "Credential Manager must not be consulted")
+
+    def test_credential_manager_is_used_once_the_key_leaves_the_file(self):
+        fake = _FakeKeyring({("maeve", "COGNITIVE_DB_KEY"): "from-credman"})
+        with self._secrets_env("COGNITIVE_DB_PATH=x.db\n"), \
+             patch.dict(sys.modules, {"keyring": fake}):
+            key, source, _ = self.bs._resolve_db_key(
+                self.bs._parse_env_file(self.bs._SECRETS_ENV))
+        self.assertEqual(key, "from-credman")
+        self.assertIn("Credential Manager", source)
+        self.assertEqual(fake.calls, [("maeve", "COGNITIVE_DB_KEY")])
+
+    # --- what comes back out of Credential Manager --------------------------
+
+    def test_edge_whitespace_and_invisibles_are_stripped(self):
+        """Same normalisation as the helper that writes these entries: a BOM
+        (PowerShell 5.1 prepends one) or a stray newline makes the key wrong in
+        a way that reads as 'bad credential', not 'bad paste'."""
+        for wrapper in ("﻿{}", "{}\r\n", "﻿  {}  \r\n", "\xa0{}\xa0", "​{}​"):
+            with self.subTest(wrapper=repr(wrapper)):
+                fake = _FakeKeyring({("maeve", "COGNITIVE_DB_KEY"): wrapper.format("abc123")})
+                with patch.dict(sys.modules, {"keyring": fake}):
+                    self.assertEqual(self.bs._credman_get("COGNITIVE_DB_KEY")[0], "abc123")
+
+    def test_interior_characters_are_preserved(self):
+        """The inverse direction: normalisation must not rewrite a legitimate
+        key. A 64-char hex key and a passphrase with spaces both stay intact."""
+        for value in ("a" * 64, "pass phrase with spaces", "k-e_y+/=:.@"):
+            with self.subTest(value=value):
+                fake = _FakeKeyring({("maeve", "COGNITIVE_DB_KEY"): value})
+                with patch.dict(sys.modules, {"keyring": fake}):
+                    self.assertEqual(self.bs._credman_get("COGNITIVE_DB_KEY")[0], value)
+
+    def test_a_missing_keyring_package_is_an_answer_not_a_crash(self):
+        with patch.dict(sys.modules, {"keyring": None}):
+            value, note = self.bs._credman_get("COGNITIVE_DB_KEY")
+        self.assertIsNone(value)
+        self.assertIn("not installed", note)
+
+    def test_a_backend_error_is_reported_not_raised(self):
+        fake = _FakeKeyring(error=OSError("credential store unavailable"))
+        with patch.dict(sys.modules, {"keyring": fake}):
+            value, note = self.bs._credman_get("COGNITIVE_DB_KEY")
+        self.assertIsNone(value)
+        self.assertIn("OSError", note)
+
+    def test_an_empty_credential_manager_entry_counts_as_absent(self):
+        fake = _FakeKeyring({("maeve", "COGNITIVE_DB_KEY"): "   \r\n"})
+        with patch.dict(sys.modules, {"keyring": fake}):
+            self.assertIsNone(self.bs._credman_get("COGNITIVE_DB_KEY")[0])
+
+    # --- loud vs quiet ------------------------------------------------------
+
+    def test_configured_host_with_no_key_anywhere_fails_loudly(self):
+        """A secrets.env that exists but no longer carries the key, and nothing
+        in Credential Manager: that is the migration going wrong, and it must
+        not resolve to a quiet None."""
+        fake = _FakeKeyring()
+        with self._secrets_env("COGNITIVE_DB_PATH=x.db\nOTHER=1\n"), \
+             patch.dict(sys.modules, {"keyring": fake}):
+            with self.assertRaises(self.bs.BrainSecretsUnavailable) as ctx:
+                self.bs._get_vault()
+        self.assertIn("Credential Manager", str(ctx.exception))
+
+    def test_the_failure_repeats_for_every_caller(self):
+        """The open is cached. Without latching the reason, caller #1 gets the
+        error and everyone after it gets a quiet None -- the same silent
+        degradation, just slower."""
+        fake = _FakeKeyring()
+        with self._secrets_env("COGNITIVE_DB_PATH=x.db\n"), \
+             patch.dict(sys.modules, {"keyring": fake}):
+            for attempt in range(3):
+                with self.subTest(attempt=attempt), \
+                     self.assertRaises(self.bs.BrainSecretsUnavailable):
+                    self.bs._get_vault()
+
+    def test_no_vault_configured_here_still_returns_none(self):
+        """The inverse direction, and the contract CI depends on: with no
+        secrets.env, no key and no vault DB, this is a machine that simply has
+        no vault -- callers env-fall-back and must not see an exception."""
+        fake = _FakeKeyring()
+        with patch.object(self.bs, "_SECRETS_ENV", self.tmp / "absent.env"), \
+             patch.object(self.bs, "_DEFAULT_DB_PATH", str(self.tmp / "absent.db")), \
+             patch.dict(sys.modules, {"keyring": fake}):
+            self.assertIsNone(self.bs._get_vault())
+
+    def test_a_key_with_no_vault_database_fails_loudly_and_creates_nothing(self):
+        """sqlcipher3.connect() CREATES a missing file, so a wrong path used to
+        leave a stray empty DB and then fail as if the key were bad."""
+        missing = self.tmp / "nowhere" / "maeve-brain-v2.db"
+        with patch.object(self.bs, "_SECRETS_ENV", self.tmp / "absent.env"), \
+             patch.dict(os.environ, {"COGNITIVE_DB_KEY": "k", "COGNITIVE_DB_PATH": str(missing)}):
+            with self.assertRaises(self.bs.BrainSecretsUnavailable) as ctx:
+                self.bs._get_vault()
+        self.assertIn("no vault database", str(ctx.exception))
+        self.assertFalse(missing.exists(), "no stray database may be created")
+
+    def test_a_resolved_key_never_appears_in_the_error(self):
+        """The failure reports where the key came from, never what it is --
+        these messages land in a log file and a GitHub Actions transcript."""
+        secret = "S3CR3T-unlock-value-do-not-print"
+        missing = self.tmp / "nowhere.db"
+        with patch.object(self.bs, "_SECRETS_ENV", self.tmp / "absent.env"), \
+             patch.dict(os.environ, {"COGNITIVE_DB_KEY": secret,
+                                     "COGNITIVE_DB_PATH": str(missing)}):
+            with self.assertRaises(self.bs.BrainSecretsUnavailable) as ctx:
+                self.bs._get_vault()
+        self.assertNotIn(secret, str(ctx.exception))
+        self.assertIn("environment", str(ctx.exception))  # the source, not the value
+
+    def test_a_failed_open_warns_without_printing_the_key(self):
+        """A bad key still degrades to None (a locked brain DB is transient and
+        must not take down a run) -- but it must no longer be silent."""
+        secret = "S3CR3T-unlock-value-do-not-print"
+        db = self.tmp / "brain.db"
+        # Non-empty on purpose: a 0-byte file is what a connect() to a wrong
+        # path leaves behind, so path selection rejects it before ever
+        # connecting. The content is irrelevant -- sqlcipher3 is mocked below.
+        db.write_bytes(b"not-really-sqlcipher-but-not-empty")
+        boom = types.SimpleNamespace(
+            connect=MagicMock(side_effect=RuntimeError("file is not a database")))
+        warnings = []
+        with patch.object(self.bs, "_SECRETS_ENV", self.tmp / "absent.env"), \
+             patch.object(self.bs, "_warn", warnings.append), \
+             patch.dict(sys.modules, {"keyring": _FakeKeyring(), "sqlcipher3": boom}), \
+             patch.dict(os.environ, {"COGNITIVE_DB_KEY": secret, "COGNITIVE_DB_PATH": str(db)}):
+            self.assertIsNone(self.bs._get_vault())
+        self.assertTrue(warnings, "a failed open must not be silent")
+        self.assertNotIn(secret, " ".join(warnings))
+
+    def test_the_vault_opens_with_a_key_from_credential_manager(self):
+        """End to end through _get_vault with the key coming only from
+        Credential Manager -- otherwise the fallback could resolve a key that
+        never reaches the reader."""
+        db = self.tmp / "brain.db"
+        db.write_bytes(b"not-really-sqlcipher-but-not-empty")  # see above
+        conn = MagicMock()
+        sqlcipher3 = types.SimpleNamespace(connect=MagicMock(return_value=conn))
+        fake = _FakeKeyring({("maeve", "COGNITIVE_DB_KEY"): "unlock-me"})
+        with self._secrets_env(f"COGNITIVE_DB_PATH={db}\n"), \
+             patch.dict(sys.modules, {"keyring": fake, "sqlcipher3": sqlcipher3}):
+            vault = self.bs._get_vault()
+        self.assertIsInstance(vault, self.bs._VaultReader)
+        sqlcipher3.connect.assert_called_once_with(str(db))
+        pragma = conn.execute.call_args_list[0][0][0]
+        self.assertIn("unlock-me", pragma, "the resolved key must reach PRAGMA key")
+
+    def test_get_secret_propagates_the_configuration_error(self):
+        err = self.bs.BrainSecretsUnavailable("boom")
+        with patch.object(self.bs, "_get_vault", side_effect=err):
+            with self.assertRaises(self.bs.BrainSecretsUnavailable):
+                self.bs.get_secret("IMPACT_ACCOUNT_SID")
+
+    @unittest.skipUnless(_real_credential_manager_available(),
+                         "no real OS keyring backend on this host")
+    def test_round_trip_through_the_real_credential_manager(self):
+        """Proves the fallback against the actual Windows Credential Manager,
+        not a stand-in -- under a throwaway service name so nothing production
+        reads or writes is touched."""
+        import keyring
+        service, name = "maeve-happypet-selftest", "COGNITIVE_DB_KEY"
+        self.addCleanup(lambda: keyring.delete_password(service, name)
+                        if keyring.get_password(service, name) is not None else None)
+        keyring.set_password(service, name, "round-trip-value")
+        self.assertEqual(self.bs._credman_get(name, service)[0], "round-trip-value")
+        keyring.delete_password(service, name)
+        value, note = self.bs._credman_get(name, service)
+        self.assertIsNone(value)
+        self.assertIn("no Credential Manager entry", note)
+
+
+class TestCallersDoNotSwallowTheConfigurationError(unittest.TestCase):
+    """post_pins/push_pins catch Exception around every vault read so a CI run
+    can fall back to env vars. That blanket catch must not also absorb a
+    misconfigured vault -- doing so is how a run 'succeeds' with no data."""
+
+    def setUp(self):
+        import brain_secrets as bs
+        import post_pins as pp
+        import push_pins_to_sheets as pk
+        self.bs, self.pp, self.pk = bs, pp, pk
+
+    def test_post_pins_reraises_it(self):
+        err = self.bs.BrainSecretsUnavailable("vault configured but locked")
+        with patch.object(self.pp, "_vault_get_secret", side_effect=err):
+            with self.assertRaises(self.bs.BrainSecretsUnavailable):
+                self.pp.brain_get_secret("IFTTT_MAKER_KEY", "global")
+
+    def test_push_pins_reraises_it(self):
+        err = self.bs.BrainSecretsUnavailable("vault configured but locked")
+        with patch.object(self.pk, "_vault_get_secret", side_effect=err):
+            with self.assertRaises(self.bs.BrainSecretsUnavailable):
+                self.pk.brain_get_secret("FACEBOOK_QUEUE_SHEET_ID")
+
+    def test_post_pins_still_falls_back_to_env_on_an_ordinary_vault_miss(self):
+        """The inverse direction: every OTHER failure must keep degrading to the
+        environment, or CI breaks."""
+        with patch.object(self.pp, "_vault_get_secret", side_effect=RuntimeError("no vault")), \
+             patch.dict(os.environ, {"IFTTT_MAKER_KEY": "env-key"}):
+            self.assertEqual(self.pp.brain_get_secret("IFTTT_MAKER_KEY", "global"), "env-key")
+
+    def test_post_pins_sheets_creds_reraises_it(self):
+        err = self.bs.BrainSecretsUnavailable("vault configured but locked")
+        with patch.object(self.pp, "_vault_sheets_creds", side_effect=err):
+            with self.assertRaises(self.bs.BrainSecretsUnavailable):
+                self.pp.get_sheets_creds()
+
+
+class TestResolveSheetIds(unittest.TestCase):
+    """post_pins used to build {} out of six blank lookups, log 'audit trail
+    marking active', then hand {} to mark_pinned_in_sheet() -- whose loop body
+    never ran. A full pin run with no audit trail and no sign of it."""
+
+    def setUp(self):
+        import post_pins as pp
+        self.pp = pp
+        self.keys = ["A", "B", "C"]
+
+    def test_every_key_blank_is_an_error_not_an_empty_dict(self):
+        with patch.object(self.pp, "brain_get_secret", return_value=""):
+            with self.assertRaises(RuntimeError) as ctx:
+                self.pp.resolve_sheet_ids(self.keys)
+        self.assertIn("all blank", str(ctx.exception))
+
+    def test_partial_resolution_reports_which_are_missing(self):
+        with patch.object(self.pp, "brain_get_secret",
+                          side_effect=lambda k, *a, **kw: "id-1" if k == "A" else ""):
+            found, missing = self.pp.resolve_sheet_ids(self.keys)
+        self.assertEqual(found, {"A": "id-1"})
+        self.assertEqual(missing, ["B", "C"])
+
+    def test_each_key_is_looked_up_exactly_once(self):
+        stub = MagicMock(return_value="id")
+        with patch.object(self.pp, "brain_get_secret", stub):
+            self.pp.resolve_sheet_ids(self.keys)
+        self.assertEqual(stub.call_count, len(self.keys))
+
+    def test_the_real_sheet_key_list_is_the_one_main_uses(self):
+        self.assertEqual(len(self.pp.SHEET_ID_KEYS), 6)
+        self.assertIn("HAPPYPET_SHEET_ID_DOGS", self.pp.SHEET_ID_KEYS)
+
+
+class TestVaultPathSelectionGuards(unittest.TestCase):
+    """The guards that mutation testing found nothing was watching.
+
+    Three deliberate breaks left the whole suite green: weakening the 0-byte
+    filter (`> 0` -> `>= 0`), dropping the explicit `service=` from the
+    _VaultReader construction, and dropping `have_db` from the "is a vault
+    configured here" test. Each is invisible to a behavioural test unless the
+    test reaches for the specific thing the guard protects, so each is asserted
+    here against the victim's own record -- whether connect() was called, which
+    service name the keyring was actually asked for -- rather than against a
+    message or a return value that happens to look right for another reason.
+    """
+
+    def setUp(self):
+        import brain_secrets as bs
+        import tempfile
+        self.bs = bs
+        self._orig = (bs._vault, bs._vault_tried, bs._vault_error)
+        bs._vault, bs._vault_tried, bs._vault_error = None, False, None
+        self.tmp = Path(tempfile.mkdtemp())
+        self._env = patch.dict(os.environ, {"COGNITIVE_DB_KEY": "", "COGNITIVE_DB_PATH": ""})
+        self._env.start()
+        del os.environ["COGNITIVE_DB_KEY"], os.environ["COGNITIVE_DB_PATH"]
+        # Same reason as TestVaultKeyResolution: unpinned, the last candidate is
+        # the real vault on a developer box and these tests stop meaning what
+        # they say. Pinned at class level so a new test cannot forget.
+        self._default_db = patch.object(
+            self.bs, "_DEFAULT_DB_PATH", str(self.tmp / "no-such-default-vault.db"))
+        self._default_db.start()
+        # No sibling checkout unless a test asks for one.
+        self._secrets_env = patch.object(
+            self.bs, "_SECRETS_ENV", self.tmp / "no-such-secrets.env")
+        self._secrets_env.start()
+
+    def tearDown(self):
+        self._secrets_env.stop()
+        self._default_db.stop()
+        self._env.stop()
+        self.bs._vault, self.bs._vault_tried, self.bs._vault_error = self._orig
+        import shutil
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def _db(self, name, content):
+        p = self.tmp / name
+        p.write_bytes(content)
+        return p
+
+    # --- the 0-byte guard ---------------------------------------------------
+
+    def test_is_nonempty_file_rejects_a_zero_byte_file(self):
+        """The guard in isolation, both directions plus the absent case. A
+        0-byte file EXISTS, so isfile() alone says yes -- only the size test
+        separates 'a vault' from 'the litter a wrong connect() left behind'."""
+        empty = self._db("empty.db", b"")
+        full = self._db("full.db", b"x")
+        missing = self.tmp / "nope.db"
+        self.assertFalse(self.bs._is_nonempty_file(str(empty)),
+                         "a 0-byte file is not a database")
+        self.assertTrue(self.bs._is_nonempty_file(str(full)),
+                        "a file with bytes in it must still be accepted")
+        self.assertFalse(self.bs._is_nonempty_file(str(missing)))
+        # The inverse-direction trap: isfile() is True for the empty one, so a
+        # guard that only checked existence would pass the assertion above by
+        # accident. Pin the distinction itself.
+        self.assertTrue(os.path.isfile(empty))
+
+    def test_a_zero_byte_candidate_is_never_connected_to(self):
+        """The point of filtering BEFORE connect(): sqlcipher3.connect() CREATES
+        a missing file, so connecting to a 0-byte path is what manufactures the
+        permanent fake database in the first place. Asserted on connect itself,
+        not on the exception -- weakening the guard to `>= 0` still produces an
+        exception here (a different one, later), so only the call record can
+        tell the two apart."""
+        empty = self._db("brain.db", b"")
+        sqlcipher3 = types.SimpleNamespace(connect=MagicMock())
+        fake = _FakeKeyring({("maeve", "COGNITIVE_DB_KEY"): "unlock-me"})
+        with patch.dict(sys.modules, {"sqlcipher3": sqlcipher3, "keyring": fake}), \
+             patch.dict(os.environ, {"COGNITIVE_DB_KEY": "k", "COGNITIVE_DB_PATH": str(empty)}):
+            with self.assertRaises(self.bs.BrainSecretsUnavailable):
+                self.bs._get_vault()
+        self.assertEqual(
+            sqlcipher3.connect.call_count, 0,
+            "a 0-byte candidate must be rejected BEFORE connect() -- connecting "
+            "is what creates/keeps the bogus file the guard exists to reject")
+
+    def test_a_nonempty_candidate_is_still_connected_to(self):
+        """The inverse direction. A guard that rejected everything would pass
+        the test above and quietly disable the vault for every caller."""
+        real = self._db("brain.db", b"not-really-sqlcipher-but-not-empty")
+        conn = MagicMock()
+        sqlcipher3 = types.SimpleNamespace(connect=MagicMock(return_value=conn))
+        fake = _FakeKeyring({("maeve", "COGNITIVE_DB_KEY"): "unlock-me"})
+        with patch.dict(sys.modules, {"sqlcipher3": sqlcipher3, "keyring": fake}), \
+             patch.dict(os.environ, {"COGNITIVE_DB_KEY": "k", "COGNITIVE_DB_PATH": str(real)}):
+            vault = self.bs._get_vault()
+        self.assertIsNotNone(vault)
+        sqlcipher3.connect.assert_called_once_with(str(real))
+
+    # --- the explicit service= on _VaultReader ------------------------------
+
+    def test_the_reader_gets_the_service_name_resolved_at_call_time(self):
+        """`service=_KEYRING_SERVICE` looks redundant against the constructor's
+        own default -- and it is, at production values. The difference only
+        shows when the module global is redirected after import: the explicit
+        argument reads it at CALL time, the default bound it at IMPORT time. Drop
+        the argument and the reader silently talks to the production credential
+        store while the test believes it redirected it, which is precisely the
+        failure a throwaway service name exists to prevent."""
+        throwaway = "maeve-test-throwaway-service"
+        real = self._db("brain.db", b"not-really-sqlcipher-but-not-empty")
+        conn = MagicMock()
+        sqlcipher3 = types.SimpleNamespace(connect=MagicMock(return_value=conn))
+        # The master key exists ONLY under the throwaway service.
+        fake = _FakeKeyring({
+            (throwaway, "COGNITIVE_DB_KEY"): "unlock-me",
+            (throwaway, "__vault_key__"): "00" * 32,
+        })
+        with patch.object(self.bs, "_KEYRING_SERVICE", throwaway), \
+             patch.dict(sys.modules, {"sqlcipher3": sqlcipher3, "keyring": fake}), \
+             patch.dict(os.environ, {"COGNITIVE_DB_PATH": str(real)}):
+            vault = self.bs._get_vault()
+            self.assertIsNotNone(vault)
+            self.assertEqual(
+                vault._service, throwaway,
+                "the reader kept the import-time default instead of the "
+                "redirected service name")
+            # Measured on the keyring's own record, not on the attribute: the
+            # lookup that actually happens is the thing that would have hit the
+            # production store.
+            key = vault._master_key()
+        self.assertEqual(key, bytes.fromhex("00" * 32))
+        self.assertIn((throwaway, "__vault_key__"), fake.calls)
+        self.assertNotIn(
+            "maeve", [service for service, _ in fake.calls],
+            "the production credential store was consulted during a test")
+
+    # --- have_db as positive evidence --------------------------------------
+
+    def test_an_on_disk_vault_alone_arms_the_loud_failure(self):
+        """A host with a vault DB but no secrets.env and no key anywhere is a
+        real fault, not an absent feature: somebody put a database there. Drop
+        have_db from the evidence test and this silently returns None, which is
+        the exact regression -- pins published with an empty audit trail -- that
+        the loud error was added to stop."""
+        real = self._db("brain.db", b"not-really-sqlcipher-but-not-empty")
+        fake = _FakeKeyring({})
+        with patch.dict(sys.modules, {"keyring": fake}), \
+             patch.dict(os.environ, {"COGNITIVE_DB_PATH": str(real)}):
+            with self.assertRaises(self.bs.BrainSecretsUnavailable) as caught:
+                self.bs._get_vault()
+        self.assertIn("COGNITIVE_DB_KEY", str(caught.exception))
+
+    def test_no_vault_no_key_no_secrets_env_stays_a_quiet_none(self):
+        """The inverse direction and the contract CI depends on: with no
+        evidence of a vault at all, get_vault must stay silent so callers fall
+        back to env vars. An evidence test that returned True unconditionally
+        would pass the test above and break every CI run."""
+        fake = _FakeKeyring({})
+        with patch.dict(sys.modules, {"keyring": fake}):
+            self.assertIsNone(self.bs._get_vault())
+
+    def test_vault_is_configured_here_counts_each_signal_on_its_own(self):
+        """The evidence function directly: any ONE signal is enough, and none of
+        them is enough only in combination with another."""
+        f = self.bs._vault_is_configured_here
+        self.assertFalse(f(have_secrets_env=False, have_db=False, have_key=False))
+        for signal in ("have_secrets_env", "have_db", "have_key"):
+            kwargs = {"have_secrets_env": False, "have_db": False, "have_key": False}
+            kwargs[signal] = True
+            with self.subTest(signal=signal):
+                self.assertTrue(f(**kwargs), f"{signal} alone must arm the loud failure")
 
 
 if __name__ == "__main__":

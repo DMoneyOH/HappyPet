@@ -85,19 +85,31 @@ from pathlib import Path
 REPO_DIR            = Path(__file__).parent
 import sys as _sys; _sys.path.insert(0, str(REPO_DIR))
 try:
-    from brain_secrets import get_sheets_creds as _vault_sheets_creds, get_secret as _vault_get_secret
+    from brain_secrets import (get_sheets_creds as _vault_sheets_creds,
+                               get_secret as _vault_get_secret,
+                               BrainSecretsUnavailable)
 except Exception:  # brain_secrets.py absent entirely (stripped checkout)
     _vault_get_secret = None
     _vault_sheets_creds = None
+    class BrainSecretsUnavailable(RuntimeError):
+        """Stand-in so the except clauses below stay valid. Nothing can raise
+        the real one when brain_secrets did not import."""
 
 def brain_get_secret(key, project="HappyPet"):
     """Resolve a secret: Brain vault first (local dev), then env var (CI/GitHub
     Secrets). brain_secrets.get_secret returns None on CI by design and imports
     cleanly there, so the env fallback must run at CALL time, not be gated on
-    ImportError (which never fires when brain_secrets.py is present)."""
+    ImportError (which never fires when brain_secrets.py is present).
+
+    BrainSecretsUnavailable is deliberately NOT swallowed: a vault that is
+    configured here but cannot be unlocked means the credentials are
+    misconfigured, not absent, and quietly using env values instead is how a
+    run ends up "succeeding" with nothing in it."""
     if _vault_get_secret is not None:
         try:
             val = _vault_get_secret(key, project)
+        except BrainSecretsUnavailable:
+            raise
         except Exception:
             val = None
         if val:
@@ -106,11 +118,15 @@ def brain_get_secret(key, project="HappyPet"):
 
 def get_sheets_creds():
     """Sheets creds: Brain vault first, then base64 service-account JSON in
-    GCP_SA_KEY_B64 (the CI secret). Same vault-then-env contract as above."""
+    GCP_SA_KEY_B64 (the CI secret). Same vault-then-env contract as above --
+    including that a misconfigured vault (BrainSecretsUnavailable) is a hard
+    failure, not something to paper over with the CI fallback."""
     from google.oauth2.service_account import Credentials
     if _vault_sheets_creds is not None:
         try:
             return _vault_sheets_creds()
+        except BrainSecretsUnavailable:
+            raise
         except Exception:
             pass
     import base64, json as _j
