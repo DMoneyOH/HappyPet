@@ -24,7 +24,22 @@ from pathlib import Path
 # Shared config: MaeveJarvis's secrets.env holds the vault's unlock key.
 # This is a DATA reference (one line read out of a config file), not a code
 # import -- same as pointing at a shared database's connection string.
-_SECRETS_ENV = Path(__file__).parent.parent / "MaeveJarvis" / "secrets.env"
+#
+# The MaeveJarvis checkout moved under `_archive/` in the 2026-07-21 vault
+# reorganization. The pre-reorg path (`../MaeveJarvis/secrets.env`) no longer
+# exists, and because _get_vault() is deliberately non-raising, missing it did
+# not surface as an error -- get_secret() just returned None for every key and
+# every caller silently fell back to its env var. That is indistinguishable
+# from correct behaviour on CI, so it went unnoticed locally.
+_SECRETS_ENV = Path(__file__).parent.parent / "_archive" / "MaeveJarvis" / "secrets.env"
+
+# Absolute fallback for the vault DB. COGNITIVE_DB_PATH (env or secrets.env)
+# still wins; this only replaces the old bare-filename default, which resolved
+# against the CURRENT WORKING DIRECTORY. From this repo that pointed at a
+# non-existent HappyPet/maeve-brain-v2.db, which sqlcipher3.connect() would
+# happily create as an empty file -- the `SELECT 1 FROM secrets` probe below
+# then failed and the vault silently degraded to None, same as above.
+_DEFAULT_DB_PATH = Path(__file__).parent.parent / "brain" / "maeve-brain-v2.db"
 
 _VAULT_KEY_NAME = "__vault_key__"
 _KEYRING_SERVICE = "maeve"
@@ -89,13 +104,20 @@ def _get_vault():
 
     file_values = _parse_env_file(_SECRETS_ENV)
     db_key = os.environ.get("COGNITIVE_DB_KEY") or file_values.get("COGNITIVE_DB_KEY")
-    db_path = (
-        os.environ.get("COGNITIVE_DB_PATH")
-        or file_values.get("COGNITIVE_DB_PATH")
-        or "maeve-brain-v2.db"
-    )
     if not db_key:
         return None
+
+    # Candidates in precedence order: an explicit override still wins, but a
+    # configured path that does not actually hold the vault no longer dead-ends
+    # the whole reader -- it falls through to the canonical location.
+    #
+    # This matters because COGNITIVE_DB_PATH in the shared secrets.env is stale
+    # post-reorg: it names the vault root, where the live DB no longer lives.
+    candidates = [
+        os.environ.get("COGNITIVE_DB_PATH"),
+        file_values.get("COGNITIVE_DB_PATH"),
+        str(_DEFAULT_DB_PATH),
+    ]
 
     try:
         import sqlcipher3
@@ -103,16 +125,33 @@ def _get_vault():
     except ImportError:
         return None
 
-    try:
-        conn = sqlcipher3.connect(db_path)
-        conn.execute(f"PRAGMA key = '{db_key.replace(chr(39), chr(39) * 2)}'")
-        conn.execute("PRAGMA busy_timeout = 5000")
-        conn.execute("SELECT 1 FROM secrets LIMIT 1")  # fail fast on a bad key/path
-    except Exception:
-        return None
+    for candidate in candidates:
+        if not candidate:
+            continue
+        # Never hand a non-existent or empty path to connect(): sqlite CREATES
+        # the file, so a wrong path silently becomes a 0-byte "database" that
+        # exists forever after, makes every later isfile() check pass, and
+        # fails as an opaque OperationalError. Requiring a non-empty file
+        # first makes that whole failure class impossible rather than
+        # rejecting one known-bad path by name.
+        try:
+            if not os.path.isfile(candidate) or os.path.getsize(candidate) == 0:
+                continue
+        except OSError:
+            continue
 
-    _vault = _VaultReader(conn, keyring)
-    return _vault
+        try:
+            conn = sqlcipher3.connect(candidate)
+            conn.execute(f"PRAGMA key = '{db_key.replace(chr(39), chr(39) * 2)}'")
+            conn.execute("PRAGMA busy_timeout = 5000")
+            conn.execute("SELECT 1 FROM secrets LIMIT 1")  # fail fast on a bad key/path
+        except Exception:
+            continue
+
+        _vault = _VaultReader(conn, keyring)
+        return _vault
+
+    return None
 
 
 def get_secret(key: str, project: str = "HappyPet") -> str | None:
