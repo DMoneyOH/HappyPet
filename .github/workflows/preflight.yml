@@ -70,7 +70,7 @@ jobs:
       # comment lines there.
       - name: Fetch pipeline secrets from Bitwarden
         if: github.event.inputs.secret_source == 'bitwarden'
-        uses: bitwarden/sm-action@v3
+        uses: bitwarden/sm-action@1238aae8fc64b212641190a9227c8a734ab1a793  # v3.0.1
         with:
           access_token: ${{ secrets.BWS_ACCESS_TOKEN }}
           # Explicit rather than relying on action.yml's default: the action
