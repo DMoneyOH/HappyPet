@@ -3,9 +3,22 @@ name: Preflight — Secrets Readiness Check
 # Manual only. Verifies every pipeline secret is present and, where a free
 # side-effect-free ping exists, live. Generates nothing, publishes nothing,
 # fires no pins, appends no rows, sends no email.
+#
+# Doubles as the Bitwarden migration canary: pick `secret_source: bitwarden`
+# to run the identical check against secrets pulled from Bitwarden Secrets
+# Manager instead of GitHub's native store. Default stays `github`, so the
+# existing behaviour is unchanged until the canary is deliberately selected.
 on:
   workflow_dispatch:
     inputs:
+      secret_source:
+        description: 'Where to read the pipeline secrets from'
+        required: false
+        default: 'github'
+        type: choice
+        options:
+          - github
+          - bitwarden
       send_test_email:
         description: 'Send a real test email to hello@happypetproductreviews.com (true/false)'
         required: false
@@ -36,7 +49,63 @@ jobs:
       - name: Install Python dependencies
         run: pip install --quiet -r requirements.txt
 
-      - name: Run secrets preflight
+      # --- Bitwarden canary path -------------------------------------------
+      # Pulls the 17 live pipeline secrets from Bitwarden Secrets Manager as
+      # the machine account `GHPipelineAutomation`. With set_env enabled each
+      # secret is appended to $GITHUB_ENV under its right-hand name, making it
+      # an ordinary environment variable for every LATER step in THIS job.
+      # ($GITHUB_ENV does not cross job boundaries — this workflow has exactly
+      # one job, so a single fetch step covers it.)
+      #
+      # LEFT of the '>'  = the Bitwarden secret UUID.
+      # RIGHT of the '>' = the env var name preflight_secrets.py reads.
+      #                    These must stay exactly as-is; renaming one breaks
+      #                    the check. The Bitwarden-side secret is named
+      #                    HAPPYPET__<THAT NAME> per the PROJECT__KEY convention.
+      #
+      # UUIDs below are the real Bitwarden secret IDs (CI project), populated
+      # 2026-07-28 from secrets-migration\bitwarden-secret-manifest.tsv. They
+      # are identifiers, not secret values, so they are safe in-repo. The block
+      # is a literal scalar, so '#' inside it is NOT a comment — do not add
+      # comment lines there.
+      - name: Fetch pipeline secrets from Bitwarden
+        if: github.event.inputs.secret_source == 'bitwarden'
+        uses: bitwarden/sm-action@v3
+        with:
+          access_token: ${{ secrets.BWS_ACCESS_TOKEN }}
+          # Explicit rather than relying on action.yml's default: the action
+          # treats a missing SET_ENV input as false, so state the intent here.
+          set_env: "true"
+          secrets: |
+            4a71d8aa-7179-471a-919b-b49500654f19 > GEMINI_API_KEY
+            dcf832a8-556c-4ea1-8490-b49500654f5e > OPENROUTER_API_KEY
+            c52445cb-c0d5-4dbd-aed1-b495006783e6 > GCP_SA_KEY_B64
+            0979d2d6-391a-4f7c-9a2a-b49500654fa0 > FACEBOOK_QUEUE_SHEET_ID
+            f64d05f2-b312-45a9-8aa4-b49500654fe5 > HAPPYPET_SHEET_ID_DOGS
+            59496869-2bff-4944-a4e5-b49500655031 > HAPPYPET_SHEET_ID_CATS
+            0eb7241c-5110-42b7-88f2-b49500655076 > HAPPYPET_SHEET_ID_HOME
+            cfe0babd-bf69-44bd-9b72-b4950065522d > HAPPYPET_SHEET_ID_FOOD
+            009d6b1e-6839-495d-9530-b4950065529c > HAPPYPET_SHEET_ID_TOYS
+            de5c168f-9442-4b5f-bfb2-b495006552e2 > HAPPYPET_SHEET_ID_HEALTH
+            93710646-b7d0-4565-8fc5-b4950067d913 > GMAIL_SMTP_USER
+            b26e4830-e6ec-4b8c-845f-b4950067ffa3 > GMAIL_ACCOUNT
+            d795f1d4-7031-47e4-a99e-b49500655330 > GMAIL_APP_PASSWORD
+            eedf007a-7a14-477d-9b33-b49500655377 > IFTTT_MAKER_KEY
+            ef007cc7-4c91-40b1-9d66-b495006553bf > IMPACT_ACCOUNT_SID
+            9862ac55-6a9c-4663-b179-b49500655425 > IMPACT_AUTH_TOKEN
+            8eaa40d7-dfc8-4d7f-86d0-b4950065546d > FACEBOOK_PAGE_TOKEN
+
+      # Two run steps rather than one, deliberately. Each mode gets exactly one
+      # source for each variable, so neither can mask the other: a step-level
+      # `env:` block takes precedence over $GITHUB_ENV, so leaving the
+      # `${{ secrets.* }}` mappings in place during a Bitwarden run would have
+      # silently re-injected the GitHub-native values and produced a green
+      # canary that proved nothing. The Bitwarden step therefore sets no secret
+      # env vars at all — if the Bitwarden fetch did not populate them, every
+      # check FAILs loudly instead of quietly passing on the old values.
+
+      - name: Run secrets preflight (GitHub-native secrets)
+        if: github.event.inputs.secret_source != 'bitwarden'
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
@@ -58,5 +127,15 @@ jobs:
           AMAZON_PAAPI_SECRET_KEY: ${{ secrets.AMAZON_PAAPI_SECRET_KEY }}
           AMAZON_PAAPI_PARTNER_TAG: ${{ secrets.AMAZON_PAAPI_PARTNER_TAG }}
           FACEBOOK_PAGE_TOKEN: ${{ secrets.FACEBOOK_PAGE_TOKEN }}
+          SEND_TEST_EMAIL: ${{ github.event.inputs.send_test_email == 'true' && '1' || '' }}
+        run: python3 preflight_secrets.py
+
+      # No secret env vars here on purpose — they arrive from the Bitwarden
+      # step via $GITHUB_ENV. The three AMAZON_PAAPI_* vars are intentionally
+      # absent from the migration set (they do not exist in either store yet);
+      # preflight_secrets.py already reports them WARN, not FAIL, when unset.
+      - name: Run secrets preflight (Bitwarden-sourced secrets)
+        if: github.event.inputs.secret_source == 'bitwarden'
+        env:
           SEND_TEST_EMAIL: ${{ github.event.inputs.send_test_email == 'true' && '1' || '' }}
         run: python3 preflight_secrets.py
