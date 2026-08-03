@@ -2084,6 +2084,72 @@ class TestSelectNextTopic(unittest.TestCase):
         self.assertIsNone(self.gp.select_next_topic({}, used_slugs=set()))
 
 
+class TestSelectNextTopicSpeciesBalance(unittest.TestCase):
+    """select_next_topic avoids running 3+ of the same species in a row."""
+
+    def setUp(self):
+        import generate_posts as gp
+        self.gp = gp
+
+    def _products(self):
+        # dict order: dog, dog, cat, both
+        return {
+            "d1": {"topic": "d1", "title": "D1", "keyword": "k", "format": "roundup", "species": "dog"},
+            "d2": {"topic": "d2", "title": "D2", "keyword": "k", "format": "roundup", "species": "dog"},
+            "c1": {"topic": "c1", "title": "C1", "keyword": "k", "format": "roundup", "species": "cat"},
+            "b1": {"topic": "b1", "title": "B1", "keyword": "k", "format": "roundup", "species": "both"},
+        }
+
+    def test_two_dogs_in_a_row_forces_a_non_dog_next(self):
+        slug, p = self.gp.select_next_topic(
+            self._products(), used_slugs=set(), recent_species=["dog", "dog"])
+        self.assertEqual(slug, "c1")  # skips d1/d2, picks first non-dog
+
+    def test_two_cats_in_a_row_forces_a_non_cat_next(self):
+        slug, p = self.gp.select_next_topic(
+            self._products(), used_slugs=set(), recent_species=["cat", "cat"])
+        self.assertEqual(slug, "d1")  # cat blocked -> first dict entry qualifies
+
+    def test_no_streak_keeps_plain_order(self):
+        slug, p = self.gp.select_next_topic(
+            self._products(), used_slugs=set(), recent_species=["cat", "dog"])
+        self.assertEqual(slug, "d1")
+
+    def test_both_counts_as_breaking_a_streak(self):
+        # newest is 'both', so no dog streak even though the older one is dog
+        slug, p = self.gp.select_next_topic(
+            self._products(), used_slugs=set(), recent_species=["both", "dog"])
+        self.assertEqual(slug, "d1")
+
+    def test_falls_back_when_only_blocked_species_remains(self):
+        only_dogs = {
+            "d1": {"topic": "d1", "title": "D1", "keyword": "k", "format": "roundup", "species": "dog"},
+            "d2": {"topic": "d2", "title": "D2", "keyword": "k", "format": "roundup", "species": "dog"},
+        }
+        slug, p = self.gp.select_next_topic(
+            only_dogs, used_slugs=set(), recent_species=["dog", "dog"])
+        self.assertEqual(slug, "d1")  # nothing else available -> plain order
+
+    def test_products_json_never_stacks_three_same_species(self):
+        # Walk the real products.json queue applying the rule; assert no 3-run.
+        products = self.gp.load_products()
+        used = set()
+        history = []  # newest first
+        picked_species = []
+        for _ in range(len(products)):
+            res = self.gp.select_next_topic(products, used, recent_species=history)
+            if res is None:
+                break
+            slug, p = res
+            used.add(slug)
+            sp = p.get("species")
+            picked_species.append(sp)
+            history = [sp] + history
+        runs = [picked_species[i] == picked_species[i + 1] == picked_species[i + 2]
+                for i in range(len(picked_species) - 2)]
+        self.assertFalse(any(runs), f"3+ same species in a row: {picked_species}")
+
+
 class TestBuildWriterInputs(unittest.TestCase):
     def setUp(self):
         import generate_posts as gp

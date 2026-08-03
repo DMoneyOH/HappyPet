@@ -544,17 +544,72 @@ def build_used_slugs() -> set:
     return used
 
 
-def select_next_topic(products: dict, used_slugs: set):
-    """Return (slug, product) for the first products.json entry that is unpublished
-    and has the required fields, in dict order (same order main() consumes). Return
-    None when nothing is eligible. Mirrors the topic filter + dedup in main()."""
-    required = ("topic", "title", "keyword", "format")
-    for slug, p in products.items():
-        if slug in used_slugs:
-            continue
-        if all(k in p for k in required):
-            return slug, p
+def _post_species(md_path) -> str | None:
+    """Read the `species:` value from a post's YAML front matter. Returns the
+    lowercased species (dog/cat/both) or None when absent/unreadable."""
+    try:
+        with md_path.open(encoding="utf-8") as f:
+            in_fm = False
+            for line in f:
+                s = line.strip()
+                if s == "---":
+                    if in_fm:
+                        break
+                    in_fm = True
+                    continue
+                if in_fm and s.lower().startswith("species:"):
+                    return s.split(":", 1)[1].strip().strip('"\'').lower() or None
+    except OSError:
+        return None
     return None
+
+
+def recent_published_species(count: int = 2) -> list:
+    """Return the species of the most recently DATED posts, newest first.
+    Drafts (DRAFT-*.md) have no live date and are ignored. Used to keep the
+    picker from stacking too many same-species articles in a row."""
+    dated = []
+    for md in POSTS_DIR.glob("*.md"):
+        stem = md.stem
+        if stem.startswith("DRAFT-"):
+            continue
+        parts = stem.split("-", 3)
+        if len(parts) != 4:
+            continue
+        date_key = "-".join(parts[:3])  # YYYY-MM-DD sorts lexically
+        dated.append((date_key, stem, md))
+    dated.sort(key=lambda x: (x[0], x[1]), reverse=True)
+    return [_post_species(md) for _, _, md in dated[:count]]
+
+
+def select_next_topic(products: dict, used_slugs: set, recent_species: list = None):
+    """Return (slug, product) for the next eligible products.json entry, in dict
+    order, skipping already-used slugs and entries missing required fields.
+
+    Species balancing: if the last two DATED posts were the same dog/cat species,
+    skip further entries of that species and pick the first eligible entry of a
+    different species (a `both` entry always qualifies), so the feed never runs
+    3+ of the same species in a row. If every remaining entry is that species,
+    fall back to plain dict order. `recent_species` (newest first) is injectable
+    for testing; production reads it from the published _posts/. Returns None when
+    nothing is eligible."""
+    required = ("topic", "title", "keyword", "format")
+    eligible = [(slug, p) for slug, p in products.items()
+                if slug not in used_slugs and all(k in p for k in required)]
+    if not eligible:
+        return None
+
+    if recent_species is None:
+        recent_species = recent_published_species(2)
+    streak = [s for s in recent_species if s]
+    if len(streak) >= 2 and streak[0] == streak[1] and streak[0] in ("dog", "cat"):
+        blocked = streak[0]
+        for slug, p in eligible:
+            if (p.get("species") or "").lower() != blocked:
+                return slug, p
+        # Every remaining topic is the blocked species -- fall through.
+
+    return eligible[0]
 
 
 def find_related_published_slug(current_slug: str, current_category: str) -> tuple:
