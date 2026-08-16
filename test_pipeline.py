@@ -3128,5 +3128,76 @@ class TestVaultPathSelectionGuards(unittest.TestCase):
                 self.assertTrue(f(**kwargs), f"{signal} alone must arm the loud failure")
 
 
+class TestRetireFromProductsDurability(unittest.TestCase):
+    """retire_from_products() rewrites products.json -- the pipeline's central
+    state file -- from a GHA runner that can be cancelled or OOM-killed mid-step.
+    It used to do a bare write_text(), which truncates the target before writing,
+    so a kill inside that window left a half-written products.json that every
+    later run then failed to parse. It now goes through json_io.atomic_write_json
+    (temp file + os.replace) like every other writer of this file.
+
+    These pin both halves: the observable behaviour is unchanged, and an
+    interrupted write leaves the original file intact."""
+
+    def setUp(self):
+        import shutil
+        import tempfile
+        import push_pins_to_sheets as pk
+        self.pk = pk
+        self.tmp = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, self.tmp, ignore_errors=True)
+        self.products = [
+            {"topic": "best-cat-beds", "title": "Best Cat Beds", "asin": "B001"},
+            {"topic": "best-dog-crates", "title": "Best Dog Crates", "asin": "B002"},
+        ]
+        self.path = self.tmp / "products.json"
+        self.path.write_text(json.dumps(self.products, indent=2), encoding="utf-8")
+        for attr, value in (("REPO_DIR", self.tmp), ("log", lambda *a, **k: None)):
+            p = patch.object(self.pk, attr, value)
+            p.start()
+            self.addCleanup(p.stop)
+        # Keep the Brain-archive side trip out of it: it is skipped unless the
+        # vault DB exists, so point HOME at an empty dir rather than the real one.
+        p = patch.object(Path, "home", staticmethod(lambda: self.tmp))
+        p.start()
+        self.addCleanup(p.stop)
+
+    def test_retire_removes_only_the_named_slug_and_returns_the_remainder(self):
+        self.assertEqual(self.pk.retire_from_products("best-cat-beds"), 1)
+        on_disk = json.loads(self.path.read_text(encoding="utf-8"))
+        self.assertEqual([e["topic"] for e in on_disk], ["best-dog-crates"])
+
+    def test_retire_writes_byte_for_byte_what_the_bare_write_produced(self):
+        """Behaviour-preservation guard for the switch to atomic_write_json:
+        2-space indent, no trailing newline. Expected value is built from the
+        fixture, not by re-running the writer."""
+        self.pk.retire_from_products("best-cat-beds")
+        self.assertEqual(self.path.read_text(encoding="utf-8"),
+                         json.dumps([self.products[1]], indent=2))
+
+    def test_an_unknown_slug_leaves_the_file_completely_untouched(self):
+        original = self.path.read_bytes()
+        self.assertEqual(self.pk.retire_from_products("no-such-slug"), 2)
+        self.assertEqual(self.path.read_bytes(), original)
+
+    def test_a_write_interrupted_at_the_commit_point_never_truncates(self):
+        """The regression this fix is for. os.replace is the atomic commit; a
+        kill just before it must leave the ORIGINAL file whole.
+
+        Red against the old bare write_text(): nothing raised (write_text never
+        calls os.replace) and the file had already been rewritten."""
+        import json_io
+        original = self.path.read_bytes()
+        with patch.object(json_io.os, "replace",
+                          side_effect=OSError("runner cancelled mid-write")):
+            with self.assertRaises(OSError):
+                self.pk.retire_from_products("best-cat-beds")
+        self.assertEqual(self.path.read_bytes(), original,
+                         "products.json must survive an interrupted write intact")
+        json.loads(self.path.read_text(encoding="utf-8"))  # and still parse
+        self.assertEqual([q.name for q in self.tmp.iterdir()], ["products.json"],
+                         "no scratch file may be left behind")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
