@@ -2,7 +2,7 @@
 layout: post
 title: "Best Dog Pools for Backyard Splashing All Summer Long"
 date: 2026-08-17
-categories: [dog-gear]
+categories: [dog-toys]
 species: dog
 tags: [best dog pool]
 description: "Beat the summer heat: the folding dog pool that stands up to claws, drains fast, and stores flat."

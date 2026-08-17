@@ -2339,7 +2339,9 @@ PILL_KEYWORDS = (
 # products.json topics deliberately left in a generic bucket because no
 # existing pill fits (Director call, 2026-07-22). A post must never *ship* in
 # one of these -- a real category gets assigned at publish time instead.
-KNOWN_UNMAPPED_QUEUE = {"best-dog-pools"}
+# best-dog-pools was assigned to the Toys pill (dog-toys) on 2026-08-17, so the
+# queue is empty; keep the mechanism for any future parked topic.
+KNOWN_UNMAPPED_QUEUE = set()
 
 
 def _category_maps_to_pill(category: str) -> bool:
