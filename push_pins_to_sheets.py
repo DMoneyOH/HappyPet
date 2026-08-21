@@ -78,6 +78,7 @@ import os
 import sys
 import shutil
 import smtplib
+import time
 from email.mime.text import MIMEText
 import datetime as _dt
 from pathlib import Path
@@ -142,11 +143,62 @@ ALERT_TO            = 'hello@happypetproductreviews.com'
 SMTP_HOST           = 'smtp.gmail.com'
 SMTP_PORT           = 587
 
+# Transient Sheets API failures. On 2026-08-20 a single 503 from Google's
+# frontend hit gc.open_by_key(), which sat outside every try block, and took the
+# whole pin run down as an unhandled traceback -- so the article's Facebook row
+# was never appended AND the workflow never reached its cleanup step, leaving the
+# slug live in products.json and .pending-slugs. Same shape as
+# chewy_lookup.API_MAX_RETRY / API_RETRY_WAIT.
+SHEETS_MAX_RETRY       = 3    # total attempts, so 2 retries
+SHEETS_RETRY_WAIT      = 2    # seconds before the first retry; doubles after
+SHEETS_TRANSIENT_CODES = (429, 500, 502, 503, 504)
+
 
 def log(msg: str, level: str = 'INFO') -> None:
     line = f"{_dt.datetime.now().strftime('%Y-%m-%d %H:%M:%S')} [SHEETS] [{level}]  {msg}"
     print(line, flush=True)
     with LOG_PATH.open('a') as f: f.write(line + chr(10))
+
+
+def _api_status(exc) -> int | None:
+    """The HTTP status behind a gspread APIError, or None if there isn't one.
+
+    Both sources are consulted because neither is reliable alone.
+    APIError.code is parsed out of the JSON error body and is set to -1 when
+    Google answers with HTML instead, which a frontend 503 often does;
+    response.status_code is the transport's own answer and survives that.
+    """
+    for value in (getattr(exc, 'code', None),
+                  getattr(getattr(exc, 'response', None), 'status_code', None)):
+        if isinstance(value, int) and value > 0:
+            return value
+    return None
+
+
+def sheets_retry(label: str, fn, *args, **kwargs):
+    """Run an IDEMPOTENT Sheets call, retrying transient upstream failures.
+
+    Reads only. append_row is deliberately NOT wrapped: a write that fails in
+    transit may already have landed server-side, so retrying it can put a second
+    row in the Facebook queue -- which this script's in-memory dedup cannot see,
+    a later run cannot undo, and which posts twice. A stuck pipeline is
+    recoverable; a duplicate post is not.
+
+    Anything that is not a transient status -- a 403, a 404, a revoked service
+    account -- is re-raised on the first attempt. A backoff that retries every
+    APIError just delays the same failure by six seconds and is its own defect.
+    """
+    for attempt in range(1, SHEETS_MAX_RETRY + 1):
+        try:
+            return fn(*args, **kwargs)
+        except Exception as exc:
+            status = _api_status(exc)
+            if status not in SHEETS_TRANSIENT_CODES or attempt == SHEETS_MAX_RETRY:
+                raise
+            wait = SHEETS_RETRY_WAIT * (2 ** (attempt - 1))
+            log(f'  Sheets {label}: HTTP {status} -- retry {attempt}/'
+                f'{SHEETS_MAX_RETRY - 1} in {wait}s', 'WARN')
+            time.sleep(wait)
 
 
 def load_env():
@@ -292,7 +344,7 @@ def read_fb_queue_state(ws) -> tuple[set, _dt.date]:
     per appended row so a batch never collides on the same day.
     Raises on read failure -- appending blind would create duplicates.
     """
-    rows = ws.get_all_values()
+    rows = sheets_retry('get_all_values', ws.get_all_values)
     urls  = set()
     dates = []
     for row in rows[1:]:  # skip header
@@ -349,8 +401,16 @@ def main():
         log(f"Sheets creds failed: {creds_exc} -- cannot append to FB Queue", "ERROR")
         sys.exit(1)
 
-    fb_sheet = gc.open_by_key(fb_sheet_id)
-    fb_ws    = fb_sheet.get_worksheet(0)
+    # Retried and caught. Both of these used to sit bare: the 2026-08-20 503
+    # surfaced as a raw traceback, which reads as a code fault rather than the
+    # upstream outage it was, and skipped the "Sheets creds failed" style of
+    # message every other failure here produces.
+    try:
+        fb_sheet = sheets_retry('open_by_key', gc.open_by_key, fb_sheet_id)
+        fb_ws    = sheets_retry('get_worksheet', fb_sheet.get_worksheet, 0)
+    except Exception as open_exc:
+        log(f'Could not open the FB Queue sheet: {open_exc} -- aborting', 'ERROR')
+        sys.exit(1)
 
     # Dedup against the sheet itself, not against sent/ location. post_pins.py
     # used to move fired files into sent/ before this script ran, so the old

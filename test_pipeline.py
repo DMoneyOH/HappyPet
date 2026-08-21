@@ -3201,5 +3201,210 @@ class TestRetireFromProductsDurability(unittest.TestCase):
                          "no scratch file may be left behind")
 
 
+class _StubSheetsResponse:
+    """Stands in for the requests.Response gspread.APIError is built from.
+
+    Deliberately builds a REAL gspread.exceptions.APIError rather than a mock of
+    one, so these tests are pinned to that class's actual shape (.code parsed out
+    of the JSON body, .response carrying the transport status) instead of to a
+    shape this file invented.
+    """
+
+    def __init__(self, status, payload=None, text=""):
+        self.status_code = status
+        self._payload = payload
+        self.text = text
+
+    def json(self):
+        if self._payload is None:
+            raise ValueError("not JSON")
+        return self._payload
+
+
+def _sheets_api_error(status, *, json_body=True):
+    """A gspread APIError as Google actually delivers it.
+
+    json_body=False is the HTML case: gspread's own constructor then sets
+    .code = -1, and the transport status is the only place the 503 survives.
+    """
+    import gspread.exceptions
+    payload = None
+    if json_body:
+        payload = {"error": {"code": status,
+                             "message": "The service is currently unavailable.",
+                             "status": "UNAVAILABLE"}}
+    return gspread.exceptions.APIError(
+        _StubSheetsResponse(status, payload, text="<html>503</html>"))
+
+
+class TestSheetsApiRetry(unittest.TestCase):
+    """One transient 503 from Google took down pin run 32368452299 on
+    2026-08-20: gc.open_by_key() sat outside every try block, so the article's
+    Facebook-queue row was never appended and the workflow never reached the step
+    that retires the slug from products.json and .pending-slugs.
+
+    sheets_retry() covers the IDEMPOTENT reads only. The append is intentionally
+    left bare -- see the structural tests at the bottom."""
+
+    def setUp(self):
+        import push_pins_to_sheets as pk
+        self.pk = pk
+        p = patch.object(pk, "log", lambda *a, **k: None)
+        p.start()
+        self.addCleanup(p.stop)
+
+    # --- status extraction ------------------------------------------------
+
+    def test_status_comes_from_the_json_body_when_there_is_one(self):
+        self.assertEqual(self.pk._api_status(_sheets_api_error(503)), 503)
+
+    def test_status_falls_back_to_the_transport_when_the_body_is_html(self):
+        """gspread sets .code = -1 on an unparseable body. Reading only .code
+        would classify a real 503 as non-transient and never retry it."""
+        exc = _sheets_api_error(503, json_body=False)
+        self.assertEqual(exc.code, -1, "guard: gspread's own -1 sentinel")
+        self.assertEqual(self.pk._api_status(exc), 503)
+
+    def test_an_ordinary_exception_has_no_status(self):
+        self.assertIsNone(self.pk._api_status(ValueError("boom")))
+
+    # --- retry behaviour --------------------------------------------------
+
+    def test_a_transient_503_is_retried_and_then_succeeds(self):
+        calls = {"n": 0}
+
+        def flaky():
+            calls["n"] += 1
+            if calls["n"] < 3:
+                raise _sheets_api_error(503)
+            return "worksheet"
+
+        with patch("time.sleep"):
+            self.assertEqual(self.pk.sheets_retry("open_by_key", flaky), "worksheet")
+        self.assertEqual(calls["n"], 3)
+
+    def test_an_html_503_is_retried_too(self):
+        calls = {"n": 0}
+
+        def flaky():
+            calls["n"] += 1
+            if calls["n"] == 1:
+                raise _sheets_api_error(503, json_body=False)
+            return "ok"
+
+        with patch("time.sleep"):
+            self.assertEqual(self.pk.sheets_retry("open_by_key", flaky), "ok")
+        self.assertEqual(calls["n"], 2)
+
+    def test_every_transient_code_is_retried(self):
+        for status in self.pk.SHEETS_TRANSIENT_CODES:
+            with self.subTest(status=status):
+                calls = {"n": 0}
+
+                def flaky():
+                    calls["n"] += 1
+                    if calls["n"] == 1:
+                        raise _sheets_api_error(status)
+                    return "ok"
+
+                with patch("time.sleep"):
+                    self.pk.sheets_retry("get_all_values", flaky)
+                self.assertEqual(calls["n"], 2)
+
+    def test_a_403_is_raised_on_the_first_attempt(self):
+        """The inverse direction. A revoked service account is not transient;
+        retrying it only delays the same failure and hides the real cause."""
+        import gspread.exceptions
+        calls = {"n": 0}
+
+        def denied():
+            calls["n"] += 1
+            raise _sheets_api_error(403)
+
+        with patch("time.sleep") as slept:
+            with self.assertRaises(gspread.exceptions.APIError):
+                self.pk.sheets_retry("open_by_key", denied)
+        self.assertEqual(calls["n"], 1, "a 403 must not be retried")
+        slept.assert_not_called()
+
+    def test_a_non_api_exception_is_raised_on_the_first_attempt(self):
+        calls = {"n": 0}
+
+        def broken():
+            calls["n"] += 1
+            raise ValueError("bad argument")
+
+        with patch("time.sleep"):
+            with self.assertRaises(ValueError):
+                self.pk.sheets_retry("open_by_key", broken)
+        self.assertEqual(calls["n"], 1)
+
+    def test_it_gives_up_and_reraises_after_the_configured_attempts(self):
+        """A sustained outage must still surface as a failure, not spin."""
+        import gspread.exceptions
+        calls = {"n": 0}
+
+        def always_down():
+            calls["n"] += 1
+            raise _sheets_api_error(503)
+
+        with patch("time.sleep"):
+            with self.assertRaises(gspread.exceptions.APIError):
+                self.pk.sheets_retry("open_by_key", always_down)
+        self.assertEqual(calls["n"], self.pk.SHEETS_MAX_RETRY)
+
+    def test_the_backoff_is_exponential(self):
+        """Expected waits are written out literally, not recomputed from the
+        module's own formula -- a test that recomputes agrees with any formula."""
+
+        def always_down():
+            raise _sheets_api_error(503)
+
+        with patch("time.sleep") as slept:
+            with self.assertRaises(Exception):
+                self.pk.sheets_retry("open_by_key", always_down)
+        self.assertEqual([c.args[0] for c in slept.call_args_list], [2, 4])
+
+    def test_arguments_reach_the_wrapped_call_unchanged(self):
+        seen = {}
+
+        def target(key, *, index):
+            seen["args"] = (key, index)
+            return "ok"
+
+        self.assertEqual(
+            self.pk.sheets_retry("open_by_key", target, "sheet-id", index=0), "ok")
+        self.assertEqual(seen["args"], ("sheet-id", 0))
+
+    # --- structural: which call sites are (and are not) wrapped -----------
+
+    def _source(self):
+        return (REPO / "push_pins_to_sheets.py").read_text(encoding="utf-8")
+
+    def test_the_calls_that_took_the_run_down_are_wrapped(self):
+        """Unit-testing the helper proves the helper works, not that it is used
+        at the site that actually failed. These pin the call sites."""
+        source = self._source()
+        for call in ("sheets_retry('open_by_key', gc.open_by_key",
+                     "sheets_retry('get_worksheet', fb_sheet.get_worksheet",
+                     "sheets_retry('get_all_values', ws.get_all_values"):
+            with self.subTest(call=call):
+                self.assertIn(call, source)
+        self.assertNotIn("\n    fb_sheet = gc.open_by_key(", source,
+                         "the bare open_by_key call must be gone")
+
+    def test_the_append_is_never_retried(self):
+        """A write that fails in transit may already have landed. Retrying it can
+        put a second row in the Facebook queue, which this script's in-memory
+        dedup cannot see, a later run cannot undo, and which posts twice."""
+        source = self._source()
+        self.assertIn("fb_ws.append_row(fb_row)", source,
+                      "the append must still be called directly, unwrapped")
+        for line in source.splitlines():
+            if "sheets_retry(" in line:
+                self.assertNotIn("append_row", line,
+                                 "append_row must never be handed to sheets_retry")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
