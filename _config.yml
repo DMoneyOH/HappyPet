@@ -24,6 +24,7 @@ exclude:
   - AUDIT_ADDENDUM.md
   - BETA_PLAN_REVIEW.md
   - PIPELINE_AUDIT_HANDOVER.md
+  - README.md
   - products.json
   - requirements.txt
   - Gemfile
