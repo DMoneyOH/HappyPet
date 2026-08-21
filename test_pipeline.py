@@ -2966,10 +2966,19 @@ class TestRetiredTopicalSheetsAreGone(unittest.TestCase):
                              f"generate_pin_images.{name} is retired topical-sheet code")
 
     def test_no_module_source_still_opens_a_topical_sheet(self):
-        import inspect
+        """Parsed, not grepped. A substring search for 'open_by_key' would also
+        match a comment or a docstring that merely mentions the call -- and this
+        commit's own explanatory comments do exactly that. An alarm that fires on
+        legitimate prose is one people learn to disable, so match the call site
+        itself via the AST."""
+        import ast, inspect
         for mod in (self.pp, self.g):
-            src = inspect.getsource(mod)
-            self.assertNotIn("open_by_key", src,
+            tree = ast.parse(inspect.getsource(mod))
+            calls = [n for n in ast.walk(tree)
+                     if isinstance(n, ast.Call)
+                     and isinstance(n.func, ast.Attribute)
+                     and n.func.attr == "open_by_key"]
+            self.assertEqual(calls, [],
                              f"{mod.__name__} still opens a spreadsheet")
 
     def test_the_category_labels_survive_for_board_routing(self):
