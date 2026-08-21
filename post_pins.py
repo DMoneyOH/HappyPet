@@ -1,8 +1,15 @@
 #!/usr/bin/env python3
 """
 post_pins.py - HappyPet Pinterest poster via IFTTT Maker webhooks
-Sheet role: AUDIT TRAIL only. Rows appended by push_pins_to_sheets.py.
-post_pins.py marks column F = YES after successful pin.
+Sheets role: NONE. This script fires webhooks and writes dedup sentinels; it
+touches no spreadsheet. The only live sheet is the Facebook Queue, appended by
+push_pins_to_sheets.py, which owns that path end to end.
+
+The six per-category "topical" sheets (FOOD/HEALTH/HOME/TOYS/CATS/DOGS) were
+retired; the column-F = YES marking that used to run here was removed with them
+(it had been failing 404 on every run and swallowing the error into a WARN).
+The HAPPYPET_SHEET_ID_* strings that remain below are CATEGORY LABELS carried in
+products.json's `topical_sheet` field, not spreadsheet IDs -- see TOPICAL_EVENT.
 
 Dedup contract (single-owner markers):
   _pin_queue/.fired/{slug}.fired          -> ALL events fired (this script's marker)
@@ -33,12 +40,10 @@ from pathlib import Path
 REPO_DIR  = Path(__file__).parent.resolve()
 import sys as _sys; _sys.path.insert(0, str(REPO_DIR))
 try:
-    from brain_secrets import (get_sheets_creds as _vault_sheets_creds,
-                               get_secret as _vault_get_secret,
+    from brain_secrets import (get_secret as _vault_get_secret,
                                BrainSecretsUnavailable)
 except Exception:  # brain_secrets.py absent entirely (stripped checkout)
     _vault_get_secret = None
-    _vault_sheets_creds = None
     class BrainSecretsUnavailable(RuntimeError):
         """Stand-in so the except clauses below stay valid. Nothing can raise
         the real one when brain_secrets did not import."""
@@ -65,47 +70,15 @@ def brain_get_secret(key, project="HappyPet"):
             return val
     return os.environ.get(key, '')
 
-SHEET_ID_KEYS = ["HAPPYPET_SHEET_ID_FOOD", "HAPPYPET_SHEET_ID_HEALTH",
-                 "HAPPYPET_SHEET_ID_HOME", "HAPPYPET_SHEET_ID_TOYS",
-                 "HAPPYPET_SHEET_ID_CATS", "HAPPYPET_SHEET_ID_DOGS"]
-
-def resolve_sheet_ids(keys):
-    """Look up each sheet ID exactly once and return (found, missing).
-
-    Raises RuntimeError when EVERY key comes back blank. That is a credential or
-    config fault, not "no sheets configured": the old code built an empty dict,
-    logged 'audit trail marking active', and then handed {} to
-    mark_pinned_in_sheet(), whose loop body never executed -- a whole run of
-    pins with no audit trail and nothing in the log to say so."""
-    resolved = {k: brain_get_secret(k) for k in keys}
-    found    = {k: v for k, v in resolved.items() if v}
-    if not found:
-        raise RuntimeError(f"no sheet IDs resolved from the vault or the environment "
-                           f"({len(keys)} keys tried, all blank)")
-    return found, [k for k in keys if k not in found]
-
-def get_sheets_creds():
-    """Sheets creds: Brain vault first, then base64 service-account JSON in
-    GCP_SA_KEY_B64 (the CI secret). Same vault-then-env contract as above --
-    including that a misconfigured vault (BrainSecretsUnavailable) is a hard
-    failure, not something to paper over with the CI fallback."""
-    from google.oauth2.service_account import Credentials
-    if _vault_sheets_creds is not None:
-        try:
-            return _vault_sheets_creds()
-        except BrainSecretsUnavailable:
-            raise
-        except Exception:
-            pass
-    import base64, json as _j
-    info = _j.loads(base64.b64decode(os.environ['GCP_SA_KEY_B64']))
-    return Credentials.from_service_account_info(info,
-        scopes=['https://www.googleapis.com/auth/spreadsheets'])
 LOG_PATH  = REPO_DIR / "LOGS" / f"HappyPet_{_dt.date.today().isoformat()}.log"
 LOG_PATH.parent.mkdir(exist_ok=True)
 
 MAKER_URL = "https://maker.ifttt.com/trigger/{event}/with/key/{key}"
 
+# Category label (products.json `topical_sheet`) -> IFTTT event. The keys are
+# named after the retired topical spreadsheets purely because that is the string
+# products.json already carries; nothing here opens a spreadsheet. Renaming them
+# would mean migrating products.json and refill_products.VALID_SHEETS in step.
 TOPICAL_EVENT = {
     "HAPPYPET_SHEET_ID_FOOD":   "happypet_pin_food",
     "HAPPYPET_SHEET_ID_HEALTH": "happypet_pin_health",
@@ -230,23 +203,6 @@ def check_image_has_content(url: str, min_bytes: int = 10000) -> bool:
         return False
 
 
-def mark_pinned_in_sheet(slug, gc, sheet_ids):
-    """Mark column F = YES for this slug. Audit trail only."""
-    url_fragment = f"/{slug}/"
-    for sheet_name, sheet_id in sheet_ids.items():
-        if not sheet_id:
-            continue
-        try:
-            ws   = gc.open_by_key(sheet_id).get_worksheet(0)
-            rows = ws.get_all_values()
-            for i, row in enumerate(rows[1:], start=2):
-                if len(row) >= 2 and url_fragment in row[1]:
-                    ws.update_cell(i, 6, "YES")
-                    log(f"  AUDIT: marked {sheet_name} row {i} = YES")
-        except Exception as exc:
-            log(f"  WARN: could not mark {sheet_name}: {exc}", "WARN")
-
-
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--slugs",   default="", help="Comma-separated slugs (empty = all queued)")
@@ -280,32 +236,6 @@ def main():
         return
 
     log(f"START -- {len(queue_files)} pin(s){' [DRY RUN]' if args.dry_run else ''}")
-
-    gc = None
-    sheet_ids = {}
-    try:
-        import gspread
-        from google.oauth2.service_account import Credentials
-        try:
-            creds     = get_sheets_creds()
-            gc        = gspread.Client(auth=creds)
-            sheet_ids, _missing = resolve_sheet_ids(SHEET_ID_KEYS)
-            if _missing:
-                log(f"  sheet IDs missing: {_missing} -- those tabs will NOT be marked", "ERROR")
-            log(f"  gspread ready -- audit trail marking active "
-                f"({len(sheet_ids)}/{len(SHEET_ID_KEYS)} sheets)")
-        except BrainSecretsUnavailable:
-            # A configured-but-unlockable vault is not a degraded mode: every
-            # other credential this run needs comes from the same place.
-            raise
-        except Exception as _e:
-            # gc is cleared so the run cannot go on to "mark" rows with an empty
-            # sheet_ids dict -- that call did nothing at all and logged nothing,
-            # which is what made this failure invisible.
-            gc = None
-            log(f"  sheets creds failed: {_e} -- audit marking skipped", "ERROR")
-    except ImportError:
-        log("  gspread not installed -- audit marking skipped", "WARN")
 
     processed = 0
     failed    = 0
@@ -399,8 +329,6 @@ def main():
                         log(f"  FIRED sentinel committed: _pin_queue/.fired/{qf.stem}.fired")
                 except Exception as _fe:
                     log(f"  WARN: could not commit .fired sentinel: {_fe}", "WARN")
-                if gc:
-                    mark_pinned_in_sheet(slug, gc, sheet_ids)
                 processed += 1
             else:
                 log(f"  PARTIAL failure for {slug} -- fired events recorded, will retry the rest", "WARN")

@@ -5,11 +5,11 @@ generate_pin_images.py v3
 - Larger product image, auto-crops whitespace
 - 1-sentence description below title
 - Pillow-drawn arrow (no emoji)
-- Pin generated BEFORE sheet append
 - Hooked into generate_posts.py via make_pin_for_post()
 
-GHA note: brain_secrets is vault-local and unavailable on GHA runners.
-Fallback credentials path uses GCP_SA_KEY_B64 env var, same as all other pipeline scripts.
+This module renders images only. It needs no credentials and writes to no
+spreadsheet: update_sheets(), which pushed pin URLs into the retired
+HAPPYPET_SHEET_ID_DOGS/_CATS sheets, was removed with those sheets.
 """
 import os, re, datetime, urllib.request, urllib.error
 from pathlib import Path
@@ -27,14 +27,6 @@ try:
 except ImportError:
     PIL_AVAILABLE = False
 
-try:
-    import gspread
-    from google.oauth2.service_account import Credentials
-    GSPREAD_AVAILABLE = True
-except ImportError:
-    GSPREAD_AVAILABLE = False
-
-
 def log_pin(msg: str, level: str = "INFO") -> None:
     line = f"{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')} [PINGEN]    [{level}]  {msg}"
     print(line, flush=True)
@@ -43,18 +35,10 @@ def log_pin(msg: str, level: str = "INFO") -> None:
 REPO      = Path(__file__).parent
 import sys as _sys; _sys.path.insert(0, str(REPO))
 
-# brain_secrets is vault-local and unavailable on GHA runners.
-# Fallback: build sheets creds from GCP_SA_KEY_B64 env var (same as all other scripts).
-try:
-    from brain_secrets import get_sheets_creds, get_secret as brain_get_secret
-except Exception:  # brain vault code can raise beyond ImportError; env-var fallback either way
-    def brain_get_secret(key, *a, **kw): return os.environ.get(key, '')
-    def get_sheets_creds():
-        import base64, json as _j
-        from google.oauth2.service_account import Credentials as _Creds
-        info = _j.loads(base64.b64decode(os.environ['GCP_SA_KEY_B64']))
-        return _Creds.from_service_account_info(
-            info, scopes=['https://www.googleapis.com/auth/spreadsheets'])
+# This module needs no secrets and touches no spreadsheet. It used to carry a
+# brain_secrets / gspread fallback for update_sheets(), which wrote pin URLs into
+# the retired HAPPYPET_SHEET_ID_DOGS and _CATS sheets; both are decommissioned,
+# so the function and its credential scaffolding are gone.
 
 PINS_DIR  = REPO / 'assets' / 'images' / 'pins'
 POSTS_DIR = REPO / '_posts'
@@ -324,37 +308,6 @@ def parse_posts():
         })
     return posts
 
-def update_sheets(posts_with_pins):
-    if not GSPREAD_AVAILABLE:
-        log_pin('gspread not available -- skipping sheet update', 'WARN')
-        return
-    try:
-        creds = get_sheets_creds()
-    except Exception as _e:
-        log_pin(f'sheets creds failed: {_e}', 'WARN'); return
-    gc = gspread.Client(auth=creds)
-    # Use brain_get_secret which falls back to os.environ on GHA
-    DOG_ID = brain_get_secret('HAPPYPET_SHEET_ID_DOGS')
-    CAT_ID = brain_get_secret('HAPPYPET_SHEET_ID_CATS')
-    for label, sid, sp_filter in [('Dogs',DOG_ID,('dog','both')),('Cats',CAT_ID,('cat','both'))]:
-        if not sid:
-            log_pin(f'{label}: sheet ID not set -- skipping', 'WARN')
-            continue
-        sh   = gc.open_by_key(sid)
-        ws   = sh.get_worksheet(0)
-        rows = ws.get_all_values()
-        updates = []
-        for i, row in enumerate(rows[1:], start=2):
-            if not row:
-                continue  # trailing blank rows would IndexError after pins were rendered
-            for p in posts_with_pins:
-                if p['species'] in sp_filter and row[0] == p['title']:
-                    updates.append({'range': f'C{i}', 'values': [[p['pin_url']]]})
-                    break
-        if updates:
-            ws.batch_update(updates)
-            log_pin(f'{label}: updated {len(updates)} pin URLs')
-
 def make_pin_for_post(title, description, image_url, category, slug, theme_idx, strict=False):
     """Generate the pin image and return its hosted URL.
 
@@ -373,7 +326,7 @@ def make_pin_for_post(title, description, image_url, category, slug, theme_idx, 
             f'-- refusing to emit a photo-less pin')
     return f'{SITE_URL}/assets/images/pins/{slug}.jpg'
 
-def main(update_sheets_flag=True):
+def main():
     if not PIL_AVAILABLE:
         log_pin('Pillow not installed. Run: pip install Pillow --break-system-packages', 'ERROR')
         return []
@@ -386,9 +339,6 @@ def main(update_sheets_flag=True):
         pin_url = f'{SITE_URL}/assets/images/pins/{p["slug"]}.jpg'
         log_pin(f'  -> {pin_url}')
         results.append({**p, 'pin_url': pin_url})
-    if update_sheets_flag:
-        log_pin('\nUpdating Google Sheets...')
-        update_sheets(results)
     log_pin('\nCommitting...')
     import subprocess as _sp
     _sp.run(['git', '-C', str(REPO), 'add', 'assets/images/pins/'], check=False)

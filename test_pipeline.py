@@ -1048,22 +1048,21 @@ class TestPostPinsSecretFallback(unittest.TestCase):
              patch.dict(os.environ, {"IFTTT_MAKER_KEY": "env-key"}):
             self.assertEqual(self.pp.brain_get_secret("IFTTT_MAKER_KEY", "global"), "vault-key")
 
-    def test_sheet_id_secret_reads_env_on_ci(self):
+    # test_sheet_id_secret_reads_env_on_ci and test_sheets_creds_fall_back_to_
+    # gcp_sa_key_b64 lived here. Both were about post_pins reading topical-sheet
+    # IDs and building Sheets credentials; post_pins no longer touches a
+    # spreadsheet at all. The default-project env fallback is still covered by
+    # the two tests above, and the Sheets-creds fallback by its live twin in
+    # TestPushPinsToSheetsSecretFallback below.
+
+    def test_default_project_secret_reads_env_on_ci(self):
+        """The HappyPet-project (no explicit project=) branch of the same
+        fallback, which the deleted sheet-ID test was incidentally the only
+        cover for."""
         import os
         with patch.object(self.bs, "_get_vault", return_value=None), \
-             patch.dict(os.environ, {"HAPPYPET_SHEET_ID_DOGS": "sheet-1"}):
-            self.assertEqual(self.pp.brain_get_secret("HAPPYPET_SHEET_ID_DOGS"), "sheet-1")
-
-    def test_sheets_creds_fall_back_to_gcp_sa_key_b64(self):
-        import os, base64, json
-        fake_info = {"type": "service_account", "project_id": "x"}
-        b64 = base64.b64encode(json.dumps(fake_info).encode()).decode()
-        with patch.object(self.bs, "_get_vault", return_value=None), \
-             patch.dict(os.environ, {"GCP_SA_KEY_B64": b64}), \
-             patch("google.oauth2.service_account.Credentials.from_service_account_info",
-                   return_value="CREDS") as mk:
-            self.assertEqual(self.pp.get_sheets_creds(), "CREDS")
-            self.assertEqual(mk.call_args.args[0], fake_info)
+             patch.dict(os.environ, {"GCP_SA_KEY_B64": "b64-1"}):
+            self.assertEqual(self.pp.brain_get_secret("GCP_SA_KEY_B64"), "b64-1")
 
 
 class TestPushPinsToSheetsSecretFallback(unittest.TestCase):
@@ -2916,45 +2915,70 @@ class TestCallersDoNotSwallowTheConfigurationError(unittest.TestCase):
              patch.dict(os.environ, {"IFTTT_MAKER_KEY": "env-key"}):
             self.assertEqual(self.pp.brain_get_secret("IFTTT_MAKER_KEY", "global"), "env-key")
 
-    def test_post_pins_sheets_creds_reraises_it(self):
+    def test_push_pins_sheets_creds_reraises_it(self):
+        """Retargeted from post_pins (which no longer opens any sheet) to
+        push_pins_to_sheets, where the identical re-raise now guards the ONE
+        live sheet path -- the Facebook Queue append. A locked-but-configured
+        vault must fail loudly rather than fall through to GCP_SA_KEY_B64."""
         err = self.bs.BrainSecretsUnavailable("vault configured but locked")
-        with patch.object(self.pp, "_vault_sheets_creds", side_effect=err):
+        with patch.object(self.pk, "_vault_sheets_creds", side_effect=err):
             with self.assertRaises(self.bs.BrainSecretsUnavailable):
-                self.pp.get_sheets_creds()
+                self.pk.get_sheets_creds()
+
+    def test_push_pins_sheets_creds_still_falls_back_on_an_ordinary_vault_miss(self):
+        """Inverse direction: only BrainSecretsUnavailable is fatal. Any other
+        vault failure must still degrade to the CI credential, or the FB Queue
+        append breaks on every GHA run."""
+        import base64, json
+        b64 = base64.b64encode(json.dumps({"type": "service_account"}).encode()).decode()
+        with patch.object(self.pk, "_vault_sheets_creds", side_effect=RuntimeError("no vault")), \
+             patch.dict(os.environ, {"GCP_SA_KEY_B64": b64}), \
+             patch("google.oauth2.service_account.Credentials.from_service_account_info",
+                   return_value="CREDS"):
+            self.assertEqual(self.pk.get_sheets_creds(), "CREDS")
 
 
-class TestResolveSheetIds(unittest.TestCase):
-    """post_pins used to build {} out of six blank lookups, log 'audit trail
-    marking active', then hand {} to mark_pinned_in_sheet() -- whose loop body
-    never ran. A full pin run with no audit trail and no sign of it."""
+class TestRetiredTopicalSheetsAreGone(unittest.TestCase):
+    """The six per-category HAPPYPET_SHEET_ID_* spreadsheets are decommissioned.
+    Every open of them 404'd and the error was swallowed into a WARN, so a
+    'successful' pin run logged six failures nobody acted on.
+
+    Structural, not a needle list: assert the whole class of sheet-touching
+    machinery is absent from these modules rather than naming one symbol at a
+    time. The category LABELS of the same name survive in TOPICAL_EVENT and are
+    asserted live below -- deleting those would silently break board routing."""
 
     def setUp(self):
         import post_pins as pp
-        self.pp = pp
-        self.keys = ["A", "B", "C"]
+        import generate_pin_images as g
+        self.pp, self.g = pp, g
 
-    def test_every_key_blank_is_an_error_not_an_empty_dict(self):
-        with patch.object(self.pp, "brain_get_secret", return_value=""):
-            with self.assertRaises(RuntimeError) as ctx:
-                self.pp.resolve_sheet_ids(self.keys)
-        self.assertIn("all blank", str(ctx.exception))
+    def test_post_pins_has_no_sheet_machinery_left(self):
+        for name in ("SHEET_ID_KEYS", "resolve_sheet_ids", "mark_pinned_in_sheet",
+                     "get_sheets_creds", "_vault_sheets_creds"):
+            self.assertFalse(hasattr(self.pp, name),
+                             f"post_pins.{name} is retired topical-sheet code")
 
-    def test_partial_resolution_reports_which_are_missing(self):
-        with patch.object(self.pp, "brain_get_secret",
-                          side_effect=lambda k, *a, **kw: "id-1" if k == "A" else ""):
-            found, missing = self.pp.resolve_sheet_ids(self.keys)
-        self.assertEqual(found, {"A": "id-1"})
-        self.assertEqual(missing, ["B", "C"])
+    def test_generate_pin_images_has_no_sheet_machinery_left(self):
+        for name in ("update_sheets", "GSPREAD_AVAILABLE", "gspread",
+                     "get_sheets_creds", "brain_get_secret"):
+            self.assertFalse(hasattr(self.g, name),
+                             f"generate_pin_images.{name} is retired topical-sheet code")
 
-    def test_each_key_is_looked_up_exactly_once(self):
-        stub = MagicMock(return_value="id")
-        with patch.object(self.pp, "brain_get_secret", stub):
-            self.pp.resolve_sheet_ids(self.keys)
-        self.assertEqual(stub.call_count, len(self.keys))
+    def test_no_module_source_still_opens_a_topical_sheet(self):
+        import inspect
+        for mod in (self.pp, self.g):
+            src = inspect.getsource(mod)
+            self.assertNotIn("open_by_key", src,
+                             f"{mod.__name__} still opens a spreadsheet")
 
-    def test_the_real_sheet_key_list_is_the_one_main_uses(self):
-        self.assertEqual(len(self.pp.SHEET_ID_KEYS), 6)
-        self.assertIn("HAPPYPET_SHEET_ID_DOGS", self.pp.SHEET_ID_KEYS)
+    def test_the_category_labels_survive_for_board_routing(self):
+        """Inverse direction. These strings are products.json category labels,
+        not spreadsheet IDs; a sweep that removed them by name would send every
+        pin to the happypet_pin_dogs fallback board."""
+        self.assertEqual(len(self.pp.TOPICAL_EVENT), 6)
+        self.assertEqual(self.pp.resolve_events("cat", "HAPPYPET_SHEET_ID_FOOD"),
+                         ["happypet_pin_cats", "happypet_pin_food"])
 
 
 class TestVaultPathSelectionGuards(unittest.TestCase):

@@ -111,16 +111,10 @@ def check_impact() -> None:
 
 
 def check_sheets() -> None:
-    # Topical sheet IDs: presence only (opening all six adds no signal beyond
-    # the auth + share check below, and the SA may legitimately lack some).
-    for name in ("HAPPYPET_SHEET_ID_DOGS", "HAPPYPET_SHEET_ID_CATS",
-                 "HAPPYPET_SHEET_ID_HOME", "HAPPYPET_SHEET_ID_FOOD",
-                 "HAPPYPET_SHEET_ID_TOYS", "HAPPYPET_SHEET_ID_HEALTH"):
-        if os.environ.get(name, "").strip():
-            record(name, "PASS", "present (presence-only)")
-        else:
-            record(name, "FAIL", "secret missing or empty")
-
+    # The Facebook Queue is the only sheet the pipeline uses. The six per-category
+    # HAPPYPET_SHEET_ID_* sheets are retired; their presence-only rows used to
+    # report PASS here while every open of them 404'd, which is exactly the false
+    # green this check exists to prevent. The FB Queue is opened for real below.
     key_b64 = check_presence("GCP_SA_KEY_B64")
     fb_sheet = check_presence("FACEBOOK_QUEUE_SHEET_ID")
     if not key_b64:
