@@ -10,17 +10,27 @@ permalink: /cats/
 <section class="section">
   <div class="wrap">
     <div class="section-head">
-      <h2>Cat product reviews</h2>
+      <h1>for cats</h1>
       <span class="count">{{ cat_posts | size }} reviews</span>
     </div>
-    <div class="grid">
+    <div class="entries">
       {% if cat_posts.size == 0 %}
       <div class="empty">
         <b>Cat reviews are on the way</b>
         <span>We are writing in-depth guides right now. Check back shortly.</span>
       </div>
       {% else %}
-        {% for post in cat_posts %}{% include post-card.html post=post %}{% endfor %}
+        {% for post in cat_posts %}
+          {% if forloop.index == 1 %}
+            {% include post-card.html post=post rank=forloop.index variant="major" eager=true %}
+          {% elsif forloop.index <= 3 %}
+            {% include post-card.html post=post rank=forloop.index variant="wide" eager=true %}
+          {% elsif forloop.index <= 7 %}
+            {% include post-card.html post=post rank=forloop.index eager=true %}
+          {% else %}
+            {% include post-card.html post=post rank=forloop.index %}
+          {% endif %}
+        {% endfor %}
       {% endif %}
     </div>
   </div>

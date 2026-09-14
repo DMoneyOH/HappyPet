@@ -5,10 +5,10 @@ description: Privacy Policy for Happy Pet Product Reviews
 permalink: /privacy-policy/
 ---
 
-<section class="article">
-  <div class="wrap article-inner">
+<section class="piece">
+  <div class="wrap piece-inner">
     <h1>Privacy Policy</h1>
-    <p class="article-standfirst">Last updated: April 5, 2026</p>
+    <p class="standfirst">Last updated: April 5, 2026</p>
 
     <div class="prose">
 <p>Happy Pet Product Reviews ("we," "us," or "our") operates happypetproductreviews.com. This page explains what information we collect, how we use it, and your rights.</p>
@@ -53,6 +53,6 @@ permalink: /privacy-policy/
   <p>Questions about this policy? Email us at <a href="mailto:hello@happypetproductreviews.com">hello@happypetproductreviews.com</a>.</p>
     </div>
 
-    <p style="margin-top:2.25rem;"><a class="btn btn--primary" href="{{ site.baseurl }}/">Browse all reviews</a></p>
+    <p style="margin-top:2.25rem;"><a class="btn" href="{{ site.baseurl }}/">Browse all reviews</a></p>
   </div>
 </section>

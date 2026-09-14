@@ -1,5 +1,15 @@
 # HappyPet — visual/UX redesign, working notes
 
+> **Round 2 is the current state of the branch.** Everything from `## 0` down to the end
+> of the first progress log describes ROUND 1, which the Director rejected on 2026-09-14:
+> he liked the recovered product thumbnails and the latest-review hero, but the site as a
+> whole "still reads too much like the old one" and he wanted something "entirely
+> different, modern." Round 1's §5 (design direction) and §6 are therefore **superseded** —
+> read them as history, not as the spec. Round 2 starts at "## Round 2" near the bottom.
+> Round 1's §0 (hard constraints), §2 (the thumbnail unlock), §3 (ruled-out card data) and
+> §4 (the preview approach) all still hold and were built on, not replaced.
+
+
 Owner: Scarlett (Maeve fleet). Dispatched by Maeve-main on the Director's direct ask,
 2026-09-14. This file is the durable state for a multi-dispatch job — keep it current
 *as you go*, not at the stopping point.
@@ -224,3 +234,148 @@ Still open:
    at `happypetproductreviews.com/HANDOFF.md`. `DESIGN_PROGRESS.md` had the same problem and
    was added to `exclude:`; the others were left alone because they predate this work.
 6. Nothing is committed to `main` and nothing is pushed. A push here is Class 3 (see §0).
+
+---
+
+## Round 2 — "The Index" (2026-09-14, second structural pass)
+
+Round 1 changed the paint. This changes the skeleton. The diagnosis, from looking at
+round 1's own 1280px render rather than at the markup: teal header bar, rounded pill
+nav, hero split text-left/card-right, a pill filter rail, and a uniform 4-up grid of
+white rounded shadowed cards with pastel chips, all set in rounded Fredoka. Every one of
+those is a 2019 affiliate-blog convention. No recolour reaches that; the shapes had to go.
+
+### R2.1 What actually changed, structurally
+
+| Round 1 | Round 2 |
+| --- | --- |
+| Teal header bar, pill nav, drawer under 1000px | Editorial masthead on paper: an ink strip with a numeric line, then a sticky hairline row. Four always-visible links, **no drawer and no nav script** |
+| Hero = headline left, one featured-review card right | Hero = a typographic statement ("which one should you **actually buy?**") plus a bleeding strip of recent product shots. No card |
+| One flat rail of 10 topic pills | **Two live axes**: species (permanent) x use-case (Feeding/Play/Beds/Walking/Care/Travel/Tech) |
+| Uniform grid of rounded, shadowed cards | **A numbered editorial index.** No card box anywhere: photo, running numeral, small-caps label, title, one line, hairline rule. Scale varies — 1 major, 2 wide, then three-up |
+| Nothing below the grid | A near-black **"how we choose"** band, then a heavy editorial footer with a full category index |
+| Fredoka Bold webfont, 7 hues to 3 + neutrals, 16px radii, tinted shadows | **No webfont at all.** System grotesque for display, Georgia for prose. Ink on bone paper plus **one** accent. **Radius 0 everywhere**, one shadow token (the sticky buy bar only) |
+
+### R2.2 The three locked decisions, and why
+
+**Type: no webfont, system grotesque for display, Georgia for prose.** A high-contrast
+editorial serif was the first instinct and it was wrong: on a web-safe stack it means
+Georgia on Windows/iOS and **Noto Serif on Android**, a low-contrast humanist face that
+looks nothing like what gets designed here — and every preview on this machine renders
+the good case, which is exactly the drift `preview_render.py` exists to prevent. A serif's
+contrast *is* its personality, so it is the worst thing to leave to a fallback. A heavy
+grotesque at 48px+ reads the same on SF Pro, Roboto and Segoe UI. Display identity now
+rides on **scale, tracking and the lime**, all of which are fully controlled. Georgia
+survives for long prose only, where cross-platform variance is harmless.
+Dropping Fredoka also removes a 48KB render-blocking download. **Not seen, and stated as
+such:** the Android and iOS renderings. The file stays in `assets/fonts/` — the pin
+generator still uses it, and the Pinterest pins keep the rounded face, so the site and
+the pins no longer share a display face. That is a deliberate trade, not an oversight.
+
+**Colour: ink, bone, and one accent used as a SURFACE.** `--accent` (`#D8F24B`) is never
+ink on paper — it fails AA at any size there. It only ever appears as a filled block with
+ink on it at 14.5:1: the highlighted phrase in the headline, the lead entry's numeral,
+the primary button, the buy button, the numbers in the dark band. Ink on paper is 15.6:1,
+`--ink-2` 7.9:1, `--ink-3` 4.7:1, paper on night 16.5:1. Every pair computed, not eyeballed.
+
+**Species stays primary.** Use-case nav (the Wild One pattern) is a good second axis but a
+bad replacement: dog-vs-cat is the strongest filter this audience has, `/dogs/` and
+`/cats/` are real routes, and swapping species out would orphan them. Both axes run at
+once, and the counts on the species row (31 dogs, 21 cats) come from the post list.
+
+### R2.3 The trust band is written to what is actually true
+
+The RTINGS pattern is numeric trust markers up top — but RTINGS *buys and tests* products
+and HappyPet does not. A "40,000 sq ft testing facility"-shaped claim here would be a
+false-advertising exposure, so the band is titled **"how we choose"**, not "how we test",
+and it carries only what is verifiable or already the site's own standing claim: the post
+count, zero sponsored posts, three retailers linked, and four points restated from the
+existing `about.md` and the footer disclosure. Nothing new was invented about process.
+
+### R2.4 Defects found by rendering and looking (each fixed)
+
+1. **The lime highlight painted over the line above it** and ate the descenders of
+   "should you". An inline element's background box is the font's content area (~1.17em)
+   while the line box was 0.92em. The highlighted phrase is now a `display:block` with its
+   own padding, which pushes instead of overlapping and keeps the leading tight.
+2. **The lead entry's `01` block stretched the full column width** — `display:inline-block`
+   inside a grid still stretches without `justify-self: start`.
+3. **At 1280 the headline was too big for its own column.** A 7.4rem cap meant
+   "actually buy?" could not fit one line, so the `fit-content` block clamped to the full
+   column and left a slab of lime hanging past the "?". Capped at 5.4rem.
+4. **The desktop hero had a dead top-right quadrant.** The aside was bottom-anchored only;
+   it is now a full-height flex column with a small fact list at the top (desktop only —
+   on a phone it would push the index two scrolls down for facts the band already states).
+5. **The lead entry's text column did not line up with entry 03's.** It used its own
+   1.25fr/1fr split; now two equal halves on the same 2.2rem column gap as the grid.
+6. **At 320px the nav clipped "Search"** and **"the index" collided with its count.**
+   A `max-width: 379px` block shrinks the nav and lets the section heads wrap. Nothing in
+   it applies at 390 and up.
+7. The autofocused search box drew a floating rectangle on a page with no rectangles;
+   the focus ring now hugs the field (`outline-offset: 0`) rather than being removed.
+8. **The sticky masthead did not stick, and no render on this machine could have shown
+   it.** `position: sticky` was on `.mast-row`, whose parent `<header class="mast">` was
+   only as tall as its own two rows — a sticky element is constrained to its parent's
+   box, so the row would have unpinned after roughly 28px of scroll. A pinned header was
+   designed and an ordinary one would have shipped. The strip now sits outside the
+   header and `position: sticky` is on `.mast` itself, whose parent is the body. The
+   contrast worth remembering: `.buybar`'s `sticky; bottom: 0` was always correct,
+   because its parent `.reading` is article-height. Same property, opposite outcome,
+   decided entirely by the parent. Caught by review, not by looking — nothing scrolls
+   in a static image.
+9. **The wide variant's photo was smaller than a standard entry's**, inverting the one
+   hierarchy the index depends on. `3/2` on a full-width mobile entry is *shorter* than
+   the standard `4/3`, and at 560-899px the more specific `3/2` beat the `1/1` column
+   rule, giving entries 02-03 a 200x133 tile next to 04+'s 200x200. Now `5/4` on mobile,
+   `1/1` at tablet (matching, with the title bump carrying the step up) and `16/10` only
+   at 900px, where the wide column is genuinely twice as wide.
+
+### R2.5 What was rendered and actually looked at
+
+Home at 320, 390 (viewport and full), 1280 (viewport and full) light, and 390 dark
+including the dark band and footer. An article at 390 light, 390 dark and 1280.
+`/dogs/` at 768. `/about/` and `/search/` at 390. Crops were taken at native resolution
+rather than judging a downsampled full-page image.
+
+**Not covered, stated rather than implied:** dark mode on `/dogs/`, `/cats/`
+and the static pages; any real browser other than this machine's Chromium; iOS and
+Android type rendering; and a real Jekyll build, which this machine still cannot run.
+The renderer has no JavaScript, so the two-axis filter and "show more" were reviewed as
+code, never seen working. **Read every render above with this in mind: the script's
+`apply()` runs on load and leaves 12 entries visible, so a real browser shows 12 and a
+paging button where these images show all 49 in one unbroken column.** The tall render
+is not the shipped page. The global `[hidden] { display: none !important }` rule that
+makes both controls work is still in the resets — `.entry` is `display: grid`, which
+would otherwise beat the user agent's own `[hidden]` rule, exactly as it did in round 1.
+
+### R2.6 Carried forward, still open
+
+1. `_includes/hero-graphic.html` is still orphaned and still on disk. `rm` is refused by
+   a fleet hook on this machine (rm-cwd) and routing around it with an interpreter is not
+   something to do quietly. Delete it from a session that can.
+2. No 404 page exists.
+3. Em-dashes in `_posts` front matter still reach entry faces through `post.description`.
+   `_posts/` is out of scope; this is for whoever owns `generate_posts.py`.
+4. **Future posts still get no thumbnail.** `publish.yml` runs `generate_pin_images.py`
+   but nothing runs `make_thumbs.py`, so every new review falls back to `post.image`, an
+   Amazon CDN hotlink. The index is image-led, so this degrades the page one entry at a
+   time. Wiring the thumbnail step into the pipeline is a pipeline change, not a design
+   decision to take unilaterally.
+5. `CLAUDE.md`, `HANDOFF.md` and the four `HANDOFF-archive-*.md` files are still absent
+   from `_config.yml`'s `exclude:` and are still static-copied to the live site.
+6. `scripts/preview_render.py` gained a `--limit N` flag. Preview only: 49 entries make
+   the home page ~26,000px tall, past the renderer's 16,000px clip, so the sections below
+   the index could not otherwise be seen at all.
+7. Nothing is committed to `main` and nothing is pushed. A push here is Class 3 (see 0).
+
+### R2.7 Commands
+
+    ./.venv/Scripts/python.exe scripts/preview_render.py home --name r2-home
+    ./.venv/Scripts/python.exe scripts/preview_render.py home --name r2-short --limit 10
+    ./.venv/Scripts/python.exe scripts/preview_render.py home --dark --limit 5 --name r2-dark
+    ./.venv/Scripts/python.exe scripts/preview_render.py post --slug best-dog-pools --name r2-post
+    ./.venv/Scripts/python.exe scripts/preview_render.py dogs --name r2-dogs
+    ./.venv/Scripts/python.exe scripts/preview_render.py page --slug about --name r2-about
+
+then render by bare name with `mcp__html-render__render_html_page` and **open the PNG and
+look at it.** Every defect in R2.4 was found that way; none were visible in the markup.

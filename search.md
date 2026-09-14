@@ -4,10 +4,10 @@ title: Search Reviews
 permalink: /search/
 ---
 
-<section class="article">
-  <div class="wrap article-inner">
+<section class="piece">
+  <div class="wrap piece-inner">
     <h1>Search reviews</h1>
-    <p class="article-standfirst">Find the right review for your dog or cat.</p>
+    <p class="standfirst">Find the right review for your dog or cat.</p>
 
     <form class="find" role="search" onsubmit="return false;">
       <label class="skip" for="search-input">Search reviews</label>
@@ -25,15 +25,15 @@ permalink: /search/
     {%- endcomment -%}
     <div class="find-suggest" id="search-suggest">
       <h2>Or start from a category</h2>
-      <div class="rail-scroll">
-        <a class="pill" href="{{ site.baseurl }}/dogs/">Dog reviews</a>
-        <a class="pill" href="{{ site.baseurl }}/cats/">Cat reviews</a>
-        <a class="pill" href="{{ site.baseurl }}/#reviews">Beds &amp; crates</a>
-        <a class="pill" href="{{ site.baseurl }}/#reviews">Feeding</a>
-        <a class="pill" href="{{ site.baseurl }}/#reviews">Toys</a>
-        <a class="pill" href="{{ site.baseurl }}/#reviews">Care &amp; training</a>
+      <div class="find-links">
+        <a href="{{ site.baseurl }}/dogs/">Dog reviews</a>
+        <a href="{{ site.baseurl }}/cats/">Cat reviews</a>
+        <a href="{{ site.baseurl }}/#reviews">Beds &amp; crates</a>
+        <a href="{{ site.baseurl }}/#reviews">Feeding</a>
+        <a href="{{ site.baseurl }}/#reviews">Toys</a>
+        <a href="{{ site.baseurl }}/#reviews">Care &amp; training</a>
       </div>
-      <p><a class="btn btn--primary" href="{{ site.baseurl }}/">Browse all reviews</a></p>
+      <p><a class="btn" href="{{ site.baseurl }}/">Browse all reviews</a></p>
     </div>
   </div>
 </section>
