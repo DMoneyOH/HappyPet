@@ -865,7 +865,9 @@ button { font: inherit; color: inherit; }
      the product is the one thing that must never be trimmed to fit. */
   .featured { max-width: 27.5rem; justify-self: end; width: 100%; }
   .featured-text h2 { font-size: 1.45rem; }
-  .grid { grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 1.3rem; }
+  /* 210px rather than 230px is what lets a 768px tablet hold three columns
+     instead of two; the desktop wrap still lands on four. */
+  .grid { grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 1.3rem; }
   .card-body { padding: .95rem 1rem 1.15rem; }
   .card-title { font-size: 1.06rem; }
   .article { padding-block: 2.6rem 4rem; }
