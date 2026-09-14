@@ -2,228 +2,136 @@
 layout: default
 ---
 {% if page.url == "/" %}
+{%- assign featured = site.posts | first -%}
+{%- assign featured_thumb = "/assets/images/thumbs/" | append: featured.slug | append: ".jpg" -%}
+{%- assign featured_file = site.static_files | where: "path", featured_thumb | first -%}
+
 <section class="hero">
-  <div class="hero-layout">
-    <div class="hero-content">
-      <div class="hero-badge"><span class="badge-icon"><img src="{{ site.baseurl }}/assets/images/pawprint-nav.png" alt="" width="22" height="22" style="vertical-align:middle;border-radius:3px;"></span>In-Depth Pet Product Reviews</div>
-      <h1 class="hero-title">
-        Honest picks for<br>your <span class="accent">happy pet.</span>
-      </h1>
-      <p class="hero-sub">No sponsored posts. No guesswork. Real product reviews written for dog and cat owners who want the best.</p>
+  <div class="wrap hero-grid">
+    <div>
+      <h1>Honest picks for your <em>happy pet.</em></h1>
+      <p>No sponsored posts, no guesswork. Real reviews of the gear dog and cat owners actually buy.</p>
+      {%- comment -%}
+        One call to action. Dogs and cats used to sit here as two more buttons,
+        which wrapped to a third line on a phone; they are one thumb lower in
+        the filter rail and already in the nav.
+      {%- endcomment -%}
       <div class="hero-actions">
-        <a href="#reviews" class="btn-primary">Browse Reviews ↓</a>
-        <a href="{{ site.baseurl }}/dogs/" class="btn-secondary">🐶 Dog Products</a>
-        <a href="{{ site.baseurl }}/cats/" class="btn-secondary">🐱 Cat Products</a>
+        <a class="btn btn--primary" href="#reviews">Browse all reviews</a>
       </div>
     </div>
-    {% include hero-graphic.html %}
+
+    {%- if featured %}
+    <a class="featured" href="{{ featured.url | prepend: site.baseurl }}">
+      <div class="featured-media">
+        {%- if featured_file %}
+        <img src="{{ site.baseurl }}{{ featured_thumb }}" alt="{{ featured.title | escape }}"
+             width="800" height="600" loading="eager" fetchpriority="high">
+        {%- elsif featured.image %}
+        <img src="{{ featured.image }}" alt="{{ featured.title | escape }}" loading="eager">
+        {%- endif %}
+        <span class="featured-flag">Latest review</span>
+      </div>
+      <div class="featured-text">
+        <span class="chip">{{ featured.categories | first | replace: "-", " " | capitalize }}</span>
+        <h2>{{ featured.title }}</h2>
+        <p>{{ featured.description | default: featured.excerpt | strip_html | truncate: 190 }}</p>
+      </div>
+    </a>
+    {%- endif %}
   </div>
 </section>
 
-<!-- Mini pet: visible only on small screens (CSS controlled) -->
-<div class="mobile-pet-wrap">
-  <img src="{{ site.baseurl }}/assets/images/happy-pets.png"
-       alt="Happy dog and cat"
-       class="mobile-pet-img"
-       loading="lazy">
-</div>
-
-<div class="trust-strip">
-  <div class="trust-inner">
-    <div class="trust-item"><span class="ti-icon">✅</span><span><strong>Honest</strong> — no paid placements</span></div>
-    <div class="trust-item"><span class="ti-icon">🔍</span><span><strong>Researched</strong> — every product reviewed</span></div>
-    <div class="trust-item"><span class="ti-icon">💰</span><span><strong>Budget-focused</strong> — real value picks</span></div>
-    <div class="trust-item"><span class="ti-icon">🐾</span><span><strong>Pet-first</strong> — always</span></div>
-  </div>
-</div>
-
-<nav class="categories-bar">
-  <div class="categories-inner">
-    <button class="cat-pill active" data-filter="all">✦ All Reviews</button>
-    <button class="cat-pill" data-filter="dog">🐶 Dogs</button>
-    <button class="cat-pill" data-filter="cat">🐱 Cats</button>
-    <button class="cat-pill" data-filter="toy">🎾 Toys</button>
-    <button class="cat-pill" data-filter="bed">🛏️ Beds &amp; Crates</button>
-    <button class="cat-pill" data-filter="feed">🍽️ Feeding</button>
-    <button class="cat-pill" data-filter="travel">✈️ Travel</button>
-    <button class="cat-pill" data-filter="collar">🏷️ Collars &amp; Harnesses</button>
-    <button class="cat-pill" data-filter="care">🧼 Care &amp; Training</button>
-    <button class="cat-pill" data-filter="tech">📷 Tech</button>
+<nav class="rail" aria-label="Filter reviews by category">
+  <div class="wrap rail-scroll">
+    <button class="pill active" data-filter="all">All reviews</button>
+    <button class="pill" data-filter="dog">Dogs</button>
+    <button class="pill" data-filter="cat">Cats</button>
+    <button class="pill" data-filter="toy">Toys</button>
+    <button class="pill" data-filter="bed">Beds &amp; crates</button>
+    <button class="pill" data-filter="feed">Feeding</button>
+    <button class="pill" data-filter="travel">Travel</button>
+    <button class="pill" data-filter="collar">Collars &amp; harnesses</button>
+    <button class="pill" data-filter="care">Care &amp; training</button>
+    <button class="pill" data-filter="tech">Tech</button>
   </div>
 </nav>
 {% endif %}
 
-<section class="posts-section" id="reviews">
-  <div class="section-header">
-    <h2 class="section-title">Latest Reviews</h2>
-    {% if site.posts.size > 0 %}
-    <span class="section-count" id="review-count">{{ site.posts | size }} reviews</span>
-    {% endif %}
-  </div>
-  <div class="post-grid" id="post-grid">
-    {% if site.posts.size == 0 %}
-    <div class="empty-state">
-      <p>🐾 Our first reviews are almost ready!</p>
-      <small>We're writing in-depth guides right now — check back in a few hours.</small>
+<section class="section" id="reviews">
+  <div class="wrap">
+    <div class="section-head">
+      <h2>Latest reviews</h2>
+      {% if site.posts.size > 0 %}<span class="count" id="review-count">{{ site.posts | size }} reviews</span>{% endif %}
     </div>
-    {% else %}
-    {% for post in site.posts %}
-    {% if post.species == "cat" %}
-      {% assign species_filter = "cat" %}
-      {% assign species_label = "Cat" %}
-      {% assign species_class = "species-cat" %}
-    {% elsif post.species == "dog" %}
-      {% assign species_filter = "dog" %}
-      {% assign species_label = "Dog" %}
-      {% assign species_class = "species-dog" %}
-    {% elsif post.species == "both" %}
-      {% assign species_filter = "dog cat" %}
-      {% assign species_label = "" %}
-      {% assign species_class = "species-both" %}
-    {% else %}
-      {% assign species_filter = "all" %}
-      {% assign species_label = "" %}
-      {% assign species_class = "species-both" %}
-    {% endif %}
-    {% assign post_cat = post.categories | first %}
-    {% if post_cat contains "toy" or post_cat contains "scratch" or post_cat contains "chew" %}
-      {% assign topic_filter = "toy" %}
-    {% elsif post_cat contains "bed" or post_cat contains "crate" %}
-      {% assign topic_filter = "bed" %}
-    {% elsif post_cat contains "feed" or post_cat contains "food" or post_cat contains "water" or post_cat contains "fountain" %}
-      {% assign topic_filter = "feed" %}
-    {% elsif post_cat contains "carrier" or post_cat contains "travel" or post_cat contains "stroller" %}
-      {% assign topic_filter = "travel" %}
-    {% elsif post_cat contains "collar" or post_cat contains "harness" or post_cat contains "leash" %}
-      {% assign topic_filter = "collar" %}
-    {% elsif post_cat contains "litter" or post_cat contains "grooming" or post_cat contains "health" or post_cat contains "training" %}
-      {% assign topic_filter = "care" %}
-    {% elsif post_cat contains "tech" or post_cat contains "camera" or post_cat contains "gps" %}
-      {% assign topic_filter = "tech" %}
-    {% else %}
-      {% assign topic_filter = "" %}
-    {% endif %}
-    {% if topic_filter != "" %}
-      {% assign data_filter = species_filter | append: " " | append: topic_filter %}
-    {% else %}
-      {% assign data_filter = species_filter %}
-    {% endif %}
-    <article class="post-card" data-filter="{{ data_filter }}">
-      <div class="card-accent"></div>
-      <a href="{{ post.url | prepend: site.baseurl }}" class="card-link">
-        <div class="card-top">
-          <div class="card-badges">
-            <span class="card-category">{{ post.categories | first | replace: "-", " " | capitalize }}</span>
-            {% if species_label != "" %}
-            {%- if species_label == "Cat" -%}{% assign species_icon = "🐈" %}{%- else -%}{% assign species_icon = "🐕" %}{%- endif -%}<span class="card-species {{ species_class }}">{{ species_icon }} {{ species_label }}</span>
-            {% endif %}
-          </div>
-          <span class="card-emoji" data-title="{{ post.title | downcase }}"></span>
-        </div>
-        <h2 class="card-title">{{ post.title }}</h2>
-        <p class="card-excerpt">{{ post.excerpt | strip_html | truncatewords: 20 }}</p>
-        <div class="card-footer">
-          <time class="card-date">{{ post.date | date: "%b %d, %Y" }}</time>
-          <span class="card-read">Read Review →</span>
-        </div>
-      </a>
-    </article>
-    {% endfor %}
-    {% endif %}
+
+    <div class="grid" id="post-grid">
+      {% if site.posts.size == 0 %}
+      <div class="empty">
+        <b>Our first reviews are almost ready</b>
+        <span>We are writing in-depth guides right now. Check back shortly.</span>
+      </div>
+      {% else %}
+      {% for post in site.posts %}
+        {% comment %} The newest review is already the hero; don't print it twice. {% endcomment %}
+        {% unless page.url == "/" and post.slug == featured.slug %}
+          {% if forloop.index <= 5 %}
+            {% include post-card.html post=post eager=true %}
+          {% else %}
+            {% include post-card.html post=post %}
+          {% endif %}
+        {% endunless %}
+      {% endfor %}
+      {% endif %}
+    </div>
+
+    <div class="more-wrap" id="load-more-wrap" hidden>
+      <button id="load-more-btn" class="btn btn--ghost" type="button">Show more reviews</button>
+    </div>
   </div>
 </section>
 
-<div id="load-more-wrap" style="text-align:center;margin:2rem 0;display:none;">
-  <button id="load-more-btn" class="btn-secondary">Load more reviews ↓</button>
-</div>
-
 <script>
-(function(){
+(function () {
   var PAGE_SIZE = 12;
 
-  var EMOJI_MAP = [
-    {k:['collar','collars'],          e:'🏷️'},
-    {k:['harness'],                   e:'🦺'},
-    {k:['leash'],                     e:'🦮'},
-    {k:['toy','toys','chew','chewer'],e:'🎾'},
-    {k:['bed','beds'],                e:'🛏️'},
-    {k:['crate','crates'],            e:'🏠'},
-    {k:['litter','litter box'],       e:'🧹'},
-    {k:['scratch','scratcher'],       e:'🪵'},
-    {k:['food','treat','treats','nutrition','diet'],e:'🍖'},
-    {k:['feeder','feeding','bowl','bowls'],e:'🥣'},
-    {k:['water','fountain'],          e:'💧'},
-    {k:['carrier','carriers','travel'],e:'✈️'},
-    {k:['grooming','brush','brushing','shampoo'],e:'🪮'},
-    {k:['training','pad','pads'],     e:'📋'},
-    {k:['health','supplement','vitamin'],e:'💊'},
-    {k:['camera','monitor'],          e:'📷'},
-    {k:['stroller','pram'],           e:'🛺'},
-    {k:['cat','cats','kitten','feline'],e:'🐈'},
-    {k:['dog','dogs','puppy','canine'], e:'🐕'},
-  ];
-
-  function getEmoji(title) {
-    var t = (title || '').toLowerCase();
-    for (var i = 0; i < EMOJI_MAP.length; i++) {
-      var entry = EMOJI_MAP[i];
-      for (var j = 0; j < entry.k.length; j++) {
-        if (t.indexOf(entry.k[j]) !== -1) return entry.e;
-      }
-    }
-    return '🐾';
-  }
-
-  document.querySelectorAll('.card-emoji[data-title]').forEach(function(el){
-    el.textContent = getEmoji(el.dataset.title);
-  });
-
-  var pills      = document.querySelectorAll('.cat-pill');
-  var allCards   = Array.prototype.slice.call(document.querySelectorAll('.post-card'));
-  var countEl    = document.getElementById('review-count');
-  var loadWrap   = document.getElementById('load-more-wrap');
-  var loadBtn    = document.getElementById('load-more-btn');
+  var pills = document.querySelectorAll('.pill');
+  var cards = Array.prototype.slice.call(document.querySelectorAll('.card'));
+  var countEl = document.getElementById('review-count');
+  var moreWrap = document.getElementById('load-more-wrap');
+  var moreBtn = document.getElementById('load-more-btn');
   var activeFilter = 'all';
-  var visibleCount = 0;
 
-  function getMatchingCards(filter) {
-    return allCards.filter(function(card) {
-      var cardFilters = (card.dataset.filter || '').split(' ');
-      return filter === 'all' || cardFilters.indexOf(filter) !== -1;
+  function matching(filter) {
+    return cards.filter(function (card) {
+      return filter === 'all' || (card.dataset.filter || '').split(' ').indexOf(filter) !== -1;
     });
   }
 
-  function applyFilter(filter) {
+  function apply(filter) {
     activeFilter = filter;
-    visibleCount = 0;
-    var matching = getMatchingCards(filter);
-    allCards.forEach(function(card) { card.style.display = 'none'; });
-    var toShow = matching.slice(0, PAGE_SIZE);
-    toShow.forEach(function(card) { card.style.display = ''; visibleCount++; });
-    if (countEl) countEl.textContent = matching.length + ' review' + (matching.length !== 1 ? 's' : '');
-    if (loadWrap) loadWrap.style.display = matching.length > PAGE_SIZE ? '' : 'none';
+    var hits = matching(filter);
+    cards.forEach(function (card) { card.hidden = true; });
+    hits.slice(0, PAGE_SIZE).forEach(function (card) { card.hidden = false; });
+    if (countEl) countEl.textContent = hits.length + (hits.length === 1 ? ' review' : ' reviews');
+    if (moreWrap) moreWrap.hidden = hits.length <= PAGE_SIZE;
   }
 
-  function loadMore() {
-    var matching = getMatchingCards(activeFilter);
-    var hidden = matching.filter(function(card) { return card.style.display === 'none'; });
-    var toShow = hidden.slice(0, PAGE_SIZE);
-    toShow.forEach(function(card) { card.style.display = ''; visibleCount++; });
-    if (hidden.length <= PAGE_SIZE) {
-      loadWrap.style.display = 'none';
-    }
+  function showMore() {
+    var hidden = matching(activeFilter).filter(function (card) { return card.hidden; });
+    hidden.slice(0, PAGE_SIZE).forEach(function (card) { card.hidden = false; });
+    if (hidden.length <= PAGE_SIZE) moreWrap.hidden = true;
   }
 
-  pills.forEach(function(pill) {
-    pill.addEventListener('click', function() {
-      pills.forEach(function(p) { p.classList.remove('active'); });
+  pills.forEach(function (pill) {
+    pill.addEventListener('click', function () {
+      pills.forEach(function (p) { p.classList.remove('active'); });
       pill.classList.add('active');
-      applyFilter(pill.dataset.filter);
+      apply(pill.dataset.filter);
     });
   });
 
-  if (loadBtn) loadBtn.addEventListener('click', loadMore);
-
-  applyFilter('all');
+  if (moreBtn) moreBtn.addEventListener('click', showMore);
+  if (pills.length) apply('all');
 })();
 </script>

@@ -4,32 +4,22 @@ title: Search Reviews
 permalink: /search/
 ---
 
-<section class="about-page" style="max-width:780px;margin:3rem auto;padding:0 1.5rem;">
+<section class="article">
+  <div class="wrap article-inner">
+    <h1>Search reviews</h1>
+    <p class="article-standfirst">Find the right review for your dog or cat.</p>
 
-  <h1 style="font-family:'Fredoka',sans-serif;color:var(--teal);font-size:clamp(1.8rem,4vw,2.6rem);margin-bottom:0.5rem;">Search Reviews</h1>
-  <p style="color:var(--coral);font-weight:700;font-size:1.1rem;margin-bottom:2rem;">Find the perfect product review for your dog or cat.</p>
+    <form class="find" role="search" onsubmit="return false;">
+      <label class="skip" for="search-input">Search reviews</label>
+      <input type="search" id="search-input" autocomplete="off" autofocus
+             placeholder="Try &quot;dog bed&quot; or &quot;flea prevention&quot;">
+    </form>
 
-  <div style="position:relative;margin-bottom:0.75rem;">
-    <input
-      type="text"
-      id="search-input"
-      placeholder='Try "dog bed" or "flea prevention"...'
-      autocomplete="off"
-      autofocus
-      style="width:100%;box-sizing:border-box;padding:0.9rem 3.25rem 0.9rem 1.25rem;font-family:'Nunito',sans-serif;font-size:1.05rem;border:2.5px solid var(--border);border-radius:50px;background:#fff;color:var(--ink);box-shadow:0 2px 8px rgba(0,0,0,0.08);outline:none;transition:border-color 0.2s;"
-      onfocus="this.style.borderColor='var(--coral)'"
-      onblur="this.style.borderColor='var(--border)'"
-    />
-    <span style="position:absolute;right:1.1rem;top:50%;transform:translateY(-50%);font-size:1.15rem;pointer-events:none;">🔍</span>
+    <p id="search-status" class="find-status" role="status" aria-live="polite"></p>
+    <ul id="search-results" class="find-results"></ul>
+
+    <p style="margin-top:2.25rem;"><a class="btn btn--primary" href="{{ site.baseurl }}/">Browse all reviews</a></p>
   </div>
-
-  <p id="search-status" style="color:#888;font-size:0.95rem;min-height:1.4em;margin:0.5rem 0 1rem;"></p>
-  <ul id="search-results" style="list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:0.85rem;"></ul>
-
-  <div style="margin-top:2.5rem;">
-    <a href="/" style="display:inline-block;background:var(--coral);color:#fff;font-family:'Fredoka',sans-serif;font-size:1.1rem;padding:0.75rem 2rem;border-radius:50px;text-decoration:none;">Browse All Reviews &#8594;</a>
-  </div>
-
 </section>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/lunr.js/2.3.9/lunr.min.js"></script>
@@ -48,6 +38,12 @@ permalink: /search/
     if (hasDog && !hasCat) return 'dog';
     if (hasCat && !hasDog) return 'cat';
     return null; // no filter
+  }
+
+  function escapeHtml(value) {
+    return String(value == null ? '' : value)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   }
 
   fetch('{{ site.baseurl }}/search.json')
@@ -97,17 +93,15 @@ permalink: /search/
     results.forEach(function(r){
       var doc = docs.find(function(d){ return d.id === parseInt(r.ref); });
       if (!doc) return;
-      var emoji = doc.species === 'dog' ? '🐶' : doc.species === 'cat' ? '🐱' : '🐾';
+      var species = doc.species === 'dog' ? 'Dogs' : doc.species === 'cat' ? 'Cats' : '';
       var li = document.createElement('li');
+      li.className = 'find-hit';
       li.innerHTML =
-        '<a href="' + doc.url + '" style="display:flex;align-items:flex-start;gap:0.85rem;padding:1rem 1.25rem;background:#fff;border:2px solid var(--border);border-radius:16px;text-decoration:none;color:inherit;transition:box-shadow 0.2s,transform 0.2s;"'
-        + ' onmouseover="this.style.boxShadow=\'0 4px 16px rgba(0,0,0,0.10)\';this.style.transform=\'translateY(-2px)\'"'
-        + ' onmouseout="this.style.boxShadow=\'\';this.style.transform=\'\'">'
-        + '<span style="font-size:1.6rem;flex-shrink:0;margin-top:0.1rem;">' + emoji + '</span>'
-        + '<div>'
-        + '<strong style="font-family:\'Fredoka\',sans-serif;font-size:1.1rem;color:var(--teal);display:block;margin-bottom:0.25rem;">' + doc.title + '</strong>'
-        + '<p style="font-size:0.9rem;color:#666;margin:0;line-height:1.5;">' + doc.excerpt + '</p>'
-        + '</div></a>';
+        '<a href="' + escapeHtml(doc.url) + '">'
+        + (species ? '<span class="chip chip--plain">' + species + '</span>' : '')
+        + '<strong>' + escapeHtml(doc.title) + '</strong>'
+        + '<span>' + escapeHtml(doc.excerpt) + '</span>'
+        + '</a>';
       list.appendChild(li);
     });
   }

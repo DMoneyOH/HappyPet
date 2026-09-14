@@ -3,10 +3,16 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+  <meta name="theme-color" content="#0D5C63" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0C4A50" media="(prefers-color-scheme: dark)">
+
+  <!-- Fredoka is self-hosted and display-only, one weight. The site used to
+       pull nine weights across two families from Google Fonts, which blocked
+       first paint on a stylesheet from another origin; body text now runs on
+       the reader's own system UI face and costs nothing. -->
+  <link rel="preload" href="{{ site.baseurl }}/assets/fonts/Fredoka-Bold.ttf" as="font" type="font/ttf" crossorigin>
   <link rel="stylesheet" href="{{ site.baseurl }}/assets/css/style.css">
+
   <link rel="icon" type="image/x-icon" href="{{ site.baseurl }}/favicon.ico">
   <link rel="icon" type="image/png" sizes="32x32" href="{{ site.baseurl }}/favicon-32x32.png">
   <link rel="icon" type="image/png" sizes="16x16" href="{{ site.baseurl }}/favicon-16x16.png">
@@ -32,54 +38,81 @@
   <script type="text/javascript">(function(i,m,p,a,c,t){c.ire_o=p;c[p]=c[p]||function(){(c[p].a=c[p].a||[]).push(arguments)};t=a.createElement(m);var z=a.getElementsByTagName(m)[0];t.async=1;t.src=i;z.parentNode.insertBefore(t,z)})('https://utt.impactcdn.com/P-A7160344-51ba-41cc-ab14-b044acc274df1.js','script','impactStat',document,window);impactStat('transformLinks');impactStat('trackImpression');</script>
 </head>
 <body>
+  <a class="skip" href="#main">Skip to reviews</a>
+
   <header class="site-header">
-    <div class="header-inner">
-      <a href="{{ site.baseurl }}/" class="site-logo">
-        <img src="{{ site.baseurl }}/assets/images/pawprint-nav.png" alt="Happy Pet" class="logo-paw" width="36" height="36" loading="eager">
-        <span class="logo-text">Happy Pet Product Reviews</span>
+    <div class="wrap header-bar">
+      <a href="{{ site.baseurl }}/" class="brand">
+        <img src="{{ site.baseurl }}/assets/images/pawprint-nav.png" alt="" width="32" height="32" loading="eager">
+        <b>Happy Pet<span> Product Reviews</span></b>
       </a>
-      <nav class="site-nav">
-        <a href="{{ site.baseurl }}/dogs/">Dogs</a>
-        <a href="{{ site.baseurl }}/cats/">Cats</a>
-        <a href="{{ site.baseurl }}/about/">About</a>
-        <a href="{{ site.baseurl }}/contact/">Contact</a>
-        <a href="{{ site.baseurl }}/#reviews" class="nav-cta">Reviews →</a>
-        <form class="nav-search" action="{{ site.baseurl }}/search/" method="get" role="search">
-          <input type="search" name="q" placeholder="Search reviews…" aria-label="Search reviews" />
-          <button type="submit" aria-label="Search">🔍</button>
+
+      <nav class="nav" id="nav" aria-label="Main">
+        <div class="nav-links">
+          <a href="{{ site.baseurl }}/dogs/">Dogs</a>
+          <a href="{{ site.baseurl }}/cats/">Cats</a>
+          <a href="{{ site.baseurl }}/#reviews">Reviews</a>
+          <a href="{{ site.baseurl }}/about/">About</a>
+          <a href="{{ site.baseurl }}/contact/">Contact</a>
+        </div>
+        <form class="search" action="{{ site.baseurl }}/search/" method="get" role="search">
+          <label class="skip" for="q">Search reviews</label>
+          <input id="q" type="search" name="q" placeholder="Search reviews">
+          <button type="submit">Search</button>
         </form>
       </nav>
-      <button class="nav-toggle" aria-label="Toggle menu">&#9776;</button>
+
+      <button class="nav-toggle" type="button" aria-controls="nav" aria-expanded="false" aria-label="Open menu">
+        <i></i>
+      </button>
     </div>
   </header>
 
-  <main class="site-main">{{ content }}</main>
+  <main id="main">{{ content }}</main>
 
   <footer class="site-footer">
-    <div class="footer-inner">
-      <div class="footer-brand">
-        <span class="logo-text"><img src="{{ site.baseurl }}/assets/images/pawprint-nav.png" alt="" width="28" height="28" loading="lazy" style="vertical-align:middle;margin-right:.5rem;border-radius:4px;"> In-Depth Pet Product Reviews</span>
-        <p>Cutting through the noise — because your happy pet deserves the best.</p>
+    <div class="wrap">
+      <div class="footer-top">
+        <div class="footer-brand">
+          <b>
+            <img src="{{ site.baseurl }}/assets/images/pawprint-nav.png" alt="" width="26" height="26" loading="lazy">
+            Happy Pet
+          </b>
+          <p>Cutting through the noise, because your happy pet deserves the best.</p>
+        </div>
+        <div class="footer-cols">
+          <div>
+            <h3>Reviews</h3>
+            <a href="{{ site.baseurl }}/">All reviews</a>
+            <a href="{{ site.baseurl }}/dogs/">Dog products</a>
+            <a href="{{ site.baseurl }}/cats/">Cat products</a>
+          </div>
+          <div>
+            <h3>Site</h3>
+            <a href="{{ site.baseurl }}/about/">About</a>
+            <a href="{{ site.baseurl }}/contact/">Contact</a>
+            <a href="{{ site.baseurl }}/privacy-policy/">Privacy policy</a>
+          </div>
+        </div>
       </div>
-      <div class="footer-links">
-        <a href="{{ site.baseurl }}/">All Reviews</a>
-        <a href="{{ site.baseurl }}/dogs/">Dog Products</a>
-        <a href="{{ site.baseurl }}/cats/">Cat Products</a>
-        <a href="{{ site.baseurl }}/about/">About</a>
-        <a href="{{ site.baseurl }}/contact/">Contact</a>
-        <a href="{{ site.baseurl }}/privacy-policy/">Privacy Policy</a>
+      <div class="footer-legal">
+        <p>As an Amazon Associate, Chewy affiliate, and Petco affiliate, Happy Pet Product Reviews earns from qualifying purchases at no extra cost to you.</p>
+        <p>&copy; {{ site.time | date: '%Y' }} Happy Pet Product Reviews</p>
       </div>
-    </div>
-    <div class="footer-legal">
-      <p>As an Amazon Associate, Chewy affiliate, and Petco affiliate, Happy Pet Product Reviews earns from qualifying purchases at no extra cost to you.</p>
-      <p>&copy; {{ site.time | date: '%Y' }} Happy Pet Product Reviews</p>
     </div>
   </footer>
 
   <script>
-    document.querySelector('.nav-toggle')?.addEventListener('click', () => {
-      document.querySelector('.site-nav').classList.toggle('open');
-    });
+    (function () {
+      var toggle = document.querySelector('.nav-toggle');
+      var nav = document.getElementById('nav');
+      if (!toggle || !nav) return;
+      toggle.addEventListener('click', function () {
+        var open = nav.classList.toggle('open');
+        toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+        toggle.setAttribute('aria-label', open ? 'Close menu' : 'Open menu');
+      });
+    })();
   </script>
 </body>
 </html>
