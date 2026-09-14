@@ -1,0 +1,83 @@
+{% comment %}
+  The review card. One definition, used by the home grid, /dogs/ and /cats/.
+  It used to be pasted into all three, which is how they drift apart.
+
+  Parameters:
+    include.post    required, a post object
+    include.eager   optional, "true" to skip lazy-loading (above-the-fold cards)
+
+  The image is the product shot cut out of that review's Pinterest pin by
+  scripts/make_thumbs.py. If one has not been generated, the card falls back to
+  the review's own product image, and failing that to a typographic plate.
+{% endcomment %}
+
+{%- assign post = include.post -%}
+{%- assign category = post.categories | first -%}
+
+{%- comment -%} Species drives both the badge and the home page's filter. {%- endcomment -%}
+{%- if post.species == "cat" -%}
+  {%- assign species_filter = "cat" -%}{%- assign species_label = "Cat" -%}
+{%- elsif post.species == "dog" -%}
+  {%- assign species_filter = "dog" -%}{%- assign species_label = "Dog" -%}
+{%- elsif post.species == "both" -%}
+  {%- assign species_filter = "dog cat" -%}{%- assign species_label = "Dogs & cats" -%}
+{%- else -%}
+  {%- assign species_filter = "all" -%}{%- assign species_label = "" -%}
+{%- endif -%}
+
+{%- if category contains "toy" or category contains "scratch" or category contains "chew" -%}
+  {%- assign topic_filter = "toy" -%}
+{%- elsif category contains "bed" or category contains "crate" -%}
+  {%- assign topic_filter = "bed" -%}
+{%- elsif category contains "feed" or category contains "food" or category contains "water" or category contains "fountain" -%}
+  {%- assign topic_filter = "feed" -%}
+{%- elsif category contains "carrier" or category contains "travel" or category contains "stroller" -%}
+  {%- assign topic_filter = "travel" -%}
+{%- elsif category contains "collar" or category contains "harness" or category contains "leash" -%}
+  {%- assign topic_filter = "collar" -%}
+{%- elsif category contains "litter" or category contains "grooming" or category contains "health" or category contains "training" -%}
+  {%- assign topic_filter = "care" -%}
+{%- elsif category contains "tech" or category contains "camera" or category contains "gps" -%}
+  {%- assign topic_filter = "tech" -%}
+{%- else -%}
+  {%- assign topic_filter = "" -%}
+{%- endif -%}
+
+{%- if topic_filter != "" -%}
+  {%- assign card_filter = species_filter | append: " " | append: topic_filter -%}
+{%- else -%}
+  {%- assign card_filter = species_filter -%}
+{%- endif -%}
+
+{%- assign thumb_path = "/assets/images/thumbs/" | append: post.slug | append: ".jpg" -%}
+{%- assign thumb_file = site.static_files | where: "path", thumb_path | first -%}
+{%- assign category_label = category | replace: "-", " " | capitalize -%}
+
+<article class="card" data-filter="{{ card_filter }}">
+  {%- if thumb_file %}
+  <div class="card-media">
+    <img src="{{ site.baseurl }}{{ thumb_path }}" alt="{{ post.title | escape }}"
+         width="800" height="600" {% unless include.eager %}loading="lazy" decoding="async"{% endunless %}>
+  </div>
+  {%- elsif post.image %}
+  <div class="card-media">
+    <img src="{{ post.image }}" alt="{{ post.title | escape }}"
+         {% unless include.eager %}loading="lazy" decoding="async"{% endunless %}>
+  </div>
+  {%- else %}
+  <div class="card-media card-media--plate"><span>{{ category_label }}</span></div>
+  {%- endif %}
+  <div class="card-body">
+    {%- comment -%}
+      One chip, not two. A species badge alongside the category wrapped to a
+      second row on a 2-up phone grid and pushed that card's title out of line
+      with its neighbour, and almost every title already names the animal.
+      Species still drives the filter rail through data-filter above.
+    {%- endcomment -%}
+    <div class="card-tags"><span class="chip">{{ category_label }}</span></div>
+    <h3 class="card-title">
+      <a class="card-link" href="{{ post.url | prepend: site.baseurl }}">{{ post.title }}</a>
+    </h3>
+    <p class="card-note">{{ post.description | default: post.excerpt | strip_html | truncate: 190 }}</p>
+  </div>
+</article>
