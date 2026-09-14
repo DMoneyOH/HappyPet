@@ -57,6 +57,7 @@
   --accent-tint: #FBEEE9;
   --accent-ink:  #9C2F10;
   --on-accent:   #FFFFFF;
+  --focus-ring:  rgba(201, 62, 27, .2);
 
   /* Shape */
   --r-surface: 16px;
@@ -105,6 +106,9 @@
     --accent-tint: #33201A;
     --accent-ink:  #FFB79F;
     --on-accent:   #14201F;
+    /* The accent tint is a near-black here, so reusing it as a focus ring
+       would put a dark halo on a dark surface. */
+    --focus-ring:  rgba(255, 138, 99, .32);
 
     --lift-1: 0 1px 2px rgba(0, 0, 0, .4);
     --lift-2: 0 4px 16px rgba(0, 0, 0, .45);
@@ -196,6 +200,10 @@ button { font: inherit; color: inherit; }
 .header-bar {
   display: flex;
   align-items: center;
+  /* The drawer is a flex item in this row, so it has to be allowed to wrap
+     onto a line of its own. Without this it sits beside the wordmark and the
+     two overlap. */
+  flex-wrap: wrap;
   gap: .75rem;
   min-height: 60px;
   padding-block: .55rem;
@@ -233,10 +241,12 @@ button { font: inherit; color: inherit; }
   box-shadow: 0 -5px 0 var(--on-brand), 0 5px 0 var(--on-brand);
 }
 
-/* Mobile drawer. Opened by the one line of JS in the layout; the links are in
-   the markup either way, so a crawler and a no-JS reader still see them. */
+/* Mobile drawer, opened by the small script in the layout. A reader without
+   JavaScript gets the same links unfolded by the <noscript> block in the head,
+   because a drawer that only a script can open is no navigation at all. */
 .nav.open {
   display: block;
+  flex: 0 0 100%;
   padding-bottom: 1rem;
 }
 .nav.open .nav-links { display: flex; flex-direction: column; gap: .1rem; }
@@ -622,6 +632,9 @@ button { font: inherit; color: inherit; }
 
 /* Article body typography */
 .prose { font-size: 1.04rem; line-height: 1.75; color: var(--body); }
+/* `.prose > * + *` cannot space the first child, so where prose follows the
+   standfirst directly the two ran together. */
+.article-standfirst + .prose { margin-top: 1.5rem; }
 .prose > * + * { margin-top: 1.05rem; }
 .prose h2 {
   font-family: var(--font-display);
@@ -710,7 +723,7 @@ button { font: inherit; color: inherit; }
   box-shadow: var(--lift-1);
 }
 .find input::placeholder { color: var(--muted); }
-.find input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-tint); }
+.find input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--focus-ring); }
 
 .find-status { font-size: .88rem; color: var(--muted); min-height: 1.4em; margin: .6rem 0 1rem; }
 
@@ -734,6 +747,18 @@ button { font: inherit; color: inherit; }
   margin: .35rem 0 .25rem;
 }
 .find-hit span:not(.chip) { display: block; font-size: .88rem; line-height: 1.5; color: var(--muted); }
+
+.find-suggest { margin-top: 2rem; }
+.find-suggest h2 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.05rem;
+  color: var(--ink);
+  margin-bottom: .8rem;
+}
+.find-suggest .rail-scroll { flex-wrap: wrap; overflow: visible; padding-block: 0; }
+.find-suggest .pill { cursor: pointer; }
+.find-suggest p { margin-top: 1.6rem; }
 
 .disclosure {
   margin-top: 2rem;
