@@ -2,70 +2,93 @@
 layout: default
 ---
 {% if page.url == "/" %}
-{%- assign featured = site.posts | first -%}
-{%- assign featured_thumb = "/assets/images/thumbs/" | append: featured.slug | append: ".jpg" -%}
-{%- assign featured_file = site.static_files | where: "path", featured_thumb | first -%}
+{%- assign dog_only = site.posts | where: "species", "dog" -%}
+{%- assign dog_both = site.posts | where: "species", "both" -%}
+{%- assign dog_posts = dog_only | concat: dog_both -%}
+{%- assign cat_only = site.posts | where: "species", "cat" -%}
+{%- assign cat_both = site.posts | where: "species", "both" -%}
+{%- assign cat_posts = cat_only | concat: cat_both -%}
 
-<section class="hero">
-  <div class="wrap hero-grid">
-    <div>
-      <h1>Honest picks for your <em>happy pet.</em></h1>
-      <p>No sponsored posts, no guesswork. Real reviews of the gear dog and cat owners actually buy.</p>
+<section class="lede">
+  <div class="wrap">
+    <div class="lede-head">
+      <p class="eyebrow">Dog &amp; cat gear, independently chosen</p>
+      <h1>which one should you <em>actually buy?</em></h1>
+    </div>
+    <div class="lede-aside">
       {%- comment -%}
-        One call to action. Dogs and cats used to sit here as two more buttons,
-        which wrapped to a third line on a phone; they are one thumb lower in
-        the filter rail and already in the nav.
+        Desktop only. On a phone this would push the index two thumb-scrolls
+        further down for facts that are also stated in the band below.
       {%- endcomment -%}
-      <div class="hero-actions">
-        <a class="btn btn--primary" href="#reviews">Browse all reviews</a>
+      <dl class="lede-meta">
+        <div><dt>Covering</dt><dd>Dogs &amp; cats</dd></div>
+        <div><dt>We link</dt><dd>Amazon, Chewy, Petco</dd></div>
+        <div><dt>Paid placements</dt><dd>None</dd></div>
+      </dl>
+      <div>
+      <p class="lede-sub">{{ site.posts | size }} reviews of the things dog and cat owners are already buying — what holds up, what to skip, and where to get it.</p>
+      <div class="lede-actions">
+        <a class="btn" href="#index">Open the index</a>
+        <a class="btn btn--bare" href="#how">How we choose</a>
+      </div>
       </div>
     </div>
+  </div>
 
-    {%- if featured %}
-    <a class="featured" href="{{ featured.url | prepend: site.baseurl }}">
-      <div class="featured-media">
-        {%- if featured_file %}
-        <img src="{{ site.baseurl }}{{ featured_thumb }}" alt="{{ featured.title | escape }}"
-             width="800" height="600" loading="eager" fetchpriority="high">
-        {%- elsif featured.image %}
-        <img src="{{ featured.image }}" alt="{{ featured.title | escape }}" loading="eager">
-        {%- endif %}
-        <span class="featured-flag">Latest review</span>
-      </div>
-      <div class="featured-text">
-        <span class="chip">{{ featured.categories | first | replace: "-", " " | capitalize }}</span>
-        <h2>{{ featured.title }}</h2>
-        <p>{{ featured.description | default: featured.excerpt | strip_html | truncate: 190 }}</p>
-      </div>
-    </a>
-    {%- endif %}
+  {%- comment -%}
+    A texture strip of recent product shots, not a row of cards: no titles, no
+    links, deliberately running off the right edge. It puts photography on the
+    first screen without rebuilding the card grid above the fold.
+  {%- endcomment -%}
+  <div class="lede-strip" aria-hidden="true">
+    {%- for post in site.posts limit: 9 -%}
+      {%- assign strip_path = "/assets/images/thumbs/" | append: post.slug | append: ".jpg" -%}
+      {%- assign strip_file = site.static_files | where: "path", strip_path | first -%}
+      {%- if strip_file %}<img src="{{ site.baseurl }}{{ strip_path }}" alt="" width="300" height="300" loading="lazy" decoding="async">{% endif -%}
+    {%- endfor -%}
   </div>
 </section>
 
-<nav class="rail" aria-label="Filter reviews by category">
-  <div class="wrap rail-scroll">
-    <button class="pill active" data-filter="all">All reviews</button>
-    <button class="pill" data-filter="dog">Dogs</button>
-    <button class="pill" data-filter="cat">Cats</button>
-    <button class="pill" data-filter="toy">Toys</button>
-    <button class="pill" data-filter="bed">Beds &amp; crates</button>
-    <button class="pill" data-filter="feed">Feeding</button>
-    <button class="pill" data-filter="travel">Travel</button>
-    <button class="pill" data-filter="collar">Collars &amp; harnesses</button>
-    <button class="pill" data-filter="care">Care &amp; training</button>
-    <button class="pill" data-filter="tech">Tech</button>
+{%- comment -%}
+  Two axes, both live at once. Species is the strongest filter this audience
+  has — a cat owner does not want a dog pool — so it stays permanent and is
+  never traded for the use-case row underneath it.
+{%- endcomment -%}
+<section class="chooser" aria-label="Filter reviews">
+  <div class="wrap">
+    <div class="chooser-row">
+      <span class="chooser-label">Pet</span>
+      <div class="segs">
+        <button class="seg is-on" type="button" data-axis="species" data-value="all">Everything</button>
+        <button class="seg" type="button" data-axis="species" data-value="dog">Dogs<b>{{ dog_posts | size }}</b></button>
+        <button class="seg" type="button" data-axis="species" data-value="cat">Cats<b>{{ cat_posts | size }}</b></button>
+      </div>
+    </div>
+    <div class="chooser-row">
+      <span class="chooser-label">What for</span>
+      <div class="segs">
+        <button class="seg is-on" type="button" data-axis="use" data-value="all">Anything</button>
+        <button class="seg" type="button" data-axis="use" data-value="feed">Feeding</button>
+        <button class="seg" type="button" data-axis="use" data-value="play">Play</button>
+        <button class="seg" type="button" data-axis="use" data-value="rest">Beds</button>
+        <button class="seg" type="button" data-axis="use" data-value="walk">Walking</button>
+        <button class="seg" type="button" data-axis="use" data-value="care">Care</button>
+        <button class="seg" type="button" data-axis="use" data-value="travel">Travel</button>
+        <button class="seg" type="button" data-axis="use" data-value="tech">Tech</button>
+      </div>
+    </div>
   </div>
-</nav>
+</section>
 {% endif %}
 
-<section class="section" id="reviews">
+<section class="index" id="index">
   <div class="wrap">
-    <div class="section-head">
-      <h2>Latest reviews</h2>
-      {% if site.posts.size > 0 %}<span class="count" id="review-count">{{ site.posts | size }} reviews</span>{% endif %}
+    <div class="index-head">
+      <h2>the index</h2>
+      <p class="index-count"><span id="review-count">{{ site.posts | size }} reviews</span>, newest first</p>
     </div>
 
-    <div class="grid" id="post-grid">
+    <div class="entries" id="post-grid">
       {% if site.posts.size == 0 %}
       <div class="empty">
         <b>Our first reviews are almost ready</b>
@@ -73,14 +96,21 @@ layout: default
       </div>
       {% else %}
       {% for post in site.posts %}
-        {% comment %} The newest review is already the hero; don't print it twice. {% endcomment %}
-        {% unless page.url == "/" and post.slug == featured.slug %}
-          {% if forloop.index <= 5 %}
-            {% include post-card.html post=post eager=true %}
-          {% else %}
-            {% include post-card.html post=post %}
-          {% endif %}
-        {% endunless %}
+        {% comment %}
+          Entry 1 is the lead, 2 and 3 are wide, the rest are standard. The
+          variant is decided here rather than by an nth-child rule so the
+          hierarchy survives filtering. Nothing prints twice: unlike the last
+          pass there is no separate hero holding the newest review.
+        {% endcomment %}
+        {% if forloop.index == 1 %}
+          {% include post-card.html post=post rank=forloop.index variant="major" eager=true %}
+        {% elsif forloop.index <= 3 %}
+          {% include post-card.html post=post rank=forloop.index variant="wide" eager=true %}
+        {% elsif forloop.index <= 7 %}
+          {% include post-card.html post=post rank=forloop.index eager=true %}
+        {% else %}
+          {% include post-card.html post=post rank=forloop.index %}
+        {% endif %}
       {% endfor %}
       {% endif %}
     </div>
@@ -91,47 +121,86 @@ layout: default
   </div>
 </section>
 
+{% if page.url == "/" %}
+<section class="creed" id="how">
+  <div class="wrap">
+    <div>
+      <h2>how we choose</h2>
+      <div class="creed-nums">
+        <div class="creed-num"><b>{{ site.posts | size }}</b><span>Reviews published</span></div>
+        <div class="creed-num"><b>0</b><span>Sponsored posts</span></div>
+        <div class="creed-num"><b>3</b><span>Retailers we link</span></div>
+      </div>
+    </div>
+    <ul class="creed-points">
+      <li>
+        <b>We read the pattern, not the pitch</b>
+        <span>Recommendations come from what owners report across a product's real feedback, not from a brand's own description.</span>
+      </li>
+      <li>
+        <b>Construction, safety, sizing, value</b>
+        <span>The four things that decide whether a product is still in use a month later, weighed the same way on every review.</span>
+      </li>
+      <li>
+        <b>Nobody pays for a place here</b>
+        <span>We do not run sponsored posts, and a commission has never moved a pick.</span>
+      </li>
+      <li>
+        <b>Every pick links straight out</b>
+        <span>To Amazon, Chewy or Petco, with the affiliate disclosure sitting in the same block as the link, not buried in a footer.</span>
+      </li>
+    </ul>
+  </div>
+</section>
+{% endif %}
+
 <script>
 (function () {
   var PAGE_SIZE = 12;
 
-  var pills = document.querySelectorAll('.pill');
-  var cards = Array.prototype.slice.call(document.querySelectorAll('.card'));
+  var segs = document.querySelectorAll('.seg');
+  var entries = Array.prototype.slice.call(document.querySelectorAll('.entry'));
   var countEl = document.getElementById('review-count');
   var moreWrap = document.getElementById('load-more-wrap');
   var moreBtn = document.getElementById('load-more-btn');
-  var activeFilter = 'all';
+  var active = { species: 'all', use: 'all' };
 
-  function matching(filter) {
-    return cards.filter(function (card) {
-      return filter === 'all' || (card.dataset.filter || '').split(' ').indexOf(filter) !== -1;
+  function matching() {
+    return entries.filter(function (entry) {
+      var species = (entry.dataset.species || '').split(' ');
+      var use = entry.dataset.use || '';
+      var speciesOk = active.species === 'all' || species.indexOf(active.species) !== -1;
+      var useOk = active.use === 'all' || use === active.use;
+      return speciesOk && useOk;
     });
   }
 
-  function apply(filter) {
-    activeFilter = filter;
-    var hits = matching(filter);
-    cards.forEach(function (card) { card.hidden = true; });
-    hits.slice(0, PAGE_SIZE).forEach(function (card) { card.hidden = false; });
+  function apply() {
+    var hits = matching();
+    entries.forEach(function (entry) { entry.hidden = true; });
+    hits.slice(0, PAGE_SIZE).forEach(function (entry) { entry.hidden = false; });
     if (countEl) countEl.textContent = hits.length + (hits.length === 1 ? ' review' : ' reviews');
     if (moreWrap) moreWrap.hidden = hits.length <= PAGE_SIZE;
   }
 
   function showMore() {
-    var hidden = matching(activeFilter).filter(function (card) { return card.hidden; });
-    hidden.slice(0, PAGE_SIZE).forEach(function (card) { card.hidden = false; });
+    var hidden = matching().filter(function (entry) { return entry.hidden; });
+    hidden.slice(0, PAGE_SIZE).forEach(function (entry) { entry.hidden = false; });
     if (hidden.length <= PAGE_SIZE) moreWrap.hidden = true;
   }
 
-  pills.forEach(function (pill) {
-    pill.addEventListener('click', function () {
-      pills.forEach(function (p) { p.classList.remove('active'); });
-      pill.classList.add('active');
-      apply(pill.dataset.filter);
+  segs.forEach(function (seg) {
+    seg.addEventListener('click', function () {
+      var axis = seg.dataset.axis;
+      document.querySelectorAll('.seg[data-axis="' + axis + '"]').forEach(function (s) {
+        s.classList.remove('is-on');
+      });
+      seg.classList.add('is-on');
+      active[axis] = seg.dataset.value;
+      apply();
     });
   });
 
-  if (moreBtn) moreBtn.addEventListener('click', showMore);
-  if (pills.length) apply('all');
+  if (segs.length) apply();
 })();
 </script>

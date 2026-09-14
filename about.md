@@ -5,10 +5,10 @@ description: "Learn about Happy Pet Product Reviews, an independent pet product 
 permalink: /about/
 ---
 
-<section class="article">
-  <div class="wrap article-inner">
+<section class="piece">
+  <div class="wrap piece-inner">
     <h1>About Happy Pet Product Reviews</h1>
-    <p class="article-standfirst">Honest reviews. Happy pets. Zero fluff.</p>
+    <p class="standfirst">Honest reviews. Happy pets. Zero fluff.</p>
 
     <div class="prose">
       <h2>Why we exist</h2>
@@ -36,6 +36,6 @@ permalink: /about/
       <p>Have a product you would like us to review, or a question about a recommendation? We would love to hear from you. <a href="{{ site.baseurl }}/contact/">Reach out anytime</a>. We are pet people, and we are always happy to talk shop.</p>
     </div>
 
-    <p style="margin-top:2.25rem;"><a class="btn btn--primary" href="{{ site.baseurl }}/">Browse all reviews</a></p>
+    <p style="margin-top:2.25rem;"><a class="btn" href="{{ site.baseurl }}/">Browse all reviews</a></p>
   </div>
 </section>

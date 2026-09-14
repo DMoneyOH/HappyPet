@@ -2,7 +2,7 @@
 layout: default
 ---
 {%- assign category = page.categories | first -%}
-{%- assign category_label = category | replace: '-', ' ' | capitalize -%}
+{%- assign category_label = category | replace: '-', ' ' -%}
 {%- assign thumb_path = "/assets/images/thumbs/" | append: page.slug | append: ".jpg" -%}
 {%- assign thumb_file = site.static_files | where: "path", thumb_path | first -%}
 {%- if thumb_file -%}
@@ -11,30 +11,30 @@ layout: default
   {%- assign hero_image = page.image -%}
 {%- endif -%}
 
-<article class="article">
-  <div class="wrap article-inner">
+<article class="piece">
+  <div class="wrap piece-inner">
     <nav class="crumb" aria-label="Breadcrumb">
-      <a href="{{ site.baseurl }}/">Reviews</a>
+      <a href="{{ site.baseurl }}/">The index</a>
       &rsaquo;
-      <a href="{{ site.baseurl }}/#reviews">{{ category_label }}</a>
+      <a href="{{ site.baseurl }}/#index">{{ category_label }}</a>
     </nav>
 
-    <header>
-      <div class="article-tags">
-        <span class="chip">{{ category_label }}</span>
-        {%- if page.species == "cat" %}<span class="chip chip--plain">Cats</span>
-        {%- elsif page.species == "dog" %}<span class="chip chip--plain">Dogs</span>
-        {%- elsif page.species == "both" %}<span class="chip chip--plain">Dogs &amp; cats</span>{% endif %}
-      </div>
+    <header class="piece-head">
+      <p class="eyebrow">
+        {{ category_label }}
+        {%- if page.species == "cat" %} / Cats
+        {%- elsif page.species == "dog" %} / Dogs
+        {%- elsif page.species == "both" %} / Dogs &amp; cats{% endif %}
+      </p>
       <h1>{{ page.title }}</h1>
-      {%- if page.description %}<p class="article-standfirst">{{ page.description }}</p>{% endif %}
-      <p class="article-date">Reviewed {{ page.date | date: "%B %-d, %Y" }}</p>
+      {%- if page.description %}<p class="standfirst">{{ page.description }}</p>{% endif %}
+      <p class="piece-date">Reviewed {{ page.date | date: "%B %-d, %Y" }}</p>
     </header>
 
     {%- comment -%}
       The product shot, the affiliate disclosure and the buy links are one
-      panel. Keeping them in a single block is what guarantees the disclosure
-      stays above the links it covers, however the page reflows.
+      block. Keeping them together is what guarantees the disclosure stays
+      above the links it covers, however the page reflows.
 
       The image is the self-hosted thumbnail rather than the Amazon CDN URL:
       it is smaller, it is not a hotlink to a retailer, and it cannot break
