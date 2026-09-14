@@ -149,6 +149,12 @@ mobile patched in (hero graphic hidden under 520px, nav search hidden under 768p
   `dogs.md`, `cats.md`, `about.md`, `contact.md`, `privacy-policy.md`, `search.md` onto the
   system. Rendered and inspected each at 390px and 1280px, light and dark.
 
+### What has actually been rendered and looked at
+Home (390 light, 390 dark, 1280 light), article (390 light, 390 dark), `/cats/` 390,
+`/about/` 390, `/search/` 390, `/privacy-policy/` 390. **Not looked at:** `/dogs/` and
+`/contact/`, both of which use markup already verified on `/cats/` and `/about/`
+respectively, and no width between 560px and 1000px on any page.
+
 ### Defects found by looking at renders (each fixed)
 1. The hero headline was **invisible**. A `rise` keyframe opened at `opacity: 0` with
    `animation-fill-mode: both`, so the text was hidden until the animation ran. The entry
@@ -166,6 +172,15 @@ mobile patched in (hero graphic hidden under 520px, nav search hidden under 768p
    the article it sticks from the very top. It now lives in a wrapper that begins below the panel.
 7. Three hero buttons **wrapped to a third line** at 390px. One call to action now.
 8. The comparison table forced horizontal scroll on a phone. It wraps and fits instead.
+9. The `<noscript>` navigation fallback, added to fix a real gap, **restacked the desktop
+   nav into a column and turned the header into a 270px wall**, because the rule was not
+   scoped to the widths where the drawer exists. The media query is load-bearing.
+10. The open drawer **overlapped the wordmark**: it is a flex item in the header row and had
+   no way to wrap onto its own line. This hit the JavaScript drawer too, not only no-JS.
+11. The standfirst ran straight into the first prose paragraph, because `.prose > * + *`
+   cannot put space above a first child.
+12. The search page was an autofocused box over a blank screen, and with the script absent it
+   was a dead end. It now carries a category empty state that doubles as the no-JS fallback.
 
 ### Accessibility finding worth stating plainly
 The **previous accent `#FF6B4A` carried white button labels at 2.82:1**, which fails WCAG AA
@@ -197,4 +212,15 @@ Still open:
 4. Post front matter written by `generate_posts.py` contains em-dashes, which now show on
    card faces through `post.description`. `_posts/` is out of scope for this work, so this
    is a note for whoever owns the generator, not something changed here.
-5. Nothing is committed to `main` and nothing is pushed. A push here is Class 3 (see §0).
+5. **Future posts get no thumbnail.** `publish.yml` runs `generate_pin_images.py` on a new
+   post; nothing runs `make_thumbs.py`. Every review published from now on falls back to
+   `post.image`, an Amazon CDN hotlink, so the catalogue degrades one card at a time.
+   Nothing breaks, because the fallback is designed, but the fix is a change to the
+   publishing pipeline and that is not a design decision to make unilaterally. Either wire
+   the thumbnail step into the pipeline or accept the fallback.
+6. **Unrelated to this work, worth someone's attention:** `CLAUDE.md`, `HANDOFF.md` and the
+   four `HANDOFF-archive-*.md` files are not in `_config.yml`'s `exclude:` list and have no
+   front matter, so Jekyll static-copies them to the live site. Internal notes are readable
+   at `happypetproductreviews.com/HANDOFF.md`. `DESIGN_PROGRESS.md` had the same problem and
+   was added to `exclude:`; the others were left alone because they predate this work.
+7. Nothing is committed to `main` and nothing is pushed. A push here is Class 3 (see §0).

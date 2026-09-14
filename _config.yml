@@ -25,6 +25,7 @@ exclude:
   - BETA_PLAN_REVIEW.md
   - PIPELINE_AUDIT_HANDOVER.md
   - README.md
+  - DESIGN_PROGRESS.md
   - products.json
   - requirements.txt
   - Gemfile

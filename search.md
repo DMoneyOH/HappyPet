@@ -18,7 +18,23 @@ permalink: /search/
     <p id="search-status" class="find-status" role="status" aria-live="polite"></p>
     <ul id="search-results" class="find-results"></ul>
 
-    <p style="margin-top:2.25rem;"><a class="btn btn--primary" href="{{ site.baseurl }}/">Browse all reviews</a></p>
+    {%- comment -%}
+      The empty state. An autofocused box over a blank page tells a visitor
+      nothing about what is in here, and these links also carry the page for
+      anyone whose search script never loads.
+    {%- endcomment -%}
+    <div class="find-suggest" id="search-suggest">
+      <h2>Or start from a category</h2>
+      <div class="rail-scroll">
+        <a class="pill" href="{{ site.baseurl }}/dogs/">Dog reviews</a>
+        <a class="pill" href="{{ site.baseurl }}/cats/">Cat reviews</a>
+        <a class="pill" href="{{ site.baseurl }}/#reviews">Beds &amp; crates</a>
+        <a class="pill" href="{{ site.baseurl }}/#reviews">Feeding</a>
+        <a class="pill" href="{{ site.baseurl }}/#reviews">Toys</a>
+        <a class="pill" href="{{ site.baseurl }}/#reviews">Care &amp; training</a>
+      </div>
+      <p><a class="btn btn--primary" href="{{ site.baseurl }}/">Browse all reviews</a></p>
+    </div>
   </div>
 </section>
 
@@ -65,8 +81,11 @@ permalink: /search/
   function runSearch(query) {
     var status  = document.getElementById('search-status');
     var list    = document.getElementById('search-results');
+    var suggest = document.getElementById('search-suggest');
     list.innerHTML = '';
-    if (!query || query.trim().length < 2) { status.textContent = ''; return; }
+    var searching = !!(query && query.trim().length >= 2);
+    if (suggest) suggest.hidden = searching;
+    if (!searching) { status.textContent = ''; return; }
 
     var speciesFilter = detectSpecies(query);
     var raw = idx ? idx.search(query) : [];
