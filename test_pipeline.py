@@ -16,6 +16,7 @@ Run: python3 -m pytest test_pipeline.py -v
 
 import json
 import os
+import re
 import sys
 import types
 import unittest
@@ -3437,6 +3438,95 @@ class TestSheetsApiRetry(unittest.TestCase):
             if "sheets_retry(" in line:
                 self.assertNotIn("append_row", line,
                                  "append_row must never be handed to sheets_retry")
+
+
+class TestPublishedPostsVoiceIntegrity(unittest.TestCase):
+    """Guards the published bodies against the substitution damage that commit
+    fde8937 and its 30 siblings ("fix: third-person voice - <slug>") left behind.
+
+    Those commits converted the author voice from first to third person with a
+    blind find-and-replace: we -> reviewers, our -> the, my -> a. The intent was
+    right (generate_posts.py's prompt has forbidden first person since 0ad8182,
+    and the reviewer gate hard-fails an article that uses it), but the execution
+    produced 229 defects across 34 of the 49 posts, including non-words
+    ("reviewers've"), dropped subjects ("At Happy Pet Product Reviews,'re
+    always...") and sentences starting mid-paragraph in lowercase.
+
+    These assert the SHAPE of the damage rather than the individual sentences,
+    so a repeat of the same mistake fails here whatever wording it produces.
+    The word "reviewers" itself is deliberately not banned: several posts cite
+    real third-party reviewers ("Amazon reviewers have given it 4.6/5"), which
+    is legitimate and was in the text before those commits ran.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        cls.posts = {p.name: p.read_text(encoding="utf-8")
+                     for p in sorted((REPO / "_posts").glob("*.md"))}
+        assert cls.posts, "no posts found - the guard would pass vacuously"
+
+    def _scan(self, pattern, flags=re.IGNORECASE):
+        rx = re.compile(pattern, flags)
+        return [f"{name}: {m.group(0)!r}"
+                for name, text in self.posts.items() for m in rx.finditer(text)]
+
+    def test_no_pronoun_substitution_nonwords(self):
+        """'reviewers've' / 'reviewers're' - a contraction whose subject was
+        swapped for a plural noun. Never valid English, in any wording."""
+        self.assertEqual(self._scan(r"reviewers[’'](ve|re|ll|d|s)\b"), [])
+
+    def test_no_dropped_subject_contractions(self):
+        """"At Happy Pet Product Reviews,'re always..." - the subject was
+        deleted and the contraction left stranded."""
+        self.assertEqual(self._scan(r"(?<![A-Za-z])[’'](re|ve|ll|m)\b"), [])
+
+    def test_no_sentence_starting_in_lowercase(self):
+        """'Our goal is' -> 'the goal is' mid-paragraph. Catches the casing half
+        of the damage, which fixing only the word would leave behind."""
+        self.assertEqual(
+            self._scan(r"(?<=[.!?])\s+(reviewers|the goal|the evidence|rating|testing)\b",
+                       flags=0), [])
+
+    def test_no_broken_possessive(self):
+        """'our own pups' -> 'the own pups'."""
+        self.assertEqual(self._scan(r"\bthe own\b"), [])
+
+    def test_no_lowercase_headings(self):
+        """'## Our Top Pick' -> '## the top pick'. A heading that starts
+        lowercase is a casing artifact, not a style choice."""
+        self.assertEqual(self._scan(r"^#{2,4} [a-z]", re.MULTILINE), [])
+
+    def test_no_half_converted_author_voice(self):
+        """The substitution rewrote "we"/"our"/"my" but not "us", so a converted
+        post could still credit its own testing in the first person two
+        paragraphs after dropping it. Checks the author-voice verbs only.
+
+        NOT a blanket first-person ban. Six posts (best-cat-harness-leash,
+        best-cat-tunnel-toys, best-dog-puzzle-toys, best-dog-life-jacket,
+        best-dog-nail-grinder, best-cat-tree-large) were never converted at all
+        and are still first person throughout; that is a live editorial question
+        rather than substitution damage, so nothing here asserts it clean.
+        """
+        rx = re.compile(r"\b(impressed|impresses|reminded|gives|stood out to|"
+                        r"convinced|surprised|showed)\s+us\b", re.IGNORECASE)
+        self.assertEqual(
+            [f"{n}: {m.group(0)!r}" for n, t in self.posts.items() for m in rx.finditer(t)],
+            [])
+
+    def test_no_species_mismatch_in_closing_call_to_action(self):
+        """A cat post told the reader to "treat your dog to some exciting new
+        playtime adventures" - a template artifact from a dog post. Checks the
+        direct second-person address, where the species must match the post."""
+        offenders = []
+        for name, text in self.posts.items():
+            species = re.search(r"^species:\s*(\w+)", text, re.MULTILINE)
+            if not species or species.group(1) not in ("cat", "dog"):
+                continue
+            wrong = "dog" if species.group(1) == "cat" else "cat"
+            body = text.split("---", 2)[2] if text.count("---") >= 2 else text
+            for m in re.finditer(rf"\byour {wrong}\b", body, re.IGNORECASE):
+                offenders.append(f"{name} (species={species.group(1)}): {m.group(0)!r}")
+        self.assertEqual(offenders, [])
 
 
 if __name__ == "__main__":
