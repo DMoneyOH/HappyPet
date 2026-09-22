@@ -40,7 +40,6 @@ A thunderclap rattles the living room and a usually-chill tabby bolts under the 
 ### 1. Purina Pro Plan Veterinary Supplements Calming Care  
 - **Key ingredients (per chew):** 100 mg L‑theanine, 20 mg tryptophan, valerian root 0.5 %, chamomile 0.3 %, passionflower 0.2 % (as listed on the label).  
 - **Evidence:** The manufacturer cites a double‑blind trial where several cats showed reduced vocalization during storms; owners reported noticeable calm within a few days.  
-- **Real‑world quote:** “Luna stopped hiding under the bed within 24 hrs; she’s now calm on car rides.” – Megan T., verified buyer.  
 
 ### 2. Feliway Classic Diffuser  
 - **How it works:** Emits synthetic feline facial pheromone (F3 fraction) at roughly 0.1 µg/hour, a scent cats use to mark safe territory.  
@@ -50,7 +49,6 @@ A thunderclap rattles the living room and a usually-chill tabby bolts under the 
 ### 3. VetriScience Composure Chews  
 - **Exact blend per chew:** 25 mg L‑theanine, 5 mg melatonin, 10 mg colostrum‑derived IgY, ginger root 0.1 % (as stated on the product label).  
 - **Pharmacokinetics:** Manufacturer data indicate peak plasma L‑theanine levels about 45 minutes after ingestion.  
-- **User feedback:** “My cat’s grooming‑induced panic stopped after three days; she now purrs while being brushed.” – Carlos L., Amazon reviewer.  
 
 ### 4. ThunderEase Calming Collar  
 - **Active compounds:** Lavender oil 0.5 %, valerian root oil 0.3 %, sweet orange extract 0.2 % embedded in a porous polymer that releases scent for roughly 30 days.  
@@ -60,12 +58,10 @@ A thunderclap rattles the living room and a usually-chill tabby bolts under the 
 ### 5. Pet Remedy Calming Spray  
 - **Ingredients per 1 ml spray:** Valerian 0.4 %, lavender 0.3 %, chamomile 0.2 %, almond oil (trace).  
 - **Research note:** An internal test reported that several cats appeared calmer during veterinary exams after a single spray applied five minutes beforehand.  
-- **Real comment:** “A quick mist in the carrier kept Whiskers from hissing on the way to the clinic.” – Jenna K., verified purchaser.  
 
 ### 6. NaturVet Calming Aid (Liquid)  
 - **Formula per 1 ml dose:** L‑theanine 10 mg, melatonin 2 mg, passionflower extract 0.1 % (per label).  
 - **Why liquid:** Cats with dental pain or chew aversion often take liquids more readily; the company’s absorption study shows peak effect around 20 minutes.  
-- **Owner testimonial:** “Milo drinks the mix with his wet food and stopped pacing the hallway before bedtime.” – Luis M., Amazon reviewer.  
 
 ---  
 

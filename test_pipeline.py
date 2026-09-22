@@ -2129,6 +2129,253 @@ class TestFirsthandClaimGuard(unittest.TestCase):
         self.assertIn("firsthand-experience claim present", p)
 
 
+class TestNamedTestimonialGuard(unittest.TestCase):
+    """Nobody at Happy Pet Product Reviews has spoken to an owner, and no real
+    customer review is reproduced verbatim, so every quoted statement attributed
+    to a person in the published corpus was invented by the generator. On a
+    monetized affiliate page that is a fabricated endorsement, which is why this
+    holds an article instead of being a style note.
+
+    Thirteen shipped, across four posts: five invented Amazon reviewers with
+    names and review dates in best-kitten-food, four "verified buyer" quotes in
+    best-cat-calming-products, three demographic person-cards in
+    best-dog-life-jacket ("Samantha, 38, Portland, OR"), and one invented Reddit
+    reviewer in best-cat-harness-leash.
+
+    The prompts have said "no invented testimonials" since c1f76d7 (2026-07-20).
+    Nothing enforced it in code, and authoritative_gate's fabrication check reads
+    the REVIEWER'S flag text rather than the article, so catching this depended
+    on an LLM spontaneously choosing the word "fabricated". These tests assert on
+    the article.
+
+    The detector keys on ATTRIBUTION, never on the name. Names are open-class and
+    the next invented one is unenumerable; the ways English attaches a speaker to
+    a quote are not. The strings below are the published text verbatim in both
+    directions -- a guard whose inverse cases are invented rather than real gets
+    an allowlist bolted on and then gets deleted.
+    """
+
+    def setUp(self):
+        import generate_posts as gp
+        self.gp = gp
+
+    # --- the three attribution shapes, verbatim from the published corpus ----
+    def test_flags_a_speaker_named_before_the_quote(self):
+        for s in ('A 5-star review from “Emily R.” (April 2024) notes, '
+                  '“a 10-week-old kitten finished the bowl in seconds and has '
+                  'had no stomach upset for a month.”',
+                  'Reviewer “J.T.” (Feb 2024) writes, “a rescued kitten '
+                  'gained 1 lb in three weeks and his stools are firm.”',
+                  '“Mia L.” (Jan 2024) says, “a 8-week-old kitten’s '
+                  'energy spiked after switching, he is now chasing toys nonstop!”',
+                  'A reviewer on Reddit clarified, “I ordered a size Small for my '
+                  '9-lb tuxedo cat; the chart was off by an inch, so I had to size up.”'):
+            with self.subTest(s=s[:48]):
+                self.assertTrue(self.gp.find_named_testimonials(s), s)
+
+    def test_flags_a_speaker_named_after_the_quote(self):
+        for s in ('“Luna stopped hiding under the bed within 24 hrs; she is now '
+                  'calm on car rides.” – Megan T., verified buyer.',
+                  '“My cat’s grooming-induced panic stopped after three days; '
+                  'she now purrs while being brushed.” – Carlos L., Amazon reviewer.',
+                  '“A quick mist in the carrier kept Whiskers from hissing on the '
+                  'way to the clinic.” – Jenna K., verified purchaser.',
+                  '"The buoyancy held up even when the current got stronger, with no '
+                  'slipping at all." -- a verified buyer'):
+            with self.subTest(s=s[:48]):
+                self.assertTrue(self.gp.find_named_testimonials(s), s)
+
+    def test_flags_a_speaker_used_as_a_label(self):
+        for s in ('- **Samantha, 38, Portland, OR:** "My Labrador, Bella, loves the lake '
+                  'but gets nervous around other dogs."',
+                  '- **Javier, 45, Austin, TX:** "We took the vest on a river rafting '
+                  'trip and the buoyancy held up the whole way."',
+                  '- **Leah, 27, Boston, MA:** "I was skeptical about the mesh panels '
+                  'getting soggy, but they dried in minutes."'):
+            with self.subTest(s=s[:48]):
+                self.assertTrue(self.gp.find_named_testimonials(s), s)
+
+    def test_flags_the_demographic_byline_even_with_its_quote_removed(self):
+        """An invented person-card is the fabrication before the quote is. This
+        is the one shape that survives somebody editing the quote away and
+        leaving the person, which is the likeliest half-fix."""
+        self.assertTrue(self.gp.find_named_testimonials(
+            "- **Samantha, 38, Portland, OR:** she keeps the vest in the truck."))
+
+    def test_flags_shapes_the_generator_has_not_produced_yet(self):
+        """The published four are not the boundary of the class. A name the
+        corpus has never seen, a role the corpus has never seen, a straight
+        double-quote instead of a curly one, and above all a label WITHOUT the
+        bold markers or the two-letter state code all have to fire. The bolded
+        "Name, 38, City, ST" card is one published formatting accident, not the
+        shape of the defect, and a guard that only recognizes it is a guard that
+        the next run walks straight past."""
+        for s in ('Reviewer "Priya N." (Aug 2025) reported, "the kibble size suits a '
+                  'six-week-old and she finishes every bowl."',
+                  '"The zipper gave out inside a month and support never replied." '
+                  '-- Dmitri K., confirmed purchaser',
+                  '- **Aroha, 52, Wellington, NZ:** "the harness survived a full winter '
+                  'of coastal walks without fraying."',
+                  # No bold, no state code: a label is a label.
+                  'Samantha, 38, a longtime lake swimmer: "the vest gives her enough '
+                  'confidence to stay in the water all afternoon."',
+                  # A role instead of an age, and no bold.
+                  'Megan T., verified buyer: "Luna stopped hiding under the bed within '
+                  '24 hours and rides calmly now."',
+                  'Carlos L., Amazon reviewer: "the grooming panic stopped after three '
+                  'days and she purrs while being brushed now."'):
+            with self.subTest(s=s[:48]):
+                self.assertTrue(self.gp.find_named_testimonials(s), s)
+
+    # --- the inverse direction: the corpus's real quoting must stay clean ----
+    def test_does_not_flag_the_legitimate_quoting_in_the_published_corpus(self):
+        """Every string here is published text. The site quotes product feature
+        names, brand coinages and short idioms constantly, and it summarizes
+        review sentiment on every single post. A guard that fires on any of
+        these is the guard that gets weakened and then deleted."""
+        for s in ('Includes “Royal Canin K-Mune” blend, highly digestible proteins.',
+                  'Plus “LifeSource Bits”, a blend of antioxidants and vitamins.',
+                  'A “Wild-Life” blend of antioxidants (vitamin C, E, and selenium).',
+                  'It frees them from the "cat alarm clock" in the mornings.',
+                  'Playtime becomes a rewarding "find-the-squirrel" hunt.',
+                  'A common theme is the "worth the investment" narrative.',
+                  'Many users consider it "worth every penny" for the peace of mind.',
+                  'Many owners describe it as a "game-changer" for their walks.',
+                  'Owners report the mat stays cool through an afternoon.',
+                  'Amazon reviewers repeatedly mention the quiet motor.',
+                  'Reviewers consistently highlight three themes: quietness, the LED '
+                  'light, and how quickly nervous dogs settle into the routine.',
+                  'Across more than 18,000 Amazon reviews, the consistent theme is that '
+                  'the vest works quickly for situational anxiety.',
+                  'One owner of a rescue dog with severe clipper anxiety reported that '
+                  'switching to this grinder cut grooming time in half.',
+                  'A peer-reviewed study of 60 cats found a reduction in stress-related '
+                  'behaviors (Journal of Feline Medicine, 2021).'):
+            with self.subTest(s=s[:48]):
+                self.assertEqual(self.gp.find_named_testimonials(s), [], s)
+
+    def test_does_not_flag_a_quote_attributed_to_a_class_of_owners(self):
+        """Deliberately out of scope, and recorded here so a later pass does not
+        quietly widen the detector to reach it. These quotes name no individual;
+        catching them would also catch honest aggregate sentiment, which is what
+        the Real Owner Experiences section is supposed to contain. They are a
+        separate, smaller question for a human, not a gate."""
+        for s in ('Many owners rave about its longevity, with comments like, "My cats '
+                  'have shredded every other scratcher, but this one is still going '
+                  'strong after three years!"',
+                  'Many owners echo the findings, raving about how their dogs '
+                  '"immediately loved it."'):
+            with self.subTest(s=s[:48]):
+                self.assertEqual(self.gp.find_named_testimonials(s), [], s)
+
+    def test_does_not_read_the_front_matter_terminator_as_an_attribution(self):
+        """`image: "...jpg"` followed by the YAML `---` on the next line is a
+        quoted span, a dash and a capitalized word. It is not an attribution, and
+        the first draft of this guard flagged best-cat-beds because of it."""
+        self.assertEqual(self.gp.find_named_testimonials(
+            'image: "https://m.media-amazon.com/images/I/81-U9aAoCDL._AC_SX425_.jpg"\n'
+            '---\n\nWhen Whiskers claims the laundry pile again, a proper bed helps.'), [])
+
+    # --- wiring: every path that could publish a testimonial is gated -------
+    def test_both_output_gates_hold_an_article_with_a_named_testimonial(self):
+        body = ('"Luna stopped hiding under the bed within 24 hrs and rides calmly now." '
+                '- Megan T., verified buyer. ' + "word " * 900 + "https://amzn.to/3TestABC")
+        for stage in ("generate", "review"):
+            with self.subTest(stage=stage):
+                with self.assertRaises(self.gp.GenerationStageError) as cm:
+                    self.gp.validate_output(stage, body, "slug",
+                                            affiliate_url="https://amzn.to/3TestABC")
+                self.assertIn("named individual", str(cm.exception).lower())
+
+    def test_a_clean_body_still_passes_both_gates(self):
+        body = ("Owners repeatedly mention that the vest calms car rides. " +
+                "word " * 900 + "https://amzn.to/3TestABC")
+        for stage in ("generate", "review"):
+            with self.subTest(stage=stage):
+                self.gp.validate_output(stage, body, "slug",
+                                        affiliate_url="https://amzn.to/3TestABC")
+
+    def test_authoritative_gate_fails_on_the_body_not_on_the_reviewers_opinion(self):
+        """ee2fe31 narrowed this gate's fabrication scan to the explicit verbs
+        fabricated/invented/made-up, so a reviewer who describes a fake
+        testimonial in the natural words ("the quote is unverified", "no source
+        for the reviewer") no longer hard-fails it. Narrowing was right -- the
+        broad list false-failed VERIFIED figures -- but it left this class
+        resting on an LLM's word choice. The check reads the body instead."""
+        clean = {"pass": True, "scores": {"human_voice": 4, "warmth": 4,
+                                          "readability": 4, "accuracy": 4}, "flags": []}
+        body = ('- **Samantha, 38, Portland, OR:** "My Labrador loves the lake but '
+                'gets nervous around other dogs."')
+        passed, flags = self.gp.authoritative_gate(clean, body)
+        self.assertFalse(passed)
+        self.assertTrue(any("named_testimonial_in_body" in str(f) for f in flags), flags)
+
+    def test_authoritative_gate_still_passes_a_clean_body(self):
+        clean = {"pass": True, "scores": {"human_voice": 4, "warmth": 4,
+                                          "readability": 4, "accuracy": 4}, "flags": []}
+        passed, flags = self.gp.authoritative_gate(
+            clean, "Owners repeatedly mention the handle. Reviewers rate it 4.6/5.")
+        self.assertTrue(passed, flags)
+
+    def test_no_post_file_is_written_when_the_body_carries_a_testimonial(self):
+        """Behavioural, not a refusal message: drive the real stage_article over
+        a temp repo and assert on the victim's own record -- no draft file, no
+        pin-queue entry. stage_article is the single funnel both publish paths
+        push a body through, which is why the backstop lives there."""
+        product = {"topic": "best-x", "title": "Best X", "keyword": "best x",
+                   "format": "single_review", "name": "The X", "category": "dog-vests",
+                   "species": "dog", "affiliate_url": "https://amzn.to/abc"}
+        body = ('## Real Owner Experiences\n\n- **Samantha, 38, Portland, OR:** "My '
+                'Labrador loves the lake but gets nervous around other dogs."\n\n'
+                + ("word " * 800))
+        with tempfile.TemporaryDirectory() as td:
+            posts = Path(td) / "_posts"; posts.mkdir()
+            pinq  = Path(td) / "_pin_queue"; pinq.mkdir()
+            with patch.object(self.gp, "POSTS_DIR", posts), \
+                 patch.object(self.gp, "REPO_DIR", Path(td)), \
+                 patch.object(self.gp, "PIN_GEN_AVAILABLE", False):
+                with self.assertRaises(self.gp.GenerationStageError):
+                    self.gp.stage_article("best-x", product, body,
+                                          pin_desc="A vest that calms car rides.",
+                                          index=0)
+            self.assertEqual(list(posts.glob("*.md")), [])
+            self.assertEqual(list(pinq.glob("*.json")), [])
+
+    # --- the stated rule and the enforced gate must not drift ---------------
+    def test_the_rule_text_is_single_sourced_into_all_three_prompts(self):
+        rule = self.gp.NAMED_TESTIMONIAL_RULE
+        self.assertIn(rule, self.gp.GENERATOR_SYSTEM_PROMPT)
+        self.assertIn(rule, self.gp.make_review_prompt("T", "kw", "body"))
+        self.assertIn(rule, self.gp.make_rewrite_prompt("T", "kw", "body", "fix it"))
+
+    def test_the_structure_brief_defines_real_owner_experiences_as_aggregate(self):
+        """The heading stays -- seven posts use it with clean aggregate prose, so
+        renaming it would churn them for nothing. What changes is that the brief
+        now says what the section is: sentiment, not a list of people. The
+        section name invited exactly the thing the rules forbade."""
+        prompt = self.gp.make_prompt(
+            "T", "kw", "slug", "single_review",
+            {"title": "X", "keyword": "kw", "species": "dog",
+             "affiliate_url": "https://amzn.to/x"}, "", "")
+        self.assertIn("Real Owner Experiences (H2)", prompt)
+        self.assertIn("AGGREGATE sentiment", prompt)
+        self.assertIn(self.gp.NAMED_TESTIMONIAL_RULE, prompt)
+
+    def test_the_reviewer_can_fail_an_article_on_this_alone(self):
+        p = self.gp.make_review_prompt("T", "kw", "body")
+        self.assertIn("23. INVENTED NAMED TESTIMONIALS", p)
+        # All three places the reviewer reads: the audit category, the PASS
+        # CRITERIA list and the pass=false rule. A category the pass criteria
+        # never mention is a category the model scores around.
+        self.assertIn("NO quote attributed to a named individual", p)
+        self.assertIn("a quote attributed to a named individual present", p)
+
+    def test_the_audit_header_counts_the_categories_it_actually_lists(self):
+        p = self.gp.make_review_prompt("T", "kw", "body")
+        listed = max(int(n) for n in re.findall(r"^(\d+)\. [A-Z]", p, re.MULTILINE))
+        self.assertIn(f"=== {listed}-CATEGORY AI PATTERN AUDIT ===", p)
+
+
 class TestBannedPhraseBoundaries(unittest.TestCase):
     """BANNED_PHRASE_MAP substitutes inside the word it matches, so an unanchored
     pattern eats the stem of a longer word: 'pet parent' fired inside 'pet
@@ -4042,6 +4289,23 @@ class TestPublishedPostsVoiceIntegrity(unittest.TestCase):
         for name, text in self.posts.items():
             for claim in gp.find_firsthand_claims(text):
                 offenders.append(f"{name}: {claim!r}")
+        self.assertEqual(offenders, [])
+
+    def test_no_published_post_quotes_a_named_individual(self):
+        """Nobody here has spoken to an owner and no review is reproduced
+        verbatim, so no published post may attribute a quote to a person. Uses
+        the same detector the generator gates on, so the published corpus and
+        new output cannot drift apart.
+
+        Thirteen instances shipped across four posts and were deleted rather
+        than re-sourced: real quotes would have to come from somewhere, and
+        there is nowhere for them to come from.
+        """
+        import generate_posts as gp
+        offenders = []
+        for name, text in self.posts.items():
+            for quote in gp.find_named_testimonials(text):
+                offenders.append(f"{name}: {quote!r}")
         self.assertEqual(offenders, [])
 
     def test_no_species_mismatch_in_closing_call_to_action(self):

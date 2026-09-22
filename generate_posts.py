@@ -251,6 +251,121 @@ def find_firsthand_claims(text: str) -> list:
     return found
 
 
+# --- Invented named testimonials (advertising exposure, not a style rule) ---
+# The generator repeatedly invented consumer testimonials and attributed them to
+# people who do not exist: "Samantha, 38, Portland, OR", "Carlos L., Amazon
+# reviewer", 'Reviewer "J.T." (Feb 2024) writes'. Nobody here has spoken to any
+# owner, and the site quotes no real review verbatim, so every one of these is a
+# fabricated endorsement on a monetized affiliate page -- an FTC endorsement-guide
+# exposure, the same class as the firsthand-testing claims above.
+#
+# The discriminator is ATTRIBUTION, never the name. Names are open-class and
+# cannot be enumerated, but the ways English attaches a speaker to a quote can:
+# speaker-before (reporting verb), speaker-after (dash), speaker-as-label
+# (colon). Those three shapes covered all 13 published instances. A name-keyed
+# rule would miss the next invented name on the day it is written.
+#
+# Every pattern additionally requires the quoted span to be SENTENCE-LENGTH
+# (MIN chars). That is what keeps the site's legitimate quoting out of the net:
+# the real quoted spans here are short, verbless labels and idioms -- "LifeSource
+# Bits", "Royal Canin K-Mune", "cat alarm clock", "find-the-squirrel", "game-
+# changer", "worth every penny", "worth the investment" -- none of which is a
+# testimonial and none of which reaches the floor.
+#
+# Deliberately NOT caught: a quote attributed to a CLASS rather than an
+# individual ('with comments like, "My cats have shredded every other
+# scratcher..."'). Those are outside the approved fix, and widening the detector
+# to reach them would also catch honest aggregate sentiment, which is the
+# section's legitimate content. They are reported for a human decision instead.
+#
+# Direction of error, same as the firsthand guard: HOLD, never silent rewrite.
+# A false positive costs one held article; a false negative publishes a fake
+# endorsement.
+_TESTIMONIAL_MIN_QUOTE_CHARS = 30
+_Q = r"[\"“”‘’']"          # any quote mark the generator emits
+_QUOTED_SENTENCE = (                            # a quoted span long enough to be a statement
+    rf"{_Q}[^\"“”\n]{{{_TESTIMONIAL_MIN_QUOTE_CHARS},600}}{_Q}"
+)
+# Reporting verbs that introduce a quotation. Deliberately excludes the aggregate
+# verbs this site uses honestly and constantly ("owners report that...",
+# "reviewers mention...", "owners rave about...", "describe it as...") -- those
+# are only a problem when they introduce a fabricated verbatim quote, which the
+# sentence-length floor above already discriminates.
+_REPORTING_VERB = (
+    r"(?:writes|wrote|says|said|notes|noted|reports|reported|explains|explained|"
+    r"clarifies|clarified|adds|added|recalls|recalled|comments|commented|"
+    r"puts it|described it as|put it)"
+)
+NAMED_TESTIMONIAL_PATTERNS = [
+    # A. Speaker-before: a reviewer/review/owner noun phrase, then a reporting
+    #    verb, then the quote.
+    #    'A 5-star review from "Emily R." (April 2024) notes, "..."'
+    #    'A reviewer on Reddit clarified, "..."'
+    rf"\b(?:review|reviews|reviewer|reviewers|owner|owners|buyer|buyers|customer|"
+    rf"customers|purchaser|purchasers|commenter|commenters|user|users)\b"
+    rf"[^.!?\n]{{0,80}}?\b{_REPORTING_VERB}\b\s*[:,]?\s*{_QUOTED_SENTENCE}",
+    # B. Speaker-before, where the speaker IS the quoted name and no reviewer
+    #    noun precedes the verb: '"Mia L." (Jan 2024) says, "..."'
+    rf"{_Q}[A-Z][^\"“”\n]{{0,28}}{_Q}\s*(?:\([^)\n]{{0,24}}\)\s*)?"
+    rf"{_REPORTING_VERB}\b\s*[:,]?\s*{_QUOTED_SENTENCE}",
+    # C. Speaker-after: quote, dash, a two-token personal name and/or a
+    #    reviewer role. '"..." - Megan T., verified buyer.'
+    #    The gap before the dash is [ \t]* and not \s*: a newline between the
+    #    two is not an attribution. Front matter ends `image: "...jpg"\n---\n`,
+    #    and \s* read that YAML terminator as an attribution dash.
+    rf"{_QUOTED_SENTENCE}[ \t]*[-–—]{{1,3}}[ \t]*"
+    rf"(?:[A-Z][a-z]+\s+(?:[A-Z]\.|[A-Z][a-z]+)|[A-Z]\.\s?[A-Z]\.)"
+    rf"(?:\s*,\s*[^.\n]{{0,48}})?",
+    # D. Speaker-after by role alone, no name: '"..." - a verified buyer'
+    rf"{_QUOTED_SENTENCE}[ \t]*[-–—]{{1,3}}[ \t]*(?:an?\s+)?"
+    rf"(?:verified\s+\w+|amazon\s+reviewer|\w+\s+reviewer|reviewer|buyer|purchaser)\b",
+    # E. Speaker-as-label: a person label (name + age, or name + role) followed
+    #    by a colon and the quote, with or without the bold markers.
+    #    '- **Samantha, 38, Portland, OR:** "..."'
+    rf"\b[A-Z][a-z]+(?:\s+[A-Z][a-z.]+)?\s*,\s*\d{{1,3}}\s*,[^\n:]{{0,48}}:"
+    rf"\**\s*{_QUOTED_SENTENCE}",
+    rf"\b[A-Z][a-z]+(?:\s+(?:[A-Z]\.|[A-Z][a-z]+))\s*,\s*"
+    rf"(?:a\s+)?(?:verified\s+\w+|amazon\s+reviewer|\w+\s+reviewer|reviewer|buyer|"
+    rf"purchaser|owner)\b[^\n:]{{0,24}}:\**\s*{_QUOTED_SENTENCE}",
+    # F. The demographic person-card itself, quote or no quote. An invented
+    #    "Name, 38, City, ST" byline is the fabrication even before the quote,
+    #    and this is the one shape that survives having its quote edited away.
+    r"\*\*\s*[A-Z][a-z]+(?:\s+[A-Z][a-z.]+)?\s*,\s*\d{1,3}\s*,\s*[A-Z][A-Za-z .]{2,30},\s*[A-Z]{2}\s*:?\s*\*\*",
+]
+_NAMED_TESTIMONIAL_RE = [re.compile(p, re.MULTILINE)
+                         for p in NAMED_TESTIMONIAL_PATTERNS]
+
+# One block of rule text, shared by the generator, reviewer and rewrite prompts
+# so the stated rule and the enforced gate cannot drift apart.
+NAMED_TESTIMONIAL_RULE = (
+    "Never quote a named individual. Nobody here has spoken to an owner, and no "
+    "real customer review is reproduced verbatim, so any quoted statement "
+    "attributed to a person is a fabricated endorsement. Never write a quote "
+    "attributed to a first name, an initialed name, a demographic byline "
+    "(\"Samantha, 38, Portland, OR\"), a \"verified buyer\", an \"Amazon "
+    "reviewer\", or a \"reviewer on Reddit\", and never invent a reviewer "
+    "username, star-rating date or review that you were not given. Summarize "
+    "what reviewers say in aggregate instead -- \"owners repeatedly mention the "
+    "handle\", \"the common complaint is the sizing\" -- with no quotation marks "
+    "around a statement and no speaker attached to it."
+)
+
+
+def find_named_testimonials(text: str) -> list:
+    """Return every quoted statement attributed to an individual found in `text`
+    (deduped, in order of first appearance). Empty list = clean. Used by both
+    output gates, by authoritative_gate, by stage_article and by the
+    published-post test guard, so the gate and the corpus check cannot drift."""
+    found, seen = [], set()
+    for rx in _NAMED_TESTIMONIAL_RE:
+        for m in rx.finditer(text or ""):
+            phrase = " ".join(m.group(0).split())
+            if phrase.lower() not in seen:
+                seen.add(phrase.lower())
+                found.append(phrase)
+    return found
+
+
 # Pre-joined, quoted forms for embedding in both prompts (built once at import).
 _BANNED_WORDS_STR        = ", ".join(f'"{w}"' for w in BANNED_WORDS + BANNED_PHRASES)
 _BANNED_TRANSITIONS_STR  = ", ".join(f'"{t}"' for t in BANNED_TRANSITIONS)
@@ -789,6 +904,30 @@ def assert_no_firsthand_claims(stage: str, text: str, slug: str) -> None:
         )
 
 
+def assert_no_named_testimonials(stage: str, text: str, slug: str) -> None:
+    """Hold anything that quotes a named individual about a product.
+
+    Raises GenerationStageError naming every attributed quote found, so the held
+    article's GitHub issue says what to cut. Called on the article body at both
+    output gates and inside stage_article() -- that last one is the structural
+    backstop. stage_article is the single funnel every publish path pushes a body
+    through (main()'s auto run and stage1_cli's agent-driven run both call it),
+    so a body cannot reach _posts/ without passing here even if a future caller
+    skips validate_output.
+
+    NOT hooked into front_matter(), unlike the firsthand-claim guard: that one
+    guards the `description` field, which is the pin description, and a pin
+    description is one short line that cannot carry an attributed quote. Adding
+    it there would be ceremony, not coverage.
+    """
+    quotes = find_named_testimonials(text)
+    if quotes:
+        raise GenerationStageError(
+            f"[{stage}] {slug}: quote(s) attributed to a named individual -- this "
+            f"site interviews nobody and reproduces no review verbatim: {quotes}"
+        )
+
+
 def validate_output(stage: str, content: str, slug: str, affiliate_url: str = "") -> None:
     """
     Output contract gate. Raises GenerationStageError on violation.
@@ -801,6 +940,9 @@ def validate_output(stage: str, content: str, slug: str, affiliate_url: str = ""
 
     A firsthand-experience claim fails both gates. The prompts forbid it and the
     reviewer flags it, but published posts prove that neither holds on its own.
+    A quote attributed to a named individual fails both gates for the same
+    reason: the "no invented testimonials" rule has been in the prompts since
+    2026-07-20 and nothing ever enforced it in code.
     """
     MIN_WORD_COUNT   = 700
     MIN_CHARS        = 2000
@@ -817,6 +959,7 @@ def validate_output(stage: str, content: str, slug: str, affiliate_url: str = ""
             f"[{stage}] {slug}: word count too low ({word_count} words, min {MIN_WORD_COUNT})"
         )
     assert_no_firsthand_claims(stage, content, slug)
+    assert_no_named_testimonials(stage, content, slug)
     # Affiliate link required only at Gate 2 (post-review); rewrite has a chance to inject it first
     if stage == "review":
         if affiliate_url:
@@ -891,6 +1034,7 @@ def authoritative_gate(scorecard: dict, content: str) -> tuple:
     hallucinated em-dash veto), this starts from PASS and downgrades only on:
       - a numeric score below its REVIEW_SCORE_MINIMUMS floor,
       - a real em dash in the actual body (deterministic, not the model's count),
+      - a quote attributed to a named individual in the actual body (ditto),
       - an EXPLICIT fabrication callout (fabricated/invented/made-up) in the flags.
     Returns (passed: bool, flags: list).
     """
@@ -907,6 +1051,19 @@ def authoritative_gate(scorecard: dict, content: str) -> tuple:
     if "—" in content:  # real U+2014 em dash in the body
         passed = False
         flags.append("em_dash_in_body")
+
+    # A quote attributed to a named individual, read off the actual body rather
+    # than off the reviewer's flags. This is the same deterministic-over-advisory
+    # move as the em-dash check above, and it exists because the keyword scan
+    # below cannot cover this class: ee2fe31 narrowed that scan to explicit
+    # fabrication verbs, so a reviewer who describes a fake testimonial in the
+    # natural words ("quote is unverified", "no source for the reviewer") no
+    # longer hard-fails the article. Narrowing the scan was right -- it was
+    # false-failing verified figures -- but it left this defect resting entirely
+    # on whether an LLM happens to pick the word "fabricated".
+    for quote in find_named_testimonials(content):
+        passed = False
+        flags.append(f"named_testimonial_in_body={quote[:120]!r}")
 
     # Only UNAMBIGUOUS fabrication verbs hard-fail. Cautionary reviewer prose
     # ("no source", "unverified", "statistic", "specific number") is NOT treated
@@ -1010,7 +1167,7 @@ def build_verified_facts(product: dict) -> str:
 
 def make_review_prompt(title: str, keyword: str, content: str, verified_facts: str = "") -> str:
     """
-    Full 21-category AI writing audit built from the avoid-ai-writing catalog
+    Full 23-category AI writing audit built from the avoid-ai-writing catalog
     and beautiful-prose style contract. Replaces the 6-pattern legacy prompt.
     `verified_facts` (optional): the featured product's retailer-verified figures;
     when given, the reviewer is told to treat them as fact and not flag them.
@@ -1070,7 +1227,7 @@ accuracy:
   2 = Multiple unverified specs presented as fact.
   1 = Significant factual errors or invented specifications.
 
-=== 21-CATEGORY AI PATTERN AUDIT ===
+=== 23-CATEGORY AI PATTERN AUDIT ===
 
 Check every category. Flag every violation found.
 
@@ -1107,6 +1264,13 @@ Check every category. Flag every violation found.
     invented test panel, test household, testing lab or named test pet. Attributing an
     observation to owner reviews ("owners report", "reviewers mention") is fine; claiming
     the observation was made here is not. This one is a legal exposure, not a style note.
+23. INVENTED NAMED TESTIMONIALS — {NAMED_TESTIMONIAL_RULE}
+    Flag every quoted statement with a speaker attached to it, in any arrangement: speaker
+    before the quote ('Reviewer "J.T." writes, "..."'), speaker after it ('"..." - Megan T.,
+    verified buyer'), or speaker as a label ('**Samantha, 38, Portland, OR:** "..."'). Also
+    flag an invented review date, reviewer username or star-rating attribution. Aggregate
+    sentiment with no quotation marks and no speaker is fine and is what the section should
+    contain. This one is a legal exposure, not a style note.
 
 === PASS CRITERIA (ALL must be true) ===
 
@@ -1118,6 +1282,7 @@ Check every category. Flag every violation found.
 - em_dash_count = 0 (any em dash = FAIL, no exceptions)
 - NO first-person voice (I, we, us, our, my used as author voice = FAIL regardless of scores)
 - NO claim of firsthand experience with the product (category 22 = FAIL regardless of scores)
+- NO quote attributed to a named individual (category 23 = FAIL regardless of scores)
 - If roundup: alternative product sections must have specific distinguishing details, not generic filler
 
 Score 4 or 5 only if genuinely non-AI-sounding. When in doubt, score lower.
@@ -1142,7 +1307,7 @@ Rules:
 - flags: list each specific problem as a plain string; empty array if none
 - rewrite_instructions: name exact sections and specific fixes if pass=false; empty string if pass=true. Keep under 250 words -- a truncated response fails JSON parsing and the article is held unreviewed.
 - em_dash_count: exact integer count of (—) characters in article
-- pass=false if em_dash_count > 0, first-person voice present, a firsthand-experience claim present, or human_voice < {REVIEW_SCORE_MINIMUMS['human_voice']} or warmth < {REVIEW_SCORE_MINIMUMS['warmth']}
+- pass=false if em_dash_count > 0, first-person voice present, a firsthand-experience claim present, a quote attributed to a named individual present, or human_voice < {REVIEW_SCORE_MINIMUMS['human_voice']} or warmth < {REVIEW_SCORE_MINIMUMS['warmth']}
 """
 
 
@@ -1171,6 +1336,7 @@ REWRITE RULES:
   - NEVER use em dashes (—). Use hyphens, commas, or shorter sentences.
   - NEVER use first-person voice (I, we, us, our, my). No personal stories and no named pets. Write in second or third person.
   - {FIRSTHAND_CLAIM_RULE}
+  - {NAMED_TESTIMONIAL_RULE}
   - NEVER invent numbers -- no percentages, review counts, prices, dates, or specs you were not given. If a number is not already in the article, do not add one.
 - Where the editor flagged generic or AI-patterned writing, replace with something SPECIFIC and concrete.
   A specific detail beats a fluent generality every time.
@@ -1200,6 +1366,7 @@ An automated reviewer rejects any article that breaks the rules in <writing_rule
 - Verbs: prefer active verbs over be-verbs. Do not let most sentences lean on "is", "are", "was", "were"; specificity comes from verbs.
 - Voice: write ONLY in second person ("your dog", "you'll find") or third person ("owners report", "dogs tend to"). NEVER use first-person voice (I, we, us, our, my). No personal stories, no named pets, no invented testimonials. The reviewer fails any article that uses first person.
 - Firsthand claims: {FIRSTHAND_CLAIM_RULE} This is a legal line, not a style preference: the article is held and never published if it breaks it.
+- Named testimonials: {NAMED_TESTIMONIAL_RULE} This is a legal line too, and it is enforced in code: the article is held and never published if it breaks it.
 - Dashes: NEVER use em dashes (—). Use hyphens, commas, or shorter sentences.
 - Transitions: never use {_BANNED_TRANSITIONS_STR}. Start sentences with the subject or an action; an occasional plain "But", "And", or "So" is fine, but do not lean on them.
 - Intensifiers: do not lean on empty intensifiers before adjectives ({_BANNED_INTENSIFIERS_STR}). Cut them or give a concrete detail instead.
@@ -1295,7 +1462,11 @@ def make_prompt(title: str, keyword: str, slug: str, fmt: str, product: dict,
         )
     if fmt == "single_review":
         structure = f"""ARTICLE FORMAT: In-depth single product review of {product_name}
-STRUCTURE: Opening (100+ words) | Product Overview (H2) | What We Like (H2, 4-5 features) | What Could Be Better (H2, 2-3 honest drawbacks) | Real Owner Experiences (H2) | Who Should Buy This (H2) | Verdict (H2, 80+ words with affiliate link) | Star rating: **Our Rating: X/5**"""
+STRUCTURE: Opening (100+ words) | Product Overview (H2) | What We Like (H2, 4-5 features) | What Could Be Better (H2, 2-3 honest drawbacks) | Real Owner Experiences (H2) | Who Should Buy This (H2) | Verdict (H2, 80+ words with affiliate link) | Star rating: **Our Rating: X/5**
+"Real Owner Experiences" means AGGREGATE sentiment drawn from the review pool: the themes owners
+repeat, the common complaint, what the split of opinion looks like. It is prose, not a list of
+people. Do not quote any individual, do not invent a person to quote, and do not give any speaker
+a name, an age, a city or a review date. {NAMED_TESTIMONIAL_RULE}"""
     elif fmt == "roundup":
         # Build verified data block — only include fields we actually have
         verified_data = ""
@@ -1682,6 +1853,11 @@ def stage_article(slug: str, product: dict, body: str, pin_desc: str,
     """Stage one passed article exactly as main() does: front-matter + pin image
     + pin-queue entry + draft-last write. `body` must be the final, review-clean
     article text (no PIN_DESC line). Returns {draft_path, pin_queue_path}."""
+    # Structural backstop. This is the one function every publish path funnels a
+    # BODY through -- main()'s automated run and stage1_cli's agent-driven run
+    # both land here -- so a fabricated testimonial cannot reach _posts/ even if
+    # a future caller is added that skips validate_output.
+    assert_no_named_testimonials("stage_article", body, slug)
     title    = product["title"]
     keyword  = product["keyword"]
     species  = product.get("species", "dog")
