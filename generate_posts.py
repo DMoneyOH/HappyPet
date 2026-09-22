@@ -1654,7 +1654,8 @@ a name, an age, a city or a review date. {NAMED_TESTIMONIAL_RULE}"""
   article, so there is no second product you know anything about. Write about the
   featured product only: do not name, describe, rank or link another product, and
   do not add an "Alternative Picks", "Other Picks" or "Runners-Up" section under
-  any heading. A shorter article is the correct outcome here.
+  any heading. A shorter article is the correct outcome here, and the word count
+  in the task block above already allows for it -- do not pad to reach a length.
 """
         # No alternatives means nothing to compare, and a one-row "Comparison
         # Table" is the vacuous shape that had to be deleted by hand from five
@@ -1691,11 +1692,27 @@ STRUCTURE:
     else:
         structure = f"""ARTICLE FORMAT: Buying guide -- {title}
 STRUCTURE: Opening (100+ words, NO heading - begin prose directly) | What to Look For (H2, 5-6 key factors) | Our Top Pick {product_name} (H2, 100 words, affiliate link) | Common Mistakes to Avoid (H2, 3-4 pitfalls) | FAQ (H2, 4-5 real questions) | Closing (80+ words with affiliate link, NO heading - begin prose directly)"""
+    # A one-product roundup gets a lower word count, and this is load-bearing
+    # rather than tidy. Asking for 950-1100 firm words about a single product,
+    # in the same prompt that forbids naming a second one, leaves padding as the
+    # only way to comply -- and the only thing left to pad is featured-product
+    # detail. That is where best-dog-backpack-carrier's "dual mesh panels
+    # measure a generous 8 x 10 in" and "8 mm thick brushed-nylon padding" came
+    # from. The floor stays above validate_output's MIN_WORD_COUNT of 700 so the
+    # shorter shape clears the gate instead of being held for length.
+    if fmt == "roundup" and not product.get("runners_up"):
+        length_line = ("Length: 750-900 words of body content. Complete every section; do "
+                       "not stop early. Do not pad to reach it: this article covers one "
+                       "product, and inventing detail to fill space is what gets an "
+                       "article held.")
+    else:
+        length_line = ("Length: 950-1100 words of body content. This is firm. Complete "
+                       "every section; do not stop early.")
     return f"""<task>
 Write a complete, publish-ready blog post using the product data and structure below.
 Title: "{title}"
 Focus keyword: "{keyword}"
-Length: 950-1100 words of body content. This is firm. Complete every section; do not stop early.
+{length_line}
 </task>
 
 <featured_product>

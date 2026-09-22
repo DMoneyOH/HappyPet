@@ -2896,6 +2896,32 @@ class TestBuildWriterInputs(unittest.TestCase):
         self.assertIn("NO Comparison Table", out["user"])
         self.assertNotIn("Comparison Table (H2)", out["user"])
 
+    def test_a_one_product_roundup_is_not_asked_for_a_four_product_word_count(self):
+        """The two halves of the brief have to agree or the model resolves the
+        contradiction by padding, and the only thing left to pad is
+        featured-product detail -- which is the same fabrication moved rather
+        than removed. The floor stays above validate_output's MIN_WORD_COUNT so
+        the shorter shape is not then held for length.
+
+        Reachable today, not hypothetical: refill_products.apply_resolution only
+        sets runners_up when the search returned a distinct-brand candidate, so
+        a topic whose results are all one brand reaches the generator with none.
+        """
+        import generate_posts as gp
+        base = {"topic": "best-mats", "title": "Best Mats", "keyword": "best mats",
+                "format": "roundup", "name": "TopMat", "category": "dogs",
+                "species": "dog"}
+        alone = self.gp.build_writer_inputs("best-mats", dict(base))["user"]
+        self.assertIn("Length: 750-900 words", alone)
+        self.assertNotIn("950-1100", alone)
+        self.assertNotIn("This is firm", alone)
+        floor = int(re.search(r"Length: (\d+)-", alone).group(1))
+        self.assertGreater(floor, 700, "asks for fewer words than the gate accepts")
+        # And the inverse: a real roundup keeps the original length.
+        withalts = self.gp.build_writer_inputs(
+            "best-mats", dict(base, runners_up="MatA;MatB"))["user"]
+        self.assertIn("Length: 950-1100 words", withalts)
+
     def test_roundup_with_runners_up_still_asks_for_both_sections(self):
         """The inverse. Removing the fabrication source must not remove the
         feature: an entry that supplies alternatives still gets an Additional
