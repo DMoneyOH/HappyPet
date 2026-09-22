@@ -2016,9 +2016,9 @@ class TestFirsthandClaimGuard(unittest.TestCase):
                 self.assertTrue(self.gp.find_firsthand_claims(s), s)
 
     def test_flags_the_after_testing_opener(self):
-        """The single commonest shape in the published corpus -- 30 of the 60
-        claims. "After extensive testing and evaluating..." asserts a test that
-        never happened, whatever follows it."""
+        """The commonest shape in the published corpus by a wide margin.
+        "After extensive testing and evaluating..." asserts a test that never
+        happened, whatever follows it."""
         for s in ("After extensive testing and evaluating the bed, several features stood out.",
                   "After thoroughly testing the harness, the verdict is clear.",
                   "Beyond independent testing, owner sentiment is worth a look.",
