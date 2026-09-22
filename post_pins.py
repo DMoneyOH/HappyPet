@@ -25,7 +25,21 @@ Board routing:
   HOME   -> happypet_pin_home
   TOYS   -> happypet_pin_toys
 
-value1=image_url  value2="title | pin_desc"  value3=source_url
+value1=image_url  value2=title (capped at 100 chars)  value3=source_url
+
+value2 used to be "title | pin_desc" and this line used to say so long after it
+stopped being true. a3fab21 removed the concatenation deliberately: Pinterest
+caps the field at 100 characters, so appending the description overran the cap
+and caused truncation errors.
+
+The description is NOT lost by that. generate_posts.py hands the same pin_desc
+to make_pin_for_post() first, which renders it onto the pin image itself
+(generate_pin_images.py draws it under the title), and only then records it in
+the queue file. It reaches Pinterest in the artwork. Putting it back in value2
+would publish it twice and re-break the 100-char cap.
+
+So: do not "restore" the concatenation on the strength of a docstring.
+test_pipeline.py::TestPinPayloadIsTitleOnly pins the current behavior.
 
 Usage:
   python3 post_pins.py
