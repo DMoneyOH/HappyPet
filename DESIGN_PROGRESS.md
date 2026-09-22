@@ -379,3 +379,131 @@ would otherwise beat the user agent's own `[hidden]` rule, exactly as it did in 
 
 then render by bare name with `mcp__html-render__render_html_page` and **open the PNG and
 look at it.** Every defect in R2.4 was found that way; none were visible in the markup.
+
+---
+
+## Round 3 — palette and the top-of-page pet signal (2026-09-22)
+
+Round 2 was reviewed live by the Director. **He kept the direction**: the structure and the
+modernness stay, and nothing goes back toward round 1 or the old skeleton. Two things were
+wrong, both about identity rather than layout:
+
+1. **Black plus acid lime reads "techie", not "pet".** He wants warm and colourful.
+2. **Nothing says "pet site" at a glance.** The old site had dog-and-cat art at the top doing
+   that job in the first half-second. Round 2 has no equivalent.
+
+This round changes those two things and touches nothing else. Every round 2 lock except
+colour survives intact: radius 0 everywhere, one shadow token, hairlines instead of cards,
+1-major / 2-wide / rest-standard scale, no webfont, system grotesque display, Georgia prose,
+two live filter axes with species permanent.
+
+### R3.1 The colour rule that replaced round 2's
+
+Round 2's rule was "ink on paper plus one accent used as a surface". The failure was not the
+particular hue. It was that the only large flat areas on the page were near-black, which is
+what a tech product looks like. So the new rule keeps the surface-only discipline and gives
+it warmth and quantity. It is written into the stylesheet header as lock 2:
+
+| Token | Hue | Job | Contrast |
+| --- | --- | --- | --- |
+| `--accent` | marigold `#FFB627` | **Surface only.** Headline phrase, hero pet panel, lead numeral, every primary and buy button | ink on it 9.6:1 |
+| `--hot` | tomato `#C6381B` | **Ink only.** Running numerals, live filter state | 4.8:1 on paper |
+| `--night` | spruce `#16402F` | The one dark section ground, replacing near-black | cream on it 10.6:1 |
+| `--paper` | cream `#FFF3E2` | Page ground | ink 15.4:1, `--ink-2` 8.1:1, `--ink-3` 5.0:1 |
+
+Saturated hue appears as **area**, never as a pastel tint and never as a coloured chip on a
+card. That distinction is doing real work: seven pastel hues on small chips is exactly what
+made round 1 read as a kids' template, and it is not the same thing as three saturated hues on
+large flat blocks. One accent, one ink hue, one band ground, used identically on every page.
+
+**Dark mode was recomputed, not inherited.** Light ink is a warm brown and the light band is
+spruce, so every dark value had to move with them. The page ground is a warm near-black
+(`#1A1411`), never a neutral grey, or paper and band would read as two different sites.
+Tomato is too dark to be ink on a dark ground, so it lifts to a warm ember `#FF8A5C` (7.9:1)
+and keeps the same job. Marigold is unchanged in both schemes: it is a surface, carrying the
+same ink. Every pair above was computed, not eyeballed.
+
+`_layouts/default.html`'s two `theme-color` metas moved with the palette (`#2A1912` light,
+`#1A1411` dark). Left alone they would have put black browser chrome above a cream page, which
+is the first thing a phone shows.
+
+### R3.2 The pet signal, in two places
+
+**The hero panel.** `assets/images/hero-pets.png` is the old site's own dog-and-cat cut-out,
+cropped to its bounding box and colour-quantised: 298 KB down to **56 KB**, which matters
+because the traffic channel is mobile Pinterest and this is the LCP element. It sits on a flat
+marigold block. The art is a cut-out with no ground of its own, so the marigold *is* the
+composition; on a white panel it would float.
+
+It runs **first in source order**, so on a phone the dog and the cat are the first thing under
+the masthead and the site says "pets" before a word of it is read. It takes the aside's column
+on desktop and stretches full height, which is also what keeps R2.4 defect 4 (the dead
+top-right quadrant) from coming back.
+
+The aside's three-row fact list is **gone rather than moved**. It restated three lines the
+"how we choose" band states below with the same numbers, and keeping it would have squeezed
+the art into half a column for no new information.
+
+**The wordmark's mark.** Higher leverage than the hero, because it sits above the fold on all
+49 post pages plus `/dogs/`, `/cats/` and the static pages, where hero art never appears.
+Round 2's lime square said nothing. It is a paw now, drawn as a CSS `mask` over a tomato
+ground so it takes the palette's colour and recolours in dark mode for free. The footer
+wordmark carries the same paw in marigold.
+
+### R3.3 Defects found by rendering and looking (each fixed)
+
+1. **The paw masked as a solid square.** `pawprint-nav.png` has an alpha channel, but the
+   alpha is its rounded *tile*, not the paws: the paws are dark ink painted on an opaque
+   marigold ground. Masking with it produced a tomato rounded rectangle. `paw-mask.png` is
+   derived from that file with alpha taken from the paw ink instead, opened with a min/max
+   filter to drop the antialiasing speckle at the tile's corners.
+2. **Two paws were mush at wordmark size.** The mark renders at roughly 20px. The derived
+   mask keeps one paw, not the pair.
+3. **The hero panel composed differently at 1280 and at 1440.** A negative right margin ran
+   it to the screen edge at 1280, slicing the dog through the body, while at 1440 (where the
+   wrap is centred) it stopped short. Same rule, two compositions. The panel now ends flush
+   with the container's right gutter, identical at every desktop width.
+4. **The pet band floated below a strip of paper on a phone.** `.lede` carried 2.4rem of top
+   padding from round 2, when its first child was text. With the panel first it has to sit
+   flush under the masthead, so that padding moved onto `.lede-head`.
+5. **Two hardcoded `rgba(242, 239, 230, .2)` hairlines inside the band** were round 2's bone
+   colour, left behind by a token-only swap. They are `--rule-night` now.
+
+### R3.4 What was rendered and actually looked at
+
+Home at 390 and at 1280 full-page light, 390 and 1440 viewport light, 390 full-page dark
+including the band and footer, plus a 390 dark crop of the masthead and hero. An article at
+390 light. `/about/` at 390. `/dogs/` at 768.
+
+**Not covered, stated rather than implied:** dark mode on `/dogs/`, `/cats/`, the article and
+the static pages; 320px; any browser other than this machine's Chromium; iOS and Android type
+rendering; and a real Jekyll build, which this machine still cannot run (see 0). The renderer
+has no JavaScript, so the filter axes and "show more" were reviewed as code, never seen
+working. R2.5's warning still applies: these images show every entry, where a real browser
+shows 12 and a paging button.
+
+### R3.5 Carried forward, still open
+
+Everything in R2.6 is unchanged and still open: the orphaned `_includes/hero-graphic.html`, no
+404 page, em-dashes reaching entry faces from `_posts` front matter, no thumbnail step in the
+publishing pipeline, and internal notes still static-copied to the live site. Nothing is
+committed to `main` and nothing is pushed. A push here is Class 3 (see 0). New this round:
+
+1. `assets/images/happy-pets.png` (298 KB) is now unused by the site. `hero-pets.png` is
+   derived from it and `og-image.png` is a byte-identical copy of it, so it is kept rather
+   than deleted, but nothing references it.
+2. **`og-image.png` was not touched.** It is the old share card and it no longer matches the
+   site's palette. That is a share-surface decision, not a layout one, and it is the obvious
+   place to start if the next job is traffic: the marigold pet panel is a far more shareable
+   card than a bare cut-out on white.
+
+### R3.6 Commands
+
+    ./.venv/Scripts/python.exe scripts/preview_render.py home --name r3-home-short --limit 6
+    ./.venv/Scripts/python.exe scripts/preview_render.py home --dark --limit 5 --name r3-home-dark
+    ./.venv/Scripts/python.exe scripts/preview_render.py post --slug best-dog-pools --name r3-post
+    ./.venv/Scripts/python.exe scripts/preview_render.py page --slug about --name r3-about
+    ./.venv/Scripts/python.exe scripts/preview_render.py dogs --name r3-dogs
+
+then render by bare name with `mcp__html-render__render_html_page` and **open the PNG and look
+at it.** Every defect in R3.3 was found that way; none were visible in the markup.
