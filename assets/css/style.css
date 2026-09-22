@@ -14,11 +14,22 @@
       box with a shadow. There is exactly one shadow token and it is only
       allowed on the sticky purchase bar, which has to lift off the page.
 
-   2. COLOUR. Ink on paper, and one accent. The accent (--accent, acid lime)
-      is a SURFACE, never ink: it appears as a filled block carrying ink text
-      at 14.5:1. It is never used as a text colour on paper, where it would
-      fail AA at any size. No second accent exists. The teal and coral of the
-      previous system are gone.
+   2. COLOUR (round 3). Warm ink on warm paper, and THREE hues, each with a
+      single job. Round 2 ran ink-on-bone plus acid lime, which read as a tech
+      product rather than a pet site. The rule that replaced it:
+
+        --accent  marigold  SURFACE ONLY. Large filled blocks carrying ink at
+                            9.6:1: the headline phrase, the hero pet panel,
+                            the lead numeral, every primary and buy button.
+        --hot     tomato    INK ONLY, 4.8:1 on paper. Running numerals, live
+                            filter state, link underlines. Never a surface.
+        --night   spruce    One dark section ground, replacing round 2's
+                            near-black. Cream on it at 10.6:1.
+
+      Saturated hue appears as AREA, never as a pastel tint and never as a
+      coloured chip on a card. That distinction is the whole difference
+      between this and the seven-pastel kids' template of the first pass.
+      Every pair below was computed, not eyeballed.
 
    3. TYPE. Two families, both free. Display is the reader's own system
       grotesque at 800, set very large, lowercase, tight. Long-form prose is
@@ -33,28 +44,33 @@
    ========================================================================= */
 
 :root {
-  /* Paper and ink */
-  --paper:      #F2EFE6;
-  --paper-2:    #FBFAF6;   /* raised: photo tiles, the sticky bar */
+  /* Paper and ink — both warm. */
+  --paper:      #FFF3E2;
+  --paper-2:    #FFFBF3;   /* raised: photo tiles, the sticky bar */
   --tile:       #FFFFFF;   /* product cut-outs sit on white grounds */
-  --night:      #121110;
+  --night:      #16402F;   /* spruce, the one dark band ground */
 
-  --ink:        #16150F;   /* 15.6:1 on paper */
-  --ink-2:      #4A4740;   /* 7.9:1  on paper */
-  --ink-3:      #6E695F;   /* 4.7:1  on paper */
-  --on-night:   #F2EFE6;   /* 16.5:1 on night */
-  --on-night-2: #A8A399;   /* 6.9:1  on night */
+  --ink:        #2A1912;   /* 15.4:1 on paper */
+  --ink-2:      #5A463C;   /* 8.1:1  on paper */
+  --ink-3:      #7C6558;   /* 5.0:1  on paper */
+  --on-night:   #FFF3E2;   /* 10.6:1 on the band */
+  --on-night-2: #B9CFC2;   /* 7.1:1  on the band */
 
-  --rule:       rgba(22, 21, 15, .16);
-  --rule-2:     rgba(22, 21, 15, .40);
-  --rule-hard:  #16150F;
+  --rule:       rgba(42, 25, 18, .16);
+  --rule-2:     rgba(42, 25, 18, .40);
+  --rule-hard:  #2A1912;
 
-  /* The one accent. Surface only. */
-  --accent:      #D8F24B;
-  --accent-deep: #C4DE33;
-  --on-accent:   #16150F;  /* 14.5:1 */
+  /* Surface hue. Never ink. */
+  --accent:      #FFB627;
+  --accent-deep: #F0A012;
+  --on-accent:   #2A1912;  /* 9.6:1 */
 
-  --focus:      #16150F;
+  /* Ink hue. Never a surface. */
+  --hot:         #C6381B;  /* 4.8:1 on paper */
+
+  --rule-night: rgba(255, 243, 226, .22);  /* hairlines inside the band */
+
+  --focus:      #2A1912;
 
   --wrap: 1280px;
   --gut: 20px;
@@ -71,22 +87,31 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --paper:      #121110;
-    --paper-2:    #1B1A18;
-    --tile:       #EDEAE1;   /* product shots are cut on light grounds */
-    --night:      #000000;   /* the dark band still has to separate from the page */
+    /* Recomputed for round 3, not inherited: the light scheme's ink is a warm
+       brown and its band is spruce, so every value here had to move with it.
+       The page ground is a warm near-black, never neutral grey, or the paper
+       and the band would read as belonging to two different sites. */
+    --paper:      #1A1411;
+    --paper-2:    #241C17;
+    --tile:       #F6EEE2;   /* product shots are cut on light grounds */
+    --night:      #0E2B20;   /* the band still has to separate from the page */
 
-    --ink:        #F2EFE6;
-    --ink-2:      #C3BFB4;
-    --ink-3:      #98938A;
-    --on-night:   #F2EFE6;
-    --on-night-2: #A8A399;
+    --ink:        #FFF3E2;   /* 16.6:1 on paper */
+    --ink-2:      #CFBDAE;   /* 10.0:1 */
+    --ink-3:      #A3907F;   /* 6.0:1  */
+    --on-night:   #FFF3E2;   /* 13.8:1 on the band */
+    --on-night-2: #B9CFC2;
 
-    --rule:       rgba(242, 239, 230, .20);
-    --rule-2:     rgba(242, 239, 230, .45);
-    --rule-hard:  #F2EFE6;
+    --rule:       rgba(255, 243, 226, .20);
+    --rule-2:     rgba(255, 243, 226, .45);
+    --rule-hard:  #FFF3E2;
 
-    --focus:      #D8F24B;
+    /* Tomato is too dark to be ink on a dark ground; it lifts to a warm
+       ember at 7.9:1 and keeps the same job. Marigold is unchanged: it is a
+       surface in both schemes and carries the same ink on it. */
+    --hot:        #FF8A5C;
+
+    --focus:      #FFB627;
 
     color-scheme: dark;
   }
@@ -208,12 +233,25 @@ button { font: inherit; color: inherit; }
   letter-spacing: -.035em;
   line-height: 1;
 }
+/* The wordmark's mark is a paw, not a square. Round 2's lime square was the
+   only thing above the fold on 49 post pages, /dogs/ and /cats/, and it said
+   nothing about pets. It is drawn as a MASK over a tomato ground rather than
+   as an <img>, so it takes the palette's colour instead of shipping its own
+   and it recolours in dark mode for free.
+
+   paw-mask.png is derived from the site's own pawprint-nav.png rather than
+   drawn fresh: that file's alpha is its rounded TILE, not the paws, so using
+   it directly masked a solid square (seen in the first r3 render). The
+   derived file carries alpha on the paw ink only, and holds one paw, not
+   two: at 20px a pair is mush. */
 .brand i {
   display: inline-block;
-  width: .5rem; height: .5rem;
-  background: var(--accent);
+  width: 1.05em; height: 1.05em;
+  background: var(--hot);
+  -webkit-mask: url('/assets/images/paw-mask.png') center / contain no-repeat;
+          mask: url('/assets/images/paw-mask.png') center / contain no-repeat;
   font-style: normal;
-  translate: 0 -.05em;
+  translate: 0 .12em;
 }
 .brand span {
   display: none;
@@ -244,9 +282,12 @@ button { font: inherit; color: inherit; }
 /* ------------------------------------------------------------------ lede */
 
 .lede {
-  padding-block: 2.4rem 0;
+  /* No top padding on a phone: the pet panel is the first child and has to
+     sit flush under the masthead, not float below a band of paper. */
+  padding-block: 0;
   border-bottom: 1px solid var(--rule-hard);
 }
+.lede-head { padding-top: 1.9rem; }
 
 .lede h1 {
   font-family: var(--font-display);
@@ -288,29 +329,27 @@ button { font: inherit; color: inherit; }
   color: var(--ink-2);
 }
 
-/* Desktop only — see the note in the layout. */
-.lede-meta { display: none; margin: 0; }
-.lede-meta > div {
+/* The identity panel. A marigold block with the pets cut into it, bleeding
+   past both edges of the container on a phone so it reads as the page's own
+   ground rather than as a picture someone placed. It is the first element in
+   the source, which is what makes "this is a pet site" arrive before the
+   headline does. The art is a cut-out with no ground of its own, so the
+   marigold IS the composition; on a white panel it would float. */
+.lede-pets {
+  background: var(--accent);
+  margin-inline: calc(var(--gut) * -1);
+  padding: 1.6rem var(--gut) 0;
   display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: 1rem;
-  padding-block: .55rem;
-  border-bottom: 1px solid var(--rule);
+  justify-content: center;
+  align-items: flex-end;
+  overflow: hidden;
 }
-.lede-meta > div:first-child { border-top: 1px solid var(--rule); }
-.lede-meta dt {
-  font-size: .6rem;
-  font-weight: 700;
-  letter-spacing: .16em;
-  text-transform: uppercase;
-  color: var(--ink-3);
-}
-.lede-meta dd {
-  margin: 0;
-  font-size: .86rem;
-  font-weight: 600;
-  text-align: right;
+.lede-pets img {
+  width: min(320px, 78%);
+  height: auto;
+  /* Sits ON the bottom edge of the block. A gap under a cut-out is the one
+     thing that makes it look pasted. */
+  margin-bottom: -2px;
 }
 
 .lede-actions {
@@ -426,7 +465,9 @@ button { font: inherit; color: inherit; }
 .seg.is-on {
   color: var(--ink);
   font-weight: 800;
-  border-bottom-color: var(--rule-hard);
+  /* Tomato marks the live axis. Both filters are always on, so this is the
+     only thing telling a reader what the index is currently showing. */
+  border-bottom-color: var(--hot);
 }
 .seg b {
   font-weight: 600;
@@ -521,7 +562,10 @@ button { font: inherit; color: inherit; }
 }
 
 /* The running number. Outlined rather than filled so 49 of them do not shout,
-   and so the accent stays reserved for the major entry and the buy action. */
+   and so marigold stays reserved for the major entry and the buy action.
+   Round 3 gives the outline the tomato ink hue: it is the one mark that
+   repeats all the way down the index, so it is where colour earns the most
+   ground for the least noise. */
 .entry-num {
   font-family: var(--font-display);
   font-weight: 800;
@@ -529,7 +573,7 @@ button { font: inherit; color: inherit; }
   line-height: .8;
   letter-spacing: -.05em;
   color: transparent;
-  -webkit-text-stroke: 1px var(--rule-2);
+  -webkit-text-stroke: 1px var(--hot);
   margin-bottom: .1rem;
 }
 
@@ -633,8 +677,10 @@ button { font: inherit; color: inherit; }
 
 /* ----------------------------------------------------------------- creed */
 
-/* The dark band. In the dark scheme --night goes to true black so this section
-   still separates from the page rather than dissolving into it. */
+/* The dark band. Round 2 made this near-black, which is most of why the page
+   read as a tech product: it is the single largest area of flat colour on the
+   site. It is spruce now. In the dark scheme --night deepens further so the
+   band still separates from the page rather than dissolving into it. */
 .creed {
   background: var(--night);
   color: var(--on-night);
@@ -657,7 +703,7 @@ button { font: inherit; color: inherit; }
   gap: 1rem;
   padding-bottom: 1.6rem;
   margin-bottom: 1.6rem;
-  border-bottom: 1px solid rgba(242, 239, 230, .2);
+  border-bottom: 1px solid var(--rule-night);
 }
 .creed-num b {
   display: block;
@@ -689,7 +735,7 @@ button { font: inherit; color: inherit; }
   display: grid;
   gap: .3rem;
   padding-top: .9rem;
-  border-top: 1px solid rgba(242, 239, 230, .2);
+  border-top: 1px solid var(--rule-night);
 }
 .creed-points b {
   font-family: var(--font-display);
@@ -1052,9 +1098,12 @@ button { font: inherit; color: inherit; }
 }
 .colophon-word i {
   display: inline-block;
-  width: .22em; height: .22em;
+  width: .5em; height: .5em;
   background: var(--accent);
+  -webkit-mask: url('/assets/images/paw-mask.png') center / contain no-repeat;
+          mask: url('/assets/images/paw-mask.png') center / contain no-repeat;
   font-style: normal;
+  translate: 0 .04em;
 }
 
 .colophon-cols {
@@ -1140,22 +1189,29 @@ button { font: inherit; color: inherit; }
   body { font-size: 1.02rem; }
 
   .lede { padding-block: 4.5rem 0; }
+  .lede-head { padding-top: 0; }
   .lede .wrap { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, .65fr); gap: 3rem; align-items: stretch; }
-  .lede-head { grid-column: 1; }
-  .lede-sub { font-size: 1.08rem; max-width: 38ch; margin-top: 0; }
-  /* Top-and-bottom, not bottom-only: anchored at one end the column left a
-     dead quarter of the screen above it. */
-  .lede-aside {
+  .lede-head { grid-column: 1; grid-row: 1; }
+  .lede-sub { font-size: 1.08rem; max-width: 38ch; }
+  /* Column two, full height. The aside it replaces was anchored at one end
+     and left a dead quarter of the screen; a panel that stretches cannot.
+     The art is bottom-aligned inside it and allowed to overflow the top, so
+     the column reads as a filled block of colour at any headline length. */
+  .lede-pets {
     grid-column: 2;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    gap: 2rem;
-    padding-left: 2.4rem;
-    border-left: 1px solid var(--rule-hard);
+    grid-row: 1;
+    align-self: stretch;
+    /* Flush with the container's right edge, NOT bled past it: at exactly
+       1280 the negative margin ran the panel to the screen edge and sliced
+       the dog through the body, while at 1440 it stopped short. Same rule,
+       two different compositions. Ending at the gutter is identical at every
+       desktop width. */
+    margin-inline: 0;
+    padding: 2rem 1.5rem 0;
+    min-height: 100%;
   }
-  .lede-meta { display: block; }
-  .lede-actions { margin-top: 1.4rem; }
+  .lede-pets img { width: 100%; max-width: 420px; }
+  .lede-actions { margin-top: 1.8rem; }
   .lede-strip { margin-top: 3.2rem; gap: 10px; }
   .lede-strip img { flex-basis: 150px; width: 150px; height: 150px; }
 

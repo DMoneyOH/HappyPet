@@ -11,26 +11,27 @@ layout: default
 
 <section class="lede">
   <div class="wrap">
+    {%- comment -%}
+      Round 3. The pet panel takes the aside's column and runs FIRST in source
+      order, so on a phone the dog and the cat are the first thing under the
+      masthead: the site says "pets" before a word of it is read. The old
+      aside's fact list is gone rather than moved. It restated three lines the
+      "how we choose" band states below with the same numbers, and keeping it
+      would have squeezed the art into half a column for no new information.
+    {%- endcomment -%}
+    <div class="lede-pets">
+      <img src="{{ site.baseurl }}/assets/images/hero-pets.png"
+           alt="A golden retriever and a tabby cat, side by side"
+           width="505" height="361" fetchpriority="high" decoding="async">
+    </div>
+
     <div class="lede-head">
       <p class="eyebrow">Dog &amp; cat gear, independently chosen</p>
       <h1>which one should you <em>actually buy?</em></h1>
-    </div>
-    <div class="lede-aside">
-      {%- comment -%}
-        Desktop only. On a phone this would push the index two thumb-scrolls
-        further down for facts that are also stated in the band below.
-      {%- endcomment -%}
-      <dl class="lede-meta">
-        <div><dt>Covering</dt><dd>Dogs &amp; cats</dd></div>
-        <div><dt>We link</dt><dd>Amazon, Chewy, Petco</dd></div>
-        <div><dt>Paid placements</dt><dd>None</dd></div>
-      </dl>
-      <div>
-      <p class="lede-sub">{{ site.posts | size }} reviews of the things dog and cat owners are already buying — what holds up, what to skip, and where to get it.</p>
+      <p class="lede-sub">{{ site.posts | size }} reviews of the things dog and cat owners are already buying. What holds up, what to skip, and where to get it.</p>
       <div class="lede-actions">
         <a class="btn" href="#index">Open the index</a>
         <a class="btn btn--bare" href="#how">How we choose</a>
-      </div>
       </div>
     </div>
   </div>
