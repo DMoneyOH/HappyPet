@@ -1968,6 +1968,213 @@ class TestRewritePromptGuardrails(unittest.TestCase):
         self.assertNotIn("add a concrete human moment", self.p)
 
 
+class TestFirsthandClaimGuard(unittest.TestCase):
+    """Happy Pet Product Reviews does not test, try, own or handle any product --
+    it works from retailer specs, star ratings and customer reviews, and about.md
+    says so. An article claiming otherwise is a false advertising claim on a
+    monetized affiliate page, which is why this is a hold and not a style rule.
+
+    The generator published "We tested the top litters so you can finally say
+    goodbye to that smell" as the frontmatter description of
+    best-cat-litter-odor-control, plus roughly 60 body claims across 26 posts
+    ("Testing found", "the test dogs (a spirited Labrador Retriever...)", "our
+    testing lab", "a panel of furry taste-testers"). The prompts never forbade
+    it, so nothing downstream could catch it.
+
+    Both directions are asserted here. A guard that fires on "DNA test kit" or
+    "third-party testing for purity" gets an allowlist bolted on and then gets
+    deleted, so the false-positive cases are tests, not comments.
+    """
+
+    def setUp(self):
+        import generate_posts as gp
+        self.gp = gp
+
+    # --- the claim shapes the generator actually produced -------------------
+    def test_flags_first_person_testing_claim_in_a_pin_description(self):
+        self.assertTrue(self.gp.find_firsthand_claims(
+            "We tested the top litters so you can finally say goodbye to that smell."))
+
+    def test_flags_testing_as_the_sentence_subject(self):
+        for s in ("Testing found the lid stays put.",
+                  "Testing put the litter through its paces in a multi-cat home.",
+                  "Testing has shown how much difference the right gear makes.",
+                  "That's why testing covered a range of collars.",
+                  "So testing dug into the cheaper options."):
+            with self.subTest(s=s):
+                self.assertTrue(self.gp.find_firsthand_claims(s), s)
+
+    def test_flags_an_apparatus_the_site_does_not_have(self):
+        for s in ("The test dogs (a spirited Labrador Retriever) pulled hard.",
+                  "The test cat usually turns up her nose at still water.",
+                  "It became the go-to in our testing lab.",
+                  "A panel of furry taste-testers weighed in.",
+                  "Over the testing period the motor stayed quiet.",
+                  "Testers did note the lid rattles.",
+                  "A test household with two medium-sized dogs used it for days."):
+            with self.subTest(s=s):
+                self.assertTrue(self.gp.find_firsthand_claims(s), s)
+
+    def test_flags_the_after_testing_opener(self):
+        """The single commonest shape in the published corpus -- 30 of the 60
+        claims. "After extensive testing and evaluating..." asserts a test that
+        never happened, whatever follows it."""
+        for s in ("After extensive testing and evaluating the bed, several features stood out.",
+                  "After thoroughly testing the harness, the verdict is clear.",
+                  "Beyond independent testing, owner sentiment is worth a look.",
+                  "In testing, the difference in odor reduction was obvious.",
+                  "The pros were weighed while testing each option."):
+            with self.subTest(s=s):
+                self.assertTrue(self.gp.find_firsthand_claims(s), s)
+
+    def test_flags_experience_claims_that_never_say_the_word_testing(self):
+        for s in ("After weeks of trials the vest held up.",
+                  "These are the ones that finally survive, tested by real power chewers.",
+                  "It shows firsthand how much difference the right carrier makes.",
+                  "All six products were tried with a resident tabby.",
+                  "Hands-on experience with the buckle says otherwise.",
+                  "We put the PetSafe Easy Walk to the test on real strong pullers.",
+                  "A popular choice put through its paces here."):
+            with self.subTest(s=s):
+                self.assertTrue(self.gp.find_firsthand_claims(s), s)
+
+    # --- the inverse direction: legitimate prose must stay clean ------------
+    def test_does_not_flag_testing_as_a_product_category_or_third_party_lab(self):
+        """best-dog-dna-tests alone carries 30+ legitimate "test" hits. A guard
+        that fires on any of these is the guard that gets deleted."""
+        for s in ("A dog DNA test kit can reveal breed mix.",
+                  "The pet DNA testing world moves fast.",
+                  "Wisdom Panel is a trusted name in the pet DNA testing world.",
+                  "Ask whether a brand meets the AAFCO testing requirements.",
+                  "Premium brands undergo stricter testing for purity.",
+                  "Look for third-party testing or a verified rating.",
+                  "Test it over the kitchen sink before the first walk.",
+                  "Some cats have a habit of testing fabrics with their claws.",
+                  "Testing a new food should be gradual, over about a week.",
+                  "Owners report the mat stays cool through an afternoon.",
+                  "Amazon reviewers repeatedly mention the quiet motor.",
+                  "The 5L hopper holds about a month of food for one cat."):
+            with self.subTest(s=s):
+                self.assertEqual(self.gp.find_firsthand_claims(s), [], s)
+
+    # --- wiring: every path that could publish a claim is gated -------------
+    def test_both_output_gates_hold_an_article_that_claims_testing(self):
+        body = ("Testing found the harness sits well. " + "word " * 900 +
+                "https://amzn.to/3TestABC")
+        for stage in ("generate", "review"):
+            with self.subTest(stage=stage):
+                with self.assertRaises(self.gp.GenerationStageError) as cm:
+                    self.gp.validate_output(stage, body, "slug",
+                                            affiliate_url="https://amzn.to/3TestABC")
+                self.assertIn("firsthand", str(cm.exception).lower())
+
+    def test_a_clean_body_still_passes_both_gates(self):
+        body = ("Owners report the harness sits well. " + "word " * 900 +
+                "https://amzn.to/3TestABC")
+        for stage in ("generate", "review"):
+            with self.subTest(stage=stage):
+                self.gp.validate_output(stage, body, "slug",
+                                        affiliate_url="https://amzn.to/3TestABC")
+
+    def test_front_matter_refuses_to_write_a_testing_claim_as_the_description(self):
+        """The published `description` IS the pin description, and it never went
+        through validate_output. This is the structural backstop: every path that
+        writes a post file builds its front matter here."""
+        with self.assertRaises(self.gp.GenerationStageError):
+            self.gp.front_matter("T", "kw", "https://amzn.to/x", "slug", "cat",
+                                 "cat-litter", "We tested the top litters.")
+
+    def test_no_post_file_is_written_when_the_pin_description_claims_testing(self):
+        """Behavioural, not a refusal message: drive the real stage_article over
+        a temp repo and assert on the victim's own record -- no draft file, no
+        pin-queue entry. This is the path that published the litter claim."""
+        product = {"topic": "best-x", "title": "Best X", "keyword": "best x",
+                   "format": "single_review", "name": "The X", "category": "cat-litter",
+                   "species": "cat", "affiliate_url": "https://amzn.to/abc"}
+        body = "## Heading\n\n" + ("word " * 800)
+        with tempfile.TemporaryDirectory() as td:
+            posts = Path(td) / "_posts"; posts.mkdir()
+            pinq  = Path(td) / "_pin_queue"; pinq.mkdir()
+            with patch.object(self.gp, "POSTS_DIR", posts), \
+                 patch.object(self.gp, "REPO_DIR", Path(td)), \
+                 patch.object(self.gp, "PIN_GEN_AVAILABLE", False):
+                with self.assertRaises(self.gp.GenerationStageError):
+                    self.gp.stage_article(
+                        "best-x", product, body,
+                        pin_desc="We tested the top litters so you can say goodbye to that smell.",
+                        index=0)
+            self.assertEqual(list(posts.glob("*.md")), [])
+            self.assertEqual(list(pinq.glob("*.json")), [])
+
+    def test_front_matter_writes_a_clean_description_normally(self):
+        fm = self.gp.front_matter("T", "kw", "https://amzn.to/x", "slug", "cat",
+                                  "cat-litter", "The litter that actually holds odor down.")
+        self.assertIn("description:", fm)
+
+    def test_the_rule_text_is_single_sourced_into_all_three_prompts(self):
+        """Generator, reviewer and rewrite prompts must state the same rule the
+        gate enforces, or an article that follows the brief gets held anyway."""
+        rule = self.gp.FIRSTHAND_CLAIM_RULE
+        self.assertIn(rule, self.gp.GENERATOR_SYSTEM_PROMPT)
+        self.assertIn(rule, self.gp.make_review_prompt("T", "kw", "body"))
+        self.assertIn(rule, self.gp.make_rewrite_prompt("T", "kw", "body", "fix it"))
+
+    def test_the_reviewer_can_fail_an_article_on_this_alone(self):
+        p = self.gp.make_review_prompt("T", "kw", "body")
+        self.assertIn("22. FALSE FIRSTHAND CLAIMS", p)
+        # Stated in all three places the reviewer reads: the audit category, the
+        # PASS CRITERIA list, and the pass=false rule. A category the pass
+        # criteria never mention is a category the model scores around.
+        self.assertIn("NO claim of firsthand experience with the product", p)
+        self.assertIn("firsthand-experience claim present", p)
+
+
+class TestBannedPhraseBoundaries(unittest.TestCase):
+    """BANNED_PHRASE_MAP substitutes inside the word it matches, so an unanchored
+    pattern eats the stem of a longer word: 'pet parent' fired inside 'pet
+    parenthood' and published "a bittersweet reality of dog ownerhood"
+    (best-senior-dog-food)."""
+
+    def setUp(self):
+        import generate_posts as gp
+        self.gp = gp
+
+    def test_pet_parenthood_becomes_ownership_not_ownerhood(self):
+        out = self.gp.scrub_banned_phrases(
+            "It is a bittersweet reality of pet parenthood.", "dog")
+        self.assertIn("dog ownership", out)
+        self.assertNotIn("ownerhood", out)
+
+    def test_the_ordinary_substitutions_still_fire(self):
+        cases = [("Many pet parents agree.",        "dog owners"),
+                 ("Every pet parent knows.",        "dog owner"),
+                 ("Your furry friend will love it.", "dog"),
+                 ("Furry friends deserve better.",  "dogs"),
+                 ("Our furry family members nap.",  "dogs"),
+                 ("A fur baby needs space.",        "dog")]
+        for text, expected in cases:
+            with self.subTest(text=text):
+                self.assertIn(expected, self.gp.scrub_banned_phrases(text, "dog"))
+
+    def test_every_pattern_is_word_anchored_on_both_ends(self):
+        """Structural, not a list of known-bad words: any future entry that
+        forgets a boundary can eat a longer word the same way 'pet parent' did."""
+        unanchored = [p for p, _ in self.gp.BANNED_PHRASE_MAP
+                      if not (p.startswith(r"\b") and p.endswith(r"\b"))]
+        self.assertEqual(unanchored, [])
+
+    def test_no_pattern_matches_inside_a_longer_word(self):
+        """The defect in one assertion: run every pattern against its own phrase
+        with a letter suffix, which must no longer match."""
+        import re as _re
+        bitten = []
+        for pattern, _ in self.gp.BANNED_PHRASE_MAP:
+            phrase = pattern.replace(r"\b", "")
+            if _re.search(pattern, phrase + "hood", _re.IGNORECASE):
+                bitten.append(pattern)
+        self.assertEqual(bitten, [])
+
+
 class TestAuthoritativeGate(unittest.TestCase):
     """authoritative_gate computes pass from scores + hard-checks and IGNORES
     the reviewer's `pass` boolean -- unlike evaluate_scorecard, a reviewer
@@ -3750,6 +3957,15 @@ class TestPublishedPostsVoiceIntegrity(unittest.TestCase):
 
     These assert the SHAPE of the damage rather than the individual sentences,
     so a repeat of the same mistake fails here whatever wording it produces.
+
+    One of that pass's substitutions has since been reversed on purpose: it
+    recast first-person sentences as "Testing found X" / "Testing showed X",
+    which is third person and also a claim this site tested something it never
+    touched. The recorded target for an observation is now the reviewer pool
+    ("owners report X", "reviewers mention X") or a flat statement of the spec.
+    test_no_published_post_claims_firsthand_experience below enforces that; the
+    sentence-initial "testing" token in test_no_sentence_starting_in_lowercase
+    stays, since a lowercase sentence start is a casing artifact either way.
     The word "reviewers" itself is deliberately not banned: several posts cite
     real third-party reviewers ("Amazon reviewers have given it 4.6/5"), which
     is legitimate and was in the text before those commits ran.
@@ -3808,6 +4024,25 @@ class TestPublishedPostsVoiceIntegrity(unittest.TestCase):
         self.assertEqual(
             [f"{n}: {m.group(0)!r}" for n, t in self.posts.items() for m in rx.finditer(t)],
             [])
+
+    def test_no_published_post_claims_firsthand_experience(self):
+        """The site does not test, try or handle any product, so no published
+        post may say it did. Uses the same detector the generator gates on, so
+        the published corpus and new output can never drift apart.
+
+        This supersedes part of the voice conversion in b65f1e4, deliberately.
+        That pass recast first-person sentences into "Testing found X" /
+        "Testing showed X", which satisfies the no-first-person rule and asserts
+        a test that never happened. "Owners report X" satisfies both. The
+        recorded target voice for an observation is the reviewer pool -- owners,
+        buyers, reviewers -- or a flat statement of the spec.
+        """
+        import generate_posts as gp
+        offenders = []
+        for name, text in self.posts.items():
+            for claim in gp.find_firsthand_claims(text):
+                offenders.append(f"{name}: {claim!r}")
+        self.assertEqual(offenders, [])
 
     def test_no_species_mismatch_in_closing_call_to_action(self):
         """A cat post told the reader to "treat your dog to some exciting new

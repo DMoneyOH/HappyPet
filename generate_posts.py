@@ -100,19 +100,28 @@ SITE_BASE        = "https://happypetproductreviews.com"
 # Banned phrases — apply to pin descriptions AND article body
 # Keep in sync with WRITING STYLE rules in make_prompt()
 # {noun} is filled per-product species: dog / cat / pet (species == both)
+#
+# Every pattern is \b-anchored on BOTH ends. Without the trailing boundary,
+# 'pet parent' fired inside 'pet parenthood' and published "dog ownerhood"
+# (best-senior-dog-food). A banned phrase that is a prefix of a longer real word
+# needs its own entry rather than a loose match, so the longer form is listed
+# FIRST and the list stays longest-first throughout (re.sub applies them in
+# order, so a shorter pattern placed first would eat the longer one's stem).
 BANNED_PHRASE_MAP = [
-    (r'pet parents',          '{noun} owners'),
-    (r'pet parent',           '{noun} owner'),
-    (r'furry family members', '{noun}s'),
-    (r'furry family member',  '{noun}'),
-    (r'furry family',         '{noun}s'),
-    (r'furry friend',         '{noun}'),
-    (r'fur babies',           '{noun}s'),
-    (r'fur baby',             '{noun}'),
-    (r'paw-some',             'great'),
-    (r'put our paws',         'done the research'),
-    (r'tail wagging',         'impressive'),
-    (r'tail-wagging',         'impressive'),
+    (r'\bpet parenthood\b',      '{noun} ownership'),
+    (r'\bpet parents\b',         '{noun} owners'),
+    (r'\bpet parent\b',          '{noun} owner'),
+    (r'\bfurry family members\b', '{noun}s'),
+    (r'\bfurry family member\b',  '{noun}'),
+    (r'\bfurry family\b',        '{noun}s'),
+    (r'\bfurry friends\b',       '{noun}s'),
+    (r'\bfurry friend\b',        '{noun}'),
+    (r'\bfur babies\b',          '{noun}s'),
+    (r'\bfur baby\b',            '{noun}'),
+    (r'\bpaw-some\b',            'great'),
+    (r'\bput our paws\b',        'done the research'),
+    (r'\btail wagging\b',        'impressive'),
+    (r'\btail-wagging\b',        'impressive'),
 ]
 
 # --- Canonical rule vocabulary --------------------------------------------
@@ -152,6 +161,95 @@ BANNED_PHRASES = [
     "many people believe", "it is widely known", "most agree",
 ]
 BANNED_INTENSIFIERS = ["very", "truly", "really", "incredibly", "absolutely", "deeply"]
+
+# --- Firsthand-experience claims (advertising exposure, not a style rule) ---
+# Happy Pet Product Reviews does not test, try, own or handle any product. Every
+# article is built from retailer specs, star ratings and customer reviews, and
+# about.md says exactly that ("Every review on this site is researched
+# thoroughly"). An article that says it tested a product is a false advertising
+# claim on a monetized affiliate page, so this is a HOLD, never a style nit.
+#
+# The patterns key on WHO is doing the testing, never on the word "test". A
+# \btest\w* rule is unusable here: best-dog-dna-tests is 30+ legitimate hits
+# ("DNA test kit" is the product category), and posts legitimately mention
+# third-party lab testing, "undergo stricter testing for purity", and reader
+# instructions ("test it over the kitchen sink"). A guard that fires on those
+# gets weakened or deleted within a month, so it has to discriminate by subject.
+#
+# Direction of error, deliberately chosen: these hold an article for a human
+# rather than rewrite it, so a false positive costs one held article and a
+# GitHub issue. A false negative publishes a false advertising claim. Hold.
+FIRSTHAND_CLAIM_PATTERNS = [
+    # "Testing" opening a sentence, which in this site's prose always means
+    # testing is the SUBJECT: "Testing found...", "Testing put the litter
+    # through its paces", "Testing has shown firsthand...". The negative
+    # lookahead is an allowlist of the words that make a sentence-initial
+    # "Testing" a legitimate gerund OBJECT phrase ("Testing a new food should
+    # be gradual"), so the default here is to flag rather than to allow.
+    r"(?:(?<=^)|(?<=[.!?]\s)|(?<=[.!?]\s\s))Testing\s+"
+    r"(?!a\b|an\b|the\b|your\b|his\b|her\b|their\b|each\b|every\b|both\b|two\b|one\b"
+    r"|several\b|multiple\b|different\b|new\b|for\b|is\b|at\b|in\b|on\b|can\b"
+    r"|should\b|takes\b|helps\b|means\b|matters\b)\w+",
+    # The same subject, mid-sentence and lowercase ("That's why testing put...",
+    # "So testing dug in"). Sentence position cannot be used here, so this one
+    # keys on the FOLLOWING VERB instead: an -ed form or one of the irregulars
+    # the generator actually produces. This is what keeps "DNA testing world",
+    # "stricter testing for purity" and "third-party testing" out of the net --
+    # all three are testing-as-noun, none is testing-as-actor.
+    r"\btesting\s+(?:also\s+|has\s+|had\s+|never\s+)?"
+    r"(?:\w+ed|found|saw|put|puts|dug|ran|took|shows?|gave|made|kept|led|held|spent)\b",
+    # An apparatus the site does not have: test dogs, a test household, a lab.
+    r"\b(?:test|testing)\s+(?:dogs?|cats?|pets?|puppies|puppy|kittens?|household|"
+    r"home|homes|panel|group|team|lab|labs|kennel|subjects?|period)\b",
+    r"\btesters\b",
+    # "After/during/beyond/while ... testing" -- the site ran none of it. The
+    # trailing lookahead keeps testing-as-noun out: "in the pet DNA testing
+    # world" is a product category, not a claim that anyone tested anything.
+    r"\b(?:after|during|beyond|from|following|through|while|in)\s+(?:\w+\s+){0,3}testing\b"
+    r"(?!\s+(?:world|industry|market|space|kits?|standards?|requirements?|"
+    r"protocols?|methodolog|facilit|equipment))",
+    r"\b(?:weeks|days|months|hours)\s+of\s+(?:testing|trials?)\b",
+    # First-person or site-attributed hands-on claims, incl. pin descriptions
+    # (the frontmatter `description` IS the pin description).
+    r"\b(?:we|i)\b[^.!?\n]{0,40}\b(?:tested|tried|trialled|trialed|road-?tested|"
+    r"field-?tested|test-?drove)\b",
+    r"\b(?:tested|trialled|trialed|tried)\s+(?:by|with|on)\s+"
+    r"(?:real|our|my|a\s+panel|the\s+test)\b",
+    r"\b(?:put|puts|putting)\b[^.!?\n]{0,40}\b(?:to\s+the\s+test|through\s+(?:its|their|the)\s+paces)\b",
+    r"\bfirst[- ]?hand\b",
+    r"\bhands[- ]on\s+(?:testing|experience|trial|time|use)\b",
+    r"\bwere\s+(?:tried|tested)\s+with\b",
+]
+_FIRSTHAND_CLAIM_RE = [re.compile(p, re.IGNORECASE | re.MULTILINE)
+                       for p in FIRSTHAND_CLAIM_PATTERNS]
+
+# One sentence of rule text, shared by the generator, reviewer and rewrite
+# prompts so the stated rule and the enforced gate can never drift apart.
+FIRSTHAND_CLAIM_RULE = (
+    "Never claim firsthand experience with a product. This site researches and "
+    "compares products from retailer specs, star ratings and customer reviews; "
+    "nobody here tests, tries, owns or handles them. Never write \"we tested\", "
+    "\"after testing\", \"Testing found\", \"put it through its paces\", "
+    "\"our testing lab\", \"the test dogs\", \"tested by real owners\", "
+    "\"firsthand\", or any invented test panel, test household or named test "
+    "pet. Write what is true instead: what the specs say, what owner reviews "
+    "repeatedly mention, and what comparing the options shows."
+)
+
+
+def find_firsthand_claims(text: str) -> list:
+    """Return every firsthand-experience claim found in `text` (deduped, in
+    order of first appearance). Empty list = clean. Used by the output gates,
+    by the pin-description gate and by the published-post test guard."""
+    found, seen = [], set()
+    for rx in _FIRSTHAND_CLAIM_RE:
+        for m in rx.finditer(text or ""):
+            phrase = " ".join(m.group(0).split())
+            if phrase.lower() not in seen:
+                seen.add(phrase.lower())
+                found.append(phrase)
+    return found
+
 
 # Pre-joined, quoted forms for embedding in both prompts (built once at import).
 _BANNED_WORDS_STR        = ", ".join(f'"{w}"' for w in BANNED_WORDS + BANNED_PHRASES)
@@ -674,6 +772,23 @@ class GenerationStageError(Exception):
 AFFILIATE_LINK_RE = re.compile(r"https?://(?:amzn\.to/\S+|(?:www\.)?amazon\.com/dp/[A-Za-z0-9]+)")
 
 
+def assert_no_firsthand_claims(stage: str, text: str, slug: str) -> None:
+    """Hold anything that claims the site tested, tried or handled a product.
+
+    Raises GenerationStageError naming every phrase found, so the held article's
+    GitHub issue says what to fix. Called on the article body at both output
+    gates, on the pin description before it is staged, and inside front_matter()
+    -- that last one is the structural backstop: the published `description`
+    field cannot carry a testing claim even if a future caller skips the gates.
+    """
+    claims = find_firsthand_claims(text)
+    if claims:
+        raise GenerationStageError(
+            f"[{stage}] {slug}: firsthand-experience claim(s) -- this site does "
+            f"not test products: {claims}"
+        )
+
+
 def validate_output(stage: str, content: str, slug: str, affiliate_url: str = "") -> None:
     """
     Output contract gate. Raises GenerationStageError on violation.
@@ -683,6 +798,9 @@ def validate_output(stage: str, content: str, slug: str, affiliate_url: str = ""
     exact `affiliate_url` is supplied, it must appear verbatim in the body (this
     also catches a wrong/hallucinated link); otherwise any recognized affiliate
     link shape (amzn.to or amazon.com/dp) satisfies the gate.
+
+    A firsthand-experience claim fails both gates. The prompts forbid it and the
+    reviewer flags it, but published posts prove that neither holds on its own.
     """
     MIN_WORD_COUNT   = 700
     MIN_CHARS        = 2000
@@ -698,6 +816,7 @@ def validate_output(stage: str, content: str, slug: str, affiliate_url: str = ""
         raise GenerationStageError(
             f"[{stage}] {slug}: word count too low ({word_count} words, min {MIN_WORD_COUNT})"
         )
+    assert_no_firsthand_claims(stage, content, slug)
     # Affiliate link required only at Gate 2 (post-review); rewrite has a chance to inject it first
     if stage == "review":
         if affiliate_url:
@@ -983,6 +1102,11 @@ Check every category. Flag every violation found.
     "superior", "top-tier", "best-in-class" applied to alternatives without specific justification.
 21. TITLE CASE HEADINGS — Flag any H2 or H3 that uses Title Case instead of Sentence case
     (e.g. "The Best Features Of This Product" should be "The best features of this product").
+22. FALSE FIRSTHAND CLAIMS — {FIRSTHAND_CLAIM_RULE}
+    Flag every sentence that claims or implies the site handled the product, including an
+    invented test panel, test household, testing lab or named test pet. Attributing an
+    observation to owner reviews ("owners report", "reviewers mention") is fine; claiming
+    the observation was made here is not. This one is a legal exposure, not a style note.
 
 === PASS CRITERIA (ALL must be true) ===
 
@@ -993,6 +1117,7 @@ Check every category. Flag every violation found.
 - affiliate_link_present = true (an Amazon affiliate link -- amzn.to/... or amazon.com/dp/... -- is present)
 - em_dash_count = 0 (any em dash = FAIL, no exceptions)
 - NO first-person voice (I, we, us, our, my used as author voice = FAIL regardless of scores)
+- NO claim of firsthand experience with the product (category 22 = FAIL regardless of scores)
 - If roundup: alternative product sections must have specific distinguishing details, not generic filler
 
 Score 4 or 5 only if genuinely non-AI-sounding. When in doubt, score lower.
@@ -1017,7 +1142,7 @@ Rules:
 - flags: list each specific problem as a plain string; empty array if none
 - rewrite_instructions: name exact sections and specific fixes if pass=false; empty string if pass=true. Keep under 250 words -- a truncated response fails JSON parsing and the article is held unreviewed.
 - em_dash_count: exact integer count of (—) characters in article
-- pass=false if em_dash_count > 0, first-person voice present, or human_voice < {REVIEW_SCORE_MINIMUMS['human_voice']} or warmth < {REVIEW_SCORE_MINIMUMS['warmth']}
+- pass=false if em_dash_count > 0, first-person voice present, a firsthand-experience claim present, or human_voice < {REVIEW_SCORE_MINIMUMS['human_voice']} or warmth < {REVIEW_SCORE_MINIMUMS['warmth']}
 """
 
 
@@ -1045,6 +1170,7 @@ REWRITE RULES:
 - These hard rules from the original brief still apply -- breaking any one fails the article again:
   - NEVER use em dashes (—). Use hyphens, commas, or shorter sentences.
   - NEVER use first-person voice (I, we, us, our, my). No personal stories and no named pets. Write in second or third person.
+  - {FIRSTHAND_CLAIM_RULE}
   - NEVER invent numbers -- no percentages, review counts, prices, dates, or specs you were not given. If a number is not already in the article, do not add one.
 - Where the editor flagged generic or AI-patterned writing, replace with something SPECIFIC and concrete.
   A specific detail beats a fluent generality every time.
@@ -1073,6 +1199,7 @@ An automated reviewer rejects any article that breaks the rules in <writing_rule
 - Cadence: vary sentence length. Mix short, punchy sentences with a few longer flowing ones. Do not make every sentence the same length; keep it readable and do not overuse one-word fragments.
 - Verbs: prefer active verbs over be-verbs. Do not let most sentences lean on "is", "are", "was", "were"; specificity comes from verbs.
 - Voice: write ONLY in second person ("your dog", "you'll find") or third person ("owners report", "dogs tend to"). NEVER use first-person voice (I, we, us, our, my). No personal stories, no named pets, no invented testimonials. The reviewer fails any article that uses first person.
+- Firsthand claims: {FIRSTHAND_CLAIM_RULE} This is a legal line, not a style preference: the article is held and never published if it breaks it.
 - Dashes: NEVER use em dashes (—). Use hyphens, commas, or shorter sentences.
 - Transitions: never use {_BANNED_TRANSITIONS_STR}. Start sentences with the subject or an action; an occasional plain "But", "And", or "So" is fine, but do not lean on them.
 - Intensifiers: do not lean on empty intensifiers before adjectives ({_BANNED_INTENSIFIERS_STR}). Cut them or give a concrete detail instead.
@@ -1515,6 +1642,11 @@ def yaml_quote(text: str) -> str:
 def front_matter(title: str, keyword: str, affiliate_url: str, slug: str,
                  species: str, category: str, description: str, image: str = "",
                  pin_image: str = "", chewy_url: str = "") -> str:
+    # `description` is the pin description, and it is the field that published
+    # "We tested the top litters so you can finally say goodbye to that smell"
+    # on a live monetized page. Every path that writes a post goes through here,
+    # so this is where the claim is made structurally impossible.
+    assert_no_firsthand_claims("front_matter", description, slug)
     today = datetime.date.today().isoformat()
     fm = (
         f'---\nlayout: post\ntitle: "{yaml_quote(title)}"\ndate: {today}\n'
@@ -1700,9 +1832,12 @@ def main() -> None:
                 if len(content) < 2000:
                     log(f"  only {len(content)} chars -- may be truncated", "WARN")
 
-                # Gate 1: generation output contract
+                # Gate 1: generation output contract. The pin description is
+                # checked here too -- it becomes the published `description`
+                # field, and nothing else on this path looks at it.
                 try:
                     validate_output("generate", content, slug)
+                    assert_no_firsthand_claims("pin_desc", pin_desc, slug)
                 except GenerationStageError as e:
                     log(f"  HOLD {slug} -- generation contract failed: {e}", "WARN")
                     held += 1; continue
