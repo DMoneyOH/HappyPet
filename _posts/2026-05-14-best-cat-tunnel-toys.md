@@ -26,7 +26,7 @@ When Whiskers darts from the couch to the kitchen counter, then vanishes behind 
 
 ### Featured Pick: [Depets Cat Tunnel for Indoor Cats, 5 Way Large with Play Ball, S‑Shaped](https://amzn.to/4cu6ph4)  
 
-The Depets tunnel quickly became the go‑to in our testing lab because it delivers space, surprise, and a built‑in play ball—all for under $20. With a verified 4.7/5 star rating on Amazon, owners consistently praise its generous dimensions that accommodate even the most enthusiastic leapers. The S‑shaped layout creates three intersecting paths, encouraging cats to change direction mid‑pounce, which mimics natural hunting behavior. A small, crinkly ball hangs from the tunnel’s ceiling, providing an extra stimulus without the need for batteries or extra toys.
+The Depets tunnel is the standout of this roundup because it delivers space, surprise, and a built‑in play ball, all for under $20. With a verified 4.7/5 star rating on Amazon, owners consistently praise its generous dimensions that accommodate even the most enthusiastic leapers. The S‑shaped layout creates three intersecting paths, encouraging cats to change direction mid‑pounce, which mimics natural hunting behavior. A small, crinkly ball hangs from the tunnel’s ceiling, providing an extra stimulus without the need for batteries or extra toys.
 
 **Pros**  
 - Large, multi‑way layout keeps multiple cats engaged at once.  
