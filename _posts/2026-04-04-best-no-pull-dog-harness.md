@@ -6,6 +6,8 @@ categories: [dog-harnesses]
 species: dog
 tags: [no pull dog harness XL]
 description: "Stops pulling without hurting your dog — the PetSafe Easy Walk is the harness owners of real strong pullers keep recommending."
+product_name: "PetSafe Easy Walk No-Pull Dog Harness XL"
+rating: 4.5
 affiliate_url: "https://amzn.to/4coIuRk"
 image: "https://images-na.ssl-images-amazon.com/images/P/B000BHT5OY.01.LZZZZZZZ.jpg"
 ---

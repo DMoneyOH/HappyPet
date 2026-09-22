@@ -6,6 +6,8 @@ categories: [dog-health]
 species: dog
 tags: [best dog nail grinder]
 description: "Stop nail‑trim nightmares – discover the quiet, stress‑free grinder that keeps paws happy at home."
+product_name: "Casfuy Dog Nail Grinder with LED Light"
+rating: 4.4
 affiliate_url: "https://www.amazon.com/dp/B088FQ5QH7?tag=pawpicks04-20"
 chewy_url: "https://chewy.sjv.io/c/7160344/3054490/32975?prodsku=369110&u=https%3A%2F%2Fwww.chewy.com%2Fcasfuy-led-light-electric-dog-cat%2Fdp%2F395325%3Futm_source%3Dgoogle-product%26utm_medium%3Dorganic%26utm_content%3DCasfuy&intsrc=APIG_24727"
 image: "https://m.media-amazon.com/images/I/51hoFfG8XvL._AC_SL1500_.jpg"

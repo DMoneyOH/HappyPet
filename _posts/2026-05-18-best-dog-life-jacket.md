@@ -8,6 +8,8 @@ redirect_from:
 species: dog
 tags: [best dog life jacket]
 description: "Keep your pup afloat and adventurous with the most reliable life jacket on the water."
+product_name: "VIVAGLORY Sports Style Dog Life Vest, with Handle, Medium, Blue"
+rating: 4.5
 affiliate_url: "https://amzn.to/4cy90Xr"
 image: "https://m.media-amazon.com/images/I/81U9aJGoUiL._AC_SY450_.jpg"
 pin_image: "https://happypetproductreviews.com/assets/images/pins/best-dog-life-jacket.jpg?v=20260518"
