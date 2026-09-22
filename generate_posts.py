@@ -1723,13 +1723,22 @@ Focus keyword: "{keyword}"
 </structure>{link}"""
 
 
-def _sanitize_factcheck_output(cleaned: str, original: str) -> str | None:
+def _sanitize_factcheck_output(cleaned: str, original: str) -> str:
     """
     Validate/clean a fact-checker response before it replaces the article.
-    Returns the sanitized article, or None if the original must be kept.
+    Returns the sanitized article, or raises GenerationStageError when the
+    response cannot be trusted to replace it.
     Chat models routinely wrap output in code fences or prepend 'Here is the
     corrected article:' -- and a response that dropped the affiliate links
     would previously have shipped as long as it cleared the length floor.
+
+    Both rejections used to return None, and both callers answered that by
+    returning the ORIGINAL body with a WARN in the log. The fact-check stage is
+    what strips fabricated stats out of the alternative sections, so "keep the
+    original" means publishing the article the stage exists to fix -- silently,
+    because a WARN in a scheduled run is read by nobody. The two conditions that
+    reject are unchanged; what changed is that a rejection now holds the article
+    the way every other content gate here does.
     """
     text = cleaned.strip()
     if text.startswith("```"):
@@ -1743,13 +1752,19 @@ def _sanitize_factcheck_output(cleaned: str, original: str) -> str | None:
         ):
             text = text[first_nl + 1:].lstrip()
     if len(text) < len(original) * 0.85:
-        log(f"  Fact-check output too short ({len(text)} vs {len(original)}), keeping original", "WARN")
-        return None
+        raise GenerationStageError(
+            f"[fact_check] output too short ({len(text)} vs {len(original)} chars) "
+            f"-- the fact-checked article cannot replace the original, and the "
+            f"original still carries whatever the fact-check was meant to strip"
+        )
     # Protect all recognized affiliate-link shapes (amzn.to and amazon.com/dp),
     # not just short links -- the fact-checker must not drop or alter them.
     if sorted(AFFILIATE_LINK_RE.findall(text)) != sorted(AFFILIATE_LINK_RE.findall(original)):
-        log("  Fact-check output altered affiliate links, keeping original", "WARN")
-        return None
+        raise GenerationStageError(
+            f"[fact_check] output altered the affiliate links "
+            f"({sorted(AFFILIATE_LINK_RE.findall(original))} -> "
+            f"{sorted(AFFILIATE_LINK_RE.findall(text))})"
+        )
     return text
 
 
@@ -1796,10 +1811,15 @@ ARTICLE:
         cleaned = _call_gemini(FACTCHECK_MODEL, prompt, max_tokens=8192,
                                temperature=0.1, label="FactCheck-Gemini", timeout=90)
         sanitized = _sanitize_factcheck_output(cleaned, content)
-        if sanitized is None:
-            return content
         log(f"  Fact-check ok: {len(content)} -> {len(sanitized)} chars")
         return sanitized
+    except GenerationStageError:
+        # A rejected fact-check is a hold on the article, not a provider
+        # failure to fail over from. Without this the generic handler below
+        # would read it as "primary is down", run the fallback, and the
+        # article would ship unfixed anyway -- the exact outcome the raise
+        # exists to prevent.
+        raise
     except Exception as exc:
         log(f"  Fact-check primary failed: {exc} -- trying fallback", "WARN")
 
@@ -1827,11 +1847,18 @@ ARTICLE:
                             timeout=60, retries=2, backoff_base=60)
         cleaned = _extract_or_content(raw, "FactCheck-OR")
         sanitized = _sanitize_factcheck_output(cleaned, content)
-        if sanitized is None:
-            return content
         log(f"  Fact-check fallback ok ({OR_FACTCHECK_MODEL}): {len(content)} -> {len(sanitized)} chars")
         return sanitized
+    except GenerationStageError:
+        raise  # a hold, not a provider failure -- see the primary path above
     except Exception as exc:
+        # Provider outage, not a rejected response: both fact-check providers
+        # are unreachable. This path still returns the original and is left
+        # that way deliberately -- changing it decides what an OUTAGE should
+        # do, which is a separate question from what a REJECTED response
+        # should do. Noted here because the asymmetry is real:
+        # review_and_rewrite holds an article when its reviewer chain is
+        # unavailable (REVIEWER_UNAVAILABLE), and this stage does not.
         log(f"  Fact-check fallback failed: {exc} -- keeping original", "WARN")
         return content
 
@@ -2172,7 +2199,11 @@ def main() -> None:
 
                 # Fact-check: strip fabricated stats from alternative product sections (roundups only)
                 if fmt == "roundup":
-                    content = fact_check_alternatives(content, product.get("name", ""))
+                    try:
+                        content = fact_check_alternatives(content, product.get("name", ""))
+                    except GenerationStageError as e:
+                        log(f"  HOLD {slug} -- fact-check contract failed: {e}", "WARN")
+                        held += 1; continue
                     log(f"  [timing] fact-check: {time.monotonic()-_t0:.1f}s")
 
                 time.sleep(RPM_SLEEP)
