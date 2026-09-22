@@ -6,6 +6,8 @@ categories: [cat-scratching]
 species: cat
 tags: [cat scratching post]
 description: "Most scratching posts wobble and get ignored — these are the ones cats actually use and owners swear by."
+product_name: "SmartCat Ultimate Scratching Post"
+rating: 4.8
 affiliate_url: "https://amzn.to/4dME6wX"
 image: "https://images-na.ssl-images-amazon.com/images/P/B07W865K8N.01.LZZZZZZZ.jpg"
 ---

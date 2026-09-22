@@ -11,12 +11,73 @@ layout: default
   {%- assign hero_image = page.image -%}
 {%- endif -%}
 
+{%- comment -%}
+  Product/Review structured data, for the review rich result (the star rating
+  under the search listing). jekyll-seo-tag already emits a BlogPosting block on
+  every page; this is a SECOND ld+json script, which is legal, and it is
+  deliberately additive so removing this block leaves the SEO plugin untouched.
+
+  It is emitted ONLY on the eight single-product reviews -- the ones carrying a
+  product_name and a rating in their front matter. The other 41 posts are
+  roundups that compare five or six products each, and marking one of those as a
+  single Product named after the article would be inventing an entity that does
+  not exist on the page. On an affiliate site that is a manual-action risk, not
+  merely useless, which is why the roundups get no Product markup rather than a
+  thin one.
+
+  There is no AggregateRating here on purpose. It means "the average of many
+  ratings", and nothing in this repo holds one: `stars` in products.json is a
+  retailer's own figure, it covers 1 of the 49 published posts, and Google
+  requires that a rating shown in a rich result be visible on the page itself.
+  `rating` is this site's own single verdict, printed at the foot of the post,
+  so it is modelled as the reviewRating of one Review by one author.
+{%- endcomment -%}
+{%- if page.product_name and page.rating -%}
+{%- assign product_image = hero_image | default: page.image | absolute_url -%}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Product",
+  "name": {{ page.product_name | jsonify }},
+  "image": {{ product_image | jsonify }},
+  "description": {{ page.description | default: page.title | jsonify }},
+  {%- if page.affiliate_url or page.chewy_url %}
+  "offers": {
+    "@type": "Offer",
+    "url": {{ page.affiliate_url | default: page.chewy_url | jsonify }},
+    "availability": "https://schema.org/InStock"
+  },
+  {%- endif %}
+  "review": {
+    "@type": "Review",
+    "name": {{ page.title | jsonify }},
+    "url": {{ page.url | absolute_url | jsonify }},
+    "datePublished": {{ page.date | date: "%Y-%m-%d" | jsonify }},
+    "reviewRating": {
+      "@type": "Rating",
+      "ratingValue": {{ page.rating | jsonify }},
+      "bestRating": 5,
+      "worstRating": 1
+    },
+    "author": {
+      "@type": "Organization",
+      "name": {{ site.author | default: site.title | jsonify }}
+    },
+    "publisher": {
+      "@type": "Organization",
+      "name": {{ site.title | jsonify }}
+    }
+  }
+}
+</script>
+{%- endif -%}
+
 <article class="piece">
   <div class="wrap piece-inner">
     <nav class="crumb" aria-label="Breadcrumb">
-      <a href="{{ site.baseurl }}/">The index</a>
+      <a href="{{ site.baseurl }}/">All reviews</a>
       &rsaquo;
-      <a href="{{ site.baseurl }}/#index">{{ category_label }}</a>
+      <a href="{{ site.baseurl }}/#reviews">{{ category_label }}</a>
     </nav>
 
     <header class="piece-head">

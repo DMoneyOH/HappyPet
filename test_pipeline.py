@@ -3440,6 +3440,201 @@ class TestSheetsApiRetry(unittest.TestCase):
                                  "append_row must never be handed to sheets_retry")
 
 
+class TestProductReviewStructuredData(unittest.TestCase):
+    """post.html emits Product/Review JSON-LD so review rich results (the star
+    rating under a search listing) can show. These check the block against the
+    real front matter of the real posts.
+
+    HONEST LIMIT, stated so nobody reads a green run as more than it is: there
+    is no Ruby or Jekyll on the build box, so this does NOT prove Jekyll renders
+    the template. It renders the template TEXT LIFTED OUT OF post.html through a
+    deliberately tiny Liquid subset covering only the constructs that block
+    uses. A Liquid syntax error Jekyll would reject can still slip past. The
+    only real build is the deploy workflow's `bundle exec jekyll build`, which
+    runs on a push to main.
+
+    What it does prove, which is most of the risk: the emitted text is valid
+    JSON, the values come from the post's own front matter, the schema.org
+    shape is right, and the block appears on exactly the single-product reviews.
+    """
+
+    SINGLE_PRODUCT = 8  # posts carrying both product_name and rating
+
+    @classmethod
+    def setUpClass(cls):
+        cls.layout = (REPO / "_layouts" / "post.html").read_text(encoding="utf-8")
+        cls.posts = {}
+        for p in sorted((REPO / "_posts").glob("*.md")):
+            raw = p.read_text(encoding="utf-8")
+            fm = {}
+            for line in raw.split("---", 2)[1].splitlines():
+                m = re.match(r"^([a-z_]+):\s*(.+)$", line)
+                if m:
+                    fm[m.group(1)] = m.group(2).strip().strip('"')
+            fm["url"] = "/x/" + p.stem + "/"
+            cls.posts[p.name] = fm
+
+    # -- a Liquid subset: only what the JSON-LD block uses ------------------
+    def _render(self, template, page):
+        site = {"title": "Happy Pet Product Reviews",
+                "author": "Happy Pet Product Reviews Team"}
+        # The layout assigns hero_image above this block: the self-hosted
+        # thumbnail when one exists, else page.image. Only the else-branch is
+        # modelled here -- site.static_files needs a real build to resolve.
+        local = {"hero_image": page.get("image")}
+
+        def lookup(token):
+            token = token.strip()
+            if token.startswith(("'", '"')):
+                return token.strip("'\"")
+            if token in local:
+                return local[token]
+            scope, _, key = token.partition(".")
+            return {"page": page, "site": site}.get(scope, {}).get(key)
+
+        def expr(body):
+            parts = [p.strip() for p in body.split("|")]
+            val = lookup(parts[0])
+            for filt in parts[1:]:
+                name, _, arg = filt.partition(":")
+                name, arg = name.strip(), arg.strip()
+                if name == "default":
+                    val = val if val else lookup(arg)
+                elif name == "absolute_url":
+                    # Jekyll's url_filters.rb: "return input if
+                    # Addressable::URI.parse(input.to_s).absolute?" -- an
+                    # already-absolute URL passes through untouched, only a
+                    # relative path gets site.url prepended.
+                    if not re.match(r"^[a-z][a-z0-9+.-]*://", str(val), re.I):
+                        val = "https://happypetproductreviews.com" + str(val)
+                elif name == "date":
+                    val = str(val)          # already YYYY-MM-DD in front matter
+                elif name == "jsonify":
+                    if isinstance(val, str) and re.fullmatch(r"-?\d+(\.\d+)?", val):
+                        val = json.dumps(float(val) if "." in val else int(val))
+                    else:
+                        val = json.dumps(val)
+                else:
+                    raise AssertionError(f"unhandled Liquid filter {name!r}")
+            return "" if val is None else str(val)
+
+        def cond(m):
+            test = m.group(1)
+            op = " or " if " or " in test else " and "
+            vals = [bool(lookup(t)) for t in test.split(op)]
+            keep = any(vals) if op == " or " else all(vals)
+            return m.group(2) if keep else ""
+
+        # Resolve the INNERMOST if first (a body containing no further `if`),
+        # looping outwards. A single non-greedy pass pairs the outer `if` with
+        # the inner `endif` and silently truncates the block.
+        innermost = re.compile(
+            r"\{%-?\s*if ([^%]+?)\s*-?%\}((?:(?!\{%-?\s*if ).)*?)\{%-?\s*endif\s*-?%\}", re.S)
+        out, guard = template, 0
+        while innermost.search(out):
+            out, guard = innermost.sub(cond, out), guard + 1
+            assert guard < 20, "runaway if-resolution"
+        out = re.sub(r"\{%-?\s*comment\s*-?%\}.*?\{%-?\s*endcomment\s*-?%\}", "", out, flags=re.S)
+
+        def do_assign(m):
+            local[m.group(1)] = expr(m.group(2))
+            return ""
+        out = re.sub(r"\{%-?\s*assign (\w+) = ([^%]+?)\s*-?%\}", do_assign, out)
+        return re.sub(r"\{\{(.+?)\}\}", lambda m: expr(m.group(1)), out, flags=re.S)
+
+    def _uncommented_layout(self):
+        return re.sub(r"\{%-?\s*comment\s*-?%\}.*?\{%-?\s*endcomment\s*-?%\}",
+                      "", self.layout, flags=re.S)
+
+    def _block(self):
+        start = self.layout.find("{%- if page.product_name and page.rating -%}")
+        end = self.layout.find("<article class=\"piece\">")
+        self.assertNotEqual(start, -1, "the Product/Review block is gone from post.html")
+        self.assertGreater(end, start, "the block must sit above the article markup")
+        return self.layout[start:end]
+
+    def _qualifying(self):
+        return {n: fm for n, fm in self.posts.items()
+                if fm.get("product_name") and fm.get("rating")}
+
+    def test_block_is_emitted_on_exactly_the_single_product_reviews(self):
+        q = self._qualifying()
+        self.assertEqual(len(q), self.SINGLE_PRODUCT,
+                         f"expected {self.SINGLE_PRODUCT} single-product posts, got {sorted(q)}")
+        # A roundup must never carry the fields: it reviews several products and
+        # has no single Product to name.
+        for name, fm in self.posts.items():
+            if name in q:
+                continue
+            with self.subTest(post=name):
+                self.assertNotIn("product_name", fm)
+                self.assertNotIn("rating", fm)
+
+    def test_every_emitted_block_is_valid_json_with_the_right_values(self):
+        block = self._block()
+        for name, fm in self._qualifying().items():
+            with self.subTest(post=name):
+                rendered = self._render(block, fm)
+                payload = re.search(r"<script type=\"application/ld\+json\">(.*?)</script>",
+                                    rendered, re.S)
+                self.assertIsNotNone(payload, "no ld+json script rendered")
+                data = json.loads(payload.group(1))   # raises on malformed JSON
+
+                self.assertEqual(data["@context"], "https://schema.org")
+                self.assertEqual(data["@type"], "Product")
+                # Product name is the PRODUCT, never the article headline.
+                self.assertEqual(data["name"], fm["product_name"])
+                self.assertNotIn("Review", data["name"].split()[-1:] or [""])
+                self.assertTrue(data["image"].startswith("http"))
+
+                review = data["review"]
+                self.assertEqual(review["@type"], "Review")
+                self.assertEqual(review["name"], fm["title"])
+                rating = review["reviewRating"]
+                self.assertEqual(rating["@type"], "Rating")
+                self.assertEqual(float(rating["ratingValue"]), float(fm["rating"]))
+                self.assertEqual(rating["bestRating"], 5)
+                self.assertGreaterEqual(float(rating["ratingValue"]), rating["worstRating"])
+                self.assertLessEqual(float(rating["ratingValue"]), rating["bestRating"])
+                for actor in ("author", "publisher"):
+                    self.assertTrue(review[actor]["name"], f"{actor} name is empty")
+                self.assertEqual(data["offers"]["url"], fm["affiliate_url"])
+
+    def test_no_aggregate_rating_is_invented(self):
+        """AggregateRating means an average of many ratings. This repo holds no
+        such figure for a published post, and Google requires a rating shown in
+        a rich result to be visible on the page. Emitting one would be
+        fabricated review data on an affiliate site. Checked against the layout
+        with Liquid comments stripped, so the note explaining the decision does
+        not itself trip the guard."""
+        emitted = self._uncommented_layout()
+        self.assertNotIn("AggregateRating", emitted)
+        self.assertNotIn("aggregateRating", emitted)
+
+    def test_the_seo_plugin_block_is_left_alone(self):
+        """The new script is additive. jekyll-seo-tag still owns its own
+        BlogPosting/WebSite block, emitted from default.html, untouched."""
+        default = (REPO / "_layouts" / "default.html").read_text(encoding="utf-8")
+        self.assertIn("{% seo", default)
+        self.assertNotIn("{% seo", self.layout)
+        self.assertIn("jekyll-seo-tag", (REPO / "_config.yml").read_text(encoding="utf-8"))
+
+    def test_front_matter_rating_matches_the_rating_printed_in_the_body(self):
+        """Structured data that disagrees with the visible page is exactly what
+        Google penalises, so the two can never drift apart silently."""
+        for p in sorted((REPO / "_posts").glob("*.md")):
+            raw = p.read_text(encoding="utf-8")
+            body = raw.split("---", 2)[2]
+            shown = re.search(r"\*\*(?:Our )?Rating:\s*([0-9.]+)/5\*\*", body)
+            declared = self.posts[p.name].get("rating")
+            with self.subTest(post=p.name):
+                if shown:
+                    self.assertIsNotNone(declared, "body shows a rating, front matter has none")
+                    self.assertEqual(float(declared), float(shown.group(1)))
+                else:
+                    self.assertIsNone(declared, "front matter rating with nothing shown on the page")
+
+
 class TestPublishedPostsVoiceIntegrity(unittest.TestCase):
     """Guards the published bodies against the substitution damage that commit
     fde8937 and its 30 siblings ("fix: third-person voice - <slug>") left behind.
