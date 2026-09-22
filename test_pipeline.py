@@ -2258,8 +2258,24 @@ class TestNamedTestimonialGuard(unittest.TestCase):
         """Deliberately out of scope, and recorded here so a later pass does not
         quietly widen the detector to reach it. These quotes name no individual;
         catching them would also catch honest aggregate sentiment, which is what
-        the Real Owner Experiences section is supposed to contain. They are a
-        separate, smaller question for a human, not a gate."""
+        the Real Owner Experiences section is supposed to contain. They were left
+        as a separate, smaller question for a human, not a gate.
+
+        That question has since been answered, and it split (Director, 2026-09-22).
+        The FIRST string below was a whole invented sentence in quotation marks,
+        and it was DELETED BY HAND from best-cat-scratching-posts; the published
+        text now reads "returning to it again and again in reviews as the
+        scratcher that outlasted the ones before it", with no quotation marks.
+        The short idioms -- "immediately loved it.", "worth every penny",
+        "game-changer" -- were KEPT: they are honest aggregate sentiment and
+        reaching them would cost the section its legitimate content.
+
+        So the strings below are no longer all published text. They stay here
+        verbatim anyway, because what this test guards is the detector's WIDTH,
+        not the corpus: one hand-edit is not a reason to widen a detector, and
+        the next pass reading "we deleted one of these" must not read it as
+        "so catch the rest".
+        """
         for s in ('Many owners rave about its longevity, with comments like, "My cats '
                   'have shredded every other scratcher, but this one is still going '
                   'strong after three years!"',
@@ -2267,6 +2283,15 @@ class TestNamedTestimonialGuard(unittest.TestCase):
                   '"immediately loved it."'):
             with self.subTest(s=s[:48]):
                 self.assertEqual(self.gp.find_named_testimonials(s), [], s)
+
+    def test_the_deleted_group_quote_is_gone_from_the_published_corpus(self):
+        """The hand-deletion above, asserted on the corpus rather than trusted.
+        The detector does not and will not fire on this shape, so nothing else
+        in the suite would notice it coming back."""
+        text = (REPO / "_posts" / "2026-04-04-best-cat-scratching-posts.md").read_text(
+            encoding="utf-8")
+        self.assertNotIn("shredded every other scratcher", text)
+        self.assertIn("Many owners rave about its longevity", text)  # the sentence stayed
 
     def test_does_not_read_the_front_matter_terminator_as_an_attribution(self):
         """`image: "...jpg"` followed by the YAML `---` on the next line is a
@@ -2374,6 +2399,208 @@ class TestNamedTestimonialGuard(unittest.TestCase):
         p = self.gp.make_review_prompt("T", "kw", "body")
         listed = max(int(n) for n in re.findall(r"^(\d+)\. [A-Z]", p, re.MULTILINE))
         self.assertIn(f"=== {listed}-CATEGORY AI PATTERN AUDIT ===", p)
+
+
+class TestUnbackedAffiliateLinkGuard(unittest.TestCase):
+    """The pipeline has verified data for exactly ONE product per article: the
+    products.json entry, whose name, ASIN, link, rating and price came off the
+    real listing. Any other affiliate link in the body was composed by a model
+    out of nothing.
+
+    Nine shipped, across two posts. best-dog-backpack-carrier linked three
+    invented carriers at amzn.to/4Xy9ZkL, amzn.to/5Zc3LmN and amzn.to/2Jg7QfR --
+    shortcodes this account does not own, pointing wherever Amazon happens to
+    resolve them. best-cat-calming-products published a "Buy now:" list of six
+    literal placeholders, amzn.to/xyz1 through amzn.to/xyz6.
+
+    The brief has said "NO links for additional picks" since the roundup format
+    existed, and an LLM fact-check stage runs over the alternative sections on
+    every roundup. Neither is a gate, so neither stopped this.
+
+    The detector keys on the LINK, never on the surrounding prose, because the
+    link is the one part of an invented pick that is falsifiable without leaving
+    the machine: the entry supplies exactly one, so any other is unbacked
+    whatever it points at. The specs are handled upstream instead -- the brief
+    no longer asks for alternatives that were not supplied.
+    """
+
+    def setUp(self):
+        import generate_posts as gp
+        self.gp = gp
+        self.own = "https://amzn.to/3Q8m7Hr"   # best-dog-backpack-carrier's real entry
+
+    # --- the published instances, verbatim -----------------------------------
+    def test_flags_the_three_invented_shortlinks_it_published(self):
+        body = ("[Outward Hound Trail-Pup Dog Backpack](https://amzn.to/4Xy9ZkL)\n"
+                "[K&H Pet Products Cool-Flow Backpack with Cooling Pad](https://amzn.to/5Zc3LmN)\n"
+                "[Armarkat Adventure Dog Backpack](https://amzn.to/2Jg7QfR)\n"
+                "[PetAmi Dog Backpack Carrier](https://amzn.to/3Q8m7Hr)")
+        self.assertEqual(
+            self.gp.find_unbacked_affiliate_links(body, self.own),
+            ["amzn.to/4Xy9ZkL", "amzn.to/5Zc3LmN", "amzn.to/2Jg7QfR"])
+
+    def test_flags_the_six_placeholder_buy_links_it_published(self):
+        """Published with no scheme and no markdown target: "- Purina Calming
+        Care - [amzn.to/xyz1]". A detector that only reads https:// URLs walks
+        straight past the most obviously fake link on the site."""
+        body = ("**Buy now:**\n- Purina Calming Care – [amzn.to/xyz1]\n"
+                "- Feliway Classic Diffuser – [amzn.to/xyz2]\n"
+                "- VetriScience Composure – [amzn.to/xyz3]\n"
+                "- ThunderEase Collar – [amzn.to/xyz4]\n"
+                "- Pet Remedy Spray – [amzn.to/xyz5]\n"
+                "- NaturVet Calming Aid – [amzn.to/xyz6]")
+        self.assertEqual(
+            self.gp.find_unbacked_affiliate_links(body, "https://amzn.to/4cq8St0"),
+            [f"amzn.to/xyz{n}" for n in range(1, 7)])
+
+    # --- shapes the generator has not produced yet ---------------------------
+    def test_flags_shapes_the_corpus_has_not_seen(self):
+        """The two published shapes are not the boundary of the class. A long
+        amazon.com/dp link, a scheme-less one, a www-prefixed one and an
+        uppercase scheme all reach the same place, and a guard that only knows
+        the two shapes already in the corpus is a guard the next run walks past.
+        """
+        for body in ("see https://www.amazon.com/dp/B0FAKE0001?tag=pawpicks04-20",
+                     "see amazon.com/dp/B0FAKE0001",
+                     "see www.amazon.com/dp/B0FAKE0001",
+                     "see HTTPS://AMAZON.COM/dp/B0FAKE0001",
+                     "buy it at amzn.to/9zZzZz9 today"):
+            with self.subTest(body=body):
+                self.assertTrue(
+                    self.gp.find_unbacked_affiliate_links(body, self.own), body)
+
+    def test_a_short_code_differing_only_in_case_is_a_different_link(self):
+        """amzn.to short codes are case-sensitive. Lowercasing the path to
+        "normalize" it would let amzn.to/3q8M7hR pass as the real
+        amzn.to/3Q8m7Hr, which is a different destination entirely."""
+        self.assertEqual(
+            self.gp.find_unbacked_affiliate_links("go to https://amzn.to/3q8M7hR", self.own),
+            ["amzn.to/3q8M7hR"])
+
+    # --- the inverse direction: real published linking must stay clean -------
+    def test_does_not_flag_the_articles_own_link_however_it_is_written(self):
+        """Every string here is a form the published corpus actually uses. A
+        guard that fires on any of them is a guard that gets an allowlist bolted
+        on and then gets deleted."""
+        cases = [
+            # short link, markdown, repeated (best-cat-litter-odor-control does this 5x)
+            ("https://amzn.to/48cV2sA",
+             "[Fresh Step Clumping Cat Litter Multi-Cat 14lb](https://amzn.to/48cV2sA) "
+             "truly shines. Grab [it](https://amzn.to/48cV2sA) today."),
+            # long link with the associate tag (best-cat-dental-treats)
+            ("https://www.amazon.com/dp/B0828WNJXC?tag=pawpicks04-20",
+             "[Greenies Cat Treats](https://www.amazon.com/dp/B0828WNJXC?tag=pawpicks04-20) "
+             "sits near the top."),
+            # entry written long, body written short-hand: same destination
+            ("https://www.amazon.com/dp/B0727Y5ZD7?tag=pawpicks04-20",
+             "the cover at amazon.com/dp/B0727Y5ZD7 holds up"),
+            # a different tracking tag on the same ASIN is the same product
+            ("https://www.amazon.com/dp/B093K2NDS2?tag=pawpicks04-20",
+             "[Fun Feeder](https://www.amazon.com/dp/B093K2NDS2?tag=other-20)"),
+        ]
+        for own, body in cases:
+            with self.subTest(own=own):
+                self.assertEqual(self.gp.find_unbacked_affiliate_links(body, own), [], body)
+
+    def test_does_not_flag_amazon_image_hosts_or_internal_links(self):
+        """Front matter carries m.media-amazon.com and
+        images-na.ssl-images-amazon.com image URLs on every post, bodies carry
+        internal happypetproductreviews.com links, and ten posts carry a Chewy
+        affiliate link resolved by chewy_lookup.py rather than written by a
+        model. None of those is an Amazon product link."""
+        body = ('image: "https://m.media-amazon.com/images/I/81nV6St3lYL._AC_SX425_.jpg"\n'
+                'image: "https://images-na.ssl-images-amazon.com/images/P/B0BGVF6PGW.01.LZZZZZZZ.jpg"\n'
+                "check our [cat tunnel toys](https://happypetproductreviews.com/cat-gear/"
+                "best-cat-tunnel-toys/) roundup\n"
+                "https://chewy.sjv.io/c/7160344/3054490/32975?prodsku=4094470\n"
+                "https://bigbarker.com/pages/research")
+        self.assertEqual(self.gp.find_unbacked_affiliate_links(body, self.own), [])
+
+    def test_makes_no_judgment_without_a_verified_link_to_compare_against(self):
+        """An empty affiliate_url means there is nothing to judge against, so
+        nothing is flagged. The companion test below is what keeps that from
+        being a hole: a products.json entry with no affiliate_url is already
+        refused before any of this runs."""
+        self.assertEqual(
+            self.gp.find_unbacked_affiliate_links("buy at https://amzn.to/4Xy9ZkL", ""), [])
+
+    def test_an_entry_without_an_affiliate_url_never_reaches_the_gate(self):
+        errors = self.gp.validate_product("best-x", {
+            "name": "The X", "species": "dog", "title": "Best X", "keyword": "best x",
+            "category": "dogs", "format": "roundup", "image": "https://img/x.jpg"})
+        self.assertTrue(any("affiliate_url" in e for e in errors), errors)
+
+    # --- wiring: every path that could publish an invented link is gated -----
+    def test_both_output_gates_hold_an_article_with_a_second_link(self):
+        body = ("[Invented Carrier](https://amzn.to/4Xy9ZkL) " + "word " * 900
+                + self.own)
+        for stage in ("generate", "review"):
+            with self.subTest(stage=stage):
+                with self.assertRaises(self.gp.GenerationStageError) as cm:
+                    self.gp.validate_output(stage, body, "slug", affiliate_url=self.own)
+                self.assertIn("no record of", str(cm.exception))
+
+    def test_a_clean_body_still_passes_both_gates(self):
+        body = ("Owners repeatedly mention the mesh panels. " + "word " * 900 + self.own)
+        for stage in ("generate", "review"):
+            with self.subTest(stage=stage):
+                self.gp.validate_output(stage, body, "slug", affiliate_url=self.own)
+
+    def test_no_post_file_is_written_when_the_body_carries_an_invented_link(self):
+        """Behavioural, not a refusal message: drive the real stage_article over
+        a temp repo and assert on the victim's own record -- no draft file, no
+        pin-queue entry."""
+        product = {"topic": "best-x", "title": "Best X", "keyword": "best x",
+                   "format": "roundup", "name": "The X", "category": "dog-carriers",
+                   "species": "dog", "affiliate_url": self.own}
+        body = ("## Additional Picks\n\n[K&H Cool-Flow Backpack](https://amzn.to/5Zc3LmN)\n\n"
+                + ("word " * 800))
+        with tempfile.TemporaryDirectory() as td:
+            posts = Path(td) / "_posts"; posts.mkdir()
+            pinq = Path(td) / "_pin_queue"; pinq.mkdir()
+            with patch.object(self.gp, "POSTS_DIR", posts), \
+                 patch.object(self.gp, "REPO_DIR", Path(td)), \
+                 patch.object(self.gp, "PIN_GEN_AVAILABLE", False):
+                with self.assertRaises(self.gp.GenerationStageError):
+                    self.gp.stage_article("best-x", product, body,
+                                          pin_desc="A carrier for small dogs.", index=0)
+            self.assertEqual(list(posts.glob("*.md")), [])
+            self.assertEqual(list(pinq.glob("*.json")), [])
+
+    def test_the_generate_gate_is_called_with_the_entrys_link(self):
+        """The check cannot fire at Gate 1 unless main() passes affiliate_url
+        there, and it used to pass nothing. Read off the source, because the
+        only other way to prove it is a live generation run."""
+        source = (REPO / "generate_posts.py").read_text(encoding="utf-8")
+        self.assertIn('validate_output("generate", content, slug,\n'
+                      '                                    affiliate_url=product.get("affiliate_url", ""))',
+                      source)
+
+    # --- the stated rule and the enforced gate must not drift ---------------
+    def test_the_rule_text_is_single_sourced_into_all_three_prompts(self):
+        rule = self.gp.UNBACKED_PICK_RULE
+        self.assertIn(rule, self.gp.GENERATOR_SYSTEM_PROMPT)
+        self.assertIn(rule, self.gp.make_review_prompt("T", "kw", "body"))
+        self.assertIn(rule, self.gp.make_rewrite_prompt("T", "kw", "body", "fix it"))
+
+    def test_the_reviewer_can_fail_an_article_on_this_alone(self):
+        p = self.gp.make_review_prompt("T", "kw", "body")
+        self.assertIn("24. UNBACKED PRODUCT PICKS", p)
+        # All three places the reviewer reads: the audit category, the PASS
+        # CRITERIA list and the pass=false rule.
+        self.assertIn("NO second affiliate link and no invented figure for a "
+                      "non-featured product", p)
+        self.assertIn("a second affiliate link or an invented figure for a "
+                      "non-featured product present", p)
+
+    def test_the_fabrication_prompt_is_gone_from_the_module(self):
+        """find_alternative_products() asked a model for alternatives with "a
+        SPECIFIC differentiating feature ... Be concrete, not vague". It had no
+        callers, which is exactly why deleting it beats leaving it: the next
+        person wiring up alternatives would have found it and used it."""
+        source = (REPO / "generate_posts.py").read_text(encoding="utf-8")
+        self.assertNotIn("def find_alternative_products", source)
+        self.assertFalse(hasattr(self.gp, "find_alternative_products"))
 
 
 class TestBannedPhraseBoundaries(unittest.TestCase):
@@ -2630,13 +2857,56 @@ class TestBuildWriterInputs(unittest.TestCase):
         self.assertIn("EXACTLY 3", out["user"])
         self.assertNotIn("{{ALTERNATIVE_PRODUCTS}}", out["user"])
 
-    def test_roundup_without_runners_up_uses_static_fallback_no_groq(self):
+    def test_roundup_without_runners_up_asks_for_no_alternatives_at_all(self):
+        """This test used to assert the opposite, and asserting it is what kept
+        the defect alive: the old fallback told the writer "EXACTLY 3
+        alternatives -- use well-known brands you are confident exist. Do not
+        fabricate products." A model cannot be confident a product exists, so
+        sentence one is an instruction to invent from memory and sentence two is
+        a wish. It produced "Purrfect Escape-Free Outdoor Kit", "Adventure Cat
+        Trail Harness" and "K&H Cool-Flow Backpack", none of which has a record
+        anywhere in this repo, all three published on a monetized page with
+        invented specs.
+
+        With no runners_up there is no source for an alternative product, so the
+        brief asks for none. A shorter roundup is the correct outcome.
+        """
         product = {"topic": "best-mats", "title": "Best Mats", "keyword": "best mats",
                    "format": "roundup", "name": "TopMat", "category": "dogs",
                    "species": "dog"}
         out = self.gp.build_writer_inputs("best-mats", product)
-        self.assertIn("well-known brands", out["user"])
+        self.assertNotIn("well-known brands", out["user"])
+        self.assertNotIn("confident", out["user"])
+        self.assertIn("NO Additional Picks section", out["user"])
+        self.assertIn("do not name, describe, rank or link another product",
+                      out["user"])
+        # No placeholder is emitted at all when there is nothing to put in it,
+        # in either brace form.
         self.assertNotIn("{{ALTERNATIVE_PRODUCTS}}", out["user"])
+        self.assertNotIn("{ALTERNATIVE_PRODUCTS}", out["user"])
+
+    def test_roundup_without_runners_up_asks_for_no_comparison_table(self):
+        """One product is not a comparison. Five published posts had to have a
+        one-row "Comparison Table" deleted by hand once their invented picks
+        came out of them; the brief should not ask for the shape again."""
+        product = {"topic": "best-mats", "title": "Best Mats", "keyword": "best mats",
+                   "format": "roundup", "name": "TopMat", "category": "dogs",
+                   "species": "dog"}
+        out = self.gp.build_writer_inputs("best-mats", product)
+        self.assertIn("NO Comparison Table", out["user"])
+        self.assertNotIn("Comparison Table (H2)", out["user"])
+
+    def test_roundup_with_runners_up_still_asks_for_both_sections(self):
+        """The inverse. Removing the fabrication source must not remove the
+        feature: an entry that supplies alternatives still gets an Additional
+        Picks section and a comparison table."""
+        product = {"topic": "best-mats", "title": "Best Mats", "keyword": "best mats",
+                   "format": "roundup", "name": "TopMat", "category": "dogs",
+                   "species": "dog", "runners_up": "MatA;MatB"}
+        out = self.gp.build_writer_inputs("best-mats", product)
+        self.assertIn("Additional Picks: Use ONLY these products", out["user"])
+        self.assertIn("Comparison Table (H2)", out["user"])
+        self.assertIn("MatA", out["user"])
 
 
 class TestStageArticle(unittest.TestCase):
@@ -4306,6 +4576,56 @@ class TestPublishedPostsVoiceIntegrity(unittest.TestCase):
         for name, text in self.posts.items():
             for quote in gp.find_named_testimonials(text):
                 offenders.append(f"{name}: {quote!r}")
+        self.assertEqual(offenders, [])
+
+    def test_no_published_post_links_more_than_one_amazon_product(self):
+        """One article reviews one verified product and carries one verified
+        affiliate link. A body with two distinct Amazon destinations is
+        recommending something the pipeline has no record of -- which is how
+        best-dog-backpack-carrier shipped three invented carriers at shortcodes
+        this account does not own, and best-cat-calming-products shipped six
+        literal amzn.to/xyzN placeholders.
+
+        The corpus form of this check is DELIBERATELY WEAKER than the generation
+        gate, and the difference is what evidence exists at each point.
+        Generation knows the entry's verified link, so it compares against it.
+        Here, for 36 of the 49 posts there is no products.json entry left to
+        compare against, so the check asserts only what it can prove from the
+        file: more than one destination means at least one of them is invented,
+        whichever it is.
+
+        The gap that leaves, named rather than hidden: a post whose SINGLE link
+        is itself invented passes here. best-pet-water-fountain is exactly that
+        shape -- its front matter declares amzn.to/3NNVKFY and its body links
+        amzn.to/41dtOOM fifteen times. One of those two is wrong; which one
+        cannot be settled from this machine, since resolving either means
+        leaving it. Reported as an open item instead of guessed at, and
+        deliberately NOT allowlisted here -- this guard passes it honestly,
+        rather than being widened and then excepted.
+        """
+        import generate_posts as gp
+        offenders = []
+        for name, text in self.posts.items():
+            body = text.split("---", 2)[2] if text.count("---") >= 2 else text
+            keys = []
+            for m in gp._ANY_AFFILIATE_LINK_RE.finditer(body):
+                k = gp.affiliate_link_key(m.group(0))
+                if k not in keys:
+                    keys.append(k)
+            if len(keys) > 1:
+                offenders.append(f"{name}: {keys}")
+        self.assertEqual(offenders, [])
+
+    def test_no_published_post_carries_a_placeholder_affiliate_link(self):
+        """The six "Buy now: [amzn.to/xyz1]" links shipped for four months. A
+        placeholder is the one invented link that is provably invented from the
+        text alone, so it gets its own assertion rather than relying on the
+        count above catching it by accident."""
+        offenders = []
+        for name, text in self.posts.items():
+            for m in re.finditer(r"amzn\.to/(?:xyz|abc|example|placeholder|link)\w*",
+                                 text, re.IGNORECASE):
+                offenders.append(f"{name}: {m.group(0)!r}")
         self.assertEqual(offenders, [])
 
     def test_no_species_mismatch_in_closing_call_to_action(self):

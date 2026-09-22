@@ -67,6 +67,21 @@ def cmd_gate(args) -> int:
     # case a real em dash survives scrubbing.
     scrubbed = gp.scrub_typography(body)
     passed, flags = gp.authoritative_gate(scorecard, scrubbed)
+    # A link to a product with no record is read off the body here too, when the
+    # slug is given. authoritative_gate itself cannot do it -- its signature
+    # carries no product context, and the check is meaningless without the
+    # entry's own link to compare against. Staging holds the article regardless
+    # (validate_output + stage_article); flagging it here is what lets the
+    # rewrite pass fix it instead of hitting the hold.
+    if args.slug:
+        product = gp.load_products().get(args.slug)
+        if product is None:
+            print(f"ERROR: unknown slug {args.slug!r}", file=sys.stderr)
+            return 2
+        for link in gp.find_unbacked_affiliate_links(
+                scrubbed, product.get("affiliate_url", "")):
+            passed = False
+            flags.append(f"unbacked_affiliate_link_in_body={link!r}")
     print(json.dumps({"passed": passed, "flags": flags, "scrubbed_body": scrubbed}))
     return 0
 
@@ -115,6 +130,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     g = sub.add_parser("gate")
     g.add_argument("--body", required=True); g.add_argument("--scorecard", required=True)
+    g.add_argument("--slug", default="")  # enables the unbacked-link check
     g.set_defaults(func=cmd_gate)
 
     rw = sub.add_parser("rewrite-prompt")

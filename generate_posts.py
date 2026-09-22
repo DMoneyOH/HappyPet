@@ -274,9 +274,14 @@ def find_firsthand_claims(text: str) -> list:
 #
 # Deliberately NOT caught: a quote attributed to a CLASS rather than an
 # individual ('with comments like, "My cats have shredded every other
-# scratcher..."'). Those are outside the approved fix, and widening the detector
-# to reach them would also catch honest aggregate sentiment, which is the
-# section's legitimate content. They are reported for a human decision instead.
+# scratcher..."'). Widening the detector to reach them would also catch honest
+# aggregate sentiment, which is the section's legitimate content, so they are
+# reported for a human decision instead. That decision has since been taken, and
+# it went BOTH ways: the one fully-invented sentence of this shape (the
+# scratching-post quote above) was deleted by hand on 2026-09-22, and the short
+# aggregate idioms ("immediately loved it.", "worth every penny", "game-changer")
+# were kept. The detector stays exactly as narrow as it is -- the decision was
+# about one published sentence, not about the boundary of the class.
 #
 # Direction of error, same as the firsthand guard: HOLD, never silent rewrite.
 # A false positive costs one held article; a false negative publishes a fake
@@ -364,6 +369,104 @@ def find_named_testimonials(text: str) -> list:
                 seen.add(phrase.lower())
                 found.append(phrase)
     return found
+
+
+# ---------------------------------------------------------------------------
+# Unbacked picks: a product recommended with no product record behind it
+# ---------------------------------------------------------------------------
+# A sibling of the two guards above, and a worse one. The testimonials invented
+# PEOPLE; this invents PRODUCTS, on a page the reader is meant to buy from. The
+# generator shipped "Purrfect Escape-Free Outdoor Kit" with a 3-foot woven
+# polypropylene leash, an "Adventure Cat Trail Harness" whose reflective
+# stitching was "rated to reflect up to 300 lux", a "K&H Cool-Flow Backpack" at
+# amzn.to/5Zc3LmN (a shortcode nobody here owns), five kitten foods under a
+# heading reading "Amazon Proof: 4.5-star rating (2,842 reviews)", and six cat
+# calming supplements with per-chew milligram doses and "Buy now" links reading
+# amzn.to/xyz1 .. amzn.to/xyz6.
+#
+# The pipeline has verified data for exactly ONE product per article: the
+# products.json entry, whose name, ASIN, affiliate link, rating and price came
+# off the real listing. Alternative picks come from that entry's `runners_up`
+# field as NAMES ONLY. So every figure attached to an alternative, and every
+# link that is not the entry's own, is unsourced by construction -- not "maybe
+# wrong", but sourced from nowhere.
+#
+# LINKS are what this detector reads, because the link is the one part of the
+# claim that is checkable without leaving the machine: the entry supplies
+# exactly one, so any other is unbacked, whatever it points at. A fabricated
+# spec needs the listing to disprove; a fabricated link disproves itself.
+#
+# Scope, stated so a later pass does not read a green run as more than it is:
+# this catches Amazon link shapes (amzn.to short links and amazon.com/dp), which
+# is what the generator has ever invented. A fabricated Chewy link would pass --
+# chewy_url is resolved by chewy_lookup.py rather than written by a model, which
+# is why it has never been the failure. The unbacked SPECS themselves (lux, mm,
+# mg, star ratings on an alternative) are governed upstream instead: the brief
+# no longer asks for alternatives that were not supplied. See make_prompt.
+#
+# Direction of error, same as its two siblings: HOLD, never silent rewrite.
+# Scheme and host are matched case-insensitively (they are case-insensitive by
+# spec, and a link written HTTPS://AMAZON.COM reaches the same place); the ID
+# that follows is NOT, and is compared exactly. The lookbehind is what keeps
+# `m.media-amazon.com/...` and `images-na.ssl-images-amazon.com/...` -- on every
+# post's front matter -- from being read as `amazon.com/...`.
+_ANY_AFFILIATE_LINK_RE = re.compile(
+    r"(?<![\w./-])(?i:(?:https?://)?(?:www\.)?)"
+    r"(?:(?i:amzn\.to)/(?P<short>[A-Za-z0-9]+)"
+    r"|(?i:amazon\.com/dp)/(?P<asin>[A-Za-z0-9]+))")
+
+
+def affiliate_link_key(url: str) -> str:
+    """The destination an Amazon affiliate link points AT, ignoring how it is
+    written: scheme, `www.` and the tracking query are dropped and the host is
+    lowercased. The ID keeps its case, because amzn.to short codes are
+    case-sensitive -- amzn.to/3Q8m7Hr and amzn.to/3q8M7hR are different links,
+    so lowercasing to "normalize" would let an invented one pass as the real
+    one. Returns "" for a non-link."""
+    m = _ANY_AFFILIATE_LINK_RE.search(url or "")
+    if not m:
+        return ""
+    if m.group("short"):
+        return "amzn.to/" + m.group("short")
+    return "amazon.com/dp/" + m.group("asin")
+
+
+def find_unbacked_affiliate_links(text: str, affiliate_url: str = "") -> list:
+    """Return every distinct Amazon affiliate destination in `text` that is not
+    the article's own verified one (deduped, in order of first appearance).
+    Empty list = clean.
+
+    An empty `affiliate_url` means there is nothing to compare against, so no
+    judgment is possible and none is made. That cannot happen on a real run:
+    validate_product_entry() already refuses an entry with no affiliate_url, and
+    every caller here passes the entry's. A test asserts that.
+    """
+    own = affiliate_link_key(affiliate_url)
+    if not own:
+        return []
+    found, seen = [], set()
+    for m in _ANY_AFFILIATE_LINK_RE.finditer(text or ""):
+        key = affiliate_link_key(m.group(0))
+        if key == own or key in seen:
+            continue
+        seen.add(key)
+        found.append(key)
+    return found
+
+
+UNBACKED_PICK_RULE = (
+    "Never invent a product and never write a link for one. This site has "
+    "verified data for exactly one product per article -- the featured product, "
+    "whose name, price, rating and affiliate link are given to you above -- and "
+    "for the alternative picks it hands you by name, where the name is all that "
+    "is known. So: exactly one affiliate link in the article, the one you were "
+    "given; never a second link, never a placeholder like \"amzn.to/xyz1\", and "
+    "never a URL you composed. For an alternative pick, no star rating, no "
+    "review count, no price, no dimension, no material percentage, no dosage and "
+    "no cited study -- you have no source for any of them, and a reader may try "
+    "to buy what you describe. Describe an alternative in plain prose, or leave "
+    "it out."
+)
 
 
 # Pre-joined, quoted forms for embedding in both prompts (built once at import).
@@ -928,6 +1031,31 @@ def assert_no_named_testimonials(stage: str, text: str, slug: str) -> None:
         )
 
 
+def assert_no_unbacked_affiliate_links(stage: str, text: str, slug: str,
+                                       affiliate_url: str = "") -> None:
+    """Hold anything that links a product the pipeline has no record of.
+
+    Raises GenerationStageError naming every foreign destination found, so the
+    held article's GitHub issue says which link to cut. Called on the article
+    body at both output gates and inside stage_article() -- that last one is the
+    structural backstop, the single funnel every publish path pushes a body
+    through.
+
+    NOT hooked into authoritative_gate(), unlike the testimonial guard: that
+    function's signature carries no product context, and without the entry's own
+    link there is nothing to compare a link against. cmd_gate in stage1_cli
+    passes --slug so the agent-driven path still gets the flag early enough to
+    rewrite; staging is where it becomes a hold.
+    """
+    links = find_unbacked_affiliate_links(text, affiliate_url)
+    if links:
+        raise GenerationStageError(
+            f"[{stage}] {slug}: affiliate link(s) for product(s) this pipeline "
+            f"has no record of -- one article carries exactly one verified link "
+            f"({affiliate_link_key(affiliate_url)}): {links}"
+        )
+
+
 def validate_output(stage: str, content: str, slug: str, affiliate_url: str = "") -> None:
     """
     Output contract gate. Raises GenerationStageError on violation.
@@ -943,6 +1071,12 @@ def validate_output(stage: str, content: str, slug: str, affiliate_url: str = ""
     A quote attributed to a named individual fails both gates for the same
     reason: the "no invented testimonials" rule has been in the prompts since
     2026-07-20 and nothing ever enforced it in code.
+
+    A link to a product the pipeline has no record of fails both gates for the
+    third time in the same pattern. The brief has said "NO links for additional
+    picks" since the roundup format existed; best-dog-backpack-carrier shipped
+    three invented amzn.to shortcodes anyway and best-cat-calming-products
+    shipped six literal amzn.to/xyzN placeholders.
     """
     MIN_WORD_COUNT   = 700
     MIN_CHARS        = 2000
@@ -960,6 +1094,7 @@ def validate_output(stage: str, content: str, slug: str, affiliate_url: str = ""
         )
     assert_no_firsthand_claims(stage, content, slug)
     assert_no_named_testimonials(stage, content, slug)
+    assert_no_unbacked_affiliate_links(stage, content, slug, affiliate_url)
     # Affiliate link required only at Gate 2 (post-review); rewrite has a chance to inject it first
     if stage == "review":
         if affiliate_url:
@@ -1227,7 +1362,7 @@ accuracy:
   2 = Multiple unverified specs presented as fact.
   1 = Significant factual errors or invented specifications.
 
-=== 23-CATEGORY AI PATTERN AUDIT ===
+=== 24-CATEGORY AI PATTERN AUDIT ===
 
 Check every category. Flag every violation found.
 
@@ -1271,6 +1406,12 @@ Check every category. Flag every violation found.
     flag an invented review date, reviewer username or star-rating attribution. Aggregate
     sentiment with no quotation marks and no speaker is fine and is what the section should
     contain. This one is a legal exposure, not a style note.
+24. UNBACKED PRODUCT PICKS — {UNBACKED_PICK_RULE}
+    Flag every affiliate link after the first: one article carries exactly one. Flag any
+    link that looks composed or placeholder ("amzn.to/xyz1"). Flag every star rating,
+    review count, price, dimension, material percentage, dosage or cited study attached to
+    a product that is NOT the featured one -- there is no source for any of them. A reader
+    can try to buy what the article describes, so this one is a legal exposure too.
 
 === PASS CRITERIA (ALL must be true) ===
 
@@ -1283,7 +1424,8 @@ Check every category. Flag every violation found.
 - NO first-person voice (I, we, us, our, my used as author voice = FAIL regardless of scores)
 - NO claim of firsthand experience with the product (category 22 = FAIL regardless of scores)
 - NO quote attributed to a named individual (category 23 = FAIL regardless of scores)
-- If roundup: alternative product sections must have specific distinguishing details, not generic filler
+- NO second affiliate link and no invented figure for a non-featured product (category 24 = FAIL regardless of scores)
+- If roundup: alternative product sections must be distinguishable from each other on what the products are for, not padded with invented specs to look specific
 
 Score 4 or 5 only if genuinely non-AI-sounding. When in doubt, score lower.
 
@@ -1307,7 +1449,7 @@ Rules:
 - flags: list each specific problem as a plain string; empty array if none
 - rewrite_instructions: name exact sections and specific fixes if pass=false; empty string if pass=true. Keep under 250 words -- a truncated response fails JSON parsing and the article is held unreviewed.
 - em_dash_count: exact integer count of (—) characters in article
-- pass=false if em_dash_count > 0, first-person voice present, a firsthand-experience claim present, a quote attributed to a named individual present, or human_voice < {REVIEW_SCORE_MINIMUMS['human_voice']} or warmth < {REVIEW_SCORE_MINIMUMS['warmth']}
+- pass=false if em_dash_count > 0, first-person voice present, a firsthand-experience claim present, a quote attributed to a named individual present, a second affiliate link or an invented figure for a non-featured product present, or human_voice < {REVIEW_SCORE_MINIMUMS['human_voice']} or warmth < {REVIEW_SCORE_MINIMUMS['warmth']}
 """
 
 
@@ -1337,6 +1479,7 @@ REWRITE RULES:
   - NEVER use first-person voice (I, we, us, our, my). No personal stories and no named pets. Write in second or third person.
   - {FIRSTHAND_CLAIM_RULE}
   - {NAMED_TESTIMONIAL_RULE}
+  - {UNBACKED_PICK_RULE}
   - NEVER invent numbers -- no percentages, review counts, prices, dates, or specs you were not given. If a number is not already in the article, do not add one.
 - Where the editor flagged generic or AI-patterned writing, replace with something SPECIFIC and concrete.
   A specific detail beats a fluent generality every time.
@@ -1367,6 +1510,7 @@ An automated reviewer rejects any article that breaks the rules in <writing_rule
 - Voice: write ONLY in second person ("your dog", "you'll find") or third person ("owners report", "dogs tend to"). NEVER use first-person voice (I, we, us, our, my). No personal stories, no named pets, no invented testimonials. The reviewer fails any article that uses first person.
 - Firsthand claims: {FIRSTHAND_CLAIM_RULE} This is a legal line, not a style preference: the article is held and never published if it breaks it.
 - Named testimonials: {NAMED_TESTIMONIAL_RULE} This is a legal line too, and it is enforced in code: the article is held and never published if it breaks it.
+- Unbacked picks: {UNBACKED_PICK_RULE} The link half of this is enforced in code: a second affiliate link holds the article and it is never published.
 - Dashes: NEVER use em dashes (—). Use hyphens, commas, or shorter sentences.
 - Transitions: never use {_BANNED_TRANSITIONS_STR}. Start sentences with the subject or an action; an occasional plain "But", "And", or "So" is fine, but do not lean on them.
 - Intensifiers: do not lean on empty intensifiers before adjectives ({_BANNED_INTENSIFIERS_STR}). Cut them or give a concrete detail instead.
@@ -1393,8 +1537,8 @@ Then the article body immediately after.
 
 def build_writer_inputs(slug: str, product: dict) -> dict:
     """Assemble the writer's system+user prompts for one topic, internal-only.
-    Roundup alternatives come from products.json `runners_up`; when absent, a
-    static instruction is used instead of the (external) Groq fallback. Returns
+    Roundup alternatives come from products.json `runners_up`; when absent, the
+    brief asks for no alternatives at all (see make_prompt). Returns
     {system, user, title, keyword, fmt, species, affiliate_url}."""
     title    = product["title"]
     keyword  = product["keyword"]
@@ -1413,24 +1557,27 @@ def build_writer_inputs(slug: str, product: dict) -> dict:
     # never matched, so the placeholder was never substituted for roundups.
     # Match the real (single-brace) placeholder here so the substitution
     # actually fires.
+    #
+    # The placeholder is emitted by make_prompt ONLY when the entry supplies
+    # runners_up, so the branch below has no else. There used to be one, and it
+    # read: "EXACTLY 3 alternatives -- use well-known brands you are confident
+    # exist. Do not fabricate products." Those two sentences contradict each
+    # other. A model has no way to be confident a product exists, so the first
+    # sentence is an instruction to invent from memory and the second is a wish.
+    # It is where "Purrfect Escape-Free Outdoor Kit" and "K&H Cool-Flow
+    # Backpack" came from.
     if "{ALTERNATIVE_PRODUCTS}" in user:
         runners_up = product.get("runners_up", "")
-        if runners_up:
-            if ";" in runners_up:
-                alt_count = len([a for a in runners_up.split(";") if a.strip()])
-            else:
-                alt_count = len([ln for ln in runners_up.splitlines() if ln.strip()])
-            alt_constraint = (
-                "EXACTLY " + str(alt_count) + " alternative product(s) listed below. "
-                "Use ONLY these " + str(alt_count) + " product(s). "
-                "Do NOT add, invent, or substitute any others.\n" + runners_up
-            )
-            user = user.replace("{ALTERNATIVE_PRODUCTS}", alt_constraint)
+        if ";" in runners_up:
+            alt_count = len([a for a in runners_up.split(";") if a.strip()])
         else:
-            user = user.replace(
-                "{ALTERNATIVE_PRODUCTS}",
-                "EXACTLY 3 alternatives -- use well-known brands you are confident "
-                "exist. Do not fabricate products.")
+            alt_count = len([ln for ln in runners_up.splitlines() if ln.strip()])
+        alt_constraint = (
+            "EXACTLY " + str(alt_count) + " alternative product(s) listed below. "
+            "Use ONLY these " + str(alt_count) + " product(s). "
+            "Do NOT add, invent, or substitute any others.\n" + runners_up
+        )
+        user = user.replace("{ALTERNATIVE_PRODUCTS}", alt_constraint)
 
     return {"system": GENERATOR_SYSTEM_PROMPT, "user": user, "title": title,
             "keyword": keyword, "fmt": fmt, "species": species,
@@ -1482,6 +1629,47 @@ a name, an age, a city or a review date. {NAMED_TESTIMONIAL_RULE}"""
                 f"VERIFIED PRODUCT DATA (use exactly as shown, do not alter or invent):\n"
                 f"{verified_data}"
             )
+        # An Additional Picks section is asked for ONLY when the entry names the
+        # alternatives. Without that list there is no source for an alternative
+        # product, and the brief used to ask for three anyway ("use well-known
+        # brands you are confident exist"), which is how five published posts
+        # ended up recommending products that do not exist as described. A
+        # roundup with one backed pick is a shorter article; a roundup with four
+        # invented ones is a liability.
+        if product.get("runners_up"):
+            alt_block = """
+  Additional Picks: Use ONLY these products, which were supplied with this brief (H3 each, 60-75 words)
+    {ALTERNATIVE_PRODUCTS}
+    - Write each as a single prose paragraph, NOT a bullet list
+    - Naturally include 1-2 genuine strengths AND 1-2 honest limitations
+    - The NAME is the only thing known about these products. Do not state a star rating, a review count, a price, a dimension, a material percentage, a dosage or a study for any of them -- omit numbers entirely
+    - Hedge unverified claims: "tends to...", "most owners find...", "works well for..."
+    - DO NOT fabricate review data like "88% of owners reported..." -- if you don't have the number, don't include one
+    - Use ONLY the products listed above; do not add or invent others
+    - NO link for an additional pick. The featured product's link is the only link in the article
+"""
+        else:
+            alt_block = """
+  NO Additional Picks section. No alternative products were supplied for this
+  article, so there is no second product you know anything about. Write about the
+  featured product only: do not name, describe, rank or link another product, and
+  do not add an "Alternative Picks", "Other Picks" or "Runners-Up" section under
+  any heading. A shorter article is the correct outcome here.
+"""
+        # No alternatives means nothing to compare, and a one-row "Comparison
+        # Table" is the vacuous shape that had to be deleted by hand from five
+        # published posts once their invented picks came out.
+        if product.get("runners_up"):
+            table_block = """
+  Comparison Table (H2): Product | Best For | Price Range | Key Attribute
+    - Price Range: use $, $$, $$$ only; do not invent specific dollar amounts for additional picks
+    - Key Attribute: choose the most relevant column header for this product category (e.g. Form, CFU Count, Flavor, Size). Never use "Chew Time" for non-consumable products.
+    - Do NOT include a ratings column; only use verified ratings from product data above
+"""
+        else:
+            table_block = """
+  NO Comparison Table. One product is not a comparison.
+"""
         structure = f"""ARTICLE FORMAT: Roundup/comparison -- {title}
 
 {verified_block}
@@ -1496,24 +1684,9 @@ STRUCTURE:
     - Include affiliate link per LINKING RULE above
     - Do not fabricate specs; hedge unverified claims ("many owners report..." / "tends to...")
     - NO invented personal stories, named dogs, specific dates, or fabricated test metrics
-
-  Additional Picks: Use ONLY these real products from web search (H3 each, 60-75 words)
-    {{ALTERNATIVE_PRODUCTS}}
-    - Write each as a single prose paragraph, NOT a bullet list
-    - Naturally include 1-2 genuine strengths AND 1-2 honest limitations
-    - DO NOT include star ratings, prices, specific specs, or fabricated statistics/percentages you cannot verify -- omit numbers entirely
-    - Hedge unverified claims: "tends to...", "most owners find...", "works well for..."
-    - DO NOT fabricate review data like "88% of owners reported..." -- if you don't have the number, don't include one
-    - Use ONLY the products listed above; do not add or invent others
-    - NO links for additional picks unless a URL is explicitly provided in the prompt
-
+{alt_block}
   Buying Guide (H2, 150+ words)
-
-  Comparison Table (H2): Product | Best For | Price Range | Key Attribute
-    - Price Range: use $, $$, $$$ only; do not invent specific dollar amounts for additional picks
-    - Key Attribute: choose the most relevant column header for this product category (e.g. Form, CFU Count, Flavor, Size). Never use "Chew Time" for non-consumable products.
-    - Do NOT include a ratings column; only use verified ratings from product data above
-
+{table_block}
   Closing (80+ words with affiliate link per LINKING RULE above, NO heading - begin prose directly)"""
     else:
         structure = f"""ARTICLE FORMAT: Buying guide -- {title}
@@ -1646,59 +1819,11 @@ ARTICLE:
         return content
 
 
-def find_alternative_products(keyword: str, primary_product: str, groq_key: str, count: int = 3) -> str:
-    """Find real alternative products via OpenRouter (Groq removed -- CF-blocked from GHA)."""
-    prompt = (
-        f"Name the top {count} popular alternatives to {primary_product} for '{keyword}'. "
-        f"For each, provide: brand name, product name, and one sentence that includes a SPECIFIC "
-        f"differentiating feature (e.g. a key ingredient, a unique design element, or a specific "
-        f"use case it excels at). Be concrete, not vague. "
-        f"Return as a simple numbered list: Brand - Product Name: Description"
-    )
-
-    or_key = os.environ.get("OPENROUTER_API_KEY", "").strip()
-    if not or_key:
-        log("  OPENROUTER_API_KEY not set -- skipping alternative search", "WARN")
-        return ""
-
-    or_headers = {
-        "Content-Type": "application/json",
-        "Authorization": f"Bearer {or_key}",
-        **OR_HEADERS_EXTRA,
-    }
-
-    # Tier 1: gpt-oss-120b:free (Groq removed -- CF error 1010 blocks all Groq from GHA)
-    payload = json.dumps({
-        "model": OR_GEN_MODEL,
-        "messages": [{"role": "user", "content": prompt}],
-        "max_tokens": 500,
-        "temperature": 0.3,
-    }).encode()
-
-    try:
-        raw     = http_post(OPENROUTER_URL, payload, or_headers, label="AltSearch-OR-120b", timeout=60, retries=1)
-        content = json.loads(raw)["choices"][0]["message"]["content"]
-        log(f"  Found {count} alternatives via OR gpt-oss-120b:free")
-        return content
-    except Exception as exc:
-        log(f"  OR-120b alt search failed: {exc} -- trying OR-20b fallback", "WARN")
-
-    # Tier 2: gpt-oss-20b:free
-    payload = json.dumps({
-        "model": "openai/gpt-oss-20b:free",
-        "messages": [{"role": "user", "content": prompt}],
-        "max_tokens": 500,
-        "temperature": 0.3,
-    }).encode()
-
-    try:
-        raw     = http_post(OPENROUTER_URL, payload, or_headers, label="AltSearch-OR-20b", timeout=60, retries=1)
-        content = json.loads(raw)["choices"][0]["message"]["content"]
-        log(f"  Found {count} alternatives via OR gpt-oss-20b:free fallback")
-        return content
-    except Exception as exc:
-        log(f"  Alternative search failed on both OR models: {exc}", "WARN")
-        return ""
+# find_alternative_products() lived here and is deleted, not disabled. It asked an
+# LLM to "name the top 3 popular alternatives ... one sentence that includes a
+# SPECIFIC differentiating feature ... Be concrete, not vague", which is a request
+# for invented product specs in one prompt. It had no callers -- alternatives come
+# from the entry's runners_up names -- so it was a loaded gun with the safety on.
 
 
 def review_and_rewrite(title: str, keyword: str, content: str, api_key: str, or_key: str = "", affiliate_url: str = "", product_name: str = "") -> tuple:
@@ -1855,9 +1980,12 @@ def stage_article(slug: str, product: dict, body: str, pin_desc: str,
     article text (no PIN_DESC line). Returns {draft_path, pin_queue_path}."""
     # Structural backstop. This is the one function every publish path funnels a
     # BODY through -- main()'s automated run and stage1_cli's agent-driven run
-    # both land here -- so a fabricated testimonial cannot reach _posts/ even if
-    # a future caller is added that skips validate_output.
+    # both land here -- so a fabricated testimonial or a link to a product with
+    # no record cannot reach _posts/ even if a future caller is added that skips
+    # validate_output.
     assert_no_named_testimonials("stage_article", body, slug)
+    assert_no_unbacked_affiliate_links("stage_article", body, slug,
+                                       product.get("affiliate_url", ""))
     title    = product["title"]
     keyword  = product["keyword"]
     species  = product.get("species", "dog")
@@ -2012,7 +2140,14 @@ def main() -> None:
                 # checked here too -- it becomes the published `description`
                 # field, and nothing else on this path looks at it.
                 try:
-                    validate_output("generate", content, slug)
+                    # The entry's own affiliate link is passed at BOTH gates:
+                    # without it there is nothing to judge a second link
+                    # against, and a link invented at generation time survives
+                    # the fact-check stage untouched (that stage rewrites stats,
+                    # not URLs -- and _sanitize_factcheck_output keeps the
+                    # ORIGINAL body whenever the links differ).
+                    validate_output("generate", content, slug,
+                                    affiliate_url=product.get("affiliate_url", ""))
                     assert_no_firsthand_claims("pin_desc", pin_desc, slug)
                 except GenerationStageError as e:
                     log(f"  HOLD {slug} -- generation contract failed: {e}", "WARN")
