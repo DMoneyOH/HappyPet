@@ -39,6 +39,78 @@ def test_gate_autofixes_em_dash_instead_of_holding():
         assert out["passed"] is True
         assert "—" not in out["scrubbed_body"]
 
+def test_gate_flags_a_link_to_a_product_with_no_record():
+    # The agent-driven path's half of the unbacked-link guard. Staging holds the
+    # article either way, but a flag HERE is what lets the rewrite pass fix it
+    # instead of hitting the hold. best-dog-cooling-mat's real entry links
+    # amzn.to/4cuvtEY; amzn.to/4Xy9ZkL is one of the three shortcodes
+    # best-dog-backpack-carrier published for carriers that have no record.
+    with tempfile.TemporaryDirectory() as td:
+        body = Path(td) / "body.md"
+        body.write_text("[EHEYCIGA mat](https://amzn.to/4cuvtEY) tops the list. "
+                        "[Invented Runner-Up](https://amzn.to/4Xy9ZkL) is second.",
+                        encoding="utf-8")
+        card = Path(td) / "card.json"
+        card.write_text(json.dumps({"pass": True,
+            "scores": {"human_voice": 4, "warmth": 4, "readability": 4, "accuracy": 4}}),
+            encoding="utf-8")
+        r = run("gate", "--body", str(body), "--scorecard", str(card),
+                "--slug", "best-dog-cooling-mat")
+        assert r.returncode == 0, r.stderr
+        out = json.loads(r.stdout)
+        assert out["passed"] is False, out
+        assert any("unbacked_affiliate_link_in_body" in f and "4Xy9ZkL" in f
+                   for f in out["flags"]), out["flags"]
+
+
+def test_gate_does_not_flag_the_entrys_own_link():
+    # The inverse. A guard that fires on the one link every article is supposed
+    # to carry would hold every article, and would be switched off within a day.
+    with tempfile.TemporaryDirectory() as td:
+        body = Path(td) / "body.md"
+        body.write_text("[EHEYCIGA mat](https://amzn.to/4cuvtEY) tops the list, and "
+                        "[here it is again](https://amzn.to/4cuvtEY).", encoding="utf-8")
+        card = Path(td) / "card.json"
+        card.write_text(json.dumps({"pass": True,
+            "scores": {"human_voice": 4, "warmth": 4, "readability": 4, "accuracy": 4}}),
+            encoding="utf-8")
+        r = run("gate", "--body", str(body), "--scorecard", str(card),
+                "--slug", "best-dog-cooling-mat")
+        out = json.loads(r.stdout)
+        assert out["passed"] is True, out
+        assert out["flags"] == [], out["flags"]
+
+
+def test_gate_without_a_slug_behaves_exactly_as_before():
+    # --slug is optional and new. An existing caller that does not pass it must
+    # get the old behaviour, not a silently different verdict.
+    with tempfile.TemporaryDirectory() as td:
+        body = Path(td) / "body.md"
+        body.write_text("[Invented Runner-Up](https://amzn.to/4Xy9ZkL) is second.",
+                        encoding="utf-8")
+        card = Path(td) / "card.json"
+        card.write_text(json.dumps({"pass": True,
+            "scores": {"human_voice": 4, "warmth": 4, "readability": 4, "accuracy": 4}}),
+            encoding="utf-8")
+        r = run("gate", "--body", str(body), "--scorecard", str(card))
+        out = json.loads(r.stdout)
+        assert out["passed"] is True, out
+        assert out["flags"] == [], out["flags"]
+
+
+def test_gate_rejects_an_unknown_slug_instead_of_scoring_it_clean():
+    with tempfile.TemporaryDirectory() as td:
+        body = Path(td) / "body.md"; body.write_text("clean body text", encoding="utf-8")
+        card = Path(td) / "card.json"
+        card.write_text(json.dumps({"pass": True,
+            "scores": {"human_voice": 4, "warmth": 4, "readability": 4, "accuracy": 4}}),
+            encoding="utf-8")
+        r = run("gate", "--body", str(body), "--scorecard", str(card),
+                "--slug", "best-nonexistent-topic")
+        assert r.returncode == 2, (r.returncode, r.stdout, r.stderr)
+        assert "unknown slug" in r.stderr
+
+
 def test_review_prompt_contains_title_and_rubric():
     with tempfile.TemporaryDirectory() as td:
         body = Path(td) / "body.md"; body.write_text("article body", encoding="utf-8")
