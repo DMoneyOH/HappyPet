@@ -18,6 +18,7 @@ import json
 import os
 import re
 import sys
+import tempfile
 import types
 import unittest
 from pathlib import Path
@@ -3438,6 +3439,106 @@ class TestSheetsApiRetry(unittest.TestCase):
             if "sheets_retry(" in line:
                 self.assertNotIn("append_row", line,
                                  "append_row must never be handed to sheets_retry")
+
+
+class TestPinPayloadIsTitleOnly(unittest.TestCase):
+    """post_pins.py sends value2=title[:100], NOT "title | pin_desc".
+
+    Written because the docstring said "title | pin_desc" for five months after
+    a3fab21 deliberately removed the concatenation, which reads exactly like a
+    bug: the code appears to discard a variable the documentation promises. It
+    is not one. Pinterest caps the field at 100 characters and appending the
+    description overran it.
+
+    The description is not dropped either. generate_posts.py passes the same
+    pin_desc to make_pin_for_post() before writing the queue file, and that
+    renders it onto the pin image, so it reaches Pinterest in the artwork.
+    Restoring the concatenation would publish it twice and re-break the cap.
+
+    These tests exist to make that argument fail loudly rather than be
+    rediscovered and "fixed" from the docstring a third time.
+    """
+
+    def _source(self):
+        return (REPO / "post_pins.py").read_text(encoding="utf-8")
+
+    def test_value2_is_the_title_capped_at_100(self):
+        self.assertIn("value2 = title[:100]", self._source())
+
+    def test_the_queue_description_is_never_concatenated_into_value2(self):
+        """The exact shape a3fab21 removed, plus the obvious variants of it."""
+        # Assignment lines only -- the module docstring necessarily quotes the
+        # old "title | pin_desc" shape while explaining why it is gone.
+        assignments = [l for l in self._source().splitlines()
+                       if re.match(r"\s*value2\s*=[^=]", l)]
+        self.assertTrue(assignments, "no value2 assignment found at all")
+        for line in assignments:
+            with self.subTest(line=line.strip()):
+                for banned in ("pin_desc", "description", '" | "', "' | '"):
+                    self.assertNotIn(banned, line)
+
+    def test_the_fired_payload_carries_no_description(self):
+        """Behavioural, not source-shaped: drive the real main() over a real
+        queue file with the network stubbed, and assert on what fire_webhook
+        was actually handed."""
+        import post_pins as pp
+
+        queue = {"title": "Best Dog Cooling Mats to Beat the Summer Heat",
+                 "article_url": "https://happypetproductreviews.com/dog-gear/x/",
+                 "description": "Beat the summer heat with a mat that actually cools.",
+                 "image_url": "https://happypetproductreviews.com/a/b.jpg",
+                 "species": "dog", "slug": "x", "topical_sheet": ""}
+        captured = []
+
+        with tempfile.TemporaryDirectory() as tmp:
+            qdir = Path(tmp) / "_pin_queue"
+            qdir.mkdir()
+            (qdir / "x.json").write_text(json.dumps(queue), encoding="utf-8")
+            with patch.object(pp, "REPO_DIR", Path(tmp)), \
+                 patch.object(pp, "brain_get_secret", return_value="k"), \
+                 patch.object(pp, "check_url_live", return_value=True), \
+                 patch.object(pp, "check_image_has_content", return_value=True), \
+                 patch.object(pp, "fire_webhook",
+                              side_effect=lambda ev, v1, v2, v3, key: captured.append(v2) or True), \
+                 patch.object(sys, "argv", ["post_pins.py"]):
+                pp.main()
+
+        self.assertTrue(captured, "no webhook was fired - the test proved nothing")
+        for value2 in captured:
+            self.assertEqual(value2, queue["title"])
+            self.assertNotIn(queue["description"], value2)
+            self.assertNotIn("|", value2)
+            self.assertLessEqual(len(value2), 100)
+
+    def test_a_long_title_is_truncated_to_the_pinterest_cap(self):
+        import post_pins as pp
+        long_title = "Best " + ("Extremely Durable " * 12) + "Dog Toy"
+        self.assertGreater(len(long_title), 100)
+        captured = []
+        queue = {"title": long_title, "article_url": "https://x/", "description": "d",
+                 "image_url": "https://x/a.jpg", "species": "cat", "slug": "y",
+                 "topical_sheet": ""}
+        with tempfile.TemporaryDirectory() as tmp:
+            qdir = Path(tmp) / "_pin_queue"
+            qdir.mkdir()
+            (qdir / "y.json").write_text(json.dumps(queue), encoding="utf-8")
+            with patch.object(pp, "REPO_DIR", Path(tmp)), \
+                 patch.object(pp, "brain_get_secret", return_value="k"), \
+                 patch.object(pp, "check_url_live", return_value=True), \
+                 patch.object(pp, "check_image_has_content", return_value=True), \
+                 patch.object(pp, "fire_webhook",
+                              side_effect=lambda ev, v1, v2, v3, key: captured.append(v2) or True), \
+                 patch.object(sys, "argv", ["post_pins.py"]):
+                pp.main()
+        self.assertTrue(captured)
+        self.assertEqual(captured[0], long_title[:100])
+
+    def test_the_docstring_matches_the_code(self):
+        """The defect this class is really about was a docstring that had
+        drifted from the code for five months."""
+        doc = self._source().split('"""')[1]
+        self.assertNotIn('value2="title | pin_desc"', doc)
+        self.assertIn("value2=title (capped at 100 chars)", doc)
 
 
 class TestPublishedPostsVoiceIntegrity(unittest.TestCase):
