@@ -3617,7 +3617,26 @@ class TestPublishedPostsVoiceIntegrity(unittest.TestCase):
     def test_no_species_mismatch_in_closing_call_to_action(self):
         """A cat post told the reader to "treat your dog to some exciting new
         playtime adventures" - a template artifact from a dog post. Checks the
-        direct second-person address, where the species must match the post."""
+        direct second-person address, where the species must match the post.
+
+        DELIBERATELY NARROW - do not widen this to a general opposite-species
+        vocabulary scan. That scan was run by hand over all 49 posts and
+        returned 17 hits, of which only 3 were defects. The other 14 are
+        correct prose that a wider rule would flag:
+
+          - best-flea-prevention-dogs warns at length that "using a cat product
+            on a dog can be deadly" (5 hits). It is a safety paragraph, and a
+            guard that fires on it gets weakened with an allowlist or deleted.
+          - best-cat-carrier-travel asks "Can you use a dog carrier for a cat?"
+            and answers no (3 hits) - a deliberate comparison.
+          - best-dog-pools and best-dog-nail-grinder quote product titles and
+            multi-pet suitability ("for dogs and cats of all sizes", 5 hits).
+          - "Bengal"/"Bengals" in two cat posts are a CAT breed (2 hits), which
+            a naive dog-vocabulary list gets backwards.
+
+        "your <species>" is the one shape where the post speaks directly to its
+        own reader, so the species cannot legitimately be the other one.
+        """
         offenders = []
         for name, text in self.posts.items():
             species = re.search(r"^species:\s*(\w+)", text, re.MULTILINE)
