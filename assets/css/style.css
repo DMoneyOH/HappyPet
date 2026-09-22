@@ -21,8 +21,12 @@
         --accent  marigold  SURFACE ONLY. Large filled blocks carrying ink at
                             9.6:1: the headline phrase, the hero pet panel,
                             the lead numeral, every primary and buy button.
-        --hot     tomato    INK ONLY, 4.8:1 on paper. Running numerals, live
-                            filter state, link underlines. Never a surface.
+        --hot     tomato    INK ONLY, 4.8:1 on paper as solid ink. Live
+                            filter state, and the running numerals, which
+                            are a 2px OUTLINE: a hairline outline renders
+                            well below its colour's ratio, so that use is
+                            decorative ordinal, never body text. Never a
+                            surface.
         --night   spruce    One dark section ground, replacing round 2's
                             near-black. Cream on it at 10.6:1.
 
@@ -573,7 +577,10 @@ button { font: inherit; color: inherit; }
   line-height: .8;
   letter-spacing: -.05em;
   color: transparent;
-  -webkit-text-stroke: 1px var(--hot);
+  /* 2px, not 1px. Stroked in --rule-2 this was a deliberate near-invisible
+     mark; restroked in tomato at 1px it stayed just as faint while looking
+     like a colour decision, which is the worst of both. */
+  -webkit-text-stroke: 2px var(--hot);
   margin-bottom: .1rem;
 }
 

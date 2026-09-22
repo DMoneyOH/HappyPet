@@ -407,7 +407,7 @@ it warmth and quantity. It is written into the stylesheet header as lock 2:
 | Token | Hue | Job | Contrast |
 | --- | --- | --- | --- |
 | `--accent` | marigold `#FFB627` | **Surface only.** Headline phrase, hero pet panel, lead numeral, every primary and buy button | ink on it 9.6:1 |
-| `--hot` | tomato `#C6381B` | **Ink only.** Running numerals, live filter state | 4.8:1 on paper |
+| `--hot` | tomato `#C6381B` | **Ink only.** Live filter state, and the running numerals as a 2px outline | 4.8:1 on paper as solid ink. A hairline outline renders well below its colour's ratio, so the numerals are decorative ordinal, never body text |
 | `--night` | spruce `#16402F` | The one dark section ground, replacing near-black | cream on it 10.6:1 |
 | `--paper` | cream `#FFF3E2` | Page ground | ink 15.4:1, `--ink-2` 8.1:1, `--ink-3` 5.0:1 |
 
@@ -492,7 +492,14 @@ committed to `main` and nothing is pushed. A push here is Class 3 (see 0). New t
 1. `assets/images/happy-pets.png` (298 KB) is now unused by the site. `hero-pets.png` is
    derived from it and `og-image.png` is a byte-identical copy of it, so it is kept rather
    than deleted, but nothing references it.
-2. **`og-image.png` was not touched.** It is the old share card and it no longer matches the
+2. **`.lede-strip` is now redundant on the home page and was deliberately left
+   alone.** Its round 2 job was putting photography on the first screen without
+   rebuilding the card grid. The pet panel does that job now, so the strip is a
+   third photo band in one screen showing the same six products the index repeats
+   at larger size 400px below. Removing it is the right call on the merits and it
+   is not this round's call to take: it deletes structure the Director kept. Flagged
+   for his decision.
+3. **`og-image.png` was not touched.** It is the old share card and it no longer matches the
    site's palette. That is a share-surface decision, not a layout one, and it is the obvious
    place to start if the next job is traffic: the marigold pet panel is a far more shareable
    card than a bare cut-out on white.
