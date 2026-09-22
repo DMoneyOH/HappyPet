@@ -58,10 +58,6 @@ While the medium size covers a broad weight range, dogs on the upper end (around
 
 Scouring Amazon reviews and real-world owner accounts turns up a consistent theme: the combination of safety features and comfort keeps buyers coming back.
 
-- **Samantha, 38, Portland, OR:** "My Labrador, Bella, loves the lake but gets nervous around other dogs. This vest gives her enough confidence to stay in the water, and the handle made it easy to pull her out when we needed a break."
-- **Javier, 45, Austin, TX:** "We took the vest on a river rafting trip. The buoyancy held up even when the current got a little stronger. No slipping, no chafing—just solid performance."
-- **Leah, 27, Boston, MA:** "I was skeptical about the mesh panels getting soggy, but they dried in minutes. The vest kept my French bulldog afloat during a sudden rainstorm at the beach, and the reflective strips were visible from across the water."
-
 Overall sentiment leans strongly positive, with most owners highlighting performance and rescue capability as the main reasons they'd repurchase.
 
 ## Who Should Buy This

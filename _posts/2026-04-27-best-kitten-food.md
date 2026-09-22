@@ -32,7 +32,7 @@ the top choice earns a solid 4.8/5 rating on Amazon, reflecting consistent prais
 
 #### 1. Hill's Science Diet Kitten Food  
 - **Key Feature:** 30 % real chicken as the first ingredient, plus a precise blend of pre‑biotic fibers to aid digestion.  
-- **Amazon Proof:** 4.5‑star rating (2,842 reviews). A 5‑star review from “Emily R.” (April 2024) notes, “a 10‑week‑old kitten finished the bowl in seconds and has had no stomach upset for a month.”  
+- **Amazon Proof:** 4.5‑star rating (2,842 reviews).  
 - **Pros**  
   - Pre‑biotic fiber mix (fucoidan & beet pulp) calms sensitive stomachs  
   - Added vitamin E and omega‑3s from fish oil give a glossy coat  
@@ -43,7 +43,7 @@ the top choice earns a solid 4.8/5 rating on Amazon, reflecting consistent prais
 
 #### 2. Royal Canin Kitten Food  
 - **Key Feature:** Includes “Royal Canin K‑Mune” blend—highly digestible proteins plus nucleotides for immune support.  
-- **Amazon Proof:** 4.7‑star rating (3,119 reviews). Reviewer “J.T.” (Feb 2024) writes, “a rescued kitten gained 1 lb in three weeks and his stools are firm, not the runny mess I’d seen before.”  
+- **Amazon Proof:** 4.7‑star rating (3,119 reviews).  
 - **Pros**  
   - Precise 27 % chicken meal ensures consistent protein intake  
   - Balanced calcium‑phosphorus ratio supports bone growth  
@@ -54,7 +54,7 @@ the top choice earns a solid 4.8/5 rating on Amazon, reflecting consistent prais
 
 #### 3. Wellness Core Grain‑Free Kitten Food  
 - **Key Feature:** 38 % deboned turkey and chicken, plus probiotic blend (Bacillus coagulans) for gut health.  
-- **Amazon Proof:** 4.6‑star rating (1,987 reviews). “Mia L.” (Jan 2024) says, “a 8‑week‑old kitten’s energy spiked after switching—he’s now chasing toys nonstop!”  
+- **Amazon Proof:** 4.6‑star rating (1,987 reviews).  
 - **Pros**  
   - Grain‑free, USDA‑verified turkey and chicken proteins  
   - Added glucosamine for joint support during rapid growth  
@@ -65,7 +65,7 @@ the top choice earns a solid 4.8/5 rating on Amazon, reflecting consistent prais
 
 #### 4. Taste of the Wild Grain‑Free Kitten Food  
 - **Key Feature:** 32 % roasted kangaroo and venison, plus a “Wild‑Life” blend of antioxidants (vitamin C, E, and selenium).  
-- **Amazon Proof:** 4.5‑star rating (1,654 reviews). A 5‑star review by “Carlos M.” (Mar 2024) notes, “a kitten with a sensitive stomach had zero vomiting after two weeks on this formula.”  
+- **Amazon Proof:** 4.5‑star rating (1,654 reviews).  
 - **Pros**  
   - Novel protein sources reduce risk of common allergen reactions  
   - Freeze‑dried raw chicken broth enhances flavor without artificial additives  
@@ -76,7 +76,7 @@ the top choice earns a solid 4.8/5 rating on Amazon, reflecting consistent prais
 
 #### 5. Blue Buffalo Life Protection Formula Kitten Food  
 - **Key Feature:** 26 % real chicken, plus “LifeSource Bits” (a precise blend of antioxidants, vitamins, and minerals).  
-- **Amazon Proof:** 4.6‑star rating (2,301 reviews). Reviewer “Sophie K.” (Feb 2024) writes, “a kitten’s coat is noticeably shinier and he’s finished every meal without fuss.”  
+- **Amazon Proof:** 4.6‑star rating (2,301 reviews).  
 - **Pros**  
   - Real chicken as first ingredient, no meat‑by‑products  
   - Added colostrum and pumpkin for digestive health  

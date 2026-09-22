@@ -38,7 +38,7 @@ We chose this set as our top pick because it consistently balances safety, comfo
 
 **Purrfect Escape‑Free Outdoor Kit** – This kit includes a padded chest strap lined with breathable polyester mesh and a quick‑release buckle that clicks shut with a single press. The set ships with a 3‑foot leash made of woven polypropylene, ideal for indoor play.  
 
-**Adventure Cat Trail Harness** – Featuring a hybrid design of 3 mm mesh panels and a moisture‑wicking polyester backing, this harness stays cool on hot days; the reflective stitching is rated to reflect up to 300 lux, making it visible to passing cars at dusk. A reviewer on Reddit clarified, “I ordered a size Small (12‑16 lb) for my 9‑lb tuxedo cat; the chart was off by an inch, so I had to size up, but the fit was perfect after the adjustment.”  
+**Adventure Cat Trail Harness** – Featuring a hybrid design of 3 mm mesh panels and a moisture‑wicking polyester backing, this harness stays cool on hot days; the reflective stitching is rated to reflect up to 300 lux, making it visible to passing cars at dusk.  
 
 ## Buying Guide  
 
