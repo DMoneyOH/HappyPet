@@ -669,6 +669,131 @@ class TestFactCheckNotTruncated(unittest.TestCase):
         )
 
 
+class TestFactCheckRejectionHolds(unittest.TestCase):
+    """A fact-check response the sanitizer refuses must hold the article.
+
+    Both rejections used to return the ORIGINAL body with a WARN in the log, so
+    the one stage that strips fabricated stats out of the alternative sections
+    could fail and the unfixed article would publish anyway -- silently, since
+    nothing reads a WARN in a scheduled run.
+
+    These patch BOTH providers. The pre-existing fact-check test above patches
+    only http_post and relies on GEMINI_API_KEY being unset to push execution
+    onto the fallback; a test whose green depends on a missing environment
+    variable proves nothing on a machine that has one.
+    """
+
+    def setUp(self):
+        import generate_posts as gp
+        self.gp = gp
+        self.or_calls = []
+
+    def _run(self, primary, fallback=None):
+        """Drive fact_check_alternatives with a scripted response from each
+        provider. `primary`/`fallback` are either the text the provider
+        returns or an Exception instance it raises."""
+        gp = self.gp
+
+        def gemini(*a, **kw):
+            if isinstance(primary, Exception):
+                raise primary
+            return primary
+
+        def or_post(*a, **kw):
+            self.or_calls.append(a)
+            if isinstance(fallback, Exception):
+                raise fallback
+            return _make_or_response(fallback if fallback is not None else "")
+
+        with patch.object(gp, "_call_gemini", side_effect=gemini), \
+             patch.object(gp, "http_post", side_effect=or_post), \
+             patch.dict("os.environ", {"OPENROUTER_API_KEY": "test-key"}):
+            return gp.fact_check_alternatives(GOOD_ARTICLE, "Outward Hound Nina Ottosson")
+
+    def test_truncated_response_holds_instead_of_republishing_the_original(self):
+        with self.assertRaises(self.gp.GenerationStageError) as ctx:
+            self._run(primary=GOOD_ARTICLE[:len(GOOD_ARTICLE) // 2])
+        self.assertIn("too short", str(ctx.exception))
+
+    def test_a_held_primary_is_not_retried_on_the_fallback(self):
+        """A rejected response is a verdict on the article, not a provider
+        outage. Failing over would run the second model and publish anyway."""
+        with self.assertRaises(self.gp.GenerationStageError):
+            self._run(primary=GOOD_ARTICLE[:len(GOOD_ARTICLE) // 2],
+                      fallback=GOOD_ARTICLE)
+        self.assertEqual(self.or_calls, [], "fallback provider was consulted")
+
+    def test_altered_affiliate_links_hold(self):
+        mangled = GOOD_ARTICLE.replace("amzn.to/3TestABC", "amzn.to/3Sw4pped")
+        with self.assertRaises(self.gp.GenerationStageError) as ctx:
+            self._run(primary=mangled)
+        self.assertIn("affiliate links", str(ctx.exception))
+
+    def test_dropped_affiliate_link_holds(self):
+        """Padding keeps the response over the length floor, so the link check
+        is the only thing standing between a link-stripped body and publish."""
+        stripped = GOOD_ARTICLE.replace("(https://amzn.to/3TestABC)", "(#)")
+        stripped += "\n" + ("Filler sentence to stay over the length floor. " * 30)
+        with self.assertRaises(self.gp.GenerationStageError):
+            self._run(primary=stripped)
+
+    def test_a_clean_response_is_returned_and_replaces_the_original(self):
+        """The inverse direction. A gate that holds everything is not a gate --
+        an ordinary fact-check edit must still come back, unheld."""
+        edited = GOOD_ARTICLE.replace("4.5 stars", "strong ratings")
+        self.assertEqual(self._run(primary=edited), edited.strip())
+
+    def test_a_fenced_response_is_still_returned(self):
+        """The unwrapping the sanitizer already did must survive the change:
+        a code-fenced response is cleaned, not held."""
+        self.assertEqual(self._run(primary="```markdown\n" + GOOD_ARTICLE + "\n```"),
+                         GOOD_ARTICLE.strip())
+
+    def test_a_rejected_fallback_response_holds_too(self):
+        """The fallback path has its own sanitize call and its own guard. A
+        fix applied only to the primary would leave this one republishing."""
+        with self.assertRaises(self.gp.GenerationStageError):
+            self._run(primary=RuntimeError("Gemini down"),
+                      fallback=GOOD_ARTICLE[:100])
+
+    def test_both_providers_unreachable_still_returns_the_original(self):
+        """Deliberately unchanged, and asserted so the boundary is explicit:
+        a provider OUTAGE is not a rejected response. What an outage should do
+        is a separate question (review_and_rewrite holds on one, this stage
+        does not) and was not in scope to answer here."""
+        self.assertEqual(self._run(primary=RuntimeError("Gemini down"),
+                                   fallback=RuntimeError("OpenRouter down")),
+                         GOOD_ARTICLE)
+
+    def test_main_converts_a_fact_check_hold_into_a_held_article(self):
+        """Structural, because main() cannot be driven without live providers.
+        Without the handler the raise lands in main's outer `except Exception`,
+        which counts the article as FAILED rather than HELD -- a different
+        number in GENERATION_RESULT.json and a different GHA exit."""
+        import ast, inspect, textwrap
+        tree = ast.parse(textwrap.dedent(inspect.getsource(self.gp.main)))
+        guarded = False
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Try):
+                continue
+            calls = {n.func.id for n in ast.walk(ast.Module(body=node.body, type_ignores=[]))
+                     if isinstance(n, ast.Call) and isinstance(n.func, ast.Name)}
+            if "fact_check_alternatives" not in calls:
+                continue
+            for handler in node.handlers:
+                if not (isinstance(handler.type, ast.Name)
+                        and handler.type.id == "GenerationStageError"):
+                    continue
+                if any(isinstance(n, ast.AugAssign)
+                       and getattr(n.target, "id", "") == "held"
+                       for n in ast.walk(ast.Module(body=handler.body, type_ignores=[]))):
+                    guarded = True
+        self.assertTrue(
+            guarded,
+            "main() does not catch GenerationStageError from fact_check_alternatives "
+            "and count the article as held")
+
+
 class TestPinImageURLContracts(unittest.TestCase):
     """Pin image URL named contract functions — P5"""
 
@@ -4426,13 +4551,18 @@ class TestPublishedPostsVoiceIntegrity(unittest.TestCase):
         whichever it is.
 
         The gap that leaves, named rather than hidden: a post whose SINGLE link
-        is itself invented passes here. best-pet-water-fountain is exactly that
-        shape -- its front matter declares amzn.to/3NNVKFY and its body links
-        amzn.to/41dtOOM fifteen times. One of those two is wrong; which one
-        cannot be settled from this machine, since resolving either means
-        leaving it. Reported as an open item instead of guessed at, and
-        deliberately NOT allowlisted here -- this guard passes it honestly,
-        rather than being widened and then excepted.
+        is itself invented passes here. best-pet-water-fountain was exactly that
+        shape -- its front matter declared amzn.to/3NNVKFY while every link in
+        its body pointed at amzn.to/41dtOOM, so the body carried one consistent
+        destination and this guard passed it. Which of the two was wrong could
+        not be settled from this machine; it was settled by resolving both links
+        off it, and the answer was that 3NNVKFY is the fountain and 41dtOOM an
+        unrelated listing. The body was corrected to the front-matter link.
+
+        The gap is still open -- a post whose only link is invented still passes
+        here -- and no allowlist was added for that post or any other, because
+        widening this guard and then excepting the posts it catches is how a
+        guard stops meaning anything.
         """
         import generate_posts as gp
         offenders = []
