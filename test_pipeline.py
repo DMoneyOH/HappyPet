@@ -5168,6 +5168,201 @@ CHEWY_GOOD_CHOMCHOM = (
 CHEWY_GOOD_CHOMCHOM_NAME = "ChomChom Roller Pet Hair Remover - Original Size Reusable Lint Roller"
 
 
+class TestAlternativePickSectioning(unittest.TestCase):
+    """Which part of an article is "an alternative pick" -- read structurally,
+    because the heading wording drifts across the corpus."""
+
+    def setUp(self):
+        import generate_posts as gp
+        self.gp = gp
+
+    ROUNDUP = (
+        "Opening prose.\n\n"
+        "## Quick picks\n\n"
+        "### Featured pick: [TopMat](https://amzn.to/3TestABC)\n"
+        "The featured product has 4.7 stars and 12,000 reviews, all verified.\n\n"
+        "### MatA Cooling Pad\n"
+        "Owners tend to like it.\n\n"
+        "### MatB Gel Mat\n"
+        "Most owners find it holds up.\n\n"
+        "## Buying guide\n"
+        "### What to look for\n"
+        "Look for 3 things and a 40 inch width.\n"
+    )
+
+    def test_the_alternatives_are_the_h3s_after_the_featured_pick(self):
+        heads = [s["heading"] for s in self.gp.split_alternative_sections(self.ROUNDUP)]
+        self.assertEqual(heads, ["MatA Cooling Pad", "MatB Gel Mat"])
+
+    def test_the_featured_pick_is_not_one_of_them(self):
+        """Its figures are verified off the listing. A gate that read them as
+        unsourced would hold every roundup that uses its own product data."""
+        for s in self.gp.split_alternative_sections(self.ROUNDUP):
+            self.assertNotIn("Featured", s["heading"])
+
+    def test_h3s_under_a_later_h2_are_not_picks(self):
+        """"What to look for" is a buying-guide subheading. Reading it as a
+        product pick would hold a clean article on its own advice section."""
+        heads = [s["heading"] for s in self.gp.split_alternative_sections(self.ROUNDUP)]
+        self.assertNotIn("What to look for", heads)
+
+    def test_an_article_with_no_featured_pick_has_no_alternatives(self):
+        """single_review and buying_guide put H3s under "What We Like" and
+        "FAQ". Neither format has alternative picks and neither may be judged
+        as though it did."""
+        single = ("## What We Like\n### Sturdy build\nIt holds 80 lb.\n"
+                  "## FAQ\n### Is it washable?\nYes, at 30 degrees.\n")
+        self.assertEqual(self.gp.split_alternative_sections(single), [])
+
+    def test_a_featured_pick_written_at_h2_still_anchors_the_scan(self):
+        """Four published roundups put the featured pick at H2 with the
+        alternatives at H3 beneath it."""
+        text = ("## Quick Picks\n\n## Featured Pick - [Tapo C100](https://amzn.to/3TestABC)\n"
+                "Verified 4.4 stars.\n\n### Furbo 360 Dog Camera\nOwners like it.\n\n"
+                "## Comparison Table\n| a | b |\n")
+        heads = [s["heading"] for s in self.gp.split_alternative_sections(text)]
+        self.assertEqual(heads, ["Furbo 360 Dog Camera"])
+
+
+class TestAlternativePicksAreBacked(unittest.TestCase):
+    """#3 and the deterministic half of #2b.
+
+    `runners_up` went into the writer's brief and was never read again by
+    anything -- no gate, no staging check, nothing compared the names that came
+    back against the names that went out. And the LLM fact-check stage that
+    strips figures off alternative sections runs only on main(), so on the
+    agent-driven stage1_cli path nothing looked at those sections at all.
+    """
+
+    def setUp(self):
+        import generate_posts as gp
+        self.gp = gp
+
+    def _article(self, *alt_blocks):
+        return ("Opening prose.\n\n## Quick picks\n\n"
+                "### Featured pick: [TopMat](https://amzn.to/3TestABC)\n"
+                "Verified 4.7 stars and 12,000 reviews.\n\n"
+                + "\n\n".join(alt_blocks)
+                + "\n\n## Buying guide\nProse about choosing one.\n")
+
+    SUPPLIED = "BLACK+DECKER Pet Hair Remover Roller; Pet Hair Removal Glove for Cats and Dogs"
+
+    def test_an_invented_pick_is_caught(self):
+        """"K&H Cool-Flow Backpack" is one of the products the generator
+        actually shipped with no record behind it."""
+        art = self._article("### K&H Cool-Flow Backpack\nIt tends to work well.")
+        self.assertEqual(self.gp.find_unlisted_alternatives(art, self.SUPPLIED),
+                         ["K&H Cool-Flow Backpack"])
+
+    def test_the_supplied_picks_are_not_caught(self):
+        art = self._article(
+            "### BLACK+DECKER Pet Hair Remover Roller\nOwners tend to like the reach.",
+            "### Pet Hair Removal Glove for Cats and Dogs\nMost owners find it gentle.")
+        self.assertEqual(self.gp.find_unlisted_alternatives(art, self.SUPPLIED), [])
+
+    def test_an_honestly_shortened_name_still_counts_as_the_supplied_one(self):
+        """Writers shorten a 9-word retail title. A gate that reads that as a
+        different product holds correct articles and gets switched off."""
+        art = self._article("### Pet Hair Removal Glove\nMost owners find it gentle.")
+        self.assertEqual(self.gp.find_unlisted_alternatives(art, self.SUPPLIED), [])
+
+    def test_a_near_miss_built_from_the_same_generic_words_is_caught(self):
+        """The hard case, and the reason coverage alone is not the rule. "Pet
+        Hair Roller Pro" shares three of six words with the supplied
+        BLACK+DECKER roller on entirely generic vocabulary, and is a different
+        product -- which is exactly the shape an invented variant takes."""
+        art = self._article("### Pet Hair Roller Pro\nOwners tend to like it.")
+        self.assertEqual(self.gp.find_unlisted_alternatives(art, self.SUPPLIED),
+                         ["Pet Hair Roller Pro"])
+
+    def test_with_no_runners_up_supplied_any_alternative_is_unbacked(self):
+        """An empty runners_up is a real answer, not a missing one: the brief
+        asks for no Additional Picks section at all in that case."""
+        art = self._article("### Some Other Mat\nIt tends to work.")
+        self.assertEqual(self.gp.find_unlisted_alternatives(art, ""), ["Some Other Mat"])
+
+    def test_published_roundups_written_to_their_real_runners_up_pass(self):
+        """The inverse direction against real articles rather than fixtures.
+        Three published roundups still have their entry's runners_up recoverable
+        from products.json history; each used the supplied names. A name check
+        that flags any of them is wrong about honest output."""
+        real = {
+            "2026-08-20-best-pet-hair-removers-laundry-furniture.md":
+                "BLACK+DECKER Pet Hair Remover Roller; Pet Hair Removal Glove for Cats and Dogs",
+            "2026-08-13-best-cat-puzzle-feeders.md":
+                "Trixie 5-in-1 Activity Center for Cats; Doc & Phoebe's Indoor Hunting Cat Feeder",
+            "2026-09-21-best-dog-boots-hot-pavement.md":
+                "Breathable Dog Boots for Medium Large Dogs Non-Slip Summer Hot Pavement; "
+                "SlowTon Dog Shoes for Large Small Medium Dogs Breathable Summer Boots",
+        }
+        flagged = {}
+        for name, runners_up in real.items():
+            body = (REPO / "_posts" / name).read_text(encoding="utf-8")
+            unlisted = self.gp.find_unlisted_alternatives(body, runners_up)
+            if unlisted:
+                flagged[name] = unlisted
+        self.assertEqual(flagged, {})
+
+
+class TestAlternativeGateRunsOnBothPaths(unittest.TestCase):
+    """#2b. The LLM fact-check stage runs only inside main(), so the
+    agent-driven stage1_cli path published without one pass over its
+    alternative sections. Both paths funnel through validate_output and
+    stage_article, so the check lives there and reaches both from one edit."""
+
+    def setUp(self):
+        import generate_posts as gp
+        self.gp = gp
+        self.body = (
+            "Opening prose. " + ("Filler words to clear the length floor. " * 160) +
+            "\n\n## Quick picks\n\n"
+            "### Featured pick: [TopMat](https://amzn.to/3TestABC)\n"
+            "Verified 4.7 stars.\n\n"
+            "### Invented Runner-Up Mat\nIt has a 4.5-star rating.\n\n"
+            "## Buying guide\nProse.\n")
+
+    def test_the_post_review_gate_holds_it(self):
+        with self.assertRaises(self.gp.GenerationStageError) as ctx:
+            self.gp.validate_output("review", self.body, "best-mats",
+                                    affiliate_url="https://amzn.to/3TestABC",
+                                    runners_up="MatA Cooling Pad")
+        self.assertIn("Invented Runner-Up Mat", str(ctx.exception))
+
+    def test_the_generate_gate_does_not(self):
+        """Deliberate, and the one ordering mistake that would break the
+        scheduled path: fact_check_alternatives runs BETWEEN the two gates and
+        exists to strip exactly these figures. Holding at "generate" would hold
+        every roundup the fact-checker would have cleaned."""
+        self.gp.validate_output("generate", self.body, "best-mats",
+                                affiliate_url="https://amzn.to/3TestABC",
+                                runners_up="MatA Cooling Pad")
+
+    def test_a_caller_with_no_product_context_makes_no_judgment(self):
+        """runners_up=None is "I cannot tell", not "there are none" -- the same
+        shape as an empty affiliate_url in the link guard. Every pre-existing
+        caller passes nothing and must keep its old behaviour."""
+        self.gp.validate_output("review", self.body, "best-mats",
+                                affiliate_url="https://amzn.to/3TestABC")
+
+    def test_stage_article_is_the_backstop_for_both_paths(self):
+        """The single funnel every publish path pushes a body through, so a
+        future caller that skips validate_output still cannot stage this."""
+        with self.assertRaises(self.gp.GenerationStageError):
+            self.gp.stage_article("best-mats", {
+                "title": "Best Mats", "keyword": "best mats", "format": "roundup",
+                "affiliate_url": "https://amzn.to/3TestABC",
+                "runners_up": "MatA Cooling Pad", "species": "dog",
+                "category": "dog-beds"}, self.body, "A pin description.")
+
+    def test_stage1_cli_gate_flags_it_rather_than_only_holding_at_staging(self):
+        """Structural: the agent's rewrite loop reads `flags`, so a flag here is
+        what lets it FIX the article instead of hitting the staging hold cold.
+        Mirrors the unbacked-link check that already works this way."""
+        source = (REPO / "stage1_cli.py").read_text(encoding="utf-8")
+        self.assertIn("find_unlisted_alternatives", source)
+        self.assertIn("runners_up=", source)
+
+
 class TestChewyUrlShape(unittest.TestCase):
     """Offline decomposition of a stored chewy_url.
 

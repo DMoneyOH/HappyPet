@@ -82,6 +82,14 @@ def cmd_gate(args) -> int:
                 scrubbed, product.get("affiliate_url", "")):
             passed = False
             flags.append(f"unbacked_affiliate_link_in_body={link!r}")
+        # Alternative picks, same reasoning as the link check above: staging
+        # holds either way, and a flag HERE is what lets the rewrite pass fix
+        # it instead of hitting the hold.
+        if product.get("format") == "roundup":
+            runners_up = product.get("runners_up", "")
+            for name in gp.find_unlisted_alternatives(scrubbed, runners_up):
+                passed = False
+                flags.append(f"unlisted_alternative_pick={name!r}")
     print(json.dumps({"passed": passed, "flags": flags, "scrubbed_body": scrubbed}))
     return 0
 
@@ -105,8 +113,11 @@ def cmd_stage(args) -> int:
     pin_desc = gp.clean_pin_desc(args.pin_desc or f"{product['title']} - reviews and buying guide.",
                                  product.get("species", "dog"))
     try:
-        gp.validate_output("review", body, args.slug,
-                           affiliate_url=product.get("affiliate_url", ""))
+        gp.validate_output(
+            "review", body, args.slug,
+            affiliate_url=product.get("affiliate_url", ""),
+            runners_up=(product.get("runners_up", "")
+                        if product.get("format") == "roundup" else None))
     except gp.GenerationStageError as e:
         print(f"ERROR: content contract failed: {e}", file=sys.stderr)
         return 3
