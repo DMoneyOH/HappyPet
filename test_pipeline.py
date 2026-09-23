@@ -5471,8 +5471,16 @@ class TestChewyVariantMismatch(unittest.TestCase):
         self.assertIn("77", reason)
 
     def test_the_brand_gate_alone_would_have_passed_that_same_link(self):
-        """Stated as a test so the weakness is a fact in the suite rather than a
-        claim in a commit message: this is why the variant check had to exist."""
+        """Why the variant check had to exist: the brand gate agrees the 77-in
+        listing and the 74in review are the same brand, which they are.
+
+        Read this as a DEMONSTRATION, not a measurement. The matched name below
+        is reconstructed from the URL slug because nobody recorded what Impact
+        actually returned for this product on 2026-09-22 -- a real matched name
+        could differ in wording. What the test does establish is the shape of
+        the weakness: check_brand_match compares leading brand tokens, so any
+        two listings from one brand pass it whatever variant each names.
+        """
         ok, _ = self.v.check_brand_match(CHEWY_WRONG_GLOBLAZER_NAME,
                                          "Globlazer Big Modern Tower 77 in")
         self.assertTrue(ok)
