@@ -17,7 +17,9 @@
     "chewy_url": "REVIEW:https://chewy.sjv.io/c/7160344/3054490/32975?prodsku=4094470&u=https%3A%2F%2Fwww.chewy.com%2Finvenho-cooling-dog-crate-mat-anti%2Fdp%2F4094470%3Futm_source%3Dgoogle-product%26utm_medium%3Dorganic%26utm_content%3DInvenho&intsrc=APIG_24727",
     "chewy_price": "39.99",
     "chewy_stock": "InStock",
-    "chewy_rating": null
+    "chewy_rating": null,
+    "queue_note": "PUBLISHED 2026-07-22 (_posts/2026-07-22-best-dog-cooling-mat.md). Kept on purpose, not dead weight: select_next_topic() already skips it via build_used_slugs(), and this entry's category is the only source of the published post's URL -- the slug is absent from generate_posts.SLUG_CATEGORIES, so deleting the entry makes build_url() emit /pet-accessories/best-dog-cooling-mat/ instead of the live /dog-beds/ path. Correct removal is retire_from_products() in push_pins_to_sheets.py, which also archives the entry to the brain; it never ran because _pin_queue/best-dog-cooling-mat.json is still queued (never reached _pin_queue/sent/).",
+    "chewy_note": "UNVERIFIED as of 2026-09-23: chewy_url is a REVIEW: sentinel, so chewy_price/chewy_stock describe the matched Chewy listing (Invenho crate mat), not this product (EHEYCIGA). No live Impact lookup was run to confirm or refresh them."
   },
   {
     "topic": "best-odor-eliminators-pet-stains",
@@ -39,7 +41,8 @@
     "chewy_stock": "InStock",
     "chewy_rating": null,
     "amazon_search_query": "pet stain and odor eliminator spray",
-    "upc": "820103188333"
+    "upc": "820103188333",
+    "chewy_note": "UNVERIFIED as of 2026-09-23: chewy_url is a REVIEW: sentinel, so chewy_price/chewy_stock describe the matched Chewy listing, not confirmed as this product. Brand does match (Rocco & Roxie both sides), so this is the likeliest of the three sentinels to clear a human check. No live Impact lookup was run."
   },
   {
     "topic": "best-outdoor-dog-tie-outs",
@@ -61,7 +64,8 @@
     "chewy_stock": "InStock",
     "chewy_rating": null,
     "amazon_search_query": "dog tie out stake and cable",
-    "upc": "611056708644"
+    "upc": "611056708644",
+    "chewy_note": "UNVERIFIED as of 2026-09-23: chewy_url is a REVIEW: sentinel, so chewy_price/chewy_stock describe the matched Chewy listing, not confirmed as this product. Brand matches (Petbobi) but the Chewy listing is a 16in ground stake while this product is a 30ft cable-and-stake kit -- likely a different SKU. No live Impact lookup was run."
   },
   {
     "topic": "best-calming-diffusers-pets",
@@ -83,6 +87,7 @@
     "chewy_stock": "InStock",
     "chewy_rating": null,
     "amazon_search_query": "pet calming diffuser",
-    "upc": "850002593105"
+    "upc": "850002593105",
+    "chewy_note": "Only confirmed chewy_url in the queue (no REVIEW: sentinel), so this is the one entry whose Chewy button will render. Two things a human should glance at, neither verified here: the link's prodsku=315171 does not match its own destination /dp/341463 (the wrapper URL comes straight from Impact's catalog record, so this may be normal SKU consolidation rather than a fault), and chewy_price/chewy_stock have not been re-checked since they were written. No live Impact lookup was run."
   }
 ]
