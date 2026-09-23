@@ -24,7 +24,7 @@ Thunder rolls in on a rainy Tuesday and a Labrador is glued to the window, whini
 
 ### Featured Pick: NaturVet Quiet Moments Calming Dog Supplement, Soft Chews, 180 Count  
 
-NaturVet’s Quiet Moments soft chews have earned a solid 4.4/5 star rating on Amazon, reflecting consistent praise from dog owners who notice a subtle, steady calm after a few days of use. Each chew blends chamomile, passion flower and ginger with thiamine (vitamin B1), L‑tryptophan and melatonin to support a settled, natural calm. Melatonin is why this one leans restful rather than neutral: it is a mild dose, but some dogs do get sleepy on it, which suits a fireworks night better than a morning at the park. The soft texture makes them easy to administer, and the 180‑count bottle lasts several weeks for a medium‑size dog.
+NaturVet’s Quiet Moments soft chews have earned a solid 4.4/5 star rating on Amazon, reflecting consistent praise from dog owners who notice a subtle, steady calm after a few days of use. Each chew blends chamomile, passion flower and ginger with thiamine (vitamin B1), L‑tryptophan and melatonin to support a settled, natural calm. Melatonin is a sleep‑supporting ingredient rather than a neutral one, so some dogs get sleepy on these. The soft texture makes them easy to administer, and the 180‑count bottle lasts several weeks for a medium‑size dog.
 
 **Pros**  
 - Herb and amino acid blend aimed at everyday stressors like storms and vet trips  
