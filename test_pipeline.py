@@ -5078,5 +5078,225 @@ class TestPublishedPostsVoiceIntegrity(unittest.TestCase):
         self.assertEqual(offenders, [])
 
 
+# ---------------------------------------------------------------------------
+# Published Chewy links: the post's own front matter is the source of truth
+# ---------------------------------------------------------------------------
+# Fixtures are the three wrong Chewy links found BY HAND on 2026-09-22 and
+# repaired in 2f16028. They are quoted from that commit's diff, not recomputed
+# by the matcher under test, so a check that agrees with them agrees with
+# something it did not produce.
+CHEWY_WRONG_GLOBLAZER = (
+    "https://chewy.sjv.io/c/7160344/3054490/32975?prodsku=4187582&u="
+    "https%3A%2F%2Fwww.chewy.com%2Fgloblazer-big-modern-tower-77-in%2Fdp%2F4187582"
+    "%3Futm_source%3Dgoogle-product%26utm_medium%3Dorganic%26utm_content%3DGloblazer"
+    "&intsrc=APIG_24727"
+)
+CHEWY_WRONG_GLOBLAZER_NAME = (
+    "Globlazer Heavy Duty Cat Tree, 74in, 7 Sisal Posts, 2 Padded Condos, Dark Grey"
+)
+CHEWY_WRONG_CATIT = (
+    "https://chewy.sjv.io/c/7160344/3054490/32975?prodsku=151438&u="
+    "https%3A%2F%2Fwww.chewy.com%2Fcatit-senses-20-food-tree-cat-feeder%2Fdp%2F178226"
+    "%3Futm_source%3Dgoogle-product%26utm_medium%3Dorganic%26utm_content%3DCatit"
+    "&intsrc=APIG_24727"
+)
+CHEWY_WRONG_CATIT_NAME = "Catit Senses 2.0 Multi Feeder, Interactive Cat Toys"
+# The FortiFlora repair landed as a bare chewy.com URL because the Impact
+# wrapper's prodsku is not derivable here. It is live on the site right now.
+CHEWY_UNWRAPPED_FORTIFLORA = "https://www.chewy.com/purina-pro-plan-veterinary-diets/dp/50029"
+CHEWY_GOOD_CHOMCHOM = (
+    "https://chewy.sjv.io/c/7160344/3054490/32975?prodsku=136285&u="
+    "https%3A%2F%2Fwww.chewy.com%2Fchomchom-roller-pet-hair-remover%2Fdp%2F163270"
+    "%3Futm_source%3Dgoogle-product%26utm_medium%3Dorganic%26utm_content%3DChomChom"
+    "%2520Roller&intsrc=APIG_24727"
+)
+CHEWY_GOOD_CHOMCHOM_NAME = "ChomChom Roller Pet Hair Remover - Original Size Reusable Lint Roller"
+
+
+class TestChewyUrlShape(unittest.TestCase):
+    """Offline decomposition of a stored chewy_url.
+
+    Nothing here touches the network. The wrapper is a URL with the real
+    destination inside its own `u=` parameter, so the product slug, the listing
+    id and the attribution sku are all readable from the string itself.
+    """
+
+    def setUp(self):
+        import validate_published_chewy_links as v
+        self.v = v
+
+    def test_a_wrapped_link_yields_its_slug_listing_id_and_sku(self):
+        p = self.v.parse_chewy_url(CHEWY_GOOD_CHOMCHOM)
+        self.assertEqual(p["shape"], "wrapped")
+        self.assertEqual(p["product_slug"], "chomchom-roller-pet-hair-remover")
+        self.assertEqual(p["dp_id"], "163270")
+        self.assertEqual(p["prodsku"], "136285")
+
+    def test_a_bare_chewy_url_is_reported_as_unwrapped_not_as_fine(self):
+        """The live FortiFlora link. It works, and it earns nothing: without the
+        Impact wrapper the click carries no attribution. Reporting it as OK is
+        how a revenue hole stays open indefinitely."""
+        p = self.v.parse_chewy_url(CHEWY_UNWRAPPED_FORTIFLORA)
+        self.assertEqual(p["shape"], "bare")
+        self.assertEqual(p["product_slug"], "purina-pro-plan-veterinary-diets")
+        self.assertEqual(p["dp_id"], "50029")
+
+    def test_a_sentinel_is_not_mistaken_for_a_link(self):
+        self.assertEqual(self.v.parse_chewy_url("REVIEW: no match found")["shape"], "sentinel")
+
+    def test_an_empty_value_is_shapeless_rather_than_malformed(self):
+        self.assertEqual(self.v.parse_chewy_url("")["shape"], "none")
+
+    def test_a_non_chewy_url_is_malformed(self):
+        self.assertEqual(self.v.parse_chewy_url("https://example.com/x")["shape"], "malformed")
+
+
+class TestChewyVariantMismatch(unittest.TestCase):
+    """The wrong-variant class: right brand, wrong product.
+
+    All three links the Director found by hand were right-brand -- so the brand
+    identity gate this file already tests (check_brand_match) would have passed
+    every one of them. The one signal that survives offline is a model or size
+    number in the URL's own slug contradicting every number in the product name.
+    """
+
+    def setUp(self):
+        import validate_published_chewy_links as v
+        self.v = v
+
+    def _reason(self, url, name):
+        return self.v.find_variant_mismatch(self.v.parse_chewy_url(url)["product_slug"], name)
+
+    def test_the_globlazer_77in_link_on_a_74in_review_is_caught(self):
+        reason = self._reason(CHEWY_WRONG_GLOBLAZER, CHEWY_WRONG_GLOBLAZER_NAME)
+        self.assertTrue(reason, "the 77-in link on the 74in review was not flagged")
+        self.assertIn("77", reason)
+
+    def test_the_brand_gate_alone_would_have_passed_that_same_link(self):
+        """Stated as a test so the weakness is a fact in the suite rather than a
+        claim in a commit message: this is why the variant check had to exist."""
+        ok, _ = self.v.check_brand_match(CHEWY_WRONG_GLOBLAZER_NAME,
+                                         "Globlazer Big Modern Tower 77 in")
+        self.assertTrue(ok)
+
+    def test_a_correct_link_whose_slug_carries_no_number_is_not_flagged(self):
+        self.assertEqual(self._reason(CHEWY_GOOD_CHOMCHOM, CHEWY_GOOD_CHOMCHOM_NAME), "")
+
+    def test_a_version_number_written_two_ways_is_not_a_contradiction(self):
+        """`catit-senses-20-...` against "Catit Senses 2.0" is the same version.
+        A checker that reads the dot as a difference flags a correct link, and a
+        check that fires on correct links is switched off within a week."""
+        self.assertEqual(self._reason(CHEWY_WRONG_CATIT, CHEWY_WRONG_CATIT_NAME), "")
+
+    def test_every_chewy_link_live_on_the_site_today_passes_the_variant_check(self):
+        """The inverse direction, run against the real posts rather than
+        fixtures. Eight posts carry a chewy_url; all eight are believed correct
+        after the 2026-09-22 repair, so any flag here is a false positive."""
+        flagged = []
+        for entry in self.v.published_chewy_links():
+            reason = self.v.find_variant_mismatch(
+                self.v.parse_chewy_url(entry["chewy_url"])["product_slug"],
+                entry["product_name"])
+            if reason:
+                flagged.append(f"{entry['slug']}: {reason}")
+        self.assertEqual(flagged, [])
+
+
+class TestPublishedChewyLinkCoverage(unittest.TestCase):
+    """#1: the blind spot. A published post's own chewy_url was never read.
+
+    `load_products()` keys off products.json -- a rolling queue holding FOUR
+    entries -- and a post missing from it resolved to chewy_url "", which the
+    validator reported as "SKIP -- no Chewy URL (Amazon-only)". Eight published
+    posts carry a live Chewy link in their front matter and not one of the four
+    queue entries is among them, so every live Chewy link on the site was
+    invisible to the weekly job that exists to check them.
+    """
+
+    def setUp(self):
+        import validate_published_chewy_links as v
+        self.v = v
+        self.entries = v.published_chewy_links()
+
+    def test_front_matter_links_are_discovered_without_a_products_json_entry(self):
+        slugs = {e["slug"] for e in self.entries}
+        self.assertIn("best-dog-probiotic-supplements", slugs)
+        self.assertIn("best-gps-dog-trackers", slugs)
+        for e in self.entries:
+            self.assertTrue(e["chewy_url"], e["slug"])
+
+    def test_no_live_front_matter_link_is_covered_by_the_products_json_queue(self):
+        """The measurement behind the claim above, stated over the links a
+        reader can actually click. If a future queue does cover them this
+        assertion flips, and the coverage argument needs rewriting rather than
+        continuing to be quoted."""
+        queued = set(self.v.load_products())
+        live = {e["slug"] for e in self.entries if e["source"] == "front-matter"}
+        self.assertEqual(len(live), 8, sorted(live))
+        self.assertEqual(queued & live, set())
+
+    def test_a_queue_sourced_link_is_labelled_as_such(self):
+        """best-dog-cooling-mat is published with no Chewy link in its front
+        matter while its queue entry still holds a REVIEW sentinel. Reporting
+        that as a live link would overstate what is on the site."""
+        by_slug = {e["slug"]: e for e in self.entries}
+        self.assertEqual(by_slug["best-dog-cooling-mat"]["source"], "products.json")
+        self.assertEqual(self.v.classify_offline(by_slug["best-dog-cooling-mat"])[0], "REVIEW")
+
+    def test_the_featured_product_name_is_read_off_the_affiliate_anchor(self):
+        """Front matter carries no product name, so the name a link is judged
+        against comes from the body: the anchor text of the post's own affiliate
+        link. A generic anchor ("Buy on Amazon") must not be taken as the name."""
+        by_slug = {e["slug"]: e for e in self.entries}
+        self.assertEqual(by_slug["best-dog-probiotic-supplements"]["product_name"],
+                         "Purina Pro Plan FortiFlora")
+
+    def test_a_post_in_scope_is_never_reported_as_having_no_url(self):
+        """The specific silent-skip shape. NO_URL must mean the post carries no
+        Chewy link at all, never "the queue did not happen to list it"."""
+        for e in self.entries:
+            status, detail = self.v.classify_offline(e)
+            self.assertNotEqual(status, "NO_URL", f"{e['slug']}: {detail}")
+
+    def test_the_live_unwrapped_fortiflora_link_is_reported(self):
+        by_slug = {e["slug"]: e for e in self.entries}
+        status, detail = self.v.classify_offline(by_slug["best-dog-probiotic-supplements"])
+        self.assertEqual(status, "UNWRAPPED", detail)
+
+
+class TestChewyApiThrottle(unittest.TestCase):
+    """The Impact API check is capped per run and rotates, so growth in the post
+    count cannot turn the weekly job into a 49-call burst -- and no post drops
+    out of coverage to achieve that."""
+
+    def setUp(self):
+        import validate_published_chewy_links as v
+        self.v = v
+
+    def test_a_single_run_never_exceeds_the_cap(self):
+        slugs = [f"post-{i}" for i in range(49)]
+        for week in range(1, 54):
+            self.assertLessEqual(len(self.v.api_slice(slugs, week)), self.v.MAX_API_LOOKUPS)
+
+    def test_consecutive_runs_cover_every_post(self):
+        """Throttling that revisits the same head of the list forever is the
+        silent gap wearing a rate limit."""
+        slugs = [f"post-{i}" for i in range(49)]
+        runs = -(-len(slugs) // self.v.MAX_API_LOOKUPS)
+        seen = set()
+        for week in range(1, runs + 1):
+            seen |= set(self.v.api_slice(slugs, week))
+        self.assertEqual(seen, set(slugs))
+
+    def test_a_list_under_the_cap_is_checked_whole_every_run(self):
+        slugs = [f"post-{i}" for i in range(self.v.MAX_API_LOOKUPS)]
+        self.assertEqual(set(self.v.api_slice(slugs, 7)), set(slugs))
+
+    def test_a_post_deferred_by_the_throttle_says_so(self):
+        """DEFERRED is the status that keeps the throttle honest: it is not OK
+        and it is not a skip, it is "checked offline, API check queued"."""
+        self.assertIn("DEFERRED", self.v.STATUSES)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
