@@ -24,14 +24,15 @@ Thunder rolls in on a rainy Tuesday and a Labrador is glued to the window, whini
 
 ### Featured Pick: NaturVet Quiet Moments Calming Dog Supplement, Soft Chews, 180 Count  
 
-NaturVet’s Quiet Moments soft chews have earned a solid 4.4/5 star rating on Amazon, reflecting consistent praise from dog owners who notice a subtle, steady calm after a few days of use. Each chew blends L‑theanine, a calming amino acid, with ginger and Vitamin B complex to support a relaxed mood without sedation. The soft texture makes them easy to administer, and the 180‑count bottle lasts several weeks for a medium‑size dog.
+NaturVet’s Quiet Moments soft chews have earned a solid 4.4/5 star rating on Amazon, reflecting consistent praise from dog owners who notice a subtle, steady calm after a few days of use. Each chew blends chamomile, passion flower and ginger with thiamine (vitamin B1), L‑tryptophan and melatonin to support a settled, natural calm. Melatonin is why this one leans restful rather than neutral: it is a mild dose, but some dogs do get sleepy on it, which suits a fireworks night better than a morning at the park. The soft texture makes them easy to administer, and the 180‑count bottle lasts several weeks for a medium‑size dog.
 
 **Pros**  
-- Gentle, non‑sedating formula aimed at daily stressors  
+- Herb and amino acid blend aimed at everyday stressors like storms and vet trips  
 - Soft chew texture is easy for most dogs to swallow  
 - Includes ginger, which may aid digestion alongside calming effects  
 
 **Cons**  
+- Contains melatonin, so some dogs go drowsy rather than simply settled  
 - Some larger breeds may need two chews for noticeable impact  
 - Flavor may not appeal to very picky eaters  
 
@@ -49,7 +50,7 @@ The chews are most reliable for thunderstorm anxiety and routine vet trips.
 
 ## Buying Guide  
 
-Choosing the **best calming treats for dogs** involves more than just scanning a list of ingredients. First, consider the source of your dog’s stress. Is it a short‑term trigger like fireworks, or a chronic issue such as separation anxiety? For occasional spikes, a treat with fast‑acting herbs like chamomile or valerian can be enough. For daily stressors—think crowded streets, regular vet visits, or a new household member—a supplement that includes L‑theanine or a B‑vitamin complex tends to provide steadier support.
+Choosing the **best calming treats for dogs** involves more than just scanning a list of ingredients. First, consider the source of your dog’s stress. Is it a short‑term trigger like fireworks, or a chronic issue such as separation anxiety? For occasional spikes, a treat with fast‑acting herbs like chamomile or valerian can be enough. For daily stressors—think crowded streets, regular vet visits, or a new household member—a supplement that pairs a calming amino acid like L‑theanine or L‑tryptophan with a B vitamin such as thiamine tends to provide steadier support.
 
 Second, look at your dog’s size and dietary sensitivities. Smaller breeds often need a lower dose, and a soft chew may be more palatable than a hard tablet. Larger dogs sometimes require two chews per serving, so check the recommended dosage on the packaging. If your dog has a sensitive stomach, choose a formula that includes digestive aids like ginger, as seen in the featured NaturVet product.
 
