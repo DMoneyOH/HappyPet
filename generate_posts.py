@@ -1766,9 +1766,17 @@ a name, an age, a city or a review date. {NAMED_TESTIMONIAL_RULE}"""
         # Table" is the vacuous shape that had to be deleted by hand from five
         # published posts once their invented picks came out.
         if product.get("runners_up"):
+            # No price column. The old brief said "Price Range: use $, $$, $$$
+            # only; do not invent specific dollar amounts for additional picks",
+            # which forbids a made-up number and demands a made-up band in the
+            # same sentence. A tier IS a price claim -- $ and $$$ are a
+            # statement about what a reader will pay -- and the pipeline knows
+            # nothing about an alternative except its name, so every tier ever
+            # printed here was guessed. A table is the worst place to guess:
+            # the grid is what makes a reader read it as researched.
             table_block = """
-  Comparison Table (H2): Product | Best For | Price Range | Key Attribute
-    - Price Range: use $, $$, $$$ only; do not invent specific dollar amounts for additional picks
+  Comparison Table (H2): Product | Best For | Key Attribute
+    - Those three columns and no others. In particular: no price column under any heading, no price band, and no dollar sign anywhere in the table. You were given no price for the additional picks, and a band is a price claim like any other
     - Key Attribute: choose the most relevant column header for this product category (e.g. Form, CFU Count, Flavor, Size). Never use "Chew Time" for non-consumable products.
     - Do NOT include a ratings column; only use verified ratings from product data above
 """

@@ -3189,6 +3189,30 @@ class TestBuildWriterInputs(unittest.TestCase):
         self.assertIn("Comparison Table (H2)", out["user"])
         self.assertIn("MatA", out["user"])
 
+    def test_the_comparison_table_does_not_ask_for_a_price_tier(self):
+        """The brief forbade inventing a dollar amount for an alternative and
+        then asked for a $/$$/$$$ band in the same breath. A band IS a price
+        claim: the pipeline knows nothing about an alternative but its name, so
+        every tier it printed was guessed and then rendered in a table, which is
+        the shape a reader reads as researched."""
+        product = {"topic": "best-mats", "title": "Best Mats", "keyword": "best mats",
+                   "format": "roundup", "name": "TopMat", "category": "dogs",
+                   "species": "dog", "runners_up": "MatA;MatB"}
+        user = self.gp.build_writer_inputs("best-mats", product)["user"]
+        self.assertNotIn("Price Range", user)
+        self.assertNotIn("$$", user)
+        self.assertIn("no price", user.lower())
+
+    def test_a_verified_featured_price_is_still_given_to_the_writer(self):
+        """The inverse. Dropping the guessed tier must not drop the one price
+        the pipeline actually verified off the listing."""
+        product = {"topic": "best-mats", "title": "Best Mats", "keyword": "best mats",
+                   "format": "roundup", "name": "TopMat", "category": "dogs",
+                   "species": "dog", "runners_up": "MatA;MatB", "price": "34.99"}
+        user = self.gp.build_writer_inputs("best-mats", product)["user"]
+        self.assertIn("$34.99", user)
+        self.assertIn("verified from Amazon", user)
+
 
 class TestStageArticle(unittest.TestCase):
     def setUp(self):
