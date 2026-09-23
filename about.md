@@ -18,7 +18,7 @@ permalink: /about/
       <h2>What we cover</h2>
       <p>We publish in-depth reviews and buying guides across the most important pet product categories, including:</p>
       <ul>
-        <li>Dog collars, harnesses, leashes, and training gear</li>
+        <li>Dog collars, harnesses, and training gear</li>
         <li>Dog beds, crates, and comfort products</li>
         <li>Dog toys, chews, and enrichment</li>
         <li>Cat litter, litter boxes, and odor control</li>
