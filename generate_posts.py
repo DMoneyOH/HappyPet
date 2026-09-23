@@ -1918,6 +1918,11 @@ Return the COMPLETE article with only the flagged claims replaced.
 ARTICLE:
 {content_fc}"""
 
+    # Carried into the total-outage hold below so the GitHub issue names what
+    # BOTH providers said -- "fix the outage" and "fix the credentials" are
+    # different actions and the message has to tell them apart.
+    primary_failure = None
+
     # --- Primary: Gemini Flash Lite (paid tier -- reliable, non-reasoning,
     # so the full-article echo fits comfortably in the output budget) ---
     try:
@@ -1934,6 +1939,7 @@ ARTICLE:
         # exists to prevent.
         raise
     except Exception as exc:
+        primary_failure = exc
         log(f"  Fact-check primary failed: {exc} -- trying fallback", "WARN")
 
     # --- Fallback: OpenRouter gpt-oss-20b:free ---
@@ -1965,15 +1971,26 @@ ARTICLE:
     except GenerationStageError:
         raise  # a hold, not a provider failure -- see the primary path above
     except Exception as exc:
-        # Provider outage, not a rejected response: both fact-check providers
-        # are unreachable. This path still returns the original and is left
-        # that way deliberately -- changing it decides what an OUTAGE should
-        # do, which is a separate question from what a REJECTED response
-        # should do. Noted here because the asymmetry is real:
-        # review_and_rewrite holds an article when its reviewer chain is
-        # unavailable (REVIEWER_UNAVAILABLE), and this stage does not.
-        log(f"  Fact-check fallback failed: {exc} -- keeping original", "WARN")
-        return content
+        # Both fact-check providers are unreachable. This used to return the
+        # ORIGINAL body with a WARN and publish it.
+        #
+        # The old comment was right that an OUTAGE is not a REJECTED response.
+        # It did not follow that an outage should publish. This is the one
+        # stage that strips fabricated statistics out of the alternative
+        # sections, so "keep the original" ships exactly the article the stage
+        # exists to fix -- silently, because nothing reads a WARN in a
+        # scheduled run. Five published posts carrying invented picks and
+        # invented figures are what that costs; a held article costs a topic
+        # publishing on Thursday instead of Monday.
+        #
+        # review_and_rewrite already holds when its reviewer chain is
+        # unavailable. The asymmetry this file used to document is now closed.
+        log(f"  Fact-check fallback failed: {exc} -- HOLDING the article", "WARN")
+        raise GenerationStageError(
+            f"[fact_check] both providers unreachable, so the alternative "
+            f"sections were never checked -- holding rather than publishing "
+            f"unverified content (primary: {primary_failure}; fallback: {exc})"
+        ) from exc
 
 
 # find_alternative_products() lived here and is deleted, not disabled. It asked an

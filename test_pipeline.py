@@ -886,14 +886,45 @@ class TestFactCheckRejectionHolds(unittest.TestCase):
             self._run(primary=RuntimeError("Gemini down"),
                       fallback=GOOD_ARTICLE[:100])
 
-    def test_both_providers_unreachable_still_returns_the_original(self):
-        """Deliberately unchanged, and asserted so the boundary is explicit:
-        a provider OUTAGE is not a rejected response. What an outage should do
-        is a separate question (review_and_rewrite holds on one, this stage
-        does not) and was not in scope to answer here."""
+    def test_both_providers_unreachable_holds_instead_of_publishing_unchecked(self):
+        """This test asserted the opposite until 2026-09-23, and the asymmetry
+        it was recording is now closed rather than documented.
+
+        The old note was right that an OUTAGE is not a REJECTED response. It
+        does not follow that an outage should publish. This is the one stage
+        that strips fabricated statistics out of the alternative sections, so
+        "both providers are down, ship the original" ships precisely the
+        article the stage exists to fix -- and silently, because nothing reads
+        a WARN in a scheduled run. Unverified content going live is the
+        expensive direction; a held article is a topic that publishes on
+        Thursday instead of Monday.
+
+        review_and_rewrite already holds when its reviewer chain is
+        unreachable. This now matches it."""
+        with self.assertRaises(self.gp.GenerationStageError) as ctx:
+            self._run(primary=RuntimeError("Gemini down"),
+                      fallback=RuntimeError("OpenRouter down"))
+        self.assertIn("unreachable", str(ctx.exception))
+
+    def test_the_hold_names_both_provider_failures(self):
+        """A held article opens a GitHub issue somebody has to act on. "Fix the
+        outage" and "fix the credentials" are different actions, so the message
+        carries what each provider actually said."""
+        with self.assertRaises(self.gp.GenerationStageError) as ctx:
+            self._run(primary=RuntimeError("Gemini down"),
+                      fallback=RuntimeError("OpenRouter down"))
+        self.assertIn("Gemini down", str(ctx.exception))
+        self.assertIn("OpenRouter down", str(ctx.exception))
+
+    def test_a_fallback_that_works_is_still_used_rather_than_held(self):
+        """The inverse direction. Failing closed on a TOTAL outage must not
+        turn a primary-only failure into a hold -- the fallback exists to keep
+        articles moving when Gemini blips, and a gate that holds through a
+        working provider would be switched off within a week."""
+        edited = GOOD_ARTICLE.replace("4.5 stars", "strong ratings")
         self.assertEqual(self._run(primary=RuntimeError("Gemini down"),
-                                   fallback=RuntimeError("OpenRouter down")),
-                         GOOD_ARTICLE)
+                                   fallback=edited),
+                         edited.strip())
 
     def test_main_converts_a_fact_check_hold_into_a_held_article(self):
         """Structural, because main() cannot be driven without live providers.
