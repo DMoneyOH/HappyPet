@@ -84,12 +84,18 @@ def cmd_gate(args) -> int:
             flags.append(f"unbacked_affiliate_link_in_body={link!r}")
         # Alternative picks, same reasoning as the link check above: staging
         # holds either way, and a flag HERE is what lets the rewrite pass fix
-        # it instead of hitting the hold.
+        # it instead of hitting the hold. This is the agent-driven path's share
+        # of the work fact_check_alternatives does on the scheduled path --
+        # that stage never ran here, so an article could be written, gated,
+        # staged and published without one pass over its alternative sections.
         if product.get("format") == "roundup":
             runners_up = product.get("runners_up", "")
             for name in gp.find_unlisted_alternatives(scrubbed, runners_up):
                 passed = False
                 flags.append(f"unlisted_alternative_pick={name!r}")
+            for figure in gp.find_unsourced_alternative_figures(scrubbed, runners_up):
+                passed = False
+                flags.append(f"unsourced_figure_on_alternative={figure!r}")
     print(json.dumps({"passed": passed, "flags": flags, "scrubbed_body": scrubbed}))
     return 0
 

@@ -5199,6 +5199,9 @@ class TestAlternativePickSectioning(unittest.TestCase):
         unsourced would hold every roundup that uses its own product data."""
         for s in self.gp.split_alternative_sections(self.ROUNDUP):
             self.assertNotIn("Featured", s["heading"])
+        self.assertEqual(
+            self.gp.find_unsourced_alternative_figures(self.ROUNDUP, "MatA Cooling Pad; MatB Gel Mat"),
+            [])
 
     def test_h3s_under_a_later_h2_are_not_picks(self):
         """"What to look for" is a buying-guide subheading. Reading it as a
@@ -5281,6 +5284,38 @@ class TestAlternativePicksAreBacked(unittest.TestCase):
         art = self._article("### Some Other Mat\nIt tends to work.")
         self.assertEqual(self.gp.find_unlisted_alternatives(art, ""), ["Some Other Mat"])
 
+    def test_a_figure_stated_about_an_alternative_is_caught(self):
+        art = self._article(
+            "### BLACK+DECKER Pet Hair Remover Roller\n"
+            "It holds a 4.5-star rating across 12,000 reviews and cuts hair by 80%.")
+        figures = self.gp.find_unsourced_alternative_figures(art, self.SUPPLIED)
+        self.assertTrue(any("4.5-star" in f for f in figures), figures)
+        self.assertTrue(any("80%" in f for f in figures), figures)
+
+    def test_a_number_in_the_picks_own_name_is_not_a_claim_about_it(self):
+        """"Trixie 5-in-1 Activity Center" is a real supplied name. Repeating
+        it in prose states nothing the entry did not already supply."""
+        art = self._article("### Trixie 5-in-1 Activity Center for Cats\n"
+                            "The Trixie 5-in-1 suits cats that bore quickly.")
+        self.assertEqual(
+            self.gp.find_unsourced_alternative_figures(
+                art, "Trixie 5-in-1 Activity Center for Cats"), [])
+
+    def test_a_link_is_not_read_as_a_figure(self):
+        """A URL is digits nobody claimed anything with, and an invented one is
+        already a hold via find_unbacked_affiliate_links."""
+        art = self._article("### BLACK+DECKER Pet Hair Remover Roller\n"
+                            "See [the roller](https://amzn.to/3TestABC) for details.")
+        self.assertEqual(self.gp.find_unsourced_alternative_figures(art, self.SUPPLIED), [])
+
+    def test_hedged_prose_with_no_numbers_passes(self):
+        """The inverse direction. The brief asks for exactly this shape, so it
+        must not be held."""
+        art = self._article("### BLACK+DECKER Pet Hair Remover Roller\n"
+                            "Most owners find the wide head suits upholstery, though it "
+                            "tends to need more passes on car seats.")
+        self.assertEqual(self.gp.find_unsourced_alternative_figures(art, self.SUPPLIED), [])
+
     def test_published_roundups_written_to_their_real_runners_up_pass(self):
         """The inverse direction against real articles rather than fixtures.
         Three published roundups still have their entry's runners_up recoverable
@@ -5328,6 +5363,18 @@ class TestAlternativeGateRunsOnBothPaths(unittest.TestCase):
                                     runners_up="MatA Cooling Pad")
         self.assertIn("Invented Runner-Up Mat", str(ctx.exception))
 
+    def test_a_figure_on_a_LISTED_pick_holds_too(self):
+        """The name check and the figure check fail independently, so this uses
+        an alternative that IS on the supplied list. Without it the gate tests
+        would all be satisfied by the name check alone and the figure half
+        would be unwired at this seam without any test noticing."""
+        body = self.body.replace("Invented Runner-Up Mat", "MatA Cooling Pad")
+        with self.assertRaises(self.gp.GenerationStageError) as ctx:
+            self.gp.validate_output("review", body, "best-mats",
+                                    affiliate_url="https://amzn.to/3TestABC",
+                                    runners_up="MatA Cooling Pad")
+        self.assertIn("4.5-star", str(ctx.exception))
+
     def test_the_generate_gate_does_not(self):
         """Deliberate, and the one ordering mistake that would break the
         scheduled path: fact_check_alternatives runs BETWEEN the two gates and
@@ -5360,6 +5407,7 @@ class TestAlternativeGateRunsOnBothPaths(unittest.TestCase):
         Mirrors the unbacked-link check that already works this way."""
         source = (REPO / "stage1_cli.py").read_text(encoding="utf-8")
         self.assertIn("find_unlisted_alternatives", source)
+        self.assertIn("find_unsourced_alternative_figures", source)
         self.assertIn("runners_up=", source)
 
 

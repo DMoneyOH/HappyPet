@@ -535,6 +535,15 @@ def find_unbacked_affiliate_links(text: str, affiliate_url: str = "") -> list:
 # names that came back against the names that went out. So "Do NOT add, invent,
 # or substitute any others" was a request, enforced by nobody.
 #
+# The figures half is what the LLM fact-check stage does on the scheduled path.
+# That stage does not exist on the agent-driven stage1_cli path at all, which
+# is the second hole: an article could be written, gated, staged and published
+# without one pass over its alternative sections. A deterministic check in
+# validate_output runs on BOTH paths, and holds rather than silently rewriting.
+#
+# The bar is the brief's own: "The NAME is the only thing known about these
+# products ... omit numbers entirely". So the gate enforces exactly what the
+# writer was told, which is why it needs no list of forbidden claim shapes.
 _PICKS_HEADING_RE    = re.compile(r"pick|runner|alternativ", re.I)
 _FEATURED_HEADING_RE = re.compile(r"featured\s*pick", re.I)
 _MD_LINK_RE          = re.compile(r"\[([^\]\n]*)\]\([^)\s]*\)")
@@ -558,6 +567,10 @@ def _name_tokens(text: str) -> set:
     identity ("of", "in", the "5" and "1" of "5-in-1") and only inflate a
     coverage score, so they are dropped from both sides equally."""
     return {t for t in re.split(r"[^A-Za-z0-9]+", (text or "").lower()) if len(t) >= 3}
+
+
+def _digit_runs(text: str) -> set:
+    return set(re.findall(r"\d+", text or ""))
 
 
 def split_alternative_sections(content: str) -> list:
@@ -643,6 +656,34 @@ def find_unlisted_alternatives(content: str, runners_up: str) -> list:
     supplied = parse_runners_up(runners_up)
     return [s["heading"] for s in split_alternative_sections(content)
             if not _matching_runner_up(s["heading"], supplied)]
+
+
+def find_unsourced_alternative_figures(content: str, runners_up: str) -> list:
+    """Every number stated about an alternative pick that its name does not
+    already carry. Returns "heading: token" strings, deduped, in order.
+
+    Links are stripped before the scan: a URL is digits the writer did not
+    claim anything with, and an invented one is already a hold via
+    find_unbacked_affiliate_links.
+    """
+    supplied = parse_runners_up(runners_up)
+    found, seen = [], set()
+    for section in split_alternative_sections(content):
+        matched  = _matching_runner_up(section["heading"], supplied)
+        # The pick's own name may carry numbers ("Trixie 5-in-1 Activity
+        # Center"), and repeating the name in prose is not a claim about it.
+        allowed  = _digit_runs(section["heading"]) | _digit_runs(matched)
+        prose    = _BARE_URL_RE.sub(" ", _MD_LINK_RE.sub(r"\1", section["body"]))
+        for m in re.finditer(r"\S*\d\S*", prose):
+            token = m.group(0).strip("*_.,;:()[]")
+            if not token or _digit_runs(token) <= allowed:
+                continue
+            key = f"{section['heading']}: {token}"
+            if key in seen:
+                continue
+            seen.add(key)
+            found.append(key)
+    return found
 
 
 UNBACKED_PICK_RULE = (
@@ -1307,6 +1348,12 @@ def assert_alternatives_are_backed(stage: str, text: str, slug: str,
         raise GenerationStageError(
             f"[{stage}] {slug}: alternative pick(s) the pipeline has no record "
             f"of -- the entry supplied {supplied or 'none'}: {unlisted}"
+        )
+    figures = find_unsourced_alternative_figures(text, runners_up)
+    if figures:
+        raise GenerationStageError(
+            f"[{stage}] {slug}: figure(s) stated about an alternative pick, "
+            f"whose NAME is the only thing this pipeline knows about it: {figures}"
         )
 
 
