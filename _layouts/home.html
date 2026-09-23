@@ -30,7 +30,7 @@ layout: default
       <h1>which one should you <em>actually buy?</em></h1>
       <p class="lede-sub">{{ site.posts | size }} reviews of the things dog and cat owners are already buying. What holds up, what to skip, and where to get it.</p>
       <div class="lede-actions">
-        <a class="btn" href="#index">Open the index</a>
+        <a class="btn" href="#reviews">See all reviews</a>
         <a class="btn btn--bare" href="#how">How we choose</a>
       </div>
     </div>
@@ -82,10 +82,21 @@ layout: default
 </section>
 {% endif %}
 
-<section class="index" id="index">
+{%- comment -%}
+  Round 4. The section was called "the index" and the Director read that as
+  cold and tacky, which it is — it is a librarian's word for a shopping page.
+  One warm name now does the job in all four places it surfaces: this
+  heading, the hero button, the article breadcrumb and the footer link.
+
+  The id moved with it, from "index" to "reviews". That is not cosmetic:
+  search.md has linked to /#reviews in four places since round 2 and the
+  anchor never existed, so all four were dead. The CSS class names still say
+  .index — they are not user-facing and renaming them is churn.
+{%- endcomment -%}
+<section class="index" id="reviews">
   <div class="wrap">
     <div class="index-head">
-      <h2>the index</h2>
+      <h2>all the reviews</h2>
       <p class="index-count"><span id="review-count">{{ site.posts | size }} reviews</span>, newest first</p>
     </div>
 
