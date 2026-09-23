@@ -179,6 +179,35 @@ BANNED_INTENSIFIERS = ["very", "truly", "really", "incredibly", "absolutely", "d
 # Direction of error, deliberately chosen: these hold an article for a human
 # rather than rewrite it, so a false positive costs one held article and a
 # GitHub issue. A false negative publishes a false advertising claim. Hold.
+#
+# WHAT THIS CANNOT CATCH, named rather than hidden. Every pattern below needs
+# a testing word or a named actor to key on. A firsthand claim that contains
+# neither is invisible here, and two shipped in the live corpus for months:
+#
+#   "the cats, from agile youngsters to hefty older felines, have launched
+#    themselves at this post with gusto, and it hasn't wobbled once"
+#   "After swabbing countless cheeks and poring over detailed reports, the top
+#    recommendation remains the Embark kit"
+#
+# Both are direct observation with no subject and no test vocabulary. No window
+# widening and no verb list reaches them, and a pattern broad enough to would
+# fire on ordinary descriptive prose -- which, on a gate that HOLDS and a cron
+# that publishes unattended twice a week, gets the gate weakened or deleted.
+# They were found by reading all 58 posts, and that is currently the only way
+# to find the next one. The reviewer prompt's audit category 22 is the other
+# half of this and does not depend on a regex.
+
+# "Stay inside one sentence" as a character class. The obvious spelling,
+# [^.!?\n], is wrong in this corpus: every body sentence that names a product
+# carries a markdown link, and the URL inside it has dots. "put the [PetSafe
+# Easy Walk No-Pull Dog Harness XL](https://amzn.to/4coIuRk) to the test"
+# published because the dot in "amzn.to" ended the span two words before the
+# claim did. A dot only ends a sentence when whitespace or a line end follows
+# it, so that is what this tests. The two branches are mutually exclusive --
+# one excludes the dot, the other requires it -- so there is no ambiguity for
+# the engine to backtrack through.
+_IN_SENTENCE = r"(?:[^.!?\n]|\.(?!\s|$))"
+
 FIRSTHAND_CLAIM_PATTERNS = [
     # "Testing" opening a sentence, which in this site's prose always means
     # testing is the SUBJECT: "Testing found...", "Testing put the litter
@@ -205,17 +234,57 @@ FIRSTHAND_CLAIM_PATTERNS = [
     # "After/during/beyond/while ... testing" -- the site ran none of it. The
     # trailing lookahead keeps testing-as-noun out: "in the pet DNA testing
     # world" is a product category, not a claim that anyone tested anything.
-    r"\b(?:after|during|beyond|from|following|through|while|in)\s+(?:\w+\s+){0,3}testing\b"
+    r"\b(?:after|during|beyond|from|following|through|while|in|on|with)\s+(?:\w+\s+){0,3}testing\b"
     r"(?!\s+(?:world|industry|market|space|kits?|standards?|requirements?|"
-    r"protocols?|methodolog|facilit|equipment))",
+    r"protocols?|methodolog|facilit|equipment|labs?|data|results?|reports?|"
+    r"for\s+purity))",
     r"\b(?:weeks|days|months|hours)\s+of\s+(?:testing|trials?)\b",
+    # The same site-effort claim with a different verb: "Weeks went into ...
+    # testing fabrics ...". The time-span opener alone is legitimate and stays
+    # legitimate -- "hours went into researching and comparing" is true and is
+    # published -- so this fires only when a testing word appears in the same
+    # sentence.
+    r"\b(?:weeks|days|months|hours|years)\s+(?:went\s+into|were\s+spent|"
+    r"have\s+gone\s+into|have\s+been\s+spent)\b" + _IN_SENTENCE + r"{0,120}"
+    r"\b(?:testing|trying|trialling|trialing|hands[- ]on)\b",
+    # The site itself named as the actor doing the testing. Keys on the actor
+    # AND a testing word in the same sentence, because the actor alone is
+    # legitimate and is published: "the Happy Pet Product Reviews team are here
+    # to guide you" and "this site keeps hunting for products" are both true.
+    r"\b(?:the\s+)?(?:Happy\s*Pet[\w\s']{0,40}?team|our\s+team|this\s+site|"
+    r"the\s+site|our\s+reviewers?)\b" + _IN_SENTENCE + r"{0,120}"
+    r"\b(?:test|tests|tested|testing|tried|trying|trials?|trialled|trialed|"
+    r"hands[- ]on|first[- ]?hand)\b",
+    # A bare passive participle opening a sentence: "Tested at dusk on a misty
+    # lake, the vest glows like a beacon." No subject appears anywhere, which
+    # is exactly what makes it read as the site's own test. The lookahead
+    # spares the legitimate third-party case ("Tested in an independent lab"),
+    # and "for" and "by" are deliberately absent from the preposition list
+    # because "Tested for purity" and "Tested by a third party" are the usual
+    # honest phrasings.
+    r"(?:(?<=^)|(?<=[.!?]\s)|(?<=[.!?]\s\s))"
+    r"(?:Tested|Tried|Trialled|Trialed)\s+"
+    r"(?!(?:in|at|on|over|during|across|after|through|with)\s+(?:an?\s+)?"
+    r"(?:independent|third[- ]party|accredited|certified|external|ISO|AAFCO|"
+    r"labs?|laborator))"
+    r"(?:in|at|on|over|during|across|after|through|with)\b",
     # First-person or site-attributed hands-on claims, incl. pin descriptions
     # (the frontmatter `description` IS the pin description).
     r"\b(?:we|i)\b[^.!?\n]{0,40}\b(?:tested|tried|trialled|trialed|road-?tested|"
     r"field-?tested|test-?drove)\b",
     r"\b(?:tested|trialled|trialed|tried)\s+(?:by|with|on)\s+"
     r"(?:real|our|my|a\s+panel|the\s+test)\b",
-    r"\b(?:put|puts|putting)\b[^.!?\n]{0,40}\b(?:to\s+the\s+test|through\s+(?:its|their|the)\s+paces)\b",
+    # The window between the verb and the anchor phrase is what the product
+    # name has to fit through, and 40 characters is not enough for one: "put
+    # the [PetSafe Easy Walk No-Pull Dog Harness XL](...) to the test" is 45
+    # characters of product name alone. Both of the posts that published this
+    # shape also needed _IN_SENTENCE above, because the dot in the link's URL
+    # ended the old span even sooner than the length did. Two independent
+    # causes, one visible symptom. Widening is safe because the anchors are the
+    # specific idioms, not the word "test": "more like a test of strength and
+    # endurance" is untouched by this.
+    r"\b(?:put|puts|putting)\b" + _IN_SENTENCE + r"{0,120}"
+    r"\b(?:to\s+the\s+test|through\s+(?:its|their|the)\s+paces)\b",
     r"\bfirst[- ]?hand\b",
     r"\bhands[- ]on\s+(?:testing|experience|trial|time|use)\b",
     r"\bwere\s+(?:tried|tested)\s+with\b",

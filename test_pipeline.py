@@ -4517,6 +4517,102 @@ class TestPublishedPostsVoiceIntegrity(unittest.TestCase):
                 offenders.append(f"{name}: {claim!r}")
         self.assertEqual(offenders, [])
 
+    def test_firsthand_detector_catches_the_claims_it_shipped_past(self):
+        """The test above passed on a corpus carrying eight firsthand claims.
+        That is the whole problem with it standing alone: a detector with a gap
+        makes a clean corpus and a clean-looking corpus indistinguishable, and
+        the corpus was not clean.
+
+        So this pins the detector against the exact sentences it let through,
+        verbatim from the live posts at c4a522b. If a future edit widens a
+        lookahead or narrows a window and reopens one of these, this test goes
+        red instead of the corpus quietly going wrong again.
+
+        Two causes, both real and independent, which is why the fix is two
+        changes rather than one:
+          - the product name overruns the {0,40} window ("the PetSafe Easy Walk
+            No-Pull Dog Harness XL " is 45 characters on its own), and
+          - the dot inside the markdown link's URL ended the span even earlier,
+            because [^.!?\\n] treats "amzn.to" as a sentence boundary.
+        """
+        import generate_posts as gp
+        shipped = [
+            ("litter: site as the tester",
+             "That's why the Happy Pet Product Reviews team have put in the "
+             "work, testing various litters to bring you the top picks."),
+            ("harness: long product name inside a markdown link",
+             "That's why the Happy Pet Product Reviews team put the [PetSafe "
+             "Easy Walk No-Pull Dog Harness XL](https://amzn.to/4coIuRk) to "
+             "the test."),
+            ("fountain: same shape, 'through its paces'",
+             "After putting the [PetSafe Drinkwell Platinum Pet Fountain "
+             "168oz](https://amzn.to/3NNVKFY) through its paces, several "
+             "features stood out."),
+            ("life jacket: bare participle, no subject anywhere",
+             "Tested at dusk on a misty lake, the vest glows like a beacon."),
+            ("cat beds: 'weeks went into', not 'weeks of'",
+             "Weeks went into gathering feedback from cat owners, testing "
+             "fabrics, and combing through online reviews."),
+            ("dna tests: a buying guide built on testing that never happened",
+             "To help you make an informed decision, here are a few key "
+             "factors to consider, based on that testing and research."),
+        ]
+        missed = [label for label, text in shipped
+                  if not gp.find_firsthand_claims(text)]
+        self.assertEqual(missed, [])
+
+    def test_firsthand_detector_leaves_legitimate_testing_language_alone(self):
+        """The inverse direction, and the one that actually kills a guard. This
+        gate HOLDS an article and the publish cron runs unattended twice a week,
+        so a pattern that fires on honest prose costs a held article every run
+        until somebody deletes the pattern to make the pipeline move again.
+
+        Every string here is real published text or the phrasing the fixed
+        posts now use. Third-party lab testing, "DNA test kit" as a product
+        category, and reader instructions ("test it over the kitchen sink") all
+        have to survive, and so does the site describing itself without
+        claiming a test.
+        """
+        import generate_posts as gp
+        legitimate = [
+            "Testing a new food should be gradual.",
+            "Wisdom Panel has long been a trusted name in the pet DNA testing "
+            "world.",
+            "Veterinary-grade supplements typically undergo stricter testing "
+            "for purity and potency.",
+            "Look for a lock button, then test it over the kitchen sink before "
+            "you trust it on the road.",
+            "Most dog DNA test kits involve a simple cheek swab.",
+            "The daily walk can feel less like bonding time and more like a "
+            "test of strength and endurance.",
+            "That's why the Happy Pet Product Reviews team are here to guide "
+            "you through the maze of options.",
+            "That's why this site keeps hunting for products that genuinely "
+            "last.",
+            "That's why hours went into researching and comparing the best "
+            "budget-friendly pet cameras.",
+            "Tested in an independent lab for heavy-metal content, the formula "
+            "came back clean.",
+            "Tested by a third party for purity, the batch passed.",
+            "Third-party testing or a verified rating adds a layer of "
+            "confidence.",
+            "It works well for small and medium dogs who do not test every "
+            "seam.",
+            "An easy way to test whether your cat tolerates a backpack at all.",
+            "Put it on and forget about monthly applications.",
+            "It requires a bit of trial and error to ensure it is snug.",
+            "A 100-day money-back guarantee gives owners a risk-free trial.",
+            "This guide digs into the science, the breed panels, and what "
+            "owners report about the best dog DNA tests.",
+            "This guide compares the leading litters on their specs and on "
+            "what owners consistently report.",
+            "Owners report cats launching themselves at this post without it "
+            "wobbling.",
+        ]
+        false_positives = [f"{s!r} -> {gp.find_firsthand_claims(s)!r}"
+                           for s in legitimate if gp.find_firsthand_claims(s)]
+        self.assertEqual(false_positives, [])
+
     def test_no_published_post_quotes_a_named_individual(self):
         """Nobody here has spoken to an owner and no review is reproduced
         verbatim, so no published post may attribute a quote to a person. Uses
