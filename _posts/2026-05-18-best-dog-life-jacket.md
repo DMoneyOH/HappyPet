@@ -38,7 +38,7 @@ The double-buckle system allows fine-tuning around the chest and belly. Even a d
 The reinforced handle on the back is a lifesaver -- literally. It holds a dog's full weight without digging into fur, and makes it simple for a second person to assist. That capability is a huge confidence boost for owners who aren't strong swimmers themselves.
 
 ### 3. High Visibility
-Reflective piping along the sides and a bright orange front panel make the vest easy to spot in low-light conditions. Tested at dusk on a misty lake, the vest glows like a beacon. That visibility alone can prevent a frantic search if a dog drifts farther than expected.
+Reflective piping along the sides and a bright orange front panel make the vest easy to spot in low-light conditions. Owners who paddle at dusk report the vest stays easy to pick out against the water. That visibility alone can prevent a frantic search if a dog drifts farther than expected.
 
 ### 4. Comfortable Breathability
 The mesh panels on the belly and sides allow air circulation, preventing the vest from feeling like a sauna on hot days. Dogs wearing it don't pant excessively during breaks on the dock, a sign the vest doesn't trap heat -- a common complaint with bulkier life jackets.

@@ -14,7 +14,7 @@ image: "https://m.media-amazon.com/images/I/81-U9aAoCDL._AC_SX425_.jpg"
 
 When Whiskers decides the sunny windowsill is too bright, you’ll often find her curled up on a random laundry pile or the back of your favorite chair. It’s a classic scene: a fluffy orange tabby stretching out, tail flicking, eyes half‑closed, as if saying “this is a throne.” The problem? Those improvised spots aren’t always comfortable, easy to clean, or sturdy enough for a cat who loves to knead and pounce.  
 
-Weeks went into gathering feedback from cat owners, testing fabrics, and combing through online reviews to pinpoint which beds truly let indoor cats lounge in style without costing a fortune. Below you’ll find the top picks, a quick‑glance comparison table, and a buying guide to help you choose the right cushion for your feline’s favorite nap‑time routine.  
+This roundup compares fabrics and construction across the popular options and combs through owner reviews to pinpoint which beds truly let indoor cats lounge in style without costing a fortune. Below you’ll find the top picks, a quick‑glance comparison table, and a buying guide to help you choose the right cushion for your feline’s favorite nap‑time routine.  
 
 ## Quick Picks  
 
