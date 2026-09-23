@@ -7,7 +7,6 @@ species: cat
 tags: [best cat puzzle feeder]
 description: "Slow down a gulping cat and beat boredom with a puzzle feeder that turns mealtime into a hunt"
 affiliate_url: "https://www.amazon.com/dp/B011K9929Y?tag=pawpicks04-20"
-chewy_url: "https://chewy.sjv.io/c/7160344/3054490/32975?prodsku=151438&u=https%3A%2F%2Fwww.chewy.com%2Fcatit-senses-20-food-tree-cat-feeder%2Fdp%2F178226%3Futm_source%3Dgoogle-product%26utm_medium%3Dorganic%26utm_content%3DCatit&intsrc=APIG_24727"
 image: "https://m.media-amazon.com/images/I/714tWfDHDuL._AC_SX679_.jpg"
 pin_image: "https://happypetproductreviews.com/assets/images/pins/best-cat-puzzle-feeders.jpg?v=20260813"
 ---

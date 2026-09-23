@@ -7,7 +7,7 @@ species: dog
 tags: [best dog probiotic supplements]
 description: "The best dog probiotic supplements that actually support gut health -- ranked and reviewed."
 affiliate_url: "https://amzn.to/485igkB"
-chewy_url: "https://chewy.sjv.io/c/7160344/3054490/32975?prodsku=216787&u=https%3A%2F%2Fwww.chewy.com%2Fpurina-pro-plan-veterinary-diets%2Fdp%2F243342%3Futm_source%3Dgoogle-product%26utm_medium%3Dorganic%26utm_content%3DPurina%2520Pro%2520Plan%2520Veterinary%2520Diets&intsrc=APIG_24727"
+chewy_url: "https://www.chewy.com/purina-pro-plan-veterinary-diets/dp/50029"
 image: "https://images-na.ssl-images-amazon.com/images/P/B001650NNW.01.LZZZZZZZ.jpg"
 pin_image: "https://happypetproductreviews.com/assets/images/pins/best-dog-probiotic-supplements.jpg?v=20260507"
 ---
@@ -34,7 +34,7 @@ Each sachet contains a guaranteed concentration of *Enterococcus faecium* SF68, 
 - Higher per-dose cost compared to bulk chew formats
 - Single-strain formula may not suit dogs needing broader probiotic support
 
-[Buy on Amazon](https://amzn.to/485igkB) | [Buy on Chewy](https://chewy.sjv.io/c/7160344/3054490/32975?prodsku=216787&u=https%3A%2F%2Fwww.chewy.com%2Fpurina-pro-plan-veterinary-diets%2Fdp%2F243342%3Futm_source%3Dgoogle-product%26utm_medium%3Dorganic%26utm_content%3DPurina%2520Pro%2520Plan%2520Veterinary%2520Diets&intsrc=APIG_24727)
+[Buy on Amazon](https://amzn.to/485igkB) | [Buy on Chewy](https://www.chewy.com/purina-pro-plan-veterinary-diets/dp/50029)
 
 ### Nutramax Proviable Probiotics 30 Capsules
 
