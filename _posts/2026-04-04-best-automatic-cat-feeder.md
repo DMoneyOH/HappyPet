@@ -5,7 +5,7 @@ date: 2026-04-04
 categories: [cat-feeders]
 species: cat
 tags: [automatic cat feeder]
-description: "Never worry about overfeeding again — this programmable feeder keeps your cat on schedule even when you're away."
+description: "Never worry about overfeeding again. This programmable feeder keeps your cat on schedule even when you're away."
 product_name: "PETLIBRO Automatic Cat Feeder 5G WiFi 5L"
 rating: 4.5
 affiliate_url: "https://amzn.to/4c4heGp"

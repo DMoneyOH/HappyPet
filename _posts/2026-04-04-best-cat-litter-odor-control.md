@@ -5,7 +5,7 @@ date: 2026-04-04
 categories: [cat-litter]
 species: cat
 tags: [cat litter odor control]
-description: "Say goodbye to that smell for good — the litters multi-cat owners swear by, compared side by side."
+description: "Say goodbye to that smell for good. The litters multi-cat owners swear by, compared side by side."
 affiliate_url: "https://amzn.to/48cV2sA"
 image: "https://images-na.ssl-images-amazon.com/images/P/B000VDR8LA.01.LZZZZZZZ.jpg"
 ---

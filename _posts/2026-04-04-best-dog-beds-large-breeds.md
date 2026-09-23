@@ -5,7 +5,7 @@ date: 2026-04-04
 categories: [dog-beds]
 species: dog
 tags: [dog beds large breeds]
-description: "Big dogs need real support — this orthopedic bed is built to last and actually holds its shape."
+description: "Big dogs need real support. This orthopedic bed is built to last and actually holds its shape."
 product_name: "Barker Beds Large Orthopedic Dog Bed 7in Memory Foam"
 rating: 4.5
 affiliate_url: "https://amzn.to/4sdfLnc"

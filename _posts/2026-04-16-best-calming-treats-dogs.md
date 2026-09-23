@@ -5,7 +5,7 @@ date: 2026-04-16
 categories: [dog-health]
 species: dog
 tags: [best calming treats for dogs]
-description: "The calming treats owners rate highest for storms, fireworks and vet visits – without breaking the bank."
+description: "The calming treats owners rate highest for storms, fireworks and vet visits, without breaking the bank."
 affiliate_url: "https://amzn.to/3QsHuTP"
 image: "https://m.media-amazon.com/images/I/71gSvAen4NL._AC_SX425_.jpg"
 ---

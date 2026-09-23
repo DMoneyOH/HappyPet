@@ -7,7 +7,7 @@ redirect_from:
   - /cat-gear/best-cat-tree-large/
 species: cat
 tags: [best large cat tree]
-description: "The ultimate cat tree that lets your kitty climb, scratch, and snooze in style—without breaking the bank."
+description: "The ultimate cat tree that lets your kitty climb, scratch, and snooze in style, without breaking the bank."
 affiliate_url: "https://amzn.to/3QgBugU"
 image: "https://m.media-amazon.com/images/I/71e3htQU6oL._AC_SX425_.jpg"
 pin_image: "https://happypetproductreviews.com/assets/images/pins/best-cat-tree-large.jpg?v=20260523"
