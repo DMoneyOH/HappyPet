@@ -28,10 +28,16 @@ permalink: /search/
       <div class="find-links">
         <a href="{{ site.baseurl }}/dogs/">Dog reviews</a>
         <a href="{{ site.baseurl }}/cats/">Cat reviews</a>
-        <a href="{{ site.baseurl }}/#reviews">Beds &amp; crates</a>
-        <a href="{{ site.baseurl }}/#reviews">Feeding</a>
-        <a href="{{ site.baseurl }}/#reviews">Toys</a>
-        <a href="{{ site.baseurl }}/#reviews">Care &amp; training</a>
+        {%- comment -%}
+          Round 4: same fix as the footer. These were four invented shelf
+          names pointing at an anchor that did not exist until this round.
+          Each is now a real category with published reviews behind it, and
+          each query was checked against the real front matter.
+        {%- endcomment -%}
+        <a href="{{ site.baseurl }}/search/?q=dog+health">Dog health</a>
+        <a href="{{ site.baseurl }}/search/?q=dog+toys">Dog toys</a>
+        <a href="{{ site.baseurl }}/search/?q=cat+litter">Cat litter</a>
+        <a href="{{ site.baseurl }}/search/?q=cat+food">Cat food</a>
       </div>
       <p><a class="btn" href="{{ site.baseurl }}/">Browse all reviews</a></p>
     </div>

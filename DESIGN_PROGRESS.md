@@ -514,3 +514,615 @@ committed to `main` and nothing is pushed. A push here is Class 3 (see 0). New t
 
 then render by bare name with `mcp__html-render__render_html_page` and **open the PNG and look
 at it.** Every defect in R3.3 was found that way; none were visible in the markup.
+
+---
+
+## Round 4 — the brown, one type family, and a dark mode that is actually dark (2026-09-22)
+
+Round 3 was reviewed live by the Director. **The direction survives again** — structure,
+scale, hairlines, radius 0, two filter axes, the marigold pet panel, all unchanged. Seven
+items came back; six were real and one was a non-defect he was warned off "fixing".
+
+### R4.1 The brown was NOT where the brief guessed, and that is the useful finding
+
+The dispatch's own hypothesis was the spruce band or something computed from it. Rendering
+at 1280 and looking says otherwise: **the spruce band is fine and reads green.** The brown
+was `--ink: #2A1912`, a chocolate. It is the page's text colour, so it was never going to be
+judged as a text colour — it was judged as the **full-width slab across the top of the
+page** (`.mast-strip`, `background: var(--ink)`) and as the 90px display headline directly
+under it. Two of the largest areas on the first screen, both chocolate, on cream.
+
+So the fix is the ink family, not the band. Ink now comes off the band's own spruce:
+
+| Token | Round 3 | Round 4 | On paper |
+| --- | --- | --- | --- |
+| `--ink` | `#2A1912` chocolate | `#12271C` spruce-black | 14.4:1 |
+| `--ink-2` | `#5A463C` | `#4B5B50` | 6.6:1 |
+| `--ink-3` | `#7C6558` | `#616F64` | 4.8:1 |
+| `--rule` / `--rule-2` | `rgba(42,25,18,…)` | `rgba(18,39,28,…)` | — |
+| `--on-accent` | `#2A1912` | `#12271C` | 9.0:1 on marigold |
+
+`--paper`, `--accent`, `--hot` and `--night` are untouched. The page now runs cream /
+marigold / tomato / spruce, with the dark areas reading as deep evergreen. Every value
+above was computed, not eyeballed.
+
+**Where a token-only swap would have left brown behind** — this is R3.3 defect 5 repeating,
+so it was grepped for rather than trusted: two `rgba(42, 25, 18, …)` hairline literals,
+`--rule-hard`, `--focus`, `--on-accent` (which the dark block does *not* override, so it was
+feeding brown ink onto every marigold button in dark mode), and **both `theme-color` metas
+in `_layouts/default.html`**. That last one is the only brown that survives every render on
+this machine: it paints the phone's browser chrome above the page, which is the first thing
+a mobile visitor sees. Now `#12271C` light, `#1A2521` dark. **Not verifiable here — no
+phone.**
+
+### R4.2 One type family. Georgia is gone.
+
+The Director likes the home page's type and wanted it everywhere. The divergence was one
+token: `--font-prose: Georgia` carried `.standfirst` and `.prose`, which is most of an
+article page and none of the home page, so the two templates genuinely looked like two
+sites. `--font-prose` is now `var(--font-display)`. Grepped first — no component rule
+hardcodes `Georgia`, so the token swap is complete.
+
+This also **retires a risk round 2 raised and could never see**: on Android the serif fell
+back to Noto Serif, a low-contrast humanist face that renders nowhere on this machine, so
+every preview here judged the good case. There is now nothing left to fall back to.
+
+**Retuned by looking, not by arithmetic:** the grotesque sets wider and carries more
+x-height, so the 820px article column ran to roughly 85 characters a line. `.prose` is now
+`1.04rem`, `line-height: 1.62`, and capped at `68ch`.
+
+**The cap is on the text blocks, not on `.prose`** — and the first attempt got that wrong in
+a way only a desktop render showed. Capping the container looked perfect at 390, where the
+cap never binds. At 1280 the section hairlines are `border-top` on `.prose h2`, so they
+stopped 60px short of the header rule and the purchase panel directly above them while
+everything else still ran the full column: R2.4 defects 3 and 5 all over again. Rules,
+tables and media now keep the full column and only the reading measure is capped, which is
+also what keeps R2.4 defect 8's table fix intact.
+
+### R4.3 "index" → "all the reviews", one name in all four places
+
+He read "index" as cold and tacky. It surfaced in four user-facing slots, and three warm
+synonyms for one destination would be worse than one cold name, so all four now say the
+same thing: the hero button ("See all reviews"), the section heading ("all the reviews"),
+the article breadcrumb and the footer link ("All reviews").
+
+**The id moved with it, `index` → `reviews`, and that fixed a live defect nobody had
+found:** `search.md` has linked to `/#reviews` in four places since round 2 and that anchor
+never existed. All four were dead links. The `.index` CSS class names are not user-facing
+and were left alone.
+
+### R4.4 Footer categories are now real, and the destinations were checked
+
+The eight links under "For dogs" and "For cats" were invented shelf headings — "Beds &
+crates", "Scratchers & trees" — every one pointing at `/dogs/` or `/cats/`. Shelf labels for
+a catalogue that does not exist.
+
+Ground truth came from `_posts` front matter, not from `refill_products.py`'s
+`VALID_CATEGORIES`: that list has 25 entries and is aspirational, with several categories
+holding one post or none. The real tally is 23 categories across 49 posts. The eight chosen
+are the top four per species: dog-health 8, dog-toys 4, dog-beds 3, dog-travel 3;
+cat-litter 3, cat-food 3, cat-toys 2, cat-scratching 2.
+
+**Each destination was computed, not assumed.** They link to `/search/?q=<label>`, and
+`search.md`'s filter requires every 3+ character query term to appear in a post's `title` or
+`tags` — categories are indexed but do not satisfy that filter on their own. So a
+plausible-sounding label can land on an empty results page: `pet feeding`, `pet tech`,
+`dog training` and `cat carriers` all return **zero**, and "Cat scratchers" returns zero
+where "Cat scratching" returns two. Every one of the eight was checked against the real
+front matter — including `detectSpecies`'s pre-filter, which drops off-species posts before
+the term test — and returns at least two reviews. **Changing the wording of one without
+re-running that check silently breaks it** — the comment in `default.html` says so.
+
+The same four invented labels on `search.md`'s empty state were replaced from the same
+verified set.
+
+### R4.5 Dark mode now reads as dark. Three causes, not one.
+
+Round 3's dark scheme inverted its tokens and still looked like the light page. Looking at
+the render rather than the token block, the palette was the *smallest* of three causes:
+
+1. **`.mast-strip` was `background: var(--ink); color: var(--paper)`.** Inverting those put
+   a full-width **cream** slab across the top of the dark page. It has its own
+   `--strip-bg` / `--strip-ink` pair now.
+2. **`--tile` was `#F6EEE2`** — a light cream frame and border around all 49 photos.
+3. **The white in every product shot is in the JPG's own pixels, not in CSS padding.**
+   Checked rather than assumed: all 49 thumbnails are 800×600 with pure-white corners, and
+   `.entry-media` is `4/3` with `object-fit: contain`, so recolouring the tile alone would
+   have left the page a field of white rectangles. That is why the palette theory alone was
+   never going to fix this.
+
+So product photography is knocked back by `--img-dim` (`.78` in dark, `1` in light, so the
+rule is inert in the light scheme) and restored on hover and focus. Kept mild deliberately:
+a dim product photo is a real cost on a page whose job is selling. **The hero pet art is
+explicitly excluded** — it sits on marigold in both schemes and is brand signal, not a
+product shot. The page ground also moved off warm brown-black onto a deep green-black
+(`#121A16`) so it belongs to the same family as the band, and `--night` lifted to `#20493A`
+so the band still separates from the page.
+
+### R4.6 The hero panel: both options were built and looked at
+
+His framing was "depends what the background becomes". The background did not become
+anything — `--accent` marigold was never the complaint and did not change — so the question
+reduced to cut-out-on-marigold versus the art getting its own ground.
+
+First, the asset was checked for the obvious cause: a 298 KB → 56 KB colour-quantised
+cut-out is exactly the thing that grows a matte fringe. It has one, but **the fringe is dark,
+not white** (the semi-transparent edge pixels quantised to near-black), and on marigold it
+reads as an outline rather than a halo. So there is no defect here to fix.
+
+Variant B was built anyway and rendered at 1280
+(`80-workspace\scarlett\pages\r4-home-heroB.html`, kept so he can look): the art on its own
+cream ground inside the marigold panel. It is clearly worse. The pets shrink to a small
+floating photo in a field of marigold, the cut-out's legs get cropped by the box, and it
+reintroduces a card, which lock 1 forbids everywhere else on the page. **Variant A stands
+unchanged**, and it stands because it was compared, not because it was already there.
+
+### R4.7 Item 7 — the 6-of-49 preview, correctly left alone
+
+Confirmed as a static-preview artifact and **not touched**. `--limit` exists so the sections
+below the index fit under the renderer's clip; the real page shows 12 plus a paging button.
+
+### R4.8 What was rendered and actually looked at
+
+Home at 1280 viewport and 1280 full-page light, and 390 full-page dark including the band
+and the footer. An article at 1280 (twice — the second time to check the measure fix) and
+390, light, and at 390 dark. `/about/`, `/contact/` and `/search/` at 390. `/dogs/` at 768,
+`/cats/` at 390. The hero B variant at 1280. Every judgement above came from opening the
+PNG, and two of them — the brown and the prose cap — contradicted what had been reasoned
+out first.
+
+**Not covered, stated rather than implied:** dark mode on `/dogs/`, `/cats/` and the static
+pages; 320px; the `theme-color` browser chrome, which no render on this
+machine can show; iOS and Android type rendering; any browser other than this machine's
+Chromium; and a real Jekyll build, which this machine still cannot run (see 0). The renderer
+has no JavaScript, so the filter axes, "show more", and the `?q=` prefill on `/search/` were
+reviewed as code and never seen working — the eight footer queries were verified against
+front matter by script, which is not the same as watching the page return results.
+
+### R4.9 Carried forward, still open
+
+Everything in R2.6 and R3.5 is unchanged and still open: the orphaned
+`_includes/hero-graphic.html`, no 404 page, em-dashes reaching entry faces from `_posts`
+front matter, no thumbnail step in the publishing pipeline, internal notes static-copied to
+the live site, the now-unused `assets/images/happy-pets.png`, the redundant `.lede-strip`,
+and `og-image.png` still off-palette (now further off it — it was made for the brown).
+Nothing is committed to `main` and nothing is pushed. A push here is Class 3 (see 0). New
+this round:
+
+1. **`about.md`'s "What we cover" list is the aspirational taxonomy**, in the same shape the
+   footer just came off — "Cat scratchers, trees, and furniture" and five more, several of
+   which have no published review. It is a statement of intent in body copy rather than a
+   set of links, so it is defensible where the footer was not, and it is out of this item's
+   scope. Flagged rather than changed.
+2. **A post's own front matter claims testing the site does not do.** One example seen while
+   reading categories: `description: "We tested the top litters…"`. R2.3 deliberately titled
+   the trust band "how we choose" rather than "how we test" to avoid exactly that exposure,
+   and the generator is undoing it one post at a time. `_posts/` is out of scope; this
+   belongs to whoever owns `generate_posts.py`.
+
+### R4.10 Commands
+
+    ./.venv/Scripts/python.exe scripts/preview_render.py home --name r4-home-short --limit 6
+    ./.venv/Scripts/python.exe scripts/preview_render.py home --dark --limit 5 --name r4-home-dark
+    ./.venv/Scripts/python.exe scripts/preview_render.py post --slug best-dog-pools --name r4-post
+    ./.venv/Scripts/python.exe scripts/preview_render.py post --dark --slug best-dog-pools --name r4-post-dark
+    ./.venv/Scripts/python.exe scripts/preview_render.py page --slug about --name r4-about
+    ./.venv/Scripts/python.exe scripts/preview_render.py page --slug contact --name r4-contact
+    ./.venv/Scripts/python.exe scripts/preview_render.py page --slug search --name r4-search
+    ./.venv/Scripts/python.exe scripts/preview_render.py dogs --name r4-dogs
+    ./.venv/Scripts/python.exe scripts/preview_render.py cats --name r4-cats
+
+then render by bare name with `mcp__html-render__render_html_page` and **open the PNG and
+look at it.** R4.1 and R4.5 were both diagnosed that way, and in both cases the render
+contradicted the theory that had been written down first.
+
+---
+
+## Round 5 — a bright white page on Chewy's profile, and a footer that stops repeating itself (2026-09-22)
+
+Round 4 was reviewed live by the Director. **The direction survives again** — structure,
+scale, hairlines, radius 0, two filter axes, the marigold pet panel, one type family, all
+unchanged. Two items came back.
+
+### R5.1 "Light and dark read practically the same" — the cream was the cause, not the dark scheme
+
+Round 4 fixed three real causes of a dark mode that looked light and the schemes still read
+as near-twins. Looking at the two renders **side by side at the same width**, which is what
+the complaint is actually about, the remaining cause is on the light side: **cream is a
+mid-light surface.** Against a `#121A16` ground it gives a smaller gap than it looks like on
+its own, and it also caps how bright the light scheme can ever get. So the light page was
+never going to "lighten up" while the ground stayed cream, and the separation was never going
+to open up while the light half sat in the middle.
+
+**The reference given was Chewy, and the honest answer to "how literally" is: its brightness
+profile completely, its hue selectively.** What came over whole — white ground `#FFFFFF`,
+near-black ink `#121212`, a real light-grey band `#EDEFF2`, no muted tone anywhere. What came
+over as a decision — the blue, as the site's **structural** hue rather than its identity:
+
+| Token | Round 4 | Round 5 | Job |
+| --- | --- | --- | --- |
+| `--paper` | cream `#FFF3E2` | **white** `#FFFFFF` | the page |
+| `--paper-2` | `#FFFBF3` | **`#EDEFF2`** | the grey band: photo plates, sticky bar, **footer** |
+| `--ink` | `#12271C` spruce-black | **`#121212`** | 18.7:1 on paper (was 14.4) |
+| `--ink-2` / `--ink-3` | `#4B5B50` / `#616F64` | `#4A5057` / `#5E656D` | 8.2:1 / 5.9:1 |
+| `--brand` | — | **`#1C49C4`** NEW | strip ground, live filter state, focus |
+| `--strip-bg` | `#12271C` | **`#1C49C4`** | the full-width band across the top of every page |
+| `--night` | `#16402F` spruce | **`#10276B`** navy | the dark band. White 13.8:1, marigold 7.9:1 |
+| `--accent` | `#FFB627` | **unchanged** | surface only — and louder on white than on cream |
+| `--hot` | `#C6381B`, two jobs | `#C6381B`, **one** | the wordmark paw, and nothing else |
+
+**Why not a blue site.** His ask was "lighten this up, use that color scheme", not "become
+blue", and Chewy's own blue is chrome — its colour comes from product photography, not from
+its palette. Marigold keeps every surface job it had, because the warm pet panel is this
+site's identity and is the one thing in four rounds he has never asked to change. Blue does
+what blue does at Chewy: the top band, the live state, focus.
+
+**Three places where a token rename would have quietly made a design decision, so each was
+decided on purpose:**
+
+1. **The paw stays tomato.** `.brand i` was `var(--hot)`. The paw sits above the fold on all
+   49 post pages and every static page — the most-repeated brand element on the site — and
+   letting the strip's blue reach it through a rename would have turned the one warm pet
+   signal in the chrome cold as a side effect. Marigold is not available: it is a surface, and
+   at 1.7:1 on white it would be a smudge.
+2. **The 49 running numerals lose their colour entirely**, `var(--hot)` → `var(--ink-3)`.
+   In blue they would read as 49 links on a page that now references a retailer's blue; in
+   tomato they are a third saturated hue arguing with the strip and the panel, on a scheme
+   whose whole fault was muddle. Neutral, the mark does its actual job — ordinal position —
+   and marigold keeps the lead numeral.
+3. **The footer moves onto the grey band** rather than the page. On cream, `--paper-2` was a
+   hair lighter than `--paper` and a footer in it would have been invisible; on white it is
+   Chewy's own grey band and it gives the bottom of the page a real edge with no card and no
+   extra rule.
+
+**Re-derived rather than swapped, because this exact class of bug has bitten twice
+(R3.3 defect 5, R4.1):** `--rule` and `--rule-2` (spruce-derived rgba), `--rule-night` (was
+derived from the *old cream paper* and would have left a warm hairline on a navy band),
+`--rule-hard`, `--focus`, `--on-night-2` (`#B9CFC2` is green-tinted and belonged to spruce;
+now `#C3D0EE`), `--lift`, and **both `theme-color` metas** — `#1C49C4` light to match the
+strip, `#0E1116` dark to match the page. Grepped afterwards for every retired hex and every
+old rgba literal: none survive outside a comment. **The metas are still not verifiable here —
+no phone.**
+
+**Dark was recomputed, not inverted.** Ground `#0E1116`, a cool near-black in the blue's
+family; strip `#132A5E`, dark and still recognisably the brand blue; band `#16306B`; brand
+ink lifts to `#7FA6FF` (7.9:1 — the light blue is 2.4:1 on this ground and would have been
+unreadable). Round 4's three dark causes were each re-checked in the render after the
+rewrite, since a palette rewrite is exactly what regresses them: the strip is dark, the tiles
+are dark, `--img-dim` still knocks the JPG whites back.
+
+**`--img-dim` retuned by looking: .78 → .72.** It was set against round 4's lighter ground;
+on this one the photo strip was the brightest thing on the page. Still mild on purpose — a
+dim product photo is a real cost on a page whose job is selling.
+
+### R5.2 The footer stopped saying the species twice
+
+"Dog health" under a "For dogs" heading prints the species in every line. The labels are bare
+categories now — Health, Toys, Beds, Travel / Litter, Food, Toys, Scratching.
+
+**Every `href` is byte-identical and must stay that way.** R4.4's note said "the label IS the
+query"; that is no longer true, and the tempting follow-through — shortening `?q=dog+health`
+to `?q=health` — would break it. `search.md`'s filter requires every 3+ character term to
+appear in a post's title or tags, and `detectSpecies` pre-filters off-species posts, so the
+species word in the query is load-bearing even though it is now off screen. The comment in
+`default.html` was rewritten to say exactly that. **"Toys" appearing in both columns is
+correct**, not a duplicate to tidy: two different queries.
+
+**`search.md`'s four category links were deliberately left alone.** They sit in a single
+mixed-species list under "or start from a category" with no species heading, so there is no
+heading to be redundant with and the species word is the only thing distinguishing them. The
+rule is "don't repeat the heading", not "strip species everywhere".
+
+**Flagged, not changed:** the **"Reviews"** column has the same shape — "All reviews", "Dog
+products", "Cat products", "Search reviews" under `<h3>Reviews</h3>`. It is arguably the same
+redundancy, but his instruction scoped to the species headings and this is a footer he
+reviewed live, so it is his call rather than scope creep.
+
+### R5.3 What was rendered and actually looked at
+
+**Both schemes opened side by side at the same width**, which is the check that matches the
+complaint — home at 390 viewport, 390 full-page, 1280 viewport and 1280 at 1400px tall, light
+and dark each. An article at 390 light and 390 dark. `/search/` and `/about/` at 390 light,
+`/dogs/` at 768 light. The dim retune was made after looking at the dark 1280 and confirmed in
+a second render. `/cats/` at 390 **dark**, specifically to check the demoted running numerals
+at close to native resolution in the harder scheme: `--ink-3` `#8D96A0` at 2px outline on
+`#0E1116`, which is the lowest-contrast pairing the demotion creates. It reads as a quiet
+ordinal, not as mush — the risk lock 2 names (an outline renders well below its colour's
+ratio) was checked rather than assumed.
+
+Concretely, how they differ now: white page / royal-blue strip / black ink, against near-black
+page / navy strip / white ink. The marigold hero panel and the marigold buttons are the only
+elements that are visually identical between the two, which is the intent — they are the
+brand constant.
+
+**Round 5 touched exactly three files:** `assets/css/style.css`, `_layouts/default.html` and
+this file. `_layouts/home.html` and `search.md` also show as modified in git — that is round 4
+work, dirty before this round began.
+
+**Not covered, stated rather than implied:** dark mode on `/dogs/` and the static
+pages; 320px; the `theme-color` browser chrome, which no render on this machine can show; iOS
+and Android type rendering; any browser other than this machine's Chromium; and a real Jekyll
+build, which this machine still cannot run (see 0). The renderer has no JavaScript, so the
+filter axes, "show more" and the `?q=` prefill were reviewed as code and never seen working —
+the eight footer queries are unchanged from round 4's verified set, so they were not re-run.
+
+**One trade carried forward, visible in every dark render:** the product shots' whites live in
+the JPG's own pixels, so even at `--img-dim: .72` the lead entry's photo is the largest light
+area on the dark page. Fixing it properly means regenerating 49 thumbnails with a transparent
+or dark ground, which is an asset-pipeline change, not a CSS one.
+
+### R5.4 Carried forward, still open
+
+Everything in R2.6, R3.5 and R4.9 is unchanged and still open: the orphaned
+`_includes/hero-graphic.html`, no 404 page, em-dashes reaching entry faces from `_posts` front
+matter, no thumbnail step in the publishing pipeline, internal notes static-copied to the live
+site, the unused `assets/images/happy-pets.png`, the redundant `.lede-strip`, `about.md`'s
+aspirational "What we cover" list, and a post's front matter claiming testing the site does
+not do. **`og-image.png` is now further off-palette again** — it was made for the brown, then
+stranded by the spruce, and the site is now white-and-blue. Nothing is committed to `main` and
+nothing is pushed. A push here is Class 3 (see 0).
+
+### R5.5 Commands
+
+    ./.venv/Scripts/python.exe scripts/preview_render.py home --name r5-home-short --limit 6
+    ./.venv/Scripts/python.exe scripts/preview_render.py home --dark --limit 6 --name r5-home-dark
+    ./.venv/Scripts/python.exe scripts/preview_render.py post --slug best-dog-pools --name r5-post
+    ./.venv/Scripts/python.exe scripts/preview_render.py post --dark --slug best-dog-pools --name r5-post-dark
+    ./.venv/Scripts/python.exe scripts/preview_render.py page --slug about --name r5-about
+    ./.venv/Scripts/python.exe scripts/preview_render.py page --slug search --name r5-search
+    ./.venv/Scripts/python.exe scripts/preview_render.py dogs --name r5-dogs
+    ./.venv/Scripts/python.exe scripts/preview_render.py cats --name r5-cats
+
+then render by bare name with `mcp__html-render__render_html_page` and **open the PNG and look
+at it — this round, open BOTH schemes at the same width and compare them**, because the fault
+being fixed was comparative and each scheme looked fine inspected on its own.
+
+---
+
+## Round 6 — light mode only, and a corrected read of what Chewy actually looks like (2026-09-22)
+
+The Director reviewed round 5 live and scoped this round himself: **stop working on dark mode,
+put all attention on making light mode ready.** So this round is not a balanced pass over two
+schemes. Dark mode was deliberately NOT worked on — not overlooked. What that meant in practice
+is set out in R6.5, including the two places where a shared CSS rule made it impossible to
+change light without dark moving with it, and one dark-visible bug that was found and
+deliberately left alone.
+
+### R6.1 The Chewy reference was re-read from real pages, and round 5's conclusion was too narrow
+
+Round 5 derived its Chewy read from the site's CSS variables and concluded "blue is the
+structural hue — top strip, the dark band, live filter state, focus." Mid-round, two real
+screenshots of live Chewy pages arrived (a homepage promo section and a category page) and were
+opened and looked at. That conclusion does not survive them.
+
+What the actual pages do:
+
+- **The blue is concentrated in exactly one place** — the top header bar, with a white wordmark
+  and a white search field in it. It is bold, saturated, and it is the only strong blue on the
+  screen.
+- **Everything below that bar is white.** No navy slab, no second blue area, no blue chrome.
+- **The variety comes from LIGHT TINTED BANDS used as section grounds** — a pale blue panel
+  (~`#DCEBFB`) behind a row of photo tiles, a pale mint promo banner, each carrying near-black
+  text. These are large, quiet and do a job; they are not decoration on a card.
+- **Small saturated badges** carry the loud colour instead: a crimson "Deal" chip on a card
+  corner.
+- **Product photos sit on their own light grounds**, warm neutral rather than pure white.
+
+So the accurate sentence is not "blue is the structural hue". It is: **white is the site's
+colour; one strong blue header; light tinted bands for variety; small saturated badges for
+emphasis.** Round 5 added one blue element to an otherwise samey palette and called that the
+Chewy read. This round makes the page bright and varied the way the reference actually is.
+
+### R6.2 The navy claims band became a pale blue one
+
+The `how we choose` band is the single largest area of flat colour on the site, which is why
+every round has had an opinion about it — near-black in round 2, spruce in round 4, navy in
+round 5. A full-width deep navy slab is precisely the structural blue chrome below the header
+that real Chewy pages do not have, and on a page whose stated fault was "not bright enough" it
+was the thing holding the brightness down.
+
+| Token | Round 5 (light) | Round 6 (light) | Job |
+| --- | --- | --- | --- |
+| `--night` to **`--band`** | navy `#10276B` | **pale blue `#E3EDFC`** | the one section band |
+| `--on-night` to **`--on-band`** | `#FFFFFF` | **`#121212`**, 16.3:1 on the band | band ink |
+| `--on-night-2` to **`--on-band-2`** | `#C3D0EE` | **`#434B57`**, 8.0:1 | band secondary ink |
+| `--rule-night` to **`--rule-band`** | `rgba(255,255,255,.24)` | **`rgba(18,18,18,.20)`** | hairlines in the band |
+| `--paper-3` | — | **`#FCF3E4` NEW** | the footer, warm cream |
+| `--paper-2` | grey band: plates, bar, footer | **`#EDEFF2`, value unchanged, job narrowed** | cool grey UI chrome only: sticky buy bar, empty plate |
+
+**The tokens were renamed, not just revalued, and that was the point.** A token called `--night`
+holding a pale blue is the same class of quiet lie this file has been bitten by twice (R3.3
+defect 5, R4.1): the next person to read it makes a decision on a name that is no longer true.
+`--band` is honest in both schemes. Grepped afterwards — `--night`, `--on-night` and
+`--rule-night` survive only inside historical comments that describe what earlier rounds did.
+
+**The page now has three light grounds, each with a job**, which is what "bright and varied"
+actually means here: white page, pale blue claims band, warm cream footer. The cream also puts a
+warm note at the bottom of the page answering the marigold hero at the top, so the variety comes
+from the site's own identity rather than from copying a second Chewy hue.
+
+**The cream footer is an original call, not a reference read, and is flagged as such.** Neither
+screenshot shows Chewy's footer, so unlike the pale blue band there is no primary evidence
+behind this one — the argument for it is the site's own marigold identity plus the reference's
+general method of using more than one light ground. It is the second-largest new area on the
+page. If only one of this round's two new grounds is kept, keep the band.
+
+**Lock 2 was amended in the stylesheet header rather than quietly drifted from.** Round 5's rule
+said saturated hue is AREA and never a pastel tint. That still holds for hue *on type* and for
+coloured chips on cards. What is new is that a large section GROUND may be a light tint carrying
+near-black ink. The distance back to the seven-pastel kids' template of the first pass is that
+there is **one** such ground with a job, not five as decoration.
+
+**The three trust numerals had to change, and they were not made neutral.** `.creed-num b` was
+marigold ink. Marigold on pale blue is 1.4:1 — the band's three numbers, which are its whole
+point, would have washed out completely. Rather than demoting them to grey, they now take the
+page's own signature device: the headline's marigold highlight block, `--on-accent` ink on it at
+10.7:1. Marigold stays a surface, which is lock 2 unchanged, and the trust proof is now the
+loudest thing in the band, which is what a trust proof should be.
+
+### R6.3 Three defects found by looking, each a round 1-5 artifact light mode had inherited
+
+1. **A ladder rung with nothing on it, in the claims band.** `.creed-nums` closed itself with a
+   `border-bottom` and the first claim below it drew its own `border-top`, so two hairlines ran
+   1.6rem apart with empty space between them. Present since round 2 and in both schemes.
+   Fixed by dropping the stats row's rule, **not** the first claim's: at 1024 the claims become
+   two columns, so suppressing only the first claim's rule (the obvious fix, and the one tried
+   first) left the top-left cell bare while the top-right cell kept its rule. That asymmetry was
+   caught by rendering at 1280 after the "fix", not by reasoning about it.
+2. **A one-line heading floating ~50px clear of its own body copy, desktop only.**
+   `.creed-points li` is `display: grid` and stretched to its parent grid row's height, and its
+   two auto rows stretched with it. Four claims read as eight loose fragments at 1280. Fixed
+   with `align-content: start`. Invisible at 390, where the list is one column and every row is
+   its own height.
+3. **The same brand glyph in two different hues.** The footer paw was `var(--accent)` marigold
+   while the masthead paw two screens up was `var(--hot)` tomato. Round 5 decided the masthead
+   one on purpose and wrote down why — *"marigold is not available: it is a surface, and at
+   1.7:1 on white it would be a smudge"* — and the footer was never brought into line, so it
+   had exactly the smudge that decision rejected (1.6:1 on the old grey, no better on cream).
+   Now tomato, matching the masthead.
+
+### R6.4 One thing that looked like a defect and was not, and one reference detail not copied
+
+**The hero photo strip stopping short of the right edge at 1280 is a preview artifact.**
+`home.html` says the strip deliberately runs off the right edge; the 1280 render showed it
+ending ~250px short, which reads as an unfinished row. The discriminating check was re-running
+the preview at `--limit 9` instead of `--limit 6`: with the nine tiles the layout actually asks
+for, the strip runs past the right edge exactly as intended. Nothing was changed. **Judging the
+round 5 render alone would have produced a wrong "fix" here.**
+
+**Chewy's warm-neutral photo backdrops were deliberately not copied.** Its product cards put
+photos on a cream/beige ground. Every thumbnail here is a product cut out on an 800x600 JPG with
+pure-white corners, so a tinted plate behind one shows a white rectangle floating inside a cream
+box. `--tile` stays `#FFFFFF`. Fixing it properly means regenerating 49 thumbnails with a
+transparent ground — an asset-pipeline change, the same trade already carried in R5.3.
+
+### R6.5 Dark mode: deliberately not touched, and exactly where that was not possible
+
+Per the Director's instruction, **no dark-mode design work was done.** The dark `@media` block
+was edited only to carry the four token renames through at their round 5 values, plus the new
+`--paper-3` set to `--paper-2`'s value so the dark footer does not move. Rendered and looked at
+at 390 to confirm: the ground, the navy band, the strip and the footer are unchanged.
+
+**Two shared rules could not be changed on one side only, and both are stated rather than
+buried:**
+
+1. **The band's numerals are now marigold blocks with black ink in dark too**, not marigold
+   text. Scoping the treatment to light would have left the two schemes structurally different
+   for no reason. Checked in the dark render: it reads well there.
+2. **The ladder-rung fix applies to dark as well**, being the same hairline.
+
+Neither is a refinement of dark mode; both are the unavoidable other half of a light-mode fix.
+
+**One genuine dark-mode bug was found and deliberately left unfixed, as instructed — and it
+falsifies two claims in R5.** `assets/css/style.css` lines **247-249** are stray prose sitting
+*outside* a closed comment (a paragraph about the sticky buy bar whose opening delimiter was
+lost in an earlier edit). CSS error recovery swallows the invalid prelude **and the rule that
+follows it**, which is:
+
+    .entry-media img, .lede-strip img, .verdict-media img {
+      filter: brightness(var(--img-dim));
+      transition: filter var(--ease);
+    }
+
+So **`--img-dim` has never applied to anything.** Verified, not inferred: those exact lines were
+pasted byte-for-byte into a throwaway page with `--img-dim: .15` and rendered — the swatch stayed
+pure white, while a control rule after it applied normally.
+
+Consequences, stated plainly:
+
+- **Light mode is unaffected.** `--img-dim` is `1` in the light scheme, so the dead rule is a
+  visual no-op there. This is why it was left alone rather than fixed: repairing it would change
+  dark's rendered appearance for the first time, in a round the Director scoped to light.
+- **R5.1's "the product shots' whites are knocked back by `--img-dim`" and R5.3's "`--img-dim`
+  retuned by looking: .78 to .72" are both false.** The retune changed a number in a rule that
+  does not run. Every dark render in rounds 3-5 was of undimmed product photography, which also
+  means "dark mode still looks light" was being diagnosed against a broken control.
+- **The fix is deleting three lines.** Whoever picks up the next dark round should delete
+  247-249 first, then re-judge `--img-dim` from scratch — `.72` was tuned by eye against a photo
+  strip that was never being dimmed, so it is a guess, not a measurement.
+
+### R6.6 What was rendered and actually looked at
+
+Light, this round: home at 390 full-page, 320 viewport, 1280 viewport and 1280 full-page; the
+claims band and the footer each cropped at **native resolution** at both 390 and 1280, because
+the earlier rounds' judgements of the footer were made from a 140px-wide downscale and the paw
+hue defect is invisible at that size. An article at 390 light and 1280 light. `/about/` and
+`/contact/` at 390 light. The defect-3 asymmetry and the defect-2 heading gap were both found by
+looking at a 1280 crop *after* a first fix, and a second pass was rendered and looked at to
+confirm each.
+
+**Which renders are pre-change and which are post-change, because it matters here.** The
+light-mode survey that found the three defects was run on an `r6base-*` build — the round 5 CSS,
+before any edit this round. That survey covered `/search/` at 390, `/dogs/` at 768, `/contact/`
+and `/privacy-policy/` at 390, home at 320, and the post page at 1280. **The footer and the band
+both changed after it**, so the only pages whose new cream footer and pale band were actually
+looked at are **home (390 and 1280) and `/about/` and `/contact/` (390)**. `/search/`, `/dogs/`,
+`/cats/` and `/privacy-policy/` have not been seen with the round 6 palette. They share one
+footer partial and one stylesheet, so the risk is low — but low is not seen, and saying so is
+cheaper than a future round trusting a claim this file did not earn.
+
+Dark, this round: home at 390 full-page, band cropped at native resolution — a **regression
+check only**, not a design review.
+
+**Round 6 touched exactly two files: `assets/css/style.css` and this one.** Everything else
+showing as modified in git is round 4 and round 5 work, dirty before this round began.
+
+**Not covered, stated rather than implied:** dark on anything but the home page; the
+`theme-color` metas, which no render on this machine can show and which still name the blue
+strip and the near-black dark page (both correct — neither changed); iOS and Android type
+rendering; any browser other than this machine's Chromium; a real Jekyll build, which this
+machine still cannot run. The renderer has no JavaScript, so the filter axes, "show more" and
+the `?q=` prefill were reviewed as code and never seen working. **No contrast pair was measured
+by eye — every ratio in R6.2 was computed.**
+
+### R6.7 Carried forward, still open
+
+Everything in R2.6, R3.5, R4.9 and R5.4 is unchanged and still open. Three of those are
+light-visible and worth naming again with locations, because this round looked straight at them
+and left them alone on purpose:
+
+- **Long dashes reach entry faces from `_posts` front matter — 12 posts, and the count splits.**
+  The full list, every hit in a `description:` field, scanned and written to a UTF-8 file rather
+  than read off a console (a first pass crashed on an encode error mid-list and would have gone
+  into this record with a filename missing):
+  - **Em-dash, 10:** `2026-04-04-best-automatic-cat-feeder.md`,
+    `2026-04-04-best-cat-litter-odor-control.md`, `2026-04-04-best-cat-scratching-posts.md`,
+    `2026-04-04-best-dog-beds-large-breeds.md`, `2026-04-04-best-dog-collars-small-breeds.md`,
+    `2026-04-04-best-no-pull-dog-harness.md`, `2026-04-04-best-pet-water-fountain.md`,
+    `2026-04-04-best-puppy-training-pads.md`, `2026-04-20-best-cat-beds.md`,
+    `2026-05-23-best-cat-tree-large.md`.
+  - **En-dash, 2:** `2026-04-16-best-calming-treats-dogs.md`,
+    `2026-05-18-best-dog-nail-grinder.md`.
+  - **Unspaced em-dash, 2** — the specific AI tell, and a subset of the ten above:
+    `2026-04-20-best-cat-beds.md` (`beds—find`) and `2026-05-23-best-cat-tree-large.md`
+    (`style—without`).
+
+  These are **published** posts on a site with an enabled autopublish cron, so rewriting twelve
+  live descriptions is a content decision, not a design one, and it was not taken unilaterally.
+  Worth noting for whoever does take it: the generator is still producing them, so scrubbing the
+  twelve without fixing `generate_posts.py` buys one clean pass and then drifts back.
+- **`about.md`'s "What we cover" list is still aspirational** — seven categories, several with
+  no published review behind them. Changing what the site claims to cover is a business
+  statement, not a CSS fix.
+- **The sticky buy bar is cool grey `--paper-2` while the footer is now warm cream.** Judged and
+  left: the bar is transient floating chrome and has to read as *not the page*. Worth a look if
+  the cream starts reading as the site's second ground rather than just the footer's.
+
+`og-image.png` remains off-palette — made for the brown, stranded by the spruce, then by the
+white-and-blue, and now the page has a pale band and a cream footer too. Nothing is committed to
+`main` and nothing is pushed. A push here is Class 3 (see 0).
+
+### R6.8 Commands
+
+    ./.venv/Scripts/python.exe scripts/preview_render.py home --name r6-home-short --limit 2
+    ./.venv/Scripts/python.exe scripts/preview_render.py home --name r6-home9 --limit 9
+    ./.venv/Scripts/python.exe scripts/preview_render.py home --dark --limit 2 --name r6-home-dark
+    ./.venv/Scripts/python.exe scripts/preview_render.py post --slug best-dog-pools --name r6-post
+    ./.venv/Scripts/python.exe scripts/preview_render.py page --slug about --name r6-about
+    ./.venv/Scripts/python.exe scripts/preview_render.py page --slug search --name r6-search
+    ./.venv/Scripts/python.exe scripts/preview_render.py dogs --name r6-dogs
+
+then render by bare name with `mcp__html-render__render_html_page` and open the PNG and look at
+it. **This round, crop the band and the footer to NATIVE resolution before judging them** — a
+full-page phone render is downscaled roughly 1:1.8, and both layout defects fixed this round are
+invisible at that size.

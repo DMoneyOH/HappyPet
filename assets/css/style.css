@@ -30,17 +30,85 @@
         --night   spruce    One dark section ground, replacing round 2's
                             near-black. Cream on it at 10.6:1.
 
+      ROUND 4 amendment. The ink was a chocolate brown (#2A1912) and the
+      single loudest thing on the page was therefore a full-width brown slab
+      across the top, with the display headline in the same brown under it.
+      The Director's reaction to it was immediate and negative. Ink now comes
+      off the band's own spruce (#12271C), so the dark areas are deep
+      evergreen and the page runs cream / marigold / tomato / spruce with no
+      brown anywhere. Nothing else about lock 2 changed: hue is still area,
+      never a tint, never a chip.
+
+      ROUND 5 amendment, and it AMENDS the lock rather than drifting from it.
+      Two faults, both reported live: light and dark "read practically the
+      same", and the light scheme needed to lighten significantly. The cream
+      ground was the cause of both — cream is a mid-light surface, so the
+      light page never got bright and the gap to a dark page stayed small.
+
+      The reference given is Chewy: white page, near-black text, light-grey
+      bands, one confident saturated blue. What is carried over is its
+      BRIGHTNESS PROFILE in full (pure white ground, #121212 ink, a real grey
+      band, no muted tone anywhere) and its blue as the site's structural
+      hue — the top strip, the dark band, the live filter state, focus. What
+      is NOT carried over is becoming a blue site: marigold keeps every
+      surface job it had, because the warm pet panel is this site's identity
+      and Chewy's own blue is chrome, not its product photography. So:
+
+        --paper   white     the page. Not cream, not bone, not tinted.
+        --paper-2 #EDEFF2   the grey band: photo plates, sticky bar, footer.
+        --brand   #1C49C4   NEW, and the one hue with TWO jobs — ground for
+                            the top strip, ink for the live filter state and
+                            focus. Chewy uses blue exactly that way, and
+                            writing it down is the difference between an
+                            amendment and drift.
+        --night   #10276B   the dark band, navy now rather than spruce, so
+                            it belongs to the blue rather than sitting beside
+                            it. White on it 13.8:1, marigold on it 7.9:1.
+        --accent  marigold  UNCHANGED, still surface only. It is louder on
+                            white than it ever was on cream.
+        --hot     tomato    demoted to ONE mark: the wordmark paw. It used to
+                            also stroke all 49 running numerals; blue there
+                            would have read as 49 links and tomato there is a
+                            third saturated hue competing on a page whose
+                            whole fault was muddle. The numerals are --ink-3.
+
+      ROUND 6 amendment, and it AMENDS the sentence directly below rather
+      than drifting from it. Round 5 read Chewy from its CSS variables and
+      concluded "blue is the structural hue". Looking at real Chewy pages
+      instead, that is too narrow: the blue is concentrated in ONE place, the
+      top header bar. Everything under it is white, and the variety comes
+      from LIGHT TINTED BANDS used as section grounds — a pale blue panel
+      here, a pale mint promo band there — plus small saturated badges. So
+      the rule below is amended for LIGHT ONLY:
+
+        - saturated hue is still AREA, never a tint on type and never a
+          coloured chip on a card. Marigold is still surface-only and still
+          the pet identity. Nothing there changed.
+        - but a large SECTION GROUND is now allowed to be a light tint
+          carrying near-black ink, which is the opposite of round 5's navy
+          slab and is what actually makes the page read bright and varied.
+          --band is that ground. There is one, not five: the distance from
+          here back to the seven-pastel kids' template of the first pass is
+          that a tint is a GROUND with a job, never a decoration on a card.
+
+      The dark scheme is untouched by this amendment — --band resolves to
+      navy there, exactly as in round 5.
+
       Saturated hue appears as AREA, never as a pastel tint and never as a
       coloured chip on a card. That distinction is the whole difference
       between this and the seven-pastel kids' template of the first pass.
       Every pair below was computed, not eyeballed.
 
-   3. TYPE. Two families, both free. Display is the reader's own system
-      grotesque at 800, set very large, lowercase, tight. Long-form prose is
-      Georgia. There is no webfont: the previous self-hosted Fredoka was the
+   3. TYPE. ONE family, free (round 4 — it was two). Display is the reader's
+      own system grotesque at 800, set very large, lowercase, tight, and since
+      round 4 long-form prose is the same stack. Georgia used to carry prose,
+      which meant the article pages and the home page did not look like one
+      site. There is no webfont: the previous self-hosted Fredoka was the
       single loudest "friendly template" signal on the page, and a system
       grotesque renders with the same character on iOS (SF Pro), Android
-      (Roboto) and Windows (Segoe UI), which a serif's contrast does not.
+      (Roboto) and Windows (Segoe UI), which a serif's contrast does not —
+      Georgia fell back to Noto Serif on Android, a case no preview on this
+      machine could ever render.
 
    4. SCALE. The index is editorial because entries differ in size, not
       because they are decorated. Entry 1 is major, 2 and 3 are wide, the rest
@@ -48,72 +116,128 @@
    ========================================================================= */
 
 :root {
-  /* Paper and ink — both warm. */
-  --paper:      #FFF3E2;
-  --paper-2:    #FFFBF3;   /* raised: photo tiles, the sticky bar */
+  /* Paper and ink. Round 5: cream is gone. The page ground is white and the
+     ink is a neutral near-black, which is what makes this scheme read as the
+     LIGHT one. See lock 2's round-5 note above. */
+  --paper:      #FFFFFF;
+  --paper-2:    #EDEFF2;   /* cool grey UI chrome: sticky buy bar, empty plate */
+  --paper-3:    #FCF3E4;   /* ROUND 6. Warm cream, the footer ground */
   --tile:       #FFFFFF;   /* product cut-outs sit on white grounds */
-  --night:      #16402F;   /* spruce, the one dark band ground */
+  --band:       #E3EDFC;   /* ROUND 6. Pale blue, the one section band */
 
-  --ink:        #2A1912;   /* 15.4:1 on paper */
-  --ink-2:      #5A463C;   /* 8.1:1  on paper */
-  --ink-3:      #7C6558;   /* 5.0:1  on paper */
-  --on-night:   #FFF3E2;   /* 10.6:1 on the band */
-  --on-night-2: #B9CFC2;   /* 7.1:1  on the band */
+  --ink:        #121212;   /* 18.7:1 on paper */
+  --ink-2:      #4A5057;   /* 8.2:1  on paper */
+  --ink-3:      #5E656D;   /* 5.9:1  on paper */
+  --on-band:    #121212;   /* 16.3:1 on the pale band */
+  --on-band-2:  #434B57;   /* 8.0:1  on the pale band */
 
-  --rule:       rgba(42, 25, 18, .16);
-  --rule-2:     rgba(42, 25, 18, .40);
-  --rule-hard:  #2A1912;
+  --rule:       rgba(18, 18, 18, .16);
+  --rule-2:     rgba(18, 18, 18, .42);
+  --rule-hard:  #121212;
+
+  /* The top strip. Its own pair of tokens rather than ink/paper: inverting
+     those two put a full-width CREAM slab across the top of the dark page,
+     which is most of why dark mode did not read as dark. Round 5 makes it
+     the brand blue — it is the full-width band across the top of every page
+     and therefore where the Chewy read is worth the most. */
+  --strip-bg:   #1C49C4;
+  --strip-ink:  #FFFFFF;   /* 7.5:1 on the strip */
+
+  /* Structural hue, round 5. The only token with two jobs (see lock 2). */
+  --brand:       #1C49C4;  /* 7.5:1 as ink on paper */
 
   /* Surface hue. Never ink. */
   --accent:      #FFB627;
   --accent-deep: #F0A012;
-  --on-accent:   #2A1912;  /* 9.6:1 */
+  --on-accent:   #121212;  /* 10.7:1 — the SAME ink in both schemes */
 
-  /* Ink hue. Never a surface. */
-  --hot:         #C6381B;  /* 4.8:1 on paper */
+  /* Ink hue, and since round 5 exactly one mark: the wordmark paw. */
+  --hot:         #C6381B;  /* 5.0:1 on white */
 
-  --rule-night: rgba(255, 243, 226, .22);  /* hairlines inside the band */
+  --rule-band:  rgba(18, 18, 18, .20);     /* hairlines inside the band */
 
-  --focus:      #2A1912;
+  --img-dim: 1;            /* dark mode knocks product shots back; see below */
+
+  --focus:      #1C49C4;
 
   --wrap: 1280px;
   --gut: 20px;
   --ease: 160ms cubic-bezier(.2, .7, .3, 1);
-  --lift: 0 -2px 24px rgba(18, 17, 16, .18);
+  --lift: 0 -2px 24px rgba(18, 18, 18, .18);
 
   --font-display: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
                   'Helvetica Neue', Arial, sans-serif;
   --font-ui: var(--font-display);
-  --font-prose: Georgia, 'Iowan Old Style', 'Times New Roman', serif;
+  /* Round 4: ONE family. Georgia is gone. The home page's grotesque is the
+     type the Director signed off, and the post pages ran prose in a serif,
+     so the two templates did not look like one site. Killing Georgia also
+     retires round 2's own unresolvable risk: on Android the serif fell back
+     to Noto Serif, a low-contrast humanist face this machine can never
+     render, so every preview here judged the good case. */
+  --font-prose: var(--font-display);
 
   color-scheme: light;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    /* Recomputed for round 3, not inherited: the light scheme's ink is a warm
-       brown and its band is spruce, so every value here had to move with it.
-       The page ground is a warm near-black, never neutral grey, or the paper
-       and the band would read as belonging to two different sites. */
-    --paper:      #1A1411;
-    --paper-2:    #241C17;
-    --tile:       #F6EEE2;   /* product shots are cut on light grounds */
-    --night:      #0E2B20;   /* the band still has to separate from the page */
+    /* Recomputed for round 5, not inherited. The light scheme is now pure
+       white on #121212, so the separation between the two schemes is no
+       longer a matter of degree: this ground is a cool near-black in the
+       blue's own family, so the page, the strip and the navy band belong to
+       one site rather than three.
 
-    --ink:        #FFF3E2;   /* 16.6:1 on paper */
-    --ink-2:      #CFBDAE;   /* 10.0:1 */
-    --ink-3:      #A3907F;   /* 6.0:1  */
-    --on-night:   #FFF3E2;   /* 13.8:1 on the band */
-    --on-night-2: #B9CFC2;
+       Round 4's three causes of "dark mode does not look dark" are all still
+       fixed here and were re-checked after the palette rewrite, because a
+       palette rewrite is exactly what regresses them: the strip has its own
+       dark token (never an inverted light slab), the photo tiles are dark,
+       and the product shots — whose whites live in the JPG's own pixels —
+       are knocked back by --img-dim. */
+    --paper:      #0E1116;
+    --paper-2:    #171B21;
+    /* ROUND 6 renamed --night/--on-night/--rule-night to --band/--on-band/
+       --rule-band, because in the light scheme the band stopped being dark.
+       Every value here is round 5's, unchanged: the dark scheme is NOT part
+       of round 6 and must render byte-identically. --paper-3 is new and is
+       deliberately --paper-2's value, so the dark footer does not move. */
+    --paper-3:    #171B21;
+    --tile:       #1C2129;   /* the 8px ring and border around each shot */
+    --band:       #16306B;   /* the band still has to separate from the page */
 
-    --rule:       rgba(255, 243, 226, .20);
-    --rule-2:     rgba(255, 243, 226, .45);
-    --rule-hard:  #FFF3E2;
+    --ink:        #F3F5F7;   /* 17.3:1 on paper */
+    --ink-2:      #BFC6CE;   /* 11.0:1 */
+    --ink-3:      #8D96A0;   /* 6.3:1  */
+    --on-band:    #F3F5F7;   /* 11.5:1 on the band */
+    --on-band-2:  #C3D0EE;   /* 9.1:1  on the band */
+    --rule-band:  rgba(243, 245, 247, .24);
 
-    /* Tomato is too dark to be ink on a dark ground; it lifts to a warm
-       ember at 7.9:1 and keeps the same job. Marigold is unchanged: it is a
-       surface in both schemes and carries the same ink on it. */
+    --rule:       rgba(243, 245, 247, .20);
+    --rule-2:     rgba(243, 245, 247, .45);
+    --rule-hard:  #F3F5F7;
+
+    --strip-bg:   #132A5E;   /* dark, and still recognisably the brand blue */
+    --strip-ink:  #F3F5F7;   /* 12.6:1 on the strip */
+
+    /* The brand blue is a mid blue built for white; as ink on a near-black
+       ground it would sit at 2.4:1, so it lifts. Tomato is too dark to be
+       ink on a dark ground and lifts to a warm ember, keeping its one job
+       (the paw). Marigold is unchanged: it is a surface in both schemes and
+       carries the same ink on it — which is why --on-accent is NOT
+       overridden here. */
+    --brand:      #7FA6FF;   /* 7.9:1 on paper, 6.8:1 on a tile */
     --hot:        #FF8A5C;
+
+    /* The white in a product shot is in the JPG's own pixels, not in CSS
+       padding (checked: every thumbnail is 800x600 with pure-white corners),
+       so recolouring the tile alone leaves the page a field of white
+       rectangles. Mild, and restored on hover/focus — a dim product photo is
+       a real cost on a page whose job is selling.
+
+       Round 5 retuned this by looking, not by arithmetic: .78 was set against
+       round 4's #121A16 ground, and this scheme's ground is deeper, so the
+       same value left the photo strip reading as the brightest thing on the
+       page. .72 settles it without the shots going grey. */
+    --img-dim: .72;
 
     --focus:      #FFB627;
 
@@ -143,6 +267,28 @@ body {
 [hidden] { display: none !important; }
 
 img { max-width: 100%; height: auto; display: block; }
+
+/* Product photography only. Every thumbnail is a product cut out on a pure
+   white JPG ground, so on a dark page these are the largest light areas on
+   the screen — the reason round 3's dark mode read as light mode. --img-dim
+   is 1 in the light scheme, so this rule does nothing there. The hero pet
+   art is deliberately NOT in this list: it sits on marigold in both schemes
+   and is the site's own brand signal, not a product shot. */
+   The sticky buy bar is deliberately NOT in this list. It is the page's
+   conversion element and its thumbnail is already tiny; dimming it buys a
+   little less glare and costs a click. */
+.entry-media img,
+.lede-strip img,
+.verdict-media img {
+  filter: brightness(var(--img-dim));
+  transition: filter var(--ease);
+}
+.entry:hover .entry-media img,
+.entry:focus-within .entry-media img,
+.lede-strip img:hover,
+.verdict-media img:hover {
+  filter: brightness(1);
+}
 
 a { color: inherit; }
 
@@ -188,8 +334,8 @@ button { font: inherit; color: inherit; }
 /* --------------------------------------------------------------- masthead */
 
 .mast-strip {
-  background: var(--ink);
-  color: var(--paper);
+  background: var(--strip-bg);
+  color: var(--strip-ink);
   font-size: .66rem;
   font-weight: 600;
   letter-spacing: .14em;
@@ -248,6 +394,12 @@ button { font: inherit; color: inherit; }
    it directly masked a solid square (seen in the first r3 render). The
    derived file carries alpha on the paw ink only, and holds one paw, not
    two: at 20px a pair is mush. */
+/* Round 5 kept this tomato ON PURPOSE rather than letting a token rename
+   decide it. The paw sits above the fold on all 49 post pages and every
+   static page, so it is the most-repeated brand element on the site; blue
+   here would have turned the one warm pet signal in the chrome cold as a
+   side effect of making the strip blue. Marigold is not available — it is a
+   surface, and at 1.7:1 on white it would be a smudge. */
 .brand i {
   display: inline-block;
   width: 1.05em; height: 1.05em;
@@ -469,9 +621,11 @@ button { font: inherit; color: inherit; }
 .seg.is-on {
   color: var(--ink);
   font-weight: 800;
-  /* Tomato marks the live axis. Both filters are always on, so this is the
-     only thing telling a reader what the index is currently showing. */
-  border-bottom-color: var(--hot);
+  /* The brand blue marks the live axis. Both filters are always on, so this
+     is the only thing telling a reader what the index is currently showing —
+     which is why it gets the structural hue rather than a neutral rule.
+     Round 5: this was tomato, and tomato now has exactly one job (the paw). */
+  border-bottom-color: var(--brand);
 }
 .seg b {
   font-weight: 600;
@@ -541,7 +695,10 @@ button { font: inherit; color: inherit; }
   width: 100%; height: 100%;
   object-fit: contain;
   padding: 8px;
-  transition: scale var(--ease);
+  /* `filter` has to be named here too. The dark-mode dim is declared in the
+     resets at equal specificity, and this later rule would otherwise replace
+     the shorthand and silently drop the fade back to full brightness. */
+  transition: scale var(--ease), filter var(--ease);
 }
 .entry:hover .entry-media img { scale: 1.03; }
 
@@ -567,9 +724,13 @@ button { font: inherit; color: inherit; }
 
 /* The running number. Outlined rather than filled so 49 of them do not shout,
    and so marigold stays reserved for the major entry and the buy action.
-   Round 3 gives the outline the tomato ink hue: it is the one mark that
-   repeats all the way down the index, so it is where colour earns the most
-   ground for the least noise. */
+   Round 3 gave the outline the tomato ink hue. Round 5 takes the colour back
+   out, deliberately: this mark repeats 49 times down the page, so whatever
+   hue it carries becomes the loudest thing in the index. In the brand blue it
+   would read as 49 links on a page that now references a retailer's blue; in
+   tomato it is a third saturated hue arguing with the strip and the panel on
+   a scheme whose whole fault was muddle. Neutral, it does its actual job —
+   ordinal position — and lets marigold keep the lead numeral. */
 .entry-num {
   font-family: var(--font-display);
   font-weight: 800;
@@ -580,7 +741,7 @@ button { font: inherit; color: inherit; }
   /* 2px, not 1px. Stroked in --rule-2 this was a deliberate near-invisible
      mark; restroked in tomato at 1px it stayed just as faint while looking
      like a colour decision, which is the worst of both. */
-  -webkit-text-stroke: 2px var(--hot);
+  -webkit-text-stroke: 2px var(--ink-3);
   margin-bottom: .1rem;
 }
 
@@ -684,13 +845,19 @@ button { font: inherit; color: inherit; }
 
 /* ----------------------------------------------------------------- creed */
 
-/* The dark band. Round 2 made this near-black, which is most of why the page
-   read as a tech product: it is the single largest area of flat colour on the
-   site. It is spruce now. In the dark scheme --night deepens further so the
-   band still separates from the page rather than dissolving into it. */
+/* The claims band. It is the single largest area of flat colour on the site,
+   which is why every round has had an opinion about it: near-black in round
+   2 (read as a tech product), spruce in round 4, navy in round 5.
+
+   ROUND 6 makes it a PALE BLUE in the light scheme. A full-width navy slab
+   was structural blue chrome outside the header, and real Chewy pages put
+   blue in the header bar and nowhere else below it — under that bar the page
+   is white with light tinted bands. Near-black ink on pale blue at 16.3:1,
+   so the band gains contrast as well as brightness. In the dark scheme
+   --band is still navy and nothing here moves. */
 .creed {
-  background: var(--night);
-  color: var(--on-night);
+  background: var(--band);
+  color: var(--on-band);
   border-block: 1px solid var(--rule-hard);
 }
 .creed .wrap { padding-block: 2.6rem; }
@@ -708,27 +875,44 @@ button { font: inherit; color: inherit; }
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 1rem;
-  padding-bottom: 1.6rem;
-  margin-bottom: 1.6rem;
-  border-bottom: 1px solid var(--rule-night);
+  /* ROUND 6 defect. This row used to close itself with a border-bottom while
+     the first claim below it ALSO drew a border-top, so on a phone two
+     hairlines ran 1.6rem apart with nothing between them — a ladder rung with
+     no content on it, there since round 2. Removing this one rather than the
+     claim's is what keeps the desktop layout symmetric: at 1024 the claims
+     become two columns, so suppressing only the FIRST claim's rule would have
+     left the top-left cell bare and the top-right cell ruled. */
+  padding-bottom: 0;
+  margin-bottom: 1.9rem;
+  border-bottom: 0;
 }
+/* ROUND 6. These were marigold INK. On round 5's navy that worked; on a pale
+   blue band marigold sits at 1.4:1 and the three trust numbers — the whole
+   point of the band — would have washed out. Rather than recolouring them
+   neutral, they take the page's own signature device: the headline's
+   marigold highlight block, black ink on it at 10.7:1. Marigold stays a
+   SURFACE, which is lock 2, and the band's three numbers now read as the
+   loudest thing in it, which is what a trust proof should be. The same rule
+   serves both schemes, so the dark band gets it too. */
 .creed-num b {
-  display: block;
+  display: inline-block;
   font-family: var(--font-display);
   font-weight: 800;
   font-size: clamp(1.9rem, 9vw, 3.2rem);
   line-height: .9;
   letter-spacing: -.045em;
-  color: var(--accent);
+  background: var(--accent);
+  color: var(--on-accent);
+  padding: .08em .16em .12em;
 }
 .creed-num span {
   display: block;
-  margin-top: .4rem;
+  margin-top: .55rem;
   font-size: .6rem;
   font-weight: 700;
   letter-spacing: .14em;
   text-transform: uppercase;
-  color: var(--on-night-2);
+  color: var(--on-band-2);
 }
 
 .creed-points {
@@ -741,8 +925,15 @@ button { font: inherit; color: inherit; }
 .creed-points li {
   display: grid;
   gap: .3rem;
+  /* ROUND 6 defect, visible only at desktop although this rule applies at
+     every width. Without it the li stretched to its grid row's height and its
+     two auto rows stretched with it, so a one-line heading floated ~50px
+     clear of its own body copy and the four claims read as eight loose
+     fragments. At 390 the list is one column and every row sizes itself, so
+     nothing was wrong there to see. */
+  align-content: start;
   padding-top: .9rem;
-  border-top: 1px solid var(--rule-night);
+  border-top: 1px solid var(--rule-band);
 }
 .creed-points b {
   font-family: var(--font-display);
@@ -753,7 +944,7 @@ button { font: inherit; color: inherit; }
 .creed-points span {
   font-size: .9rem;
   line-height: 1.5;
-  color: var(--on-night-2);
+  color: var(--on-band-2);
 }
 
 /* -------------------------------------------------------------- sections */
@@ -904,12 +1095,32 @@ button { font: inherit; color: inherit; }
 
 .reading { position: relative; }
 
+/* Round 4 retune, done by looking rather than by arithmetic. Georgia set a
+   narrower character at 1.06rem, so an 820px column held a reasonable
+   measure. The system grotesque is wider and carries more x-height, and the
+   same column ran to roughly 85 characters a line — past the point where the
+   eye reliably finds the next line. A cap on the measure, and slightly less
+   leading, because the taller x-height already opens the block up. */
 .prose {
   font-family: var(--font-prose);
-  font-size: 1.06rem;
-  line-height: 1.7;
+  font-size: 1.04rem;
+  line-height: 1.62;
   color: var(--ink);
   margin-top: 2rem;
+}
+/* The measure is capped on the TEXT BLOCKS, not on .prose itself. Capping the
+   container looked right at 390, where it never binds, and wrong at 1280: the
+   section hairlines are `border-top` on .prose h2, so they stopped 60px short
+   of the header rule and the purchase panel above them while everything else
+   still ran the full column. Same misalignment shape as R2.4 defects 3 and 5.
+   Rules, tables and media keep the full column; only the reading measure is
+   capped, which is also what keeps R2.4 defect 8's table fix intact. */
+.prose > p,
+.prose > ul,
+.prose > ol,
+.prose > blockquote,
+.prose > h3 {
+  max-width: 68ch;
 }
 .prose > * + * { margin-top: 1.1rem; }
 .prose h2 {
@@ -1090,7 +1301,15 @@ button { font: inherit; color: inherit; }
 /* ------------------------------------------------------------- colophon */
 
 .colophon {
-  background: var(--paper);
+  /* Round 5 put the footer on the cool grey --paper-2. ROUND 6 moves it to a
+     warm cream of its own. Looking at real Chewy pages rather than at its CSS
+     variables, the page is white and the VARIETY comes from light tinted
+     bands — pale blue here, pale mint there — not from one grey and one navy.
+     Three light grounds now, each with a job: white page, pale blue claims
+     band, warm cream terminus. Cream also puts a warm note at the bottom of
+     the page to answer the marigold hero at the top, which is this site's own
+     identity rather than a borrowed one. */
+  background: var(--paper-3);
   border-top: 2px solid var(--rule-hard);
   padding-block: 2.4rem 1.6rem;
 }
@@ -1103,10 +1322,16 @@ button { font: inherit; color: inherit; }
   text-transform: lowercase;
   margin: 0 0 1.6rem;
 }
+/* ROUND 6 defect. This paw was marigold while the masthead paw two screens
+   up was tomato — the same brand glyph in two hues. Round 5 decided the
+   masthead paw ON PURPOSE ("marigold is not available: it is a surface, and
+   at 1.7:1 on white it would be a smudge") and this one was never brought in
+   line, so the footer had exactly the smudge that decision rejected: 1.6:1
+   on the old grey, no better on cream. Tomato, matching the masthead. */
 .colophon-word i {
   display: inline-block;
   width: .5em; height: .5em;
-  background: var(--accent);
+  background: var(--hot);
   -webkit-mask: url('/assets/images/paw-mask.png') center / contain no-repeat;
           mask: url('/assets/images/paw-mask.png') center / contain no-repeat;
   font-style: normal;

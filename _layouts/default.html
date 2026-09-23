@@ -7,12 +7,14 @@
        browser chrome at the top of the page. Dark deliberately matches the
        page instead: the strip inverts there, and light chrome over a dark
        page reads worse than a seam. -->
-  <meta name="theme-color" content="#2A1912" media="(prefers-color-scheme: light)">
-  <meta name="theme-color" content="#1A1411" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#1C49C4" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0E1116" media="(prefers-color-scheme: dark)">
 
-  <!-- No webfont. Display type is the reader's own system grotesque and long
-       prose is Georgia, so nothing blocks first paint and the page renders in
-       a face that is actually installed on the device. The self-hosted
+  <!-- No webfont, and since round 4 exactly ONE family: the reader's own
+       system grotesque, display and prose alike. Nothing blocks first paint
+       and the page renders in a face that is actually installed on the
+       device. Georgia used to carry long prose, which made the post pages
+       look like a different site from the home page. The self-hosted
        Fredoka that used to sit here was the loudest "friendly template"
        signal on the site; the file stays in assets/fonts for the pin
        generator, which still uses it. -->
@@ -90,24 +92,58 @@
       <div class="colophon-cols">
         <div>
           <h3>Reviews</h3>
-          <a href="{{ site.baseurl }}/">The index</a>
+          <a href="{{ site.baseurl }}/">All reviews</a>
           <a href="{{ site.baseurl }}/dogs/">Dog products</a>
           <a href="{{ site.baseurl }}/cats/">Cat products</a>
           <a href="{{ site.baseurl }}/search/">Search reviews</a>
         </div>
+
+        {%- comment -%}
+          Round 4. These were eight invented labels ("Beds & crates",
+          "Scratchers & trees") all pointing at /dogs/ or /cats/ — shelf
+          headings for a catalogue that does not exist, which is why they
+          read as arbitrary.
+
+          Every label below is a real category in _posts front matter with
+          published reviews behind it, and each one is also the top category
+          for its species by post count: dog-health 8, dog-toys 4, dog-beds 3,
+          dog-travel 3, cat-litter 3, cat-food 3, cat-toys 2, cat-scratching 2.
+          The full VALID_CATEGORIES list in refill_products.py has 25 entries;
+          most are aspirational and several have one post or none, so it is
+          the wrong source for a footer.
+
+          ROUND 5: the label is NO LONGER the query, and that separation is
+          the point. The labels used to repeat their own heading — "Dog
+          health" under "For dogs" — so the species was printed twice in
+          every line. The visible text is the bare category now; the heading
+          supplies the species.
+
+          The hrefs are UNCHANGED and must stay that way. /search/ reads ?q=
+          and its filter requires every 3+ character term to appear in a
+          post's title or tags, and detectSpecies pre-filters off-species
+          posts, so the species word in the query is load-bearing even though
+          it is no longer on screen. Dropping it from a href — "?q=health" —
+          would return cross-species results or none. Each of these eight
+          queries was checked against the real front matter in round 4 and
+          returns at least two reviews; changing a query without re-running
+          that check will quietly break it.
+
+          "Toys" appearing in both columns is correct, not a duplicate to
+          tidy: the two links go to different queries.
+        {%- endcomment -%}
         <div>
           <h3>For dogs</h3>
-          <a href="{{ site.baseurl }}/dogs/">Beds &amp; crates</a>
-          <a href="{{ site.baseurl }}/dogs/">Toys &amp; chews</a>
-          <a href="{{ site.baseurl }}/dogs/">Collars &amp; harnesses</a>
-          <a href="{{ site.baseurl }}/dogs/">Health &amp; care</a>
+          <a href="{{ site.baseurl }}/search/?q=dog+health">Health</a>
+          <a href="{{ site.baseurl }}/search/?q=dog+toys">Toys</a>
+          <a href="{{ site.baseurl }}/search/?q=dog+beds">Beds</a>
+          <a href="{{ site.baseurl }}/search/?q=dog+travel">Travel</a>
         </div>
         <div>
           <h3>For cats</h3>
-          <a href="{{ site.baseurl }}/cats/">Litter &amp; boxes</a>
-          <a href="{{ site.baseurl }}/cats/">Feeders &amp; fountains</a>
-          <a href="{{ site.baseurl }}/cats/">Scratchers &amp; trees</a>
-          <a href="{{ site.baseurl }}/cats/">Health &amp; care</a>
+          <a href="{{ site.baseurl }}/search/?q=cat+litter">Litter</a>
+          <a href="{{ site.baseurl }}/search/?q=cat+food">Food</a>
+          <a href="{{ site.baseurl }}/search/?q=cat+toys">Toys</a>
+          <a href="{{ site.baseurl }}/search/?q=cat+scratching">Scratching</a>
         </div>
         <div>
           <h3>Site</h3>
