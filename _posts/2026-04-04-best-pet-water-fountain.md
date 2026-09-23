@@ -5,7 +5,7 @@ date: 2026-04-04
 categories: [pet-feeding]
 species: both
 tags: [pet water fountain]
-description: "Cats and dogs drink more water when it's moving — this fountain is quiet, easy to clean, and built to last."
+description: "Cats and dogs drink more water when it's moving. This fountain is quiet, easy to clean, and built to last."
 product_name: "PetSafe Drinkwell Platinum Pet Fountain 168oz"
 rating: 4.2
 affiliate_url: "https://amzn.to/3NNVKFY"

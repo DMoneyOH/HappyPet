@@ -457,6 +457,136 @@ class TestTypographyScrub(unittest.TestCase):
         self.assertEqual(self.scrub(once), once)
 
 
+class TestDescriptionTypographyScrub(unittest.TestCase):
+    """scrub_description_typography() -- the front-matter `description` field's
+    version of the same rule, differing only in what a LONE dash becomes.
+
+    Twelve published posts shipped an em or en dash in front matter because the
+    pin-description path ran scrub_banned_phrases and nothing else; only the
+    body was ever scrubbed. Sending the description through the body scrubber
+    would have replaced the dash with ' - ', which is invisible mid-paragraph
+    and is the same machine-set punctuation in a one-line card blurb, so a lone
+    dash becomes a full stop here and the next word is capitalised."""
+
+    def setUp(self):
+        import generate_posts as gp
+        self.scrub = gp.scrub_description_typography
+
+    def test_lone_em_dash_becomes_a_sentence(self):
+        self.assertEqual(
+            self.scrub("Big dogs need real support — this bed holds its shape."),
+            "Big dogs need real support. This bed holds its shape.")
+
+    def test_unspaced_em_dash_becomes_a_sentence(self):
+        # The specific tell: no spaces around it, which no one types by hand.
+        self.assertEqual(
+            self.scrub("Cats love these beds—find the perfect spot."),
+            "Cats love these beds. Find the perfect spot.")
+
+    def test_lone_en_dash_becomes_a_sentence(self):
+        self.assertEqual(
+            self.scrub("Stop nail-trim nightmares – discover the quiet grinder."),
+            "Stop nail-trim nightmares. Discover the quiet grinder.")
+
+    def test_never_substitutes_a_spaced_hyphen(self):
+        """The body scrubber's answer, ruled out for this field on purpose."""
+        self.assertNotIn(" - ", self.scrub("Real support — this bed lasts."))
+
+    def test_paired_em_dashes_become_commas(self):
+        self.assertEqual(
+            self.scrub("The Kong—a classic—outlasts the rest."),
+            "The Kong, a classic, outlasts the rest.")
+
+    def test_odd_run_pairs_then_trailing_lone(self):
+        self.assertEqual(
+            self.scrub("The Kong—a classic—outlasts the rest—by months."),
+            "The Kong, a classic, outlasts the rest. By months.")
+
+    def test_numeric_range_becomes_a_plain_hyphen(self):
+        self.assertEqual(self.scrub("Sized for 5–10 lb dogs."),
+                         "Sized for 5-10 lb dogs.")
+
+    def test_ordinary_hyphenated_copy_is_untouched(self):
+        """The inverse direction: a scrubber that mangles legitimate hyphens
+        would quietly damage every description it touched."""
+        for clean in ("A stress-free, lounge-worthy bed for 5-10 lb dogs.",
+                      "High-quality odor control, no fluff.",
+                      "A clean line with no fancy dashes at all."):
+            self.assertEqual(self.scrub(clean), clean)
+
+    def test_idempotent(self):
+        once = self.scrub("Real support — this bed lasts 5–10 years—easily.")
+        self.assertEqual(self.scrub(once), once)
+
+    def test_output_carries_no_em_or_en_dash(self):
+        out = self.scrub("A—B—C—D and 5–10 lb")
+        self.assertNotIn("—", out)
+        self.assertNotIn("–", out)
+
+
+class TestStagedDescriptionIsScrubbed(unittest.TestCase):
+    """Behavioural, not a refusal message: drive the real stage_article over a
+    temp repo and assert on the three records the description actually reaches.
+
+    stage_article is the single funnel both publish paths use (main() and
+    stage1_cli), and the scrub lives there rather than in front_matter()
+    because front_matter only sees the published field -- the pin-queue entry
+    and the text drawn on the pin image read the same string."""
+
+    def setUp(self):
+        import generate_posts as gp
+        self.gp = gp
+
+    def _stage(self, pin_desc, pin_gen=False):
+        import tempfile, json
+        from pathlib import Path
+        from unittest.mock import patch, MagicMock
+        gp = self.gp
+        product = {"topic": "best-x", "title": "Best X", "keyword": "best x",
+                   "format": "single_review", "name": "The X", "category": "dog-beds",
+                   "species": "dog", "affiliate_url": "https://amzn.to/abc"}
+        body = "## Heading\n\n" + ("word " * 800)
+        fake_pin = MagicMock(return_value="https://example.invalid/pin.jpg")
+        with tempfile.TemporaryDirectory() as td:
+            posts = Path(td) / "_posts"; posts.mkdir()
+            pinq  = Path(td) / "_pin_queue"; pinq.mkdir()
+            with patch.object(gp, "POSTS_DIR", posts), \
+                 patch.object(gp, "REPO_DIR", Path(td)), \
+                 patch.object(gp, "PIN_GEN_AVAILABLE", pin_gen), \
+                 patch.object(gp, "make_pin_for_post", fake_pin):
+                gp.stage_article("best-x", product, body, pin_desc=pin_desc, index=0)
+            return {
+                "front_matter": (posts / "DRAFT-best-x.md").read_text(encoding="utf-8"),
+                "pin_queue": json.loads((pinq / "best-x.json").read_text(encoding="utf-8")),
+                "pin_image_call": fake_pin.call_args,
+            }
+
+    def test_published_front_matter_carries_no_em_or_en_dash(self):
+        out = self._stage("Big dogs need real support — this bed holds its shape.")
+        line = [l for l in out["front_matter"].splitlines()
+                if l.startswith("description:")][0]
+        self.assertNotIn("—", line)
+        self.assertNotIn("–", line)
+        self.assertIn("real support. This bed", line)
+
+    def test_pin_queue_entry_carries_no_em_or_en_dash(self):
+        out = self._stage("Cats love these beds—find the perfect spot.")
+        self.assertEqual(out["pin_queue"]["description"],
+                         "Cats love these beds. Find the perfect spot.")
+
+    def test_pin_image_text_carries_no_em_or_en_dash(self):
+        out = self._stage("Cats love these beds—find the perfect spot.", pin_gen=True)
+        drawn = out["pin_image_call"].args[1]
+        self.assertNotIn("—", drawn)
+        self.assertEqual(drawn, "Cats love these beds. Find the perfect spot.")
+
+    def test_a_clean_description_is_written_through_unchanged(self):
+        clean = "A stress-free bed for 5-10 lb dogs, built to last."
+        out = self._stage(clean)
+        self.assertEqual(out["pin_queue"]["description"], clean)
+        self.assertIn(f'description: "{clean}"', out["front_matter"])
+
+
 class TestReviewGateStripsEmDashes(unittest.TestCase):
     """review_and_rewrite() must convert em dashes BEFORE the reviewer sees the
     body, so the reviewer's own em_dash_count (and the deterministic gate) both
@@ -4782,6 +4912,28 @@ class TestPublishedPostsVoiceIntegrity(unittest.TestCase):
             for m in re.finditer(r"amzn\.to/(?:xyz|abc|example|placeholder|link)\w*",
                                  text, re.IGNORECASE):
                 offenders.append(f"{name}: {m.group(0)!r}")
+        self.assertEqual(offenders, [])
+
+    def test_no_published_description_uses_an_em_or_en_dash(self):
+        """Twelve posts shipped one, and every one of them came out of the
+        generator: the pin-description path never ran a typography scrub, only
+        the body did. Asserted as a FIXED POINT of the generator's own scrubber
+        rather than as "contains no dash", so the hand-repair and the guard stay
+        one rule -- a description the scrubber would rewrite fails here even if
+        the character it objects to is one this test never thought to name.
+
+        Scoped to the `description:` field, deliberately. Em and en dashes are
+        also present in 32 published BODIES; those predate the body scrub added
+        with the review gate, they are not what R6.7 raised, and widening this
+        assertion to cover them would make it red on arrival -- which is how a
+        guard ends up with an allowlist and then means nothing.
+        """
+        import generate_posts as gp
+        offenders = []
+        for name, text in self.posts.items():
+            for line in text.splitlines():
+                if line.startswith("description:") and gp.scrub_description_typography(line) != line:
+                    offenders.append(f"{name}: {line!r}")
         self.assertEqual(offenders, [])
 
     def test_no_species_mismatch_in_closing_call_to_action(self):

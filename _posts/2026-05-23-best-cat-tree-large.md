@@ -7,7 +7,7 @@ redirect_from:
   - /cat-gear/best-cat-tree-large/
 species: cat
 tags: [best large cat tree]
-description: "The ultimate cat tree that lets your kitty climb, scratch, and snooze in style—without breaking the bank."
+description: "The ultimate cat tree that lets your kitty climb, scratch, and snooze in style, without breaking the bank."
 affiliate_url: "https://amzn.to/3QgBugU"
 chewy_url: "https://chewy.sjv.io/c/7160344/3054490/32975?prodsku=4187582&u=https%3A%2F%2Fwww.chewy.com%2Fgloblazer-big-modern-tower-77-in%2Fdp%2F4187582%3Futm_source%3Dgoogle-product%26utm_medium%3Dorganic%26utm_content%3DGloblazer&intsrc=APIG_24727"
 image: "https://m.media-amazon.com/images/I/71e3htQU6oL._AC_SX425_.jpg"

@@ -5,7 +5,7 @@ date: 2026-04-04
 categories: [dog-training]
 species: dog
 tags: [puppy training pads]
-description: "The right training pads make housebreaking faster and less messy — here's what actually works for new puppy owners."
+description: "The right training pads make housebreaking faster and less messy. Here's what actually works for new puppy owners."
 affiliate_url: "https://amzn.to/4cqgLQg"
 image: "https://images-na.ssl-images-amazon.com/images/P/B00MW8G62E.01.LZZZZZZZ.jpg"
 ---

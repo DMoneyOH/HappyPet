@@ -716,6 +716,42 @@ def scrub_typography(text: str) -> str:
     return "".join(chunks)
 
 
+def scrub_description_typography(text: str) -> str:
+    """The description field's version of scrub_typography, and it differs in
+    exactly one rule: a lone dash becomes a full stop, not a spaced hyphen.
+
+    Twelve published posts carried an em or en dash in front matter because the
+    pin-description path never ran scrub_typography at all -- only the body did.
+    Routing the description through the body's scrubber would have fixed the
+    dash and kept the tell: a spaced hyphen disappears mid-paragraph, but a
+    description is one short line on a card and in the meta tag, where ' - '
+    reads as the same machine-set punctuation the dash did.
+
+      - Numeric range (5-10) -> plain hyphen, as in the body.
+      - A matched pair inside the line brackets an appositive -> commas, as in
+        the body.
+      - Any remaining lone dash marks a break -> '. ' and the next word is
+        capitalised, which is the sentence a person would have typed.
+
+    Idempotent, and existing hyphens (stress-free, 5-10) are left alone.
+    """
+    text = re.sub(r"(?<=\d)\s*[—–]\s*(?=\d)", "-", text)
+    pieces = re.split(r"\s*[—–]\s*", text)
+    count = len(pieces) - 1
+    if count == 0:
+        return text
+    rebuilt = pieces[0]
+    for j in range(count):
+        nxt = pieces[j + 1]
+        # Pair from the left: a dash is "lone" only when it is the last one in
+        # an odd-length run -- the same pairing rule scrub_typography uses.
+        if (j == count - 1) and (count % 2 == 1):
+            rebuilt += ". " + nxt[:1].upper() + nxt[1:]
+        else:
+            rebuilt += ", " + nxt
+    return rebuilt.strip()
+
+
 def clean_pin_desc(text: str, species: str = "dog") -> str:
     """Strip banned phrases from pin description before writing to queue."""
     return scrub_banned_phrases(text, species)
@@ -2030,6 +2066,13 @@ def stage_article(slug: str, product: dict, body: str, pin_desc: str,
     assert_no_named_testimonials("stage_article", body, slug)
     assert_no_unbacked_affiliate_links("stage_article", body, slug,
                                        product.get("affiliate_url", ""))
+    # The body is scrubbed of em/en dashes upstream (review_and_rewrite, and
+    # stage1_cli before it gates); the pin description never was, which is how
+    # twelve published `description:` fields shipped with one. Normalise it HERE
+    # rather than in front_matter(): this one string becomes the published front
+    # matter, the pin-queue entry and the text drawn on the pin image, and
+    # scrubbing it any later would leave those last two holding the raw version.
+    pin_desc = scrub_description_typography(pin_desc)
     title    = product["title"]
     keyword  = product["keyword"]
     species  = product.get("species", "dog")

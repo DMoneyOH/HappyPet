@@ -7,7 +7,7 @@ redirect_from:
   - /cat-gear/best-cat-beds/
 species: cat
 tags: [best cat beds]
-description: "Cozy indoor cats swear by these lounge-worthy beds—find the perfect spot for your whiskered napper!"
+description: "Cozy indoor cats swear by these lounge-worthy beds. Find the perfect spot for your whiskered napper!"
 affiliate_url: "https://amzn.to/485i19b"
 image: "https://m.media-amazon.com/images/I/81-U9aAoCDL._AC_SX425_.jpg"
 ---
