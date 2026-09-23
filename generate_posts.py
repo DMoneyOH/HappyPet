@@ -523,6 +523,169 @@ def find_unbacked_affiliate_links(text: str, affiliate_url: str = "") -> list:
     return found
 
 
+# ---------------------------------------------------------------------------
+# Alternative picks: the NAME the entry supplied, and nothing added to it
+# ---------------------------------------------------------------------------
+# The link guard above reads links, because a link disproves itself. These two
+# read the alternative sections themselves, and they close the two holes that
+# guard cannot reach.
+#
+# `runners_up` went INTO the writer's brief (build_writer_inputs) and was never
+# read again by anything -- no gate, no staging check, nothing compared the
+# names that came back against the names that went out. So "Do NOT add, invent,
+# or substitute any others" was a request, enforced by nobody.
+#
+# The figures half is what the LLM fact-check stage does on the scheduled path.
+# That stage does not exist on the agent-driven stage1_cli path at all, which
+# is the second hole: an article could be written, gated, staged and published
+# without one pass over its alternative sections. A deterministic check in
+# validate_output runs on BOTH paths, and holds rather than silently rewriting.
+#
+# The bar is the brief's own: "The NAME is the only thing known about these
+# products ... omit numbers entirely". So the gate enforces exactly what the
+# writer was told, which is why it needs no list of forbidden claim shapes.
+_PICKS_HEADING_RE    = re.compile(r"pick|runner|alternativ", re.I)
+_FEATURED_HEADING_RE = re.compile(r"featured\s*pick", re.I)
+_MD_LINK_RE          = re.compile(r"\[([^\]\n]*)\]\([^)\s]*\)")
+_BARE_URL_RE         = re.compile(r"https?://\S+")
+# Coverage a heading must reach against a supplied name before it counts as
+# that product. 0.6 admits an honest truncation ("Pet Hair Removal Glove" for
+# "Pet Hair Removal Glove for Cats and Dogs") and rejects a near-miss built out
+# of the same generic words ("Pet Hair Magic Mitt").
+_ALT_NAME_COVERAGE = 0.6
+
+
+def parse_runners_up(runners_up: str) -> list:
+    """The alternative product names an entry supplied. refill_products writes
+    them semicolon-joined; manual_resolve has written them one per line."""
+    raw = (runners_up or "").replace("\n", ";")
+    return [name.strip() for name in raw.split(";") if name.strip()]
+
+
+def _name_tokens(text: str) -> set:
+    """Comparable words of a product name. Two-letter fragments carry no
+    identity ("of", "in", the "5" and "1" of "5-in-1") and only inflate a
+    coverage score, so they are dropped from both sides equally."""
+    return {t for t in re.split(r"[^A-Za-z0-9]+", (text or "").lower()) if len(t) >= 3}
+
+
+def _digit_runs(text: str) -> set:
+    return set(re.findall(r"\d+", text or ""))
+
+
+def split_alternative_sections(content: str) -> list:
+    """The article's alternative-pick sections, as {heading, body}.
+
+    Structural rather than keyword-driven, because the heading wording drifts
+    across the corpus ("Quick picks", "Quick Picks: the Top...", "Additional
+    Picks", "Other picks worth a look"). The shape that does NOT drift is the
+    order make_prompt asks for: a featured pick, then the alternatives, then a
+    section that is not about picks at all. So: everything at H3 after the
+    featured pick, across contiguous picks headings, ending at the first
+    non-picks H2. The featured pick itself is excluded -- its figures are
+    verified and its name is the entry's own.
+
+    Returns [] for an article with no featured pick, which is every
+    single_review and buying_guide. Those formats put H3s under "What We Like"
+    and "FAQ", and reading those as product picks would hold clean articles.
+    """
+    sections, current = [], None
+    in_picks = seen_featured = False
+    for line in (content or "").splitlines():
+        h2 = re.match(r"^##\s+(?!#)(.*)", line)
+        h3 = re.match(r"^###\s+(?!#)(.*)", line)
+        if h2:
+            heading = h2.group(1)
+            current  = None
+            in_picks = bool(_PICKS_HEADING_RE.search(heading))
+            if _FEATURED_HEADING_RE.search(heading):
+                # Some published roundups put the featured pick at H2 and the
+                # alternatives at H3 beneath it.
+                seen_featured = True
+            elif not in_picks and seen_featured:
+                break
+            continue
+        if h3:
+            heading = h3.group(1).strip()
+            current = None
+            if _FEATURED_HEADING_RE.search(heading):
+                seen_featured = True
+            elif in_picks and seen_featured:
+                current = {"heading": heading, "body": []}
+                sections.append(current)
+            continue
+        if current is not None:
+            current["body"].append(line)
+    for s in sections:
+        s["body"] = "\n".join(s["body"])
+    return sections
+
+
+def _matching_runner_up(heading: str, supplied: list) -> str:
+    """The supplied name this heading is, or "" when it is none of them.
+
+    Coverage alone is not enough: "Pet Hair Roller Pro" covers 3 of the 6 words
+    of "BLACK+DECKER Pet Hair Remover Roller" on generic vocabulary while being
+    a different product. The supplied name's FIRST comparable word -- the brand,
+    in every entry refill_products has ever written -- has to be there too.
+    """
+    head_tokens = _name_tokens(_MD_LINK_RE.sub(r"\1", heading))
+    if not head_tokens:
+        return ""
+    for name in supplied:
+        name_tokens = _name_tokens(name)
+        if not name_tokens:
+            continue
+        shared = head_tokens & name_tokens
+        if len(shared) / min(len(head_tokens), len(name_tokens)) < _ALT_NAME_COVERAGE:
+            continue
+        lead = next((t for t in re.split(r"[^A-Za-z0-9]+", name.lower()) if len(t) >= 3), "")
+        if lead and lead not in head_tokens:
+            continue
+        return name
+    return ""
+
+
+def find_unlisted_alternatives(content: str, runners_up: str) -> list:
+    """Every alternative pick in the article that the entry did not supply.
+
+    An empty `runners_up` is a real answer, not a missing one: the brief tells
+    the writer to produce no Additional Picks section at all in that case, so
+    ANY alternative in the article is unbacked.
+    """
+    supplied = parse_runners_up(runners_up)
+    return [s["heading"] for s in split_alternative_sections(content)
+            if not _matching_runner_up(s["heading"], supplied)]
+
+
+def find_unsourced_alternative_figures(content: str, runners_up: str) -> list:
+    """Every number stated about an alternative pick that its name does not
+    already carry. Returns "heading: token" strings, deduped, in order.
+
+    Links are stripped before the scan: a URL is digits the writer did not
+    claim anything with, and an invented one is already a hold via
+    find_unbacked_affiliate_links.
+    """
+    supplied = parse_runners_up(runners_up)
+    found, seen = [], set()
+    for section in split_alternative_sections(content):
+        matched  = _matching_runner_up(section["heading"], supplied)
+        # The pick's own name may carry numbers ("Trixie 5-in-1 Activity
+        # Center"), and repeating the name in prose is not a claim about it.
+        allowed  = _digit_runs(section["heading"]) | _digit_runs(matched)
+        prose    = _BARE_URL_RE.sub(" ", _MD_LINK_RE.sub(r"\1", section["body"]))
+        for m in re.finditer(r"\S*\d\S*", prose):
+            token = m.group(0).strip("*_.,;:()[]")
+            if not token or _digit_runs(token) <= allowed:
+                continue
+            key = f"{section['heading']}: {token}"
+            if key in seen:
+                continue
+            seen.add(key)
+            found.append(key)
+    return found
+
+
 UNBACKED_PICK_RULE = (
     "Never invent a product and never write a link for one. This site has "
     "verified data for exactly one product per article -- the featured product, "
@@ -1161,7 +1324,41 @@ def assert_no_unbacked_affiliate_links(stage: str, text: str, slug: str,
         )
 
 
-def validate_output(stage: str, content: str, slug: str, affiliate_url: str = "") -> None:
+def assert_alternatives_are_backed(stage: str, text: str, slug: str,
+                                   runners_up: str = None) -> None:
+    """Hold an article that names an alternative pick the entry did not supply,
+    or states a figure about one.
+
+    `runners_up=None` means the caller supplied no product context, so no
+    judgment is possible and none is made -- the same shape as an empty
+    affiliate_url in the link guard. An empty STRING is a real answer ("this
+    entry supplied no alternatives") and is judged.
+
+    Called at the post-review gate and inside stage_article, alongside its three
+    siblings. Deliberately NOT at the "generate" gate: on the scheduled path
+    fact_check_alternatives runs between the two gates and exists precisely to
+    strip these figures, so holding at "generate" would hold every roundup the
+    fact-checker would have cleaned.
+    """
+    if runners_up is None:
+        return
+    unlisted = find_unlisted_alternatives(text, runners_up)
+    if unlisted:
+        supplied = parse_runners_up(runners_up)
+        raise GenerationStageError(
+            f"[{stage}] {slug}: alternative pick(s) the pipeline has no record "
+            f"of -- the entry supplied {supplied or 'none'}: {unlisted}"
+        )
+    figures = find_unsourced_alternative_figures(text, runners_up)
+    if figures:
+        raise GenerationStageError(
+            f"[{stage}] {slug}: figure(s) stated about an alternative pick, "
+            f"whose NAME is the only thing this pipeline knows about it: {figures}"
+        )
+
+
+def validate_output(stage: str, content: str, slug: str, affiliate_url: str = "",
+                    runners_up: str = None) -> None:
     """
     Output contract gate. Raises GenerationStageError on violation.
     Called after each pipeline stage. GHA step captures non-zero exit.
@@ -1202,6 +1399,7 @@ def validate_output(stage: str, content: str, slug: str, affiliate_url: str = ""
     assert_no_unbacked_affiliate_links(stage, content, slug, affiliate_url)
     # Affiliate link required only at Gate 2 (post-review); rewrite has a chance to inject it first
     if stage == "review":
+        assert_alternatives_are_backed(stage, content, slug, runners_up)
         if affiliate_url:
             if affiliate_url not in content:
                 raise GenerationStageError(
@@ -1766,9 +1964,17 @@ a name, an age, a city or a review date. {NAMED_TESTIMONIAL_RULE}"""
         # Table" is the vacuous shape that had to be deleted by hand from five
         # published posts once their invented picks came out.
         if product.get("runners_up"):
+            # No price column. The old brief said "Price Range: use $, $$, $$$
+            # only; do not invent specific dollar amounts for additional picks",
+            # which forbids a made-up number and demands a made-up band in the
+            # same sentence. A tier IS a price claim -- $ and $$$ are a
+            # statement about what a reader will pay -- and the pipeline knows
+            # nothing about an alternative except its name, so every tier ever
+            # printed here was guessed. A table is the worst place to guess:
+            # the grid is what makes a reader read it as researched.
             table_block = """
-  Comparison Table (H2): Product | Best For | Price Range | Key Attribute
-    - Price Range: use $, $$, $$$ only; do not invent specific dollar amounts for additional picks
+  Comparison Table (H2): Product | Best For | Key Attribute
+    - Those three columns and no others. In particular: no price column under any heading, no price band, and no dollar sign anywhere in the table. You were given no price for the additional picks, and a band is a price claim like any other
     - Key Attribute: choose the most relevant column header for this product category (e.g. Form, CFU Count, Flavor, Size). Never use "Chew Time" for non-consumable products.
     - Do NOT include a ratings column; only use verified ratings from product data above
 """
@@ -1910,6 +2116,11 @@ Return the COMPLETE article with only the flagged claims replaced.
 ARTICLE:
 {content_fc}"""
 
+    # Carried into the total-outage hold below so the GitHub issue names what
+    # BOTH providers said -- "fix the outage" and "fix the credentials" are
+    # different actions and the message has to tell them apart.
+    primary_failure = None
+
     # --- Primary: Gemini Flash Lite (paid tier -- reliable, non-reasoning,
     # so the full-article echo fits comfortably in the output budget) ---
     try:
@@ -1926,6 +2137,7 @@ ARTICLE:
         # exists to prevent.
         raise
     except Exception as exc:
+        primary_failure = exc
         log(f"  Fact-check primary failed: {exc} -- trying fallback", "WARN")
 
     # --- Fallback: OpenRouter gpt-oss-20b:free ---
@@ -1957,15 +2169,26 @@ ARTICLE:
     except GenerationStageError:
         raise  # a hold, not a provider failure -- see the primary path above
     except Exception as exc:
-        # Provider outage, not a rejected response: both fact-check providers
-        # are unreachable. This path still returns the original and is left
-        # that way deliberately -- changing it decides what an OUTAGE should
-        # do, which is a separate question from what a REJECTED response
-        # should do. Noted here because the asymmetry is real:
-        # review_and_rewrite holds an article when its reviewer chain is
-        # unavailable (REVIEWER_UNAVAILABLE), and this stage does not.
-        log(f"  Fact-check fallback failed: {exc} -- keeping original", "WARN")
-        return content
+        # Both fact-check providers are unreachable. This used to return the
+        # ORIGINAL body with a WARN and publish it.
+        #
+        # The old comment was right that an OUTAGE is not a REJECTED response.
+        # It did not follow that an outage should publish. This is the one
+        # stage that strips fabricated statistics out of the alternative
+        # sections, so "keep the original" ships exactly the article the stage
+        # exists to fix -- silently, because nothing reads a WARN in a
+        # scheduled run. Five published posts carrying invented picks and
+        # invented figures are what that costs; a held article costs a topic
+        # publishing on Thursday instead of Monday.
+        #
+        # review_and_rewrite already holds when its reviewer chain is
+        # unavailable. The asymmetry this file used to document is now closed.
+        log(f"  Fact-check fallback failed: {exc} -- HOLDING the article", "WARN")
+        raise GenerationStageError(
+            f"[fact_check] both providers unreachable, so the alternative "
+            f"sections were never checked -- holding rather than publishing "
+            f"unverified content (primary: {primary_failure}; fallback: {exc})"
+        ) from exc
 
 
 # find_alternative_products() lived here and is deleted, not disabled. It asked an
@@ -2135,6 +2358,12 @@ def stage_article(slug: str, product: dict, body: str, pin_desc: str,
     assert_no_named_testimonials("stage_article", body, slug)
     assert_no_unbacked_affiliate_links("stage_article", body, slug,
                                        product.get("affiliate_url", ""))
+    # Roundups only: the entry's runners_up is the list of alternatives that
+    # exist. A non-roundup passes None, which makes no judgment -- its H3s are
+    # "What We Like" and "FAQ", not product picks.
+    assert_alternatives_are_backed(
+        "stage_article", body, slug,
+        product.get("runners_up", "") if product.get("format") == "roundup" else None)
     # The body is scrubbed of em/en dashes upstream (review_and_rewrite, and
     # stage1_cli before it gates); the pin description never was, which is how
     # twelve published `description:` fields shipped with one. Normalise it HERE
@@ -2334,7 +2563,11 @@ def main() -> None:
 
                 # Gate 2: post-review output contract
                 try:
-                    validate_output("review", content, slug, affiliate_url=product.get("affiliate_url", ""))
+                    validate_output(
+                        "review", content, slug,
+                        affiliate_url=product.get("affiliate_url", ""),
+                        runners_up=(product.get("runners_up", "")
+                                    if fmt == "roundup" else None))
                 except GenerationStageError as e:
                     log(f"  HOLD {slug} -- post-review contract failed: {e}", "WARN")
                     held += 1; continue

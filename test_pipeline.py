@@ -886,14 +886,45 @@ class TestFactCheckRejectionHolds(unittest.TestCase):
             self._run(primary=RuntimeError("Gemini down"),
                       fallback=GOOD_ARTICLE[:100])
 
-    def test_both_providers_unreachable_still_returns_the_original(self):
-        """Deliberately unchanged, and asserted so the boundary is explicit:
-        a provider OUTAGE is not a rejected response. What an outage should do
-        is a separate question (review_and_rewrite holds on one, this stage
-        does not) and was not in scope to answer here."""
+    def test_both_providers_unreachable_holds_instead_of_publishing_unchecked(self):
+        """This test asserted the opposite until 2026-09-23, and the asymmetry
+        it was recording is now closed rather than documented.
+
+        The old note was right that an OUTAGE is not a REJECTED response. It
+        does not follow that an outage should publish. This is the one stage
+        that strips fabricated statistics out of the alternative sections, so
+        "both providers are down, ship the original" ships precisely the
+        article the stage exists to fix -- and silently, because nothing reads
+        a WARN in a scheduled run. Unverified content going live is the
+        expensive direction; a held article is a topic that publishes on
+        Thursday instead of Monday.
+
+        review_and_rewrite already holds when its reviewer chain is
+        unreachable. This now matches it."""
+        with self.assertRaises(self.gp.GenerationStageError) as ctx:
+            self._run(primary=RuntimeError("Gemini down"),
+                      fallback=RuntimeError("OpenRouter down"))
+        self.assertIn("unreachable", str(ctx.exception))
+
+    def test_the_hold_names_both_provider_failures(self):
+        """A held article opens a GitHub issue somebody has to act on. "Fix the
+        outage" and "fix the credentials" are different actions, so the message
+        carries what each provider actually said."""
+        with self.assertRaises(self.gp.GenerationStageError) as ctx:
+            self._run(primary=RuntimeError("Gemini down"),
+                      fallback=RuntimeError("OpenRouter down"))
+        self.assertIn("Gemini down", str(ctx.exception))
+        self.assertIn("OpenRouter down", str(ctx.exception))
+
+    def test_a_fallback_that_works_is_still_used_rather_than_held(self):
+        """The inverse direction. Failing closed on a TOTAL outage must not
+        turn a primary-only failure into a hold -- the fallback exists to keep
+        articles moving when Gemini blips, and a gate that holds through a
+        working provider would be switched off within a week."""
+        edited = GOOD_ARTICLE.replace("4.5 stars", "strong ratings")
         self.assertEqual(self._run(primary=RuntimeError("Gemini down"),
-                                   fallback=RuntimeError("OpenRouter down")),
-                         GOOD_ARTICLE)
+                                   fallback=edited),
+                         edited.strip())
 
     def test_main_converts_a_fact_check_hold_into_a_held_article(self):
         """Structural, because main() cannot be driven without live providers.
@@ -3189,6 +3220,30 @@ class TestBuildWriterInputs(unittest.TestCase):
         self.assertIn("Comparison Table (H2)", out["user"])
         self.assertIn("MatA", out["user"])
 
+    def test_the_comparison_table_does_not_ask_for_a_price_tier(self):
+        """The brief forbade inventing a dollar amount for an alternative and
+        then asked for a $/$$/$$$ band in the same breath. A band IS a price
+        claim: the pipeline knows nothing about an alternative but its name, so
+        every tier it printed was guessed and then rendered in a table, which is
+        the shape a reader reads as researched."""
+        product = {"topic": "best-mats", "title": "Best Mats", "keyword": "best mats",
+                   "format": "roundup", "name": "TopMat", "category": "dogs",
+                   "species": "dog", "runners_up": "MatA;MatB"}
+        user = self.gp.build_writer_inputs("best-mats", product)["user"]
+        self.assertNotIn("Price Range", user)
+        self.assertNotIn("$$", user)
+        self.assertIn("no price", user.lower())
+
+    def test_a_verified_featured_price_is_still_given_to_the_writer(self):
+        """The inverse. Dropping the guessed tier must not drop the one price
+        the pipeline actually verified off the listing."""
+        product = {"topic": "best-mats", "title": "Best Mats", "keyword": "best mats",
+                   "format": "roundup", "name": "TopMat", "category": "dogs",
+                   "species": "dog", "runners_up": "MatA;MatB", "price": "34.99"}
+        user = self.gp.build_writer_inputs("best-mats", product)["user"]
+        self.assertIn("$34.99", user)
+        self.assertIn("verified from Amazon", user)
+
 
 class TestStageArticle(unittest.TestCase):
     def setUp(self):
@@ -5076,6 +5131,477 @@ class TestPublishedPostsVoiceIntegrity(unittest.TestCase):
             for m in re.finditer(rf"\byour {wrong}\b", body, re.IGNORECASE):
                 offenders.append(f"{name} (species={species.group(1)}): {m.group(0)!r}")
         self.assertEqual(offenders, [])
+
+
+# ---------------------------------------------------------------------------
+# Published Chewy links: the post's own front matter is the source of truth
+# ---------------------------------------------------------------------------
+# Fixtures are the three wrong Chewy links found BY HAND on 2026-09-22 and
+# repaired in 2f16028. They are quoted from that commit's diff, not recomputed
+# by the matcher under test, so a check that agrees with them agrees with
+# something it did not produce.
+CHEWY_WRONG_GLOBLAZER = (
+    "https://chewy.sjv.io/c/7160344/3054490/32975?prodsku=4187582&u="
+    "https%3A%2F%2Fwww.chewy.com%2Fgloblazer-big-modern-tower-77-in%2Fdp%2F4187582"
+    "%3Futm_source%3Dgoogle-product%26utm_medium%3Dorganic%26utm_content%3DGloblazer"
+    "&intsrc=APIG_24727"
+)
+CHEWY_WRONG_GLOBLAZER_NAME = (
+    "Globlazer Heavy Duty Cat Tree, 74in, 7 Sisal Posts, 2 Padded Condos, Dark Grey"
+)
+CHEWY_WRONG_CATIT = (
+    "https://chewy.sjv.io/c/7160344/3054490/32975?prodsku=151438&u="
+    "https%3A%2F%2Fwww.chewy.com%2Fcatit-senses-20-food-tree-cat-feeder%2Fdp%2F178226"
+    "%3Futm_source%3Dgoogle-product%26utm_medium%3Dorganic%26utm_content%3DCatit"
+    "&intsrc=APIG_24727"
+)
+CHEWY_WRONG_CATIT_NAME = "Catit Senses 2.0 Multi Feeder, Interactive Cat Toys"
+# The FortiFlora repair landed as a bare chewy.com URL because the Impact
+# wrapper's prodsku is not derivable here. It is live on the site right now.
+CHEWY_UNWRAPPED_FORTIFLORA = "https://www.chewy.com/purina-pro-plan-veterinary-diets/dp/50029"
+CHEWY_GOOD_CHOMCHOM = (
+    "https://chewy.sjv.io/c/7160344/3054490/32975?prodsku=136285&u="
+    "https%3A%2F%2Fwww.chewy.com%2Fchomchom-roller-pet-hair-remover%2Fdp%2F163270"
+    "%3Futm_source%3Dgoogle-product%26utm_medium%3Dorganic%26utm_content%3DChomChom"
+    "%2520Roller&intsrc=APIG_24727"
+)
+CHEWY_GOOD_CHOMCHOM_NAME = "ChomChom Roller Pet Hair Remover - Original Size Reusable Lint Roller"
+
+
+class TestAlternativePickSectioning(unittest.TestCase):
+    """Which part of an article is "an alternative pick" -- read structurally,
+    because the heading wording drifts across the corpus."""
+
+    def setUp(self):
+        import generate_posts as gp
+        self.gp = gp
+
+    ROUNDUP = (
+        "Opening prose.\n\n"
+        "## Quick picks\n\n"
+        "### Featured pick: [TopMat](https://amzn.to/3TestABC)\n"
+        "The featured product has 4.7 stars and 12,000 reviews, all verified.\n\n"
+        "### MatA Cooling Pad\n"
+        "Owners tend to like it.\n\n"
+        "### MatB Gel Mat\n"
+        "Most owners find it holds up.\n\n"
+        "## Buying guide\n"
+        "### What to look for\n"
+        "Look for 3 things and a 40 inch width.\n"
+    )
+
+    def test_the_alternatives_are_the_h3s_after_the_featured_pick(self):
+        heads = [s["heading"] for s in self.gp.split_alternative_sections(self.ROUNDUP)]
+        self.assertEqual(heads, ["MatA Cooling Pad", "MatB Gel Mat"])
+
+    def test_the_featured_pick_is_not_one_of_them(self):
+        """Its figures are verified off the listing. A gate that read them as
+        unsourced would hold every roundup that uses its own product data."""
+        for s in self.gp.split_alternative_sections(self.ROUNDUP):
+            self.assertNotIn("Featured", s["heading"])
+        self.assertEqual(
+            self.gp.find_unsourced_alternative_figures(self.ROUNDUP, "MatA Cooling Pad; MatB Gel Mat"),
+            [])
+
+    def test_h3s_under_a_later_h2_are_not_picks(self):
+        """"What to look for" is a buying-guide subheading. Reading it as a
+        product pick would hold a clean article on its own advice section."""
+        heads = [s["heading"] for s in self.gp.split_alternative_sections(self.ROUNDUP)]
+        self.assertNotIn("What to look for", heads)
+
+    def test_an_article_with_no_featured_pick_has_no_alternatives(self):
+        """single_review and buying_guide put H3s under "What We Like" and
+        "FAQ". Neither format has alternative picks and neither may be judged
+        as though it did."""
+        single = ("## What We Like\n### Sturdy build\nIt holds 80 lb.\n"
+                  "## FAQ\n### Is it washable?\nYes, at 30 degrees.\n")
+        self.assertEqual(self.gp.split_alternative_sections(single), [])
+
+    def test_a_featured_pick_written_at_h2_still_anchors_the_scan(self):
+        """Four published roundups put the featured pick at H2 with the
+        alternatives at H3 beneath it."""
+        text = ("## Quick Picks\n\n## Featured Pick - [Tapo C100](https://amzn.to/3TestABC)\n"
+                "Verified 4.4 stars.\n\n### Furbo 360 Dog Camera\nOwners like it.\n\n"
+                "## Comparison Table\n| a | b |\n")
+        heads = [s["heading"] for s in self.gp.split_alternative_sections(text)]
+        self.assertEqual(heads, ["Furbo 360 Dog Camera"])
+
+
+class TestAlternativePicksAreBacked(unittest.TestCase):
+    """#3 and the deterministic half of #2b.
+
+    `runners_up` went into the writer's brief and was never read again by
+    anything -- no gate, no staging check, nothing compared the names that came
+    back against the names that went out. And the LLM fact-check stage that
+    strips figures off alternative sections runs only on main(), so on the
+    agent-driven stage1_cli path nothing looked at those sections at all.
+    """
+
+    def setUp(self):
+        import generate_posts as gp
+        self.gp = gp
+
+    def _article(self, *alt_blocks):
+        return ("Opening prose.\n\n## Quick picks\n\n"
+                "### Featured pick: [TopMat](https://amzn.to/3TestABC)\n"
+                "Verified 4.7 stars and 12,000 reviews.\n\n"
+                + "\n\n".join(alt_blocks)
+                + "\n\n## Buying guide\nProse about choosing one.\n")
+
+    SUPPLIED = "BLACK+DECKER Pet Hair Remover Roller; Pet Hair Removal Glove for Cats and Dogs"
+
+    def test_an_invented_pick_is_caught(self):
+        """"K&H Cool-Flow Backpack" is one of the products the generator
+        actually shipped with no record behind it."""
+        art = self._article("### K&H Cool-Flow Backpack\nIt tends to work well.")
+        self.assertEqual(self.gp.find_unlisted_alternatives(art, self.SUPPLIED),
+                         ["K&H Cool-Flow Backpack"])
+
+    def test_the_supplied_picks_are_not_caught(self):
+        art = self._article(
+            "### BLACK+DECKER Pet Hair Remover Roller\nOwners tend to like the reach.",
+            "### Pet Hair Removal Glove for Cats and Dogs\nMost owners find it gentle.")
+        self.assertEqual(self.gp.find_unlisted_alternatives(art, self.SUPPLIED), [])
+
+    def test_an_honestly_shortened_name_still_counts_as_the_supplied_one(self):
+        """Writers shorten a 9-word retail title. A gate that reads that as a
+        different product holds correct articles and gets switched off."""
+        art = self._article("### Pet Hair Removal Glove\nMost owners find it gentle.")
+        self.assertEqual(self.gp.find_unlisted_alternatives(art, self.SUPPLIED), [])
+
+    def test_a_near_miss_built_from_the_same_generic_words_is_caught(self):
+        """The hard case, and the reason coverage alone is not the rule. "Pet
+        Hair Roller Pro" shares three of six words with the supplied
+        BLACK+DECKER roller on entirely generic vocabulary, and is a different
+        product -- which is exactly the shape an invented variant takes."""
+        art = self._article("### Pet Hair Roller Pro\nOwners tend to like it.")
+        self.assertEqual(self.gp.find_unlisted_alternatives(art, self.SUPPLIED),
+                         ["Pet Hair Roller Pro"])
+
+    def test_with_no_runners_up_supplied_any_alternative_is_unbacked(self):
+        """An empty runners_up is a real answer, not a missing one: the brief
+        asks for no Additional Picks section at all in that case."""
+        art = self._article("### Some Other Mat\nIt tends to work.")
+        self.assertEqual(self.gp.find_unlisted_alternatives(art, ""), ["Some Other Mat"])
+
+    def test_a_figure_stated_about_an_alternative_is_caught(self):
+        art = self._article(
+            "### BLACK+DECKER Pet Hair Remover Roller\n"
+            "It holds a 4.5-star rating across 12,000 reviews and cuts hair by 80%.")
+        figures = self.gp.find_unsourced_alternative_figures(art, self.SUPPLIED)
+        self.assertTrue(any("4.5-star" in f for f in figures), figures)
+        self.assertTrue(any("80%" in f for f in figures), figures)
+
+    def test_a_number_in_the_picks_own_name_is_not_a_claim_about_it(self):
+        """"Trixie 5-in-1 Activity Center" is a real supplied name. Repeating
+        it in prose states nothing the entry did not already supply."""
+        art = self._article("### Trixie 5-in-1 Activity Center for Cats\n"
+                            "The Trixie 5-in-1 suits cats that bore quickly.")
+        self.assertEqual(
+            self.gp.find_unsourced_alternative_figures(
+                art, "Trixie 5-in-1 Activity Center for Cats"), [])
+
+    def test_a_link_is_not_read_as_a_figure(self):
+        """A URL is digits nobody claimed anything with, and an invented one is
+        already a hold via find_unbacked_affiliate_links."""
+        art = self._article("### BLACK+DECKER Pet Hair Remover Roller\n"
+                            "See [the roller](https://amzn.to/3TestABC) for details.")
+        self.assertEqual(self.gp.find_unsourced_alternative_figures(art, self.SUPPLIED), [])
+
+    def test_hedged_prose_with_no_numbers_passes(self):
+        """The inverse direction. The brief asks for exactly this shape, so it
+        must not be held."""
+        art = self._article("### BLACK+DECKER Pet Hair Remover Roller\n"
+                            "Most owners find the wide head suits upholstery, though it "
+                            "tends to need more passes on car seats.")
+        self.assertEqual(self.gp.find_unsourced_alternative_figures(art, self.SUPPLIED), [])
+
+    def test_published_roundups_written_to_their_real_runners_up_pass(self):
+        """The inverse direction against real articles rather than fixtures.
+        Three published roundups still have their entry's runners_up recoverable
+        from products.json history; each used the supplied names. A name check
+        that flags any of them is wrong about honest output."""
+        real = {
+            "2026-08-20-best-pet-hair-removers-laundry-furniture.md":
+                "BLACK+DECKER Pet Hair Remover Roller; Pet Hair Removal Glove for Cats and Dogs",
+            "2026-08-13-best-cat-puzzle-feeders.md":
+                "Trixie 5-in-1 Activity Center for Cats; Doc & Phoebe's Indoor Hunting Cat Feeder",
+            "2026-09-21-best-dog-boots-hot-pavement.md":
+                "Breathable Dog Boots for Medium Large Dogs Non-Slip Summer Hot Pavement; "
+                "SlowTon Dog Shoes for Large Small Medium Dogs Breathable Summer Boots",
+        }
+        flagged = {}
+        for name, runners_up in real.items():
+            body = (REPO / "_posts" / name).read_text(encoding="utf-8")
+            unlisted = self.gp.find_unlisted_alternatives(body, runners_up)
+            if unlisted:
+                flagged[name] = unlisted
+        self.assertEqual(flagged, {})
+
+
+class TestAlternativeGateRunsOnBothPaths(unittest.TestCase):
+    """#2b. The LLM fact-check stage runs only inside main(), so the
+    agent-driven stage1_cli path published without one pass over its
+    alternative sections. Both paths funnel through validate_output and
+    stage_article, so the check lives there and reaches both from one edit."""
+
+    def setUp(self):
+        import generate_posts as gp
+        self.gp = gp
+        self.body = (
+            "Opening prose. " + ("Filler words to clear the length floor. " * 160) +
+            "\n\n## Quick picks\n\n"
+            "### Featured pick: [TopMat](https://amzn.to/3TestABC)\n"
+            "Verified 4.7 stars.\n\n"
+            "### Invented Runner-Up Mat\nIt has a 4.5-star rating.\n\n"
+            "## Buying guide\nProse.\n")
+
+    def test_the_post_review_gate_holds_it(self):
+        with self.assertRaises(self.gp.GenerationStageError) as ctx:
+            self.gp.validate_output("review", self.body, "best-mats",
+                                    affiliate_url="https://amzn.to/3TestABC",
+                                    runners_up="MatA Cooling Pad")
+        self.assertIn("Invented Runner-Up Mat", str(ctx.exception))
+
+    def test_a_figure_on_a_LISTED_pick_holds_too(self):
+        """The name check and the figure check fail independently, so this uses
+        an alternative that IS on the supplied list. Without it the gate tests
+        would all be satisfied by the name check alone and the figure half
+        would be unwired at this seam without any test noticing."""
+        body = self.body.replace("Invented Runner-Up Mat", "MatA Cooling Pad")
+        with self.assertRaises(self.gp.GenerationStageError) as ctx:
+            self.gp.validate_output("review", body, "best-mats",
+                                    affiliate_url="https://amzn.to/3TestABC",
+                                    runners_up="MatA Cooling Pad")
+        self.assertIn("4.5-star", str(ctx.exception))
+
+    def test_the_generate_gate_does_not(self):
+        """Deliberate, and the one ordering mistake that would break the
+        scheduled path: fact_check_alternatives runs BETWEEN the two gates and
+        exists to strip exactly these figures. Holding at "generate" would hold
+        every roundup the fact-checker would have cleaned."""
+        self.gp.validate_output("generate", self.body, "best-mats",
+                                affiliate_url="https://amzn.to/3TestABC",
+                                runners_up="MatA Cooling Pad")
+
+    def test_a_caller_with_no_product_context_makes_no_judgment(self):
+        """runners_up=None is "I cannot tell", not "there are none" -- the same
+        shape as an empty affiliate_url in the link guard. Every pre-existing
+        caller passes nothing and must keep its old behaviour."""
+        self.gp.validate_output("review", self.body, "best-mats",
+                                affiliate_url="https://amzn.to/3TestABC")
+
+    def test_stage_article_is_the_backstop_for_both_paths(self):
+        """The single funnel every publish path pushes a body through, so a
+        future caller that skips validate_output still cannot stage this."""
+        with self.assertRaises(self.gp.GenerationStageError):
+            self.gp.stage_article("best-mats", {
+                "title": "Best Mats", "keyword": "best mats", "format": "roundup",
+                "affiliate_url": "https://amzn.to/3TestABC",
+                "runners_up": "MatA Cooling Pad", "species": "dog",
+                "category": "dog-beds"}, self.body, "A pin description.")
+
+    def test_stage1_cli_gate_flags_it_rather_than_only_holding_at_staging(self):
+        """Structural: the agent's rewrite loop reads `flags`, so a flag here is
+        what lets it FIX the article instead of hitting the staging hold cold.
+        Mirrors the unbacked-link check that already works this way."""
+        source = (REPO / "stage1_cli.py").read_text(encoding="utf-8")
+        self.assertIn("find_unlisted_alternatives", source)
+        self.assertIn("find_unsourced_alternative_figures", source)
+        self.assertIn("runners_up=", source)
+
+
+class TestChewyUrlShape(unittest.TestCase):
+    """Offline decomposition of a stored chewy_url.
+
+    Nothing here touches the network. The wrapper is a URL with the real
+    destination inside its own `u=` parameter, so the product slug, the listing
+    id and the attribution sku are all readable from the string itself.
+    """
+
+    def setUp(self):
+        import validate_published_chewy_links as v
+        self.v = v
+
+    def test_a_wrapped_link_yields_its_slug_listing_id_and_sku(self):
+        p = self.v.parse_chewy_url(CHEWY_GOOD_CHOMCHOM)
+        self.assertEqual(p["shape"], "wrapped")
+        self.assertEqual(p["product_slug"], "chomchom-roller-pet-hair-remover")
+        self.assertEqual(p["dp_id"], "163270")
+        self.assertEqual(p["prodsku"], "136285")
+
+    def test_a_bare_chewy_url_is_reported_as_unwrapped_not_as_fine(self):
+        """The live FortiFlora link. It works, and it earns nothing: without the
+        Impact wrapper the click carries no attribution. Reporting it as OK is
+        how a revenue hole stays open indefinitely."""
+        p = self.v.parse_chewy_url(CHEWY_UNWRAPPED_FORTIFLORA)
+        self.assertEqual(p["shape"], "bare")
+        self.assertEqual(p["product_slug"], "purina-pro-plan-veterinary-diets")
+        self.assertEqual(p["dp_id"], "50029")
+
+    def test_a_sentinel_is_not_mistaken_for_a_link(self):
+        self.assertEqual(self.v.parse_chewy_url("REVIEW: no match found")["shape"], "sentinel")
+
+    def test_an_empty_value_is_shapeless_rather_than_malformed(self):
+        self.assertEqual(self.v.parse_chewy_url("")["shape"], "none")
+
+    def test_a_non_chewy_url_is_malformed(self):
+        self.assertEqual(self.v.parse_chewy_url("https://example.com/x")["shape"], "malformed")
+
+
+class TestChewyVariantMismatch(unittest.TestCase):
+    """The wrong-variant class: right brand, wrong product.
+
+    All three links the Director found by hand were right-brand -- so the brand
+    identity gate this file already tests (check_brand_match) would have passed
+    every one of them. The one signal that survives offline is a model or size
+    number in the URL's own slug contradicting every number in the product name.
+    """
+
+    def setUp(self):
+        import validate_published_chewy_links as v
+        self.v = v
+
+    def _reason(self, url, name):
+        return self.v.find_variant_mismatch(self.v.parse_chewy_url(url)["product_slug"], name)
+
+    def test_the_globlazer_77in_link_on_a_74in_review_is_caught(self):
+        reason = self._reason(CHEWY_WRONG_GLOBLAZER, CHEWY_WRONG_GLOBLAZER_NAME)
+        self.assertTrue(reason, "the 77-in link on the 74in review was not flagged")
+        self.assertIn("77", reason)
+
+    def test_the_brand_gate_alone_would_have_passed_that_same_link(self):
+        """Why the variant check had to exist: the brand gate agrees the 77-in
+        listing and the 74in review are the same brand, which they are.
+
+        Read this as a DEMONSTRATION, not a measurement. The matched name below
+        is reconstructed from the URL slug because nobody recorded what Impact
+        actually returned for this product on 2026-09-22 -- a real matched name
+        could differ in wording. What the test does establish is the shape of
+        the weakness: check_brand_match compares leading brand tokens, so any
+        two listings from one brand pass it whatever variant each names.
+        """
+        ok, _ = self.v.check_brand_match(CHEWY_WRONG_GLOBLAZER_NAME,
+                                         "Globlazer Big Modern Tower 77 in")
+        self.assertTrue(ok)
+
+    def test_a_correct_link_whose_slug_carries_no_number_is_not_flagged(self):
+        self.assertEqual(self._reason(CHEWY_GOOD_CHOMCHOM, CHEWY_GOOD_CHOMCHOM_NAME), "")
+
+    def test_a_version_number_written_two_ways_is_not_a_contradiction(self):
+        """`catit-senses-20-...` against "Catit Senses 2.0" is the same version.
+        A checker that reads the dot as a difference flags a correct link, and a
+        check that fires on correct links is switched off within a week."""
+        self.assertEqual(self._reason(CHEWY_WRONG_CATIT, CHEWY_WRONG_CATIT_NAME), "")
+
+    def test_every_chewy_link_live_on_the_site_today_passes_the_variant_check(self):
+        """The inverse direction, run against the real posts rather than
+        fixtures. Eight posts carry a chewy_url; all eight are believed correct
+        after the 2026-09-22 repair, so any flag here is a false positive."""
+        flagged = []
+        for entry in self.v.published_chewy_links():
+            reason = self.v.find_variant_mismatch(
+                self.v.parse_chewy_url(entry["chewy_url"])["product_slug"],
+                entry["product_name"])
+            if reason:
+                flagged.append(f"{entry['slug']}: {reason}")
+        self.assertEqual(flagged, [])
+
+
+class TestPublishedChewyLinkCoverage(unittest.TestCase):
+    """#1: the blind spot. A published post's own chewy_url was never read.
+
+    `load_products()` keys off products.json -- a rolling queue holding FOUR
+    entries -- and a post missing from it resolved to chewy_url "", which the
+    validator reported as "SKIP -- no Chewy URL (Amazon-only)". Eight published
+    posts carry a live Chewy link in their front matter and not one of the four
+    queue entries is among them, so every live Chewy link on the site was
+    invisible to the weekly job that exists to check them.
+    """
+
+    def setUp(self):
+        import validate_published_chewy_links as v
+        self.v = v
+        self.entries = v.published_chewy_links()
+
+    def test_front_matter_links_are_discovered_without_a_products_json_entry(self):
+        slugs = {e["slug"] for e in self.entries}
+        self.assertIn("best-dog-probiotic-supplements", slugs)
+        self.assertIn("best-gps-dog-trackers", slugs)
+        for e in self.entries:
+            self.assertTrue(e["chewy_url"], e["slug"])
+
+    def test_no_live_front_matter_link_is_covered_by_the_products_json_queue(self):
+        """The measurement behind the claim above, stated over the links a
+        reader can actually click. If a future queue does cover them this
+        assertion flips, and the coverage argument needs rewriting rather than
+        continuing to be quoted."""
+        queued = set(self.v.load_products())
+        live = {e["slug"] for e in self.entries if e["source"] == "front-matter"}
+        self.assertEqual(len(live), 8, sorted(live))
+        self.assertEqual(queued & live, set())
+
+    def test_a_queue_sourced_link_is_labelled_as_such(self):
+        """best-dog-cooling-mat is published with no Chewy link in its front
+        matter while its queue entry still holds a REVIEW sentinel. Reporting
+        that as a live link would overstate what is on the site."""
+        by_slug = {e["slug"]: e for e in self.entries}
+        self.assertEqual(by_slug["best-dog-cooling-mat"]["source"], "products.json")
+        self.assertEqual(self.v.classify_offline(by_slug["best-dog-cooling-mat"])[0], "REVIEW")
+
+    def test_the_featured_product_name_is_read_off_the_affiliate_anchor(self):
+        """Front matter carries no product name, so the name a link is judged
+        against comes from the body: the anchor text of the post's own affiliate
+        link. A generic anchor ("Buy on Amazon") must not be taken as the name."""
+        by_slug = {e["slug"]: e for e in self.entries}
+        self.assertEqual(by_slug["best-dog-probiotic-supplements"]["product_name"],
+                         "Purina Pro Plan FortiFlora")
+
+    def test_a_post_in_scope_is_never_reported_as_having_no_url(self):
+        """The specific silent-skip shape. NO_URL must mean the post carries no
+        Chewy link at all, never "the queue did not happen to list it"."""
+        for e in self.entries:
+            status, detail = self.v.classify_offline(e)
+            self.assertNotEqual(status, "NO_URL", f"{e['slug']}: {detail}")
+
+    def test_the_live_unwrapped_fortiflora_link_is_reported(self):
+        by_slug = {e["slug"]: e for e in self.entries}
+        status, detail = self.v.classify_offline(by_slug["best-dog-probiotic-supplements"])
+        self.assertEqual(status, "UNWRAPPED", detail)
+
+
+class TestChewyApiThrottle(unittest.TestCase):
+    """The Impact API check is capped per run and rotates, so growth in the post
+    count cannot turn the weekly job into a 49-call burst -- and no post drops
+    out of coverage to achieve that."""
+
+    def setUp(self):
+        import validate_published_chewy_links as v
+        self.v = v
+
+    def test_a_single_run_never_exceeds_the_cap(self):
+        slugs = [f"post-{i}" for i in range(49)]
+        for week in range(1, 54):
+            self.assertLessEqual(len(self.v.api_slice(slugs, week)), self.v.MAX_API_LOOKUPS)
+
+    def test_consecutive_runs_cover_every_post(self):
+        """Throttling that revisits the same head of the list forever is the
+        silent gap wearing a rate limit."""
+        slugs = [f"post-{i}" for i in range(49)]
+        runs = -(-len(slugs) // self.v.MAX_API_LOOKUPS)
+        seen = set()
+        for week in range(1, runs + 1):
+            seen |= set(self.v.api_slice(slugs, week))
+        self.assertEqual(seen, set(slugs))
+
+    def test_a_list_under_the_cap_is_checked_whole_every_run(self):
+        slugs = [f"post-{i}" for i in range(self.v.MAX_API_LOOKUPS)]
+        self.assertEqual(set(self.v.api_slice(slugs, 7)), set(slugs))
+
+    def test_a_post_deferred_by_the_throttle_says_so(self):
+        """DEFERRED is the status that keeps the throttle honest: it is not OK
+        and it is not a skip, it is "checked offline, API check queued"."""
+        self.assertIn("DEFERRED", self.v.STATUSES)
 
 
 if __name__ == "__main__":
