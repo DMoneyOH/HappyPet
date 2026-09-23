@@ -41,7 +41,7 @@ One of the most critical, yet often overlooked, features of a good cat scratchin
 
 ### Rock-Solid Stability
 
-There's nothing more frustrating than a scratching post that topples over the moment your cat leans into it. Not only is it annoying, but it can also deter your cat from using it, making them seek out more stable alternatives (again, your furniture). The [SmartCat Ultimate Scratching Post](https://amzn.to/4dME6wX) features a wide, heavy 16x16-inch base that provides exceptional stability. the cats, from agile youngsters to hefty older felines, have launched themselves at this post with gusto, and it hasn't wobbled once. This stability builds confidence in your cat, encouraging consistent use.
+There's nothing more frustrating than a scratching post that topples over the moment your cat leans into it. Not only is it annoying, but it can also deter your cat from using it, making them seek out more stable alternatives (again, your furniture). The [SmartCat Ultimate Scratching Post](https://amzn.to/4dME6wX) features a wide, heavy 16x16-inch base that provides exceptional stability. Owners of cats from agile youngsters to hefty older felines report them launching themselves at this post with gusto without it wobbling. This stability builds confidence in your cat, encouraging consistent use.
 
 ### Easy Assembly and Pet-Friendly Design
 

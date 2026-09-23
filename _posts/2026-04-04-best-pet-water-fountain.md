@@ -28,7 +28,7 @@ Key Specifications:
 
 ## What Stands Out
 
-After putting the [PetSafe Drinkwell Platinum Pet Fountain 168oz](https://amzn.to/3NNVKFY) through its paces, several features stood out as genuinely beneficial for both pets and their owners.
+Across the specs and the owner reviews for the [PetSafe Drinkwell Platinum Pet Fountain 168oz](https://amzn.to/3NNVKFY), several features stand out as genuinely beneficial for both pets and their owners.
 
 First and foremost, **the substantial 168-ounce capacity is a game-changer.** For anyone with multiple pets – say, a Labrador and two cats, or even just a very thirsty large dog – constantly refilling a small water bowl is a chore. This fountain significantly extends the time between refills, and owners with two medium-sized dogs and a cat report it lasting several days at a stretch. It’s a huge convenience for busy weekdays and provides peace of mind if you're out for an extended period, knowing your pets have access to ample fresh water.
 
