@@ -3326,11 +3326,15 @@ class TestFbMessage(unittest.TestCase):
 # ---------------------------------------------------------------------------
 # Category -> homepage topic-button mapping guard (recovery #45)
 #
-# The topic pills in _layouts/home.html bucket a post by matching keywords IN
-# ITS CATEGORY SLUG. A category containing none of these keywords (the old
-# "dog-gear"/"cat-gear" catch-all) is invisible under every topic button --
-# the drift this guard exists to prevent from regressing. Keep PILL_KEYWORDS in
-# sync with the `{% if post_cat contains ... %}` chain in _layouts/home.html.
+# The card template buckets a post by matching keywords IN ITS CATEGORY SLUG.
+# A category containing none of these keywords (the old "dog-gear"/"cat-gear"
+# catch-all) is invisible under every topic filter -- the drift this guard
+# exists to prevent from regressing. Keep PILL_KEYWORDS in sync with the
+# `{% if category contains ... %}` chain in _includes/post-card.html.
+#
+# That chain lived in _layouts/home.html until the round 2 design rebuild moved
+# it into the card include; the "what for" chooser in home.html now filters on
+# the data-use attribute the include emits.
 # ---------------------------------------------------------------------------
 PILL_KEYWORDS = (
     "toy", "scratch", "chew",                    # Toys
@@ -3447,14 +3451,21 @@ class TestCategoryPillMapping(unittest.TestCase):
             offenders, [],
             "products.json topics with no pill: " + "; ".join(offenders))
 
-    def test_pill_keywords_stay_in_sync_with_home_html(self):
-        # If the pill chain in home.html changes, this flags PILL_KEYWORDS as
-        # stale so the two never silently diverge.
-        home = (REPO / "_layouts" / "home.html").read_text(encoding="utf-8")
+    def test_pill_keywords_stay_in_sync_with_the_card_template(self):
+        # If the keyword chain changes, this flags PILL_KEYWORDS as stale so
+        # the two never silently diverge.
+        #
+        # The chain moved out of _layouts/home.html in the round 2 design
+        # rebuild ("replace the skeleton, not the paint"), which extracted the
+        # card into _includes/post-card.html and took the bucketing with it.
+        # The keywords are unchanged; only the file holding them moved. The
+        # guard is pointed at the new home rather than relaxed -- reading the
+        # old path made it fail against a template that was in fact correct.
+        card = (REPO / "_includes" / "post-card.html").read_text(encoding="utf-8")
         for kw in PILL_KEYWORDS:
             self.assertIn(
-                f'contains "{kw}"', home,
-                f'"{kw}" in PILL_KEYWORDS but not referenced in home.html')
+                f'contains "{kw}"', card,
+                f'"{kw}" in PILL_KEYWORDS but not referenced in post-card.html')
 
     def test_every_fired_pin_still_resolves(self):
         # A pin was fired to Pinterest at /{old-category}/{slug}/. Re-categorizing
