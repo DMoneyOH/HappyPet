@@ -5611,9 +5611,16 @@ class TestPublishedChewyLinkCoverage(unittest.TestCase):
 
     def test_a_queue_sourced_link_is_labelled_as_such(self):
         """best-dog-cooling-mat is published with no Chewy link in its front
-        matter while its queue entry still holds a REVIEW sentinel. Reporting
-        that as a live link would overstate what is on the site."""
-        by_slug = {e["slug"]: e for e in self.entries}
+        matter. Its queue entry (retired 2026-09-24) held a REVIEW sentinel;
+        reporting that as a live link would overstate what is on the site. The
+        entry is supplied here rather than read from the rolling queue."""
+        queued = {"best-dog-cooling-mat": {
+            "topic": "best-dog-cooling-mat",
+            "name": "EHEYCIGA Cooling Mat for Dogs, 41x28 inches, Washable, Non-Slip, Blue",
+            "chewy_url": "REVIEW:https://chewy.sjv.io/c/7160344/3054490/32975?prodsku=4094470"
+                         "&u=https%3A%2F%2Fwww.chewy.com%2Finvenho-cooling-dog-crate-mat-anti"
+                         "%2Fdp%2F4094470&intsrc=APIG_24727"}}
+        by_slug = {e["slug"]: e for e in self.v.published_chewy_links(queued)}
         self.assertEqual(by_slug["best-dog-cooling-mat"]["source"], "products.json")
         self.assertEqual(self.v.classify_offline(by_slug["best-dog-cooling-mat"])[0], "REVIEW")
 
