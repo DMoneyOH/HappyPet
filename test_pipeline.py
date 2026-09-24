@@ -5672,5 +5672,193 @@ class TestChewyApiThrottle(unittest.TestCase):
         self.assertIn("DEFERRED", self.v.STATUSES)
 
 
+# ---------------------------------------------------------------------------
+# Cross-module symbol integrity: generate_posts is a shared module, and the
+# modules that import it reach through it at CALL time.
+# ---------------------------------------------------------------------------
+
+def _generate_posts_references(source: str) -> tuple[set, set]:
+    """Return (attributes reached through a generate_posts alias, names imported
+    directly out of generate_posts) for one module's source text.
+
+    The alias is read off the module's own import statement rather than assumed
+    to be `gp`. A checker hardcoded to one spelling covers exactly zero symbols
+    in a module that aliases differently, and passes green while doing it.
+    """
+    import ast
+    tree    = ast.parse(source)
+    aliases = set()
+    from_names = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for name in node.names:
+                if name.name == "generate_posts":
+                    aliases.add(name.asname or name.name)
+        elif isinstance(node, ast.ImportFrom) and node.module == "generate_posts":
+            for name in node.names:
+                from_names.add(name.name)
+    attrs = set()
+    for node in ast.walk(tree):
+        if (isinstance(node, ast.Attribute)
+                and isinstance(node.value, ast.Name)
+                and node.value.id in aliases):
+            attrs.add(node.attr)
+    return attrs, from_names
+
+
+class TestGeneratePostsSymbolsReachedFromOtherModulesExist(unittest.TestCase):
+    """refill_products.py was broken for two months and no test saw it.
+
+    `ideate_topics()` calls `gp.GEMINI_GEN_MODEL`, which commit 0cf4890 (the
+    OpenRouter routing refactor) deleted from generate_posts.py on 2026-07-21.
+    Python resolves that attribute at call time, the only caller sits behind a
+    threshold gate that rarely opens, and the handler around it caught
+    (RuntimeError, JSONDecodeError, KeyError) -- not AttributeError. So the
+    break surfaced as an uncaught traceback on a forced run, and nowhere else.
+
+    This checks the shape of that bug, not the one symbol somebody already
+    found: every non-test module in the repo that imports generate_posts is
+    parsed and every symbol it reaches for must exist on the real module.
+    Deleting any shared symbol goes red here, immediately, with no run needed.
+
+    Test modules are excluded deliberately -- a test legitimately reaches for
+    attributes it installs itself with patch/setattr, and the suite covers
+    those by running them.
+    """
+
+    def _scanned_modules(self):
+        import generate_posts as gp
+        found = []
+        for path in sorted(REPO.glob("*.py")):
+            if path.name.startswith("test_") or path.name == "generate_posts.py":
+                continue
+            source = path.read_text(encoding="utf-8")
+            if "generate_posts" not in source:
+                continue
+            attrs, from_names = _generate_posts_references(source)
+            if attrs or from_names:
+                found.append((path.name, attrs, from_names, gp))
+        return found
+
+    def test_the_scan_actually_finds_importers_and_symbols(self):
+        """A vacuous scan passes every assertion below it. refill_products.py
+        and stage1_cli.py both import generate_posts today; if neither is seen,
+        the collector is broken, not the repo."""
+        scanned = self._scanned_modules()
+        names   = {name for name, _, _, _ in scanned}
+        self.assertIn("refill_products.py", names)
+        self.assertIn("stage1_cli.py", names)
+        total = sum(len(a) + len(f) for _, a, f, _ in scanned)
+        self.assertGreater(total, 3, "collector found almost nothing -- suspect the collector")
+
+    def test_every_symbol_reached_through_generate_posts_exists(self):
+        missing = []
+        for name, attrs, from_names, gp in self._scanned_modules():
+            for symbol in sorted(attrs | from_names):
+                if not hasattr(gp, symbol):
+                    missing.append(f"{name} -> generate_posts.{symbol}")
+        self.assertEqual(missing, [], "symbols reached across modules but absent "
+                                      "from generate_posts (call-time AttributeError)")
+
+    def test_the_checker_reports_a_missing_symbol_when_there_is_one(self):
+        """Prove it can fail. A checker that cannot go red is not evidence.
+
+        Same shape as the real break: aliased import, attribute read inside a
+        function body, alias spelled something other than `gp`.
+        """
+        import generate_posts as gp
+        source = ("import generate_posts as writer\n"
+                  "def f():\n"
+                  "    return writer.THIS_SYMBOL_WAS_DELETED\n")
+        attrs, from_names = _generate_posts_references(source)
+        self.assertIn("THIS_SYMBOL_WAS_DELETED", attrs)
+        self.assertFalse(hasattr(gp, "THIS_SYMBOL_WAS_DELETED"))
+
+    def test_an_alias_that_is_not_gp_is_still_followed(self):
+        """The inverse direction: the collector must not be keyed to one name.
+        `from generate_posts import X` is picked up too."""
+        attrs, from_names = _generate_posts_references(
+            "import generate_posts as writer\n"
+            "from generate_posts import build_url\n"
+            "writer.SITE_BASE\n")
+        self.assertIn("SITE_BASE", attrs)
+        self.assertIn("build_url", from_names)
+
+
+class TestRefillIdeationResolvesItsModelConstant(unittest.TestCase):
+    """The call path itself, run with the network stubbed out.
+
+    The symbol scan above is static; this one executes ideate_topics(), which is
+    where the AttributeError actually fired. Two independent catches for one
+    bug, on purpose -- the static check cannot see a symbol built at runtime,
+    and this check cannot see a symbol nothing calls.
+    """
+
+    def test_ideate_topics_runs_and_returns_candidates(self):
+        import refill_products as rp
+        import generate_posts as gp
+
+        captured = {}
+
+        def fake_call_gemini(model, prompt, **kwargs):
+            captured["model"]  = model
+            captured["prompt"] = prompt
+            return json.dumps({"topics": [{
+                "topic": "heated-cat-bed", "title": "Best Heated Cat Beds",
+                "keyword": "heated cat bed", "species": "cat",
+                "category": "cat-beds", "topical_sheet": "HAPPYPET_SHEET_ID_CATS",
+                "amazon_search_query": "heated cat bed",
+            }]})
+
+        with patch.object(gp, "_call_gemini", fake_call_gemini):
+            out = rp.ideate_topics({"best-dog-ramps"}, {"best-cat-trees"}, 5)
+
+        self.assertEqual([t["topic"] for t in out], ["best-heated-cat-bed"])
+        self.assertTrue(captured["model"], "no model constant reached the Gemini call")
+
+    def test_the_ideation_model_is_not_the_factcheck_model(self):
+        """Restoring the deleted constant by pointing it at FACTCHECK_MODEL
+        would make both tests above pass while silently running topic ideation
+        on a model tuned for a different job (and a smaller one -- the deleted
+        value was gemini-2.5-flash, the fact-checker is gemini-2.5-flash-lite).
+        """
+        import generate_posts as gp
+        self.assertNotEqual(gp.GEMINI_GEN_MODEL, gp.FACTCHECK_MODEL)
+        self.assertTrue(gp.GEMINI_GEN_MODEL.startswith("gemini-"),
+                        "ideation goes direct to Gemini via _call_gemini, not through OpenRouter")
+
+
+class TestRefillSurvivesAMissingSharedSymbol(unittest.TestCase):
+    """The second half of the fix: a future deletion must degrade, not crash.
+
+    Before this, a missing attribute escaped main()'s handler and the run died
+    on a traceback -- which reads as a code fault rather than the "ideation
+    produced nothing" condition the script already knows how to report.
+    """
+
+    def test_an_attributeerror_in_ideation_is_logged_and_the_run_fails_cleanly(self):
+        import refill_products as rp
+
+        lines = []
+
+        def boom(*_a, **_k):
+            raise AttributeError("module 'generate_posts' has no attribute 'GEMINI_GEN_MODEL'")
+
+        with tempfile.TemporaryDirectory() as tmp:
+            with patch.object(rp, "load_products", lambda: []), \
+                 patch.object(rp, "published_slugs", lambda: set()), \
+                 patch.object(rp, "unpublished_count", lambda *_: 0), \
+                 patch.object(rp, "ideate_topics", boom), \
+                 patch.object(rp, "RESULT_PATH", Path(tmp) / "REFILL_RESULT.json"), \
+                 patch.object(rp, "log", lambda msg, level="INFO": lines.append(f"{level}:{msg}")):
+                with self.assertRaises(SystemExit) as caught:
+                    rp.main()
+
+        self.assertEqual(caught.exception.code, 1,
+                         "a refill that resolved nothing must exit non-zero")
+        self.assertTrue(any("topic ideation failed" in ln for ln in lines),
+                        f"the failure was not logged: {lines}")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

@@ -86,6 +86,14 @@ REWRITE_CHAIN = [
 OR_GEN_MODEL         = "openai/gpt-oss-120b:free"   # alternative-product search
 OR_FACTCHECK_MODEL   = "openai/gpt-oss-20b:free"    # fact-check fallback
 FACTCHECK_MODEL      = "gemini-2.5-flash-lite"      # fact-check primary (Gemini direct)
+# Topic ideation for refill_products.ideate_topics() -- the one Gemini-direct
+# caller left outside this file. 0cf4890 (the OpenRouter routing refactor) took
+# this constant out with the Gemini generation path it also removed, and missed
+# that cross-module reader; Stage 0 raised AttributeError on every forced run
+# from 2026-07-21 until it was restored. Value is the pre-0cf4890 one.
+# Deliberately NOT an alias of FACTCHECK_MODEL: ideation writes a topic batch,
+# the fact-checker grades prose, and -lite is the smaller model of the two.
+GEMINI_GEN_MODEL     = "gemini-2.5-flash"           # topic ideation (Gemini direct)
 REVIEWER_ENABLED     = True
 OR_HEADERS_EXTRA     = {"HTTP-Referer": "https://happypetproductreviews.com", "X-Title": "HappyPetReviews"}
 MAX_REVIEW_ATTEMPTS  = 3
