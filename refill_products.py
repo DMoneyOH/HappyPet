@@ -563,7 +563,12 @@ def main() -> None:
     queued = {e["topic"] for e in products} | {e["topic"].removeprefix("best-") for e in products}
     try:
         candidates = ideate_topics(pub, queued, BATCH)
-    except (RuntimeError, json.JSONDecodeError, KeyError) as exc:
+    except (RuntimeError, json.JSONDecodeError, KeyError, AttributeError) as exc:
+        # AttributeError belongs here because ideate_topics reaches into
+        # generate_posts at call time (gp.GEMINI_GEN_MODEL, gp._call_gemini). A
+        # symbol deleted over there used to escape this handler and kill the run
+        # on a traceback, which reads as a code fault rather than the "ideation
+        # produced nothing" condition the honest gate below already reports.
         log(f"topic ideation failed: {exc}", "ERROR")
         candidates = []
     for t in candidates:
