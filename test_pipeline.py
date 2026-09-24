@@ -3545,6 +3545,74 @@ class TestCategoryPillMapping(unittest.TestCase):
             unresolved, [], "fired pins that would 404: " + "; ".join(unresolved))
 
 
+# ---------------------------------------------------------------------------
+# Homepage control-wiring guard
+#
+# _layouts/home.html renders its controls and wires them in the same inline
+# script. A control the markup renders but the script never binds is invisible
+# to every other check we have: Liquid is valid, Jekyll builds, the button
+# paints, and clicking it does nothing.
+#
+# That is what shipped. The round 2 design rebuild ("replace the skeleton, not
+# the paint", e146504) rewrote the tail of that script, and the line binding
+# #load-more-btn to showMore() was overwritten rather than moved -- so "Show
+# more reviews" sat on the live homepage doing nothing through rounds 2-6,
+# with showMore() as dead code nothing called.
+#
+# The guard is deliberately structural rather than a check for that one id:
+# every button the layout gives an id to must be looked up by that id and bound
+# to a listener. Closing the class beats closing the instance. Buttons wired by
+# class (the .seg filter rail) carry no id and are out of scope here.
+# ---------------------------------------------------------------------------
+
+# Buttons deliberately handled by a delegated listener on an ancestor instead of
+# bound directly. Empty today. If delegation is ever introduced, add the id here
+# with a reason -- that is the intended escape hatch, not deleting this test.
+DELEGATED_BUTTON_IDS = frozenset()
+
+
+class TestHomepageControlsAreWired(unittest.TestCase):
+    """Every id'd button in the home layout is actually bound to a handler."""
+
+    @classmethod
+    def setUpClass(cls):
+        home = (REPO / "_layouts" / "home.html").read_text(encoding="utf-8")
+        script = re.search(r"<script>(.*?)</script>", home, re.S)
+        assert script, "_layouts/home.html no longer contains an inline <script> block"
+        cls.script = script.group(1)
+        cls.markup = home.replace(script.group(0), "")
+        cls.button_ids = re.findall(r"<button\b[^>]*\bid=\"([^\"]+)\"", cls.markup)
+
+    def test_the_guard_actually_sees_the_homepage_buttons(self):
+        # Without this, a markup change the id regex stops matching would make
+        # every assertion below pass over an empty list -- a green test proving
+        # nothing. "Show more reviews" is the control this guard exists for.
+        self.assertIn(
+            "load-more-btn", self.button_ids,
+            "home.html no longer renders #load-more-btn, or the markup shape "
+            "changed and this guard is now scanning nothing")
+
+    def test_every_id_button_is_looked_up_and_bound(self):
+        unwired = []
+        for button_id in self.button_ids:
+            if button_id in DELEGATED_BUTTON_IDS:
+                continue
+            lookup = re.search(
+                r"(\w+)\s*=\s*document\.getElementById\(['\"]"
+                + re.escape(button_id) + r"['\"]\)", self.script)
+            if not lookup:
+                unwired.append(f"{button_id}: rendered, but the script never looks it up")
+                continue
+            var = lookup.group(1)
+            if not re.search(r"\b" + re.escape(var) + r"\.addEventListener\s*\(", self.script):
+                unwired.append(f"{button_id}: fetched as `{var}`, but no listener is bound to it")
+        self.assertEqual(
+            unwired, [],
+            "homepage buttons that render but do nothing: " + "; ".join(unwired)
+            + " -- bind a listener, or add the id to DELEGATED_BUTTON_IDS if an "
+              "ancestor handles it")
+
+
 class TestAutoMergePublishWiring(unittest.TestCase):
     """Preconditions the AUTO_MERGE=on routine path (SKILL Phase 2) bets on. If a
     workflow edit breaks one of these, the unattended publish would silently
