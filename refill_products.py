@@ -24,6 +24,11 @@ Env:
   REFILL_THRESHOLD  refill when unpublished count <= this (default 1)
   REFILL_BATCH      max new topics per run (default 10)
   FORCE_REFILL      "1" bypasses the threshold gate (manual dispatch)
+  REFILL_PLACEHOLDERS_ONLY  "1" ideates topics and writes NEEDS_* placeholders
+                    only -- no Amazon fetch, no fit-check, no backfill -- and
+                    exits 0. For the manual-resolve flow (Amazon scrape is
+                    blocked): the workflow can then open a PR carrying the
+                    placeholders for manual_resolve.py to fill in.
   GEMINI_API_KEY    topic ideation + product fit-check
   IMPACT_*          optional Chewy enrichment via chewy_lookup
 """
@@ -63,6 +68,7 @@ PAAPI_REGION     = "us-east-1"
 THRESHOLD = int(os.environ.get("REFILL_THRESHOLD", "1"))
 BATCH     = int(os.environ.get("REFILL_BATCH", "10"))
 FORCE     = os.environ.get("FORCE_REFILL", "") == "1"
+PLACEHOLDERS_ONLY = os.environ.get("REFILL_PLACEHOLDERS_ONLY", "") == "1"
 
 VALID_SHEETS     = ("HAPPYPET_SHEET_ID_DOGS", "HAPPYPET_SHEET_ID_CATS",
                     "HAPPYPET_SHEET_ID_HOME", "HAPPYPET_SHEET_ID_FOOD",
@@ -545,8 +551,9 @@ def main() -> None:
 
     backfilled, still_held, added_resolved, added_placeholder = [], [], [], []
 
-    # 1. Backfill existing placeholder entries
-    for entry in products:
+    # 1. Backfill existing placeholder entries (skipped in placeholders-only
+    #    mode: no Amazon traffic at all -- the placeholders stay for manual_resolve.py)
+    for entry in ([] if PLACEHOLDERS_ONLY else products):
         if entry.get("asin") != "NEEDS_ASIN" and entry.get("image") != "NEEDS_IMAGE":
             continue
         query = entry.get("amazon_search_query") or entry.get("keyword") or entry.get("name", "")
@@ -574,14 +581,16 @@ def main() -> None:
     for t in candidates:
         entry = build_entry(t)
         log(f"new topic: {entry['topic']} (query: '{t['amazon_search_query']}')")
-        resolved = resolve_product(t["title"], t["amazon_search_query"])
+        resolved = None if PLACEHOLDERS_ONLY else resolve_product(
+            t["title"], t["amazon_search_query"])
         if resolved:
             apply_resolution(entry, resolved)
             added_resolved.append(entry["topic"])
         else:
             added_placeholder.append(entry["topic"])
         products.append(entry)
-        time.sleep(3)
+        if not PLACEHOLDERS_ONLY:
+            time.sleep(3)
 
     changed = bool(backfilled or added_resolved or added_placeholder)
     if changed:
@@ -597,7 +606,11 @@ def main() -> None:
     log(f"DONE -- backfilled {len(backfilled)}, new resolved {len(added_resolved)}, "
         f"new placeholder {len(added_placeholder)}, backfill still held {len(still_held)}")
 
-    # Honest gate: a refill that ran and resolved nothing at all is a failure
+    # Honest gate: a refill that ran and resolved nothing at all is a failure --
+    # except placeholders-only mode, whose whole point is placeholders (but it
+    # still fails when ideation produced nothing to seed).
+    if PLACEHOLDERS_ONLY and added_placeholder:
+        return
     if not backfilled and not added_resolved:
         log("resolved zero products -- Amazon scrape likely blocked; failing run", "ERROR")
         sys.exit(1)
