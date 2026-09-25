@@ -5564,8 +5564,9 @@ class TestChewyVariantMismatch(unittest.TestCase):
 
     def test_every_chewy_link_live_on_the_site_today_passes_the_variant_check(self):
         """The inverse direction, run against the real posts rather than
-        fixtures. Eight posts carry a chewy_url; all eight are believed correct
-        after the 2026-09-22 repair, so any flag here is a false positive."""
+        fixtures. Nine posts carry a chewy_url; all nine are believed correct
+        (the 2026-09-22 repair, plus best-catnip-toys added 2026-09-24 as a
+        verified exact match), so any flag here is a false positive."""
         flagged = []
         for entry in self.v.published_chewy_links():
             reason = self.v.find_variant_mismatch(
@@ -5581,7 +5582,7 @@ class TestPublishedChewyLinkCoverage(unittest.TestCase):
 
     `load_products()` keys off products.json -- a rolling queue holding FOUR
     entries -- and a post missing from it resolved to chewy_url "", which the
-    validator reported as "SKIP -- no Chewy URL (Amazon-only)". Eight published
+    validator reported as "SKIP -- no Chewy URL (Amazon-only)". Nine published
     posts carry a live Chewy link in their front matter and not one of the four
     queue entries is among them, so every live Chewy link on the site was
     invisible to the weekly job that exists to check them.
