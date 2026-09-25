@@ -1681,6 +1681,80 @@ class TestRefillAgent(unittest.TestCase):
         self.assertIn("concurrency", workflow)
 
 
+class TestRefillPlaceholdersOnlyMode(unittest.TestCase):
+    """REFILL_PLACEHOLDERS_ONLY=1: the Amazon scrape is blocked (docs/refill-manual-resolve.md),
+    so this mode seeds NEEDS_* placeholders for manual_resolve.py and exits 0 so the
+    workflow's PR step runs. Run 36090851260 generated 4 topics, could not resolve
+    them, exited 1, and the placeholders were discarded with the runner."""
+
+    CANDIDATE = {
+        "topic": "best-heated-cat-beds", "title": "Best Heated Cat Beds",
+        "keyword": "heated cat bed", "species": "cat", "category": "cat-beds",
+        "topical_sheet": "HAPPYPET_SHEET_ID_CATS", "amazon_search_query": "heated cat bed"}
+
+    def _run(self, *, placeholders_only, candidates, existing=None):
+        import refill_products as rp
+        products = list(existing or [])
+        written = {}
+        resolver_calls = []
+        with tempfile.TemporaryDirectory() as tmp:
+            with patch.object(rp, "PLACEHOLDERS_ONLY", placeholders_only), \
+                 patch.object(rp, "FORCE", True), \
+                 patch.object(rp, "load_products", lambda: products), \
+                 patch.object(rp, "published_slugs", lambda: set()), \
+                 patch.object(rp, "ideate_topics", lambda *a, **k: list(candidates)), \
+                 patch.object(rp, "resolve_product",
+                              lambda *a, **k: resolver_calls.append(a)), \
+                 patch.object(rp, "atomic_write_json",
+                              lambda path, data, **k: written.update(data=list(data))), \
+                 patch.object(rp, "RESULT_PATH", Path(tmp) / "REFILL_RESULT.json"), \
+                 patch.object(rp, "log", lambda *a, **k: None), \
+                 patch.object(rp.time, "sleep", lambda *_: None):
+                code = None
+                try:
+                    rp.main()
+                except SystemExit as exc:
+                    code = exc.code
+            result = json.loads((Path(tmp) / "REFILL_RESULT.json").read_text())
+        return code, written.get("data"), result, resolver_calls
+
+    def test_seeds_placeholders_exits_zero_and_never_touches_amazon(self):
+        code, data, result, calls = self._run(
+            placeholders_only=True, candidates=[self.CANDIDATE])
+        self.assertIsNone(code, "placeholders-only must not exit non-zero")
+        self.assertEqual(calls, [], "no Amazon fetch / fit-check in this mode")
+        self.assertEqual([e["topic"] for e in data], ["best-heated-cat-beds"])
+        self.assertEqual(data[0]["asin"], "NEEDS_ASIN")
+        self.assertEqual(data[0]["image"], "NEEDS_IMAGE")
+        self.assertEqual(result["added_placeholder"], ["best-heated-cat-beds"])
+
+    def test_existing_placeholders_are_not_backfilled_in_this_mode(self):
+        import refill_products as rp
+        old = rp.build_entry({**self.CANDIDATE, "topic": "best-old-topic"})
+        _, _, result, calls = self._run(
+            placeholders_only=True, candidates=[self.CANDIDATE], existing=[old])
+        self.assertEqual(calls, [])
+        self.assertEqual(result["backfilled"], [])
+        self.assertEqual(result["backfill_still_held"], [])
+
+    def test_ideation_producing_nothing_still_fails_the_run(self):
+        """The mode relaxes the resolved-zero gate, not the seeded-zero gate."""
+        code, data, _, _ = self._run(placeholders_only=True, candidates=[])
+        self.assertEqual(code, 1)
+        self.assertIsNone(data, "nothing to write when nothing was seeded")
+
+    def test_default_mode_still_fails_when_every_resolve_fails(self):
+        """Inverse direction: without the flag, run 36090851260's outcome is unchanged."""
+        code, _, _, calls = self._run(placeholders_only=False, candidates=[self.CANDIDATE])
+        self.assertEqual(code, 1)
+        self.assertEqual(len(calls), 1, "default mode still attempts the resolve")
+
+    def test_workflow_exposes_the_input_and_passes_it_to_the_script(self):
+        wf = (REPO / ".github/workflows/refill.yml").read_text(encoding="utf-8")
+        self.assertIn("placeholders_only:", wf)
+        self.assertIn("REFILL_PLACEHOLDERS_ONLY: ${{ github.event.inputs.placeholders_only == 'true'", wf)
+
+
 class TestManualResolve(unittest.TestCase):
     """manual_resolve.py -- apply a browser-found product to a products.json
     placeholder, reusing refill_products.py's validate_candidate/
@@ -3611,6 +3685,226 @@ class TestHomepageControlsAreWired(unittest.TestCase):
             "homepage buttons that render but do nothing: " + "; ".join(unwired)
             + " -- bind a listener, or add the id to DELEGATED_BUTTON_IDS if an "
               "ancestor handles it")
+
+
+# ---------------------------------------------------------------------------
+# Manual light/dark theme toggle
+#
+# The dark palette is declared twice on purpose (CSS cannot share one block
+# between a media-gated selector and an ungated one): once behind
+# `@media (prefers-color-scheme: dark)` for "follow the system", once under
+# `:root[data-theme="dark"]` for an explicit choice. The dangerous failure is
+# quiet drift -- someone retunes a token in one copy and the site then looks
+# different depending on HOW the visitor arrived at dark. So the tests compare
+# the two token lists, not just their presence, and they run the real head
+# script under node against a stub DOM instead of reading its text.
+# ---------------------------------------------------------------------------
+
+
+def _strip_css_comments(css):
+    return re.sub(r"/\*.*?\*/", "", css, flags=re.S)
+
+
+def _css_block(css, header):
+    """Inner text of the first `header { ... }` in comment-stripped css."""
+    at = css.index(header)
+    start = css.index("{", at) + 1
+    depth = 1
+    for i in range(start, len(css)):
+        depth += {"{": 1, "}": -1}.get(css[i], 0)
+        if depth == 0:
+            return css[start:i]
+    raise AssertionError(f"unbalanced braces after {header!r}")
+
+
+def _css_tokens(block):
+    """{name: value} for every custom property, plus color-scheme."""
+    return {k: " ".join(v.split())
+            for k, v in re.findall(r"(--[\w-]+|color-scheme)\s*:\s*([^;]+);", block)}
+
+
+class TestThemeToggle(unittest.TestCase):
+    MEDIA = '@media (prefers-color-scheme: dark)'
+    EXPLICIT = ':root[data-theme="dark"]'
+
+    @classmethod
+    def setUpClass(cls):
+        cls.css = _strip_css_comments(
+            (REPO / "assets" / "css" / "style.css").read_text(encoding="utf-8"))
+        cls.layout = (REPO / "_layouts" / "default.html").read_text(encoding="utf-8")
+        head = re.search(r"<head>(.*?)</head>", cls.layout, re.S)
+        assert head, "default.html has no <head>"
+        cls.head = head.group(1)
+        cls.media_block = _css_block(cls.css, cls.MEDIA)
+        cls.system_dark = _css_block(cls.media_block, ":root:not([data-theme=\"light\"])")
+        cls.explicit_dark = _css_block(cls.css, cls.EXPLICIT)
+        cls.base = _css_block(cls.css, ":root {")
+
+    # ------------------------------------------------------------------ css
+
+    def test_system_dark_is_guarded_against_an_explicit_light_choice(self):
+        # Without the :not(), a dark OS beats data-theme="light" and the
+        # visitor's explicit choice silently does nothing.
+        self.assertNotRegex(
+            self.media_block.replace(self.system_dark, ""), r":root\s*\{",
+            "an unguarded :root rule inside the dark media query")
+        self.assertIn("color-scheme", self.system_dark)
+
+    def test_explicit_dark_declares_dark_color_scheme(self):
+        self.assertEqual(_css_tokens(self.explicit_dark).get("color-scheme"), "dark")
+        self.assertEqual(_css_tokens(self.base).get("color-scheme"), "light")
+
+    def test_the_two_dark_token_lists_cannot_drift(self):
+        system, explicit = _css_tokens(self.system_dark), _css_tokens(self.explicit_dark)
+        self.assertGreater(len(system), 20, "the guard is scanning an empty token list")
+        self.assertIn("--paper", system)
+        self.assertEqual(
+            system, explicit,
+            "dark tokens differ between the @media block and :root[data-theme=\"dark\"]")
+
+    def test_the_dark_scheme_is_not_a_second_media_query_nobody_mirrored(self):
+        # Structural catch-all: any NEW dark-only rule written as another
+        # prefers-color-scheme block would ignore the manual toggle.
+        self.assertEqual(
+            self.css.count("prefers-color-scheme"), 1,
+            "another prefers-color-scheme rule exists; give it a "
+            "[data-theme] counterpart or fold it into the token block")
+
+    def test_image_dim_is_token_driven_and_reaches_both_dark_paths(self):
+        base = float(_css_tokens(self.base)["--img-dim"])
+        self.assertEqual(base, 1.0, "light scheme must not dim product photos")
+        for name, block in (("system", self.system_dark), ("explicit", self.explicit_dark)):
+            self.assertLess(float(_css_tokens(block)["--img-dim"]), 1.0,
+                            f"--img-dim not dimmed in the {name} dark block")
+        self.assertIn("filter: brightness(var(--img-dim))", self.css)
+
+    # --------------------------------------------------------------- layout
+
+    def test_toggle_markup_is_an_accessible_button_hidden_without_js(self):
+        m = re.search(r"<button\b[^>]*\bid=\"theme-toggle\"[^>]*>", self.layout)
+        self.assertIsNotNone(m, "no #theme-toggle button in default.html")
+        tag = m.group(0)
+        self.assertIn('type="button"', tag)
+        self.assertRegex(tag, r"\bhidden\b")  # inert until the script un-hides it
+        self.assertRegex(tag, r'aria-label="[^"]+"')
+        self.assertIn('aria-pressed="false"', tag)
+
+    def test_toggle_has_a_visible_focus_ring_that_is_not_the_strip_colour(self):
+        # --focus is the brand blue in the light scheme, and the toggle sits on
+        # the brand-blue strip: a default outline there is invisible.
+        rule = _css_block(self.css, ".theme-toggle:focus-visible")
+        self.assertRegex(rule, r"outline:\s*2px solid var\(--strip-ink\)")
+
+    def _head_script(self):
+        scripts = re.findall(r"<script>(.*?)</script>", self.head, re.S)
+        found = [s for s in scripts if "localStorage" in s]
+        self.assertEqual(len(found), 1, "expected exactly one theme script in <head>")
+        return found[0]
+
+    def test_head_script_runs_before_the_stylesheet(self):
+        self.assertLess(self.head.index("localStorage"),
+                        self.head.index('rel="stylesheet"'),
+                        "theme script must run before the stylesheet: no flash")
+
+    def test_every_storage_access_is_in_a_try_block(self):
+        script = self._head_script()
+        accesses = script.count("localStorage.")
+        guarded = len(re.findall(r"try\s*\{[^{}]*localStorage\.[^{}]*\}\s*catch", script))
+        self.assertGreaterEqual(accesses, 2)
+        self.assertEqual(accesses, guarded, "a localStorage access sits outside try/catch")
+
+    def test_script_theme_colours_match_the_stylesheet_and_metas(self):
+        script = self._head_script()
+        light = _css_tokens(self.base)["--strip-bg"]     # what the strip paints
+        dark = _css_tokens(self.system_dark)["--paper"]  # dark chrome = the page
+        self.assertRegex(script, r"light:\s*'" + re.escape(light) + "'")
+        self.assertRegex(script, r"dark:\s*'" + re.escape(dark) + "'")
+        for colour, scheme in ((light, "light"), (dark, "dark")):
+            self.assertRegex(
+                self.head,
+                rf'<meta name="theme-color" content="{colour}" media="\(prefers-color-scheme: {scheme}\)">')
+
+    # ------------------------------------------------------ the script, run
+
+    @staticmethod
+    def _run(script, storage, throws=False, click=False, system_dark=False):
+        """Run the head script in node against a stub DOM; return final state."""
+        import shutil
+        import subprocess
+        harness = r"""
+const vm = require('vm');
+const cfg = JSON.parse(process.argv[1]);
+const attrs = {};
+const metas = ['x', 'y'].map(c => { const m = { c };
+  m.setAttribute = (k, v) => { if (k === 'content') m.c = v; }; return m; });
+const btn = { hidden: true, pressed: null, handlers: {},
+  setAttribute(k, v) { if (k === 'aria-pressed') this.pressed = String(v); },
+  addEventListener(t, f) { this.handlers[t] = f; } };
+let ready;
+const store = Object.assign({}, cfg.storage);
+const ctx = {
+  document: {
+    documentElement: {
+      setAttribute(k, v) { attrs[k] = v; },
+      getAttribute(k) { return k in attrs ? attrs[k] : null; } },
+    querySelectorAll: () => metas,
+    getElementById: id => id === 'theme-toggle' ? btn : null,
+    addEventListener(t, f) { if (t === 'DOMContentLoaded') ready = f; } },
+  window: { matchMedia: () => ({ matches: cfg.systemDark, addEventListener() {} }) },
+  localStorage: cfg.throws ? { getItem() { throw new Error('denied'); },
+                               setItem() { throw new Error('denied'); } }
+                           : { getItem: k => (k in store ? store[k] : null),
+                               setItem: (k, v) => { store[k] = String(v); } },
+};
+vm.createContext(ctx);
+vm.runInContext(process.argv[2], ctx);
+const before = { theme: attrs['data-theme'] || null, metas: metas.map(m => m.c) };
+ready();
+if (cfg.click) btn.handlers.click();
+console.log(JSON.stringify({ before, theme: attrs['data-theme'] || null,
+  metas: metas.map(m => m.c), hidden: btn.hidden, pressed: btn.pressed, store }));
+"""
+        proc = subprocess.run(
+            [shutil.which("node"), "-e", harness,
+             json.dumps({"storage": storage, "throws": throws,
+                         "systemDark": system_dark, "click": click}), script],
+            capture_output=True, text=True, timeout=30)
+        assert proc.returncode == 0, proc.stderr
+        return json.loads(proc.stdout)
+
+    def _skip_without_node(self):
+        import shutil
+        if not shutil.which("node"):
+            self.skipTest("node not installed")
+
+    def test_a_saved_choice_is_applied_before_first_paint_with_matching_metas(self):
+        self._skip_without_node()
+        script = self._head_script()
+        dark = self._run(script, {"happypet-theme": "dark"})
+        self.assertEqual(dark["before"], {"theme": "dark", "metas": ["#0E1116"] * 2})
+        light = self._run(script, {"happypet-theme": "light"}, system_dark=True)
+        self.assertEqual(light["before"], {"theme": "light", "metas": ["#1C49C4"] * 2})
+
+    def test_garbage_or_blocked_storage_leaves_the_page_on_the_system_theme(self):
+        self._skip_without_node()
+        script = self._head_script()
+        for storage in ({"happypet-theme": "sepia"}, {"happypet-theme": ""}, {}):
+            self.assertIsNone(self._run(script, storage)["before"]["theme"], storage)
+        blocked = self._run(script, {}, throws=True, click=True)  # must not raise
+        self.assertEqual(blocked["theme"], "dark")  # click still works, unsaved
+
+    def test_click_flips_the_effective_theme_saves_it_and_reveals_the_button(self):
+        self._skip_without_node()
+        script = self._head_script()
+        # light OS, no saved choice -> click goes dark
+        r = self._run(script, {}, click=True, system_dark=False)
+        self.assertEqual((r["theme"], r["pressed"], r["hidden"]), ("dark", "true", False))
+        self.assertEqual(r["store"]["happypet-theme"], "dark")
+        self.assertEqual(r["metas"], ["#0E1116"] * 2)
+        # dark OS, no saved choice -> click goes LIGHT (flips what you see)
+        r = self._run(script, {}, click=True, system_dark=True)
+        self.assertEqual((r["theme"], r["pressed"]), ("light", "false"))
+        self.assertEqual(r["store"]["happypet-theme"], "light")
 
 
 class TestAutoMergePublishWiring(unittest.TestCase):
