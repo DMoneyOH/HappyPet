@@ -1,0 +1,102 @@
+name: Chewy enrichment (on demand)
+
+# Looks up Chewy matches for named products.json topics on a runner that holds
+# the Impact secrets, and opens a PR with ONLY products.json changed. Human
+# review of that PR is the final "same product?" gate -- this workflow never
+# pushes to main and never merges.
+#
+# Director rule (2026-09-25): link Chewy ONLY when Chewy sells the SAME product.
+# A same-brand different product is no match; anything uncertain stays null.
+# The gates live in chewy_enrich_topics.py (over chewy_lookup.lookup).
+#
+# Usage: Actions -> "Chewy enrichment (on demand)" -> Run workflow -> `topics` =
+# comma-separated slugs, or empty for every entry with an asin and no chewy_url.
+#
+# Safety shape:
+#   * workflow_dispatch only. A dispatch works only once this file is on main,
+#     and the job refuses to run from any other ref.
+#   * The only checkout is the default branch, pinned by commit SHA (the SHA
+#     actions/checkout@v4 resolved to, same pin as automerge.yml).
+#   * The Impact secrets exist only in the lookup step's environment. The step
+#     that creates the branch and PR never sees them.
+#   * `topics` reaches the script through an env var, never interpolated into
+#     shell.
+#   * Least-privilege permissions; the branch is chewy/<UTC date-time>, never main.
+#
+# Class-3 CI (new workflow that holds secrets): needs the two-clone review
+# before it merges.
+
+on:
+  workflow_dispatch:
+    inputs:
+      topics:
+        description: 'Comma-separated topic slugs to enrich (empty = every entry with an asin and no chewy_url)'
+        required: false
+        default: ''
+
+permissions:
+  contents: write        # push the chewy/<date> branch
+  pull-requests: write   # open the review PR
+
+concurrency:
+  group: happypet-chewy-enrich
+  cancel-in-progress: false
+
+jobs:
+  enrich:
+    if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout default branch
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          fetch-depth: 1
+
+      - name: Install Python dependencies
+        run: |
+          python3 -m venv .venv
+          .venv/bin/pip install --quiet -r requirements.txt
+
+      - name: Run Chewy lookup
+        env:
+          IMPACT_ACCOUNT_SID: ${{ secrets.IMPACT_ACCOUNT_SID }}
+          IMPACT_AUTH_TOKEN: ${{ secrets.IMPACT_AUTH_TOKEN }}
+          TOPICS: ${{ github.event.inputs.topics }}
+        run: |
+          .venv/bin/python chewy_enrich_topics.py \
+            --topics "${TOPICS}" \
+            --report "${RUNNER_TEMP}/chewy_report.md"
+
+      - name: Publish report to run summary
+        if: always()
+        run: |
+          if [ -f "${RUNNER_TEMP}/chewy_report.md" ]; then
+            cat "${RUNNER_TEMP}/chewy_report.md" >> "${GITHUB_STEP_SUMMARY}"
+          fi
+
+      - name: Open review PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if git diff --quiet products.json; then
+            echo "products.json unchanged -- no PR needed"
+            exit 0
+          fi
+          if [ "$(git status --porcelain --untracked-files=all)" != " M products.json" ]; then
+            echo "::error::Unexpected working-tree changes beyond products.json -- refusing to commit"
+            git status --porcelain --untracked-files=all
+            exit 1
+          fi
+          BRANCH="chewy/$(date -u '+%Y-%m-%d-%H%M')"
+          git config user.name  "HappyPet Bot"
+          git config user.email "hello@happypetproductreviews.com"
+          git checkout -b "${BRANCH}"
+          git add products.json
+          git commit -m "auto: Chewy enrichment $(date -u '+%Y-%m-%d')"
+          git push origin "${BRANCH}"
+          gh pr create --repo "${GITHUB_REPOSITORY}" \
+            --base main --head "${BRANCH}" \
+            --title "Chewy enrichment $(date -u '+%Y-%m-%d')" \
+            --body-file "${RUNNER_TEMP}/chewy_report.md"

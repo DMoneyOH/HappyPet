@@ -5942,5 +5942,216 @@ class TestRefillSurvivesAMissingSharedSymbol(unittest.TestCase):
                         f"the failure was not logged: {lines}")
 
 
+# ---------------------------------------------------------------------------
+# chewy_enrich_topics.py -- on-demand Chewy enrichment (chewy_enrich.yml)
+# ---------------------------------------------------------------------------
+
+def _enrich_entry(topic, name="Acme Widget Bed 25lb", asin="B012345678", **extra):
+    e = {"topic": topic, "name": name, "asin": asin, "upc": None,
+         "chewy_url": None, "chewy_price": None,
+         "chewy_stock": None, "chewy_rating": None}
+    e.update(extra)
+    return e
+
+
+def _lookup_result(url, name="Acme Widget Bed 25 lb", price="24.99"):
+    return {"chewy_url": url, "chewy_price": price, "chewy_stock": "InStock",
+            "chewy_rating": 4.5, "chewy_matched_name": name}
+
+
+class TestChewyEnrichTopics(unittest.TestCase):
+    """The Director's rule: link Chewy only when Chewy sells the SAME product.
+    Anything uncertain leaves the four chewy_* fields null."""
+
+    def _run(self, products, topics, lookup_result=None, lookup_side_effect=None):
+        import chewy_enrich_topics as cet
+        with patch("chewy_lookup.lookup", return_value=lookup_result,
+                   side_effect=lookup_side_effect) as m:
+            report = cet.enrich(products, topics)
+        return report, m
+
+    def test_exact_match_is_written_with_all_four_fields(self):
+        products = [_enrich_entry("t1")]
+        report, _ = self._run(products, ["t1"], _lookup_result("https://chewy.sjv.io/x"))
+        self.assertEqual(products[0]["chewy_url"], "https://chewy.sjv.io/x")
+        self.assertEqual(products[0]["chewy_price"], "24.99")
+        self.assertEqual(products[0]["chewy_stock"], "InStock")
+        self.assertEqual(products[0]["chewy_rating"], 4.5)
+        self.assertNotIn("chewy_matched_name", products[0])
+        self.assertEqual(report[0]["outcome"], "matched")
+        self.assertEqual(report[0]["matched_name"], "Acme Widget Bed 25 lb")
+
+    def test_low_confidence_candidate_is_not_written(self):
+        products = [_enrich_entry("t1")]
+        report, _ = self._run(products, ["t1"], _lookup_result(
+            "REVIEW:https://chewy.sjv.io/other", name="Acme Widget Crate"))
+        self.assertIsNone(products[0]["chewy_url"])
+        self.assertIsNone(products[0]["chewy_price"])
+        self.assertEqual(report[0]["outcome"], "candidate")
+        self.assertIn("chewy.sjv.io/other", report[0]["candidate_url"])
+
+    def test_same_brand_different_size_is_not_written(self):
+        # lookup() auto-accepted it (brand + coverage passed) but the size
+        # numbers contradict: 25lb vs 40 lb is a different product.
+        products = [_enrich_entry("t1")]
+        report, _ = self._run(products, ["t1"], _lookup_result(
+            "https://chewy.sjv.io/big", name="Acme Widget Bed 40 lb"))
+        self.assertIsNone(products[0]["chewy_url"])
+        self.assertEqual(report[0]["outcome"], "variant_mismatch")
+
+    def test_no_result_leaves_fields_null(self):
+        products = [_enrich_entry("t1")]
+        report, _ = self._run(products, ["t1"], _lookup_result("REVIEW", name=None))
+        self.assertIsNone(products[0]["chewy_url"])
+        self.assertEqual(report[0]["outcome"], "not_found")
+
+    def test_lookup_failure_is_unavailable_not_a_link(self):
+        import chewy_lookup
+        products = [_enrich_entry("t1")]
+        report, _ = self._run(products, ["t1"],
+                              lookup_side_effect=chewy_lookup.ChewyAPIError("401"))
+        self.assertIsNone(products[0]["chewy_url"])
+        self.assertEqual(report[0]["outcome"], "unavailable")
+
+    def test_empty_topics_selects_only_unenriched_entries_with_an_asin(self):
+        products = [
+            _enrich_entry("todo"),
+            _enrich_entry("has-link", chewy_url="https://chewy.sjv.io/have"),
+            _enrich_entry("has-sentinel", chewy_url="REVIEW:https://chewy.sjv.io/s"),
+            _enrich_entry("placeholder", asin="NEEDS_ASIN"),
+            _enrich_entry("no-asin", asin=""),
+        ]
+        report, m = self._run(products, [], _lookup_result("https://chewy.sjv.io/x"))
+        self.assertEqual([r["topic"] for r in report], ["todo"])
+        self.assertEqual(m.call_count, 1)
+        self.assertEqual(products[1]["chewy_url"], "https://chewy.sjv.io/have")
+        self.assertEqual(products[2]["chewy_url"], "REVIEW:https://chewy.sjv.io/s")
+
+    def test_named_topic_with_an_existing_value_is_never_overwritten(self):
+        products = [_enrich_entry("t1", chewy_url="https://chewy.sjv.io/have")]
+        report, m = self._run(products, ["t1"], _lookup_result("https://chewy.sjv.io/x"))
+        self.assertEqual(products[0]["chewy_url"], "https://chewy.sjv.io/have")
+        self.assertEqual(m.call_count, 0)
+        self.assertEqual(report[0]["outcome"], "skipped")
+
+    def test_unknown_topic_is_an_error(self):
+        import chewy_enrich_topics as cet
+        with self.assertRaises(cet.UnknownTopic):
+            cet.enrich([_enrich_entry("t1")], ["nope"])
+
+    def test_parse_topics_trims_and_rejects_non_slugs(self):
+        import chewy_enrich_topics as cet
+        self.assertEqual(cet.parse_topics(" a-b , c-d,,"), ["a-b", "c-d"])
+        self.assertEqual(cet.parse_topics(""), [])
+        for bad in ("a; rm -rf /", "../x", "A B", "a$(id)"):
+            with self.assertRaises(ValueError, msg=bad):
+                cet.parse_topics(bad)
+
+    def test_main_fails_loudly_when_every_lookup_is_unavailable(self):
+        import chewy_enrich_topics as cet
+        import refill_products as rp
+        import chewy_lookup
+        with tempfile.TemporaryDirectory() as td:
+            pj = Path(td) / "products.json"
+            report_md = Path(td) / "report.md"
+            pj.write_text(json.dumps([_enrich_entry("t1")], indent=2) + "\n", encoding="utf-8")
+            with patch.object(rp, "PRODUCTS_PATH", pj), \
+                 patch("chewy_lookup.lookup", side_effect=chewy_lookup.ChewyAPIError("401")):
+                rc = cet.main(["--topics", "t1", "--report", str(report_md)])
+            self.assertEqual(rc, 1, "all-unavailable must fail loudly (bad/missing credentials)")
+            self.assertIsNone(json.loads(pj.read_text(encoding="utf-8"))[0]["chewy_url"])
+
+    def test_main_success_updates_file_and_report_names_the_chewy_product(self):
+        import chewy_enrich_topics as cet
+        import refill_products as rp
+        with tempfile.TemporaryDirectory() as td:
+            pj = Path(td) / "products.json"
+            report_md = Path(td) / "report.md"
+            pj.write_text(json.dumps([_enrich_entry("t1")], indent=2) + "\n", encoding="utf-8")
+            with patch.object(rp, "PRODUCTS_PATH", pj), \
+                 patch("chewy_lookup.lookup",
+                       return_value=_lookup_result("https://chewy.sjv.io/x")):
+                rc = cet.main(["--topics", "t1", "--report", str(report_md)])
+            self.assertEqual(rc, 0)
+            self.assertEqual(json.loads(pj.read_text(encoding="utf-8"))[0]["chewy_url"],
+                             "https://chewy.sjv.io/x")
+            body = report_md.read_text(encoding="utf-8")
+            self.assertIn("Acme Widget Bed 25 lb", body)
+            self.assertIn("t1", body)
+
+    def test_main_reports_nothing_to_do_without_calling_lookup(self):
+        import chewy_enrich_topics as cet
+        import refill_products as rp
+        with tempfile.TemporaryDirectory() as td:
+            pj = Path(td) / "products.json"
+            pj.write_text(json.dumps([_enrich_entry("t1", chewy_url="https://x/y")],
+                                     indent=2) + "\n", encoding="utf-8")
+            with patch.object(rp, "PRODUCTS_PATH", pj), \
+                 patch("chewy_lookup.lookup") as m:
+                rc = cet.main(["--topics", "", "--report", str(Path(td) / "r.md")])
+            self.assertEqual(rc, 0)
+            self.assertEqual(m.call_count, 0)
+
+
+class TestChewyEnrichWorkflowText(unittest.TestCase):
+    """Text guards on chewy_enrich.yml: it may open a PR, never push to main,
+    never auto-merge, never echo a secret."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.wf = (REPO / ".github" / "workflows" / "chewy_enrich.yml").read_text(encoding="utf-8")
+        cls.code = "\n".join(re.sub(r"\s+#.*$", "", l) for l in cls.wf.splitlines()
+                             if not l.lstrip().startswith("#"))
+
+    def test_dispatch_only_with_topics_input(self):
+        self.assertIn("workflow_dispatch:", self.code)
+        self.assertIn("topics:", self.code)
+        for trigger in ("schedule:", "push:", "pull_request:", "workflow_run"):
+            self.assertNotIn(trigger, self.code)
+
+    def test_least_privilege_permissions(self):
+        self.assertRegex(self.code, r"(?m)^permissions:\s*\n\s+contents: write\s*\n\s+pull-requests: write\s*$")
+        for extra in ("actions: write", "checks:", "issues:", "id-token", "packages:"):
+            self.assertNotIn(extra, self.code)
+
+    def test_never_pushes_to_main_or_merges(self):
+        self.assertNotRegex(self.code, r"git push[^\n]*\bmain\b")
+        self.assertNotRegex(self.code, r"git push[^\n]*(--force|-f\b)")
+        self.assertNotIn("pr merge", self.code)
+        self.assertNotIn("--auto", self.code)
+        self.assertNotIn("automerge", self.code.lower())
+        self.assertIn('git push origin "${BRANCH}"', self.code)
+        self.assertIn("chewy/", self.code)
+
+    def test_only_products_json_is_staged(self):
+        self.assertIn("git add products.json", self.code)
+        self.assertNotRegex(self.code, r"git add (-A|--all|\.)")
+
+    def test_secrets_are_env_only_and_never_echoed(self):
+        for line in self.code.splitlines():
+            if re.search(r"\b(echo|printf|cat|env|printenv)\b", line):
+                self.assertNotIn("IMPACT_", line, line)
+                self.assertNotIn("secrets.", line, line)
+        self.assertNotIn("set -x", self.code)
+        self.assertNotIn("toJSON(secrets", self.code)
+        self.assertIn("secrets.IMPACT_ACCOUNT_SID", self.code)
+        self.assertIn("secrets.IMPACT_AUTH_TOKEN", self.code)
+        # the branch/PR step must not see the Impact secrets
+        push_step = self.code.split("- name: Open review PR")[1]
+        self.assertNotIn("IMPACT_", push_step)
+
+    def test_topics_input_never_interpolated_into_shell(self):
+        run_blocks = re.findall(r"run: \|\n((?:[ ]{10,}.*\n?)+)", self.code)
+        self.assertTrue(run_blocks)
+        for block in run_blocks:
+            self.assertNotIn("github.event.inputs", block)
+            self.assertNotIn("inputs.topics", block)
+
+    def test_checkout_is_sha_pinned_to_the_default_branch(self):
+        self.assertRegex(self.code, r"actions/checkout@[0-9a-f]{40}")
+        self.assertNotRegex(self.code, r"uses: [^\n@]+@v\d")
+        self.assertIn("default_branch", self.code)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
