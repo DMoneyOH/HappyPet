@@ -1,10 +1,10 @@
 # Refill automation: design (spec only, nothing built)
 
-Date: 2026-09-25. Status: DRAFT for Director decision. Author: Max. Provenance: `[INTERNAL]` unless a line carries a docs citation (`[EXTERNAL: code.claude.com]`).
+Date: 2026-09-25. Status: DRAFT, decisions resolved 2026-09-25 (build not started). Author: Max. Provenance: `[INTERNAL]` unless a line carries a docs citation (`[EXTERNAL: code.claude.com]`).
 
 ## Goal
 
-Refill runs with no human in the loop: a local scheduled headless Claude Code session resolves placeholders through SiteStripe in Chrome, a narrow gate merges the PR, and `chewy_enrich.yml` adds Chewy links. Chrome is an accepted dependency.
+Refill runs with no human in the loop: a local scheduled headless Claude Code session resolves placeholders through SiteStripe in Chrome, a narrow gate merges the PR, and `chewy_enrich.yml` adds Chewy links. Chrome is an accepted dependency. The Director's stated goal (2026-09-25): refill is 100% automated after go-live, "I don't want to be involved at the ending point". He approves each build step once; after go-live the run goes start to finish with no involvement from him. That goal approves the direction only. Each Class-3 activation in the build order below still needs his explicit approval and the two-clone review.
 
 ## Flow
 
@@ -13,7 +13,8 @@ Refill runs with no human in the loop: a local scheduled headless Claude Code se
 3. **Resolve.** For each `NEEDS_ASIN` entry, the session drives claude-in-chrome through SiteStripe per `docs/refill-manual-resolve.md` and calls `manual_resolve.py`, which keeps its own ASIN, image-host and sponsored-name gates.
 4. **Ship.** The session commits `products.json` and pushes to the `refill/*` branch. The push uses the Director's git credentials, so it fires CI. A PR opened by `GITHUB_TOKEN` does not.
 5. **Merge.** The amended `automerge.yml` gate merges (see below). The session never merges.
-6. **Chewy.** The session dispatches `chewy_enrich.yml` for the new topics, and its `chewy/*` PR gets a human check (decision 3).
+6. **Chewy.** The session dispatches `chewy_enrich.yml` for the new topics. Before its `chewy/*` PR proceeds, the session verifies each Chewy match on Chewy's own page in Chrome (exact same product only) and the PR then auto-merges (decision 3).
+7. **Digest.** After every run the session emails the Director a digest listing what was added, linked and merged, so he can see it and revert.
 
 ## Trigger: what exists
 
@@ -29,10 +30,10 @@ Refill runs with no human in the loop: a local scheduled headless Claude Code se
 
 Preconditions, checked at wrapper start and again before step 3: Chrome running, extension connected, Associates Central logged in (an expired login or 2FA prompt cannot be automated). Any failure exits nonzero, releases the lock, and opens a GitHub issue (`gh issue create`, which also emails the Director). Add a **dead-man's switch** in the style of PR #115's slot watchdog: a scheduled workflow that alerts (issue + the same SMTP email path) if no refill PR was opened or merged in the expected window. That covers a PC that was off, a dead Chrome, or a wrapper that never ran. Never silent.
 
-## Narrow auto-merge (amendment to PR #117's gate)
+## Narrow auto-merge (a new rule, separate from PR #117's gate)
 
-Today `automerge_gate.py` requires the Claude GitHub App attribution, which a local `gh` PR does not have (it shows as plain `DMoneyOH`). Add a second, separate rule. It merges only when all hold: head branch `refill/*`, same repo, author `DMoneyOH`, not draft, only `products.json` changed, CI `pytest` green on the exact head SHA, and no `NEEDS_*` or `REVIEW:` in the head file. Beyond #117's checks, add a **semantic diff check**: no existing non-placeholder entry changed, and every new or filled entry has `affiliate_url == https://www.amazon.com/dp/<asin>?tag=pawpicks04-20`, image host `m.media-amazon.com`, and `chewy_url` null or `chewy.sjv.io`.
-**Risk added:** author plus branch name is only as strong as the Director's `gh` token. Anything holding it can push a `refill/x` branch and merge unreviewed content to a live money path (affiliate links). The semantic check and path limit shrink that to "a wrong-but-well-formed product" and rule out redirecting a link. It still removes human review of product fit; the LLM topic-fit check and CI are the only remaining screens. Kill switch stays the `AUTOMERGE_ENABLED` variable.
+Today `automerge_gate.py` requires the Claude GitHub App attribution, which a local `gh` PR does not have (it shows as plain `DMoneyOH`). PR #117 stays as it is: it is fixed and Verifier-cleared (commit 941c667) and awaits Talon. Refill PRs carry no App attribution, and PRs opened by the workflow token get no CI, so they cannot pass #117's gate. The rule below is a new, separate rule with its own tests, not an edit to #117's. It merges only when all hold: head branch `refill/*`, same repo, author `DMoneyOH`, not draft, only `products.json` changed, CI `pytest` green on the exact head SHA, and no `NEEDS_*` or `REVIEW:` in the head file. Beyond #117's checks, add a **semantic diff check**: no existing non-placeholder entry changed, and every new or filled entry has `affiliate_url == https://www.amazon.com/dp/<asin>?tag=pawpicks04-20`, image host `m.media-amazon.com`, and `chewy_url` null or `chewy.sjv.io`.
+**Risk added:** author plus branch name is only as strong as the Director's `gh` token. Anything holding it can push a `refill/x` branch and merge unreviewed content to a live money path (affiliate links). The semantic check and path limit shrink that to "a wrong-but-well-formed product" and rule out redirecting a link. It still removes human review of product fit; the LLM topic-fit check and CI are the only remaining screens, and the post-run email digest lets the Director see and revert what merged. Kill switch stays the `AUTOMERGE_ENABLED` variable.
 
 ## Idempotency and limits
 
@@ -44,17 +45,21 @@ Run one planted-fault pass on a scratch branch before enabling anything. (a) Clo
 
 ## Build order (Class-3 = needs Director approval and the two-clone review, Talon + Tessa)
 
-1. Spike, Class-2: manually confirm headless `claude -p` can drive claude-in-chrome, the exact MCP tool names, and `dontAsk` behavior on one topic. Nothing scheduled.
-2. Gate amendment plus tests in `automerge_gate.py`: **Class-3** (CI on the publish path), after #117 merges.
+1. Spike, Class-2: **DONE, PASSED 2026-09-25.** A headless `claude -p --chrome --permission-mode dontAsk --allowedTools "mcp__claude-in-chrome__*"` session drove Chrome, saw the SiteStripe bar and "Hello, Derek". Not tested: that `dontAsk` denies unlisted actions, and reading a fully loaded page. Findings: without `--chrome` the child has no Chrome tools, and the child must run from a directory outside the vault. Nothing scheduled.
+2. New refill-PR gate rule plus tests (semantic-diff check, and coverage of the `chewy/*` PRs): **Class-3** (CI on the publish path), after #117 merges.
 3. Refill dead-man's-switch workflow: **Class-3** (new CI).
 4. `run-refill.ps1` and its allowlist file, inert, under `80-workspace\startup`: Class-2 for creation; **Class-3 review** because it defines the session's permissions.
 5. Register the Task Scheduler task: **Class-3**, Director approves the exact command.
 6. Planted-fault proof run (Class-2).
 7. Director sets `AUTOMERGE_ENABLED`: his own switch, **Class-3**.
-8. Chewy chain: `chewy_enrich.yml` merged (draft PR, **Class-3**), then wired into step 6 of the flow.
+8. Chewy chain: dispatch `chewy_enrich` after #119 merges (**Class-3**), then wire it into step 6 of the flow, with the in-Chrome Chewy check and the email digest (step 7 of the flow; sending mail is a new outbound path, **Class-3**).
 
-## Decisions for the Director
+## Decisions (resolved 2026-09-25)
 
-1. **Host and cadence:** unattended local run on his PC (every other Sunday, needs the PC on and Chrome/Associates logged in), or keep refill assisted with a human starting the session?
-2. **Auto-merge of `refill/*` PRs** under the semantic-diff gate above, accepting that human product review goes away, or keep human merge and automate only steps 1 to 4?
-3. **Chewy PRs:** merge only after a human same-product check (recommended, per the "same product only" rule), or let the session verify each Chewy page against the Amazon product in Chrome and auto-merge?
+The Director decided these by voice on 2026-09-25.
+
+1. **Host and cadence:** YES. Unattended on his own PC every other Sunday (PC on, Chrome and Amazon Associates signed in).
+2. **Auto-merge of `refill/*` PRs:** YES, under the semantic-diff gate above (branch prefix, only `products.json`, CI green, no `NEEDS_`/`REVIEW` sentinels, same repo, no existing entry changed, canonical affiliate URL and tag, `m.media-amazon.com` image, `chewy.sjv.io` or null). He first accepted "human merge", then flipped; the flip is his standing answer.
+3. **Chewy PRs:** also auto-merge, with the session verifying each Chewy match on Chewy's own page in Chrome first (exact same product only), plus an email digest after every run listing what was added, linked and merged, so he can see and revert.
+
+These decisions approve the direction only. Each Class-3 activation still needs his explicit approval and the two-clone review: the gate rule, the dead-man's-switch workflow, registering the scheduled task (he approves the exact command), `AUTOMERGE_ENABLED`, and dispatching `chewy_enrich` after #119 merges.
