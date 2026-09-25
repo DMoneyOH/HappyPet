@@ -1681,6 +1681,80 @@ class TestRefillAgent(unittest.TestCase):
         self.assertIn("concurrency", workflow)
 
 
+class TestRefillPlaceholdersOnlyMode(unittest.TestCase):
+    """REFILL_PLACEHOLDERS_ONLY=1: the Amazon scrape is blocked (docs/refill-manual-resolve.md),
+    so this mode seeds NEEDS_* placeholders for manual_resolve.py and exits 0 so the
+    workflow's PR step runs. Run 36090851260 generated 4 topics, could not resolve
+    them, exited 1, and the placeholders were discarded with the runner."""
+
+    CANDIDATE = {
+        "topic": "best-heated-cat-beds", "title": "Best Heated Cat Beds",
+        "keyword": "heated cat bed", "species": "cat", "category": "cat-beds",
+        "topical_sheet": "HAPPYPET_SHEET_ID_CATS", "amazon_search_query": "heated cat bed"}
+
+    def _run(self, *, placeholders_only, candidates, existing=None):
+        import refill_products as rp
+        products = list(existing or [])
+        written = {}
+        resolver_calls = []
+        with tempfile.TemporaryDirectory() as tmp:
+            with patch.object(rp, "PLACEHOLDERS_ONLY", placeholders_only), \
+                 patch.object(rp, "FORCE", True), \
+                 patch.object(rp, "load_products", lambda: products), \
+                 patch.object(rp, "published_slugs", lambda: set()), \
+                 patch.object(rp, "ideate_topics", lambda *a, **k: list(candidates)), \
+                 patch.object(rp, "resolve_product",
+                              lambda *a, **k: resolver_calls.append(a)), \
+                 patch.object(rp, "atomic_write_json",
+                              lambda path, data, **k: written.update(data=list(data))), \
+                 patch.object(rp, "RESULT_PATH", Path(tmp) / "REFILL_RESULT.json"), \
+                 patch.object(rp, "log", lambda *a, **k: None), \
+                 patch.object(rp.time, "sleep", lambda *_: None):
+                code = None
+                try:
+                    rp.main()
+                except SystemExit as exc:
+                    code = exc.code
+            result = json.loads((Path(tmp) / "REFILL_RESULT.json").read_text())
+        return code, written.get("data"), result, resolver_calls
+
+    def test_seeds_placeholders_exits_zero_and_never_touches_amazon(self):
+        code, data, result, calls = self._run(
+            placeholders_only=True, candidates=[self.CANDIDATE])
+        self.assertIsNone(code, "placeholders-only must not exit non-zero")
+        self.assertEqual(calls, [], "no Amazon fetch / fit-check in this mode")
+        self.assertEqual([e["topic"] for e in data], ["best-heated-cat-beds"])
+        self.assertEqual(data[0]["asin"], "NEEDS_ASIN")
+        self.assertEqual(data[0]["image"], "NEEDS_IMAGE")
+        self.assertEqual(result["added_placeholder"], ["best-heated-cat-beds"])
+
+    def test_existing_placeholders_are_not_backfilled_in_this_mode(self):
+        import refill_products as rp
+        old = rp.build_entry({**self.CANDIDATE, "topic": "best-old-topic"})
+        _, _, result, calls = self._run(
+            placeholders_only=True, candidates=[self.CANDIDATE], existing=[old])
+        self.assertEqual(calls, [])
+        self.assertEqual(result["backfilled"], [])
+        self.assertEqual(result["backfill_still_held"], [])
+
+    def test_ideation_producing_nothing_still_fails_the_run(self):
+        """The mode relaxes the resolved-zero gate, not the seeded-zero gate."""
+        code, data, _, _ = self._run(placeholders_only=True, candidates=[])
+        self.assertEqual(code, 1)
+        self.assertIsNone(data, "nothing to write when nothing was seeded")
+
+    def test_default_mode_still_fails_when_every_resolve_fails(self):
+        """Inverse direction: without the flag, run 36090851260's outcome is unchanged."""
+        code, _, _, calls = self._run(placeholders_only=False, candidates=[self.CANDIDATE])
+        self.assertEqual(code, 1)
+        self.assertEqual(len(calls), 1, "default mode still attempts the resolve")
+
+    def test_workflow_exposes_the_input_and_passes_it_to_the_script(self):
+        wf = (REPO / ".github/workflows/refill.yml").read_text(encoding="utf-8")
+        self.assertIn("placeholders_only:", wf)
+        self.assertIn("REFILL_PLACEHOLDERS_ONLY: ${{ github.event.inputs.placeholders_only == 'true'", wf)
+
+
 class TestManualResolve(unittest.TestCase):
     """manual_resolve.py -- apply a browser-found product to a products.json
     placeholder, reusing refill_products.py's validate_candidate/
