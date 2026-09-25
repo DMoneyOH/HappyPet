@@ -6194,6 +6194,48 @@ class TestAutomergeGate(unittest.TestCase):
             with self.subTest(over):
                 self.assertEqual(self.g.pin_problems(self.PIN_PATH, self.pin_text(**over)), [])
 
+    # Tessa re-check: mutants that survived because nothing pinned them ---------------
+
+    def test_pin_host_dot_is_literal_not_a_wildcard(self):
+        """`_SITE` must escape the dot: `happypetproductreviewsXcom` is another host."""
+        for host in ("happypetproductreviewsXcom", "happypetproductreviews-com",
+                     "happypetproductreviews_com", "happypetproductreviews com"):
+            with self.subTest(host=host):
+                url = f"https://{host}/pet-grooming/best-x/"
+                self.assertTrue(self.g.pin_problems(self.PIN_PATH,
+                                                    self.pin_text(article_url=url)))
+                img = f"https://{host}/assets/images/pins/x.jpg"
+                self.assertTrue(self.g.pin_problems(self.PIN_PATH,
+                                                    self.pin_text(image_url=img)))
+
+    def test_pin_text_starting_with_a_formula_leader_is_held_even_after_whitespace(self):
+        for key in ("title", "description"):
+            for value in ("@SUM(1)", " @SUM(1)", "-1+1", " -1+1", "=1+1", " =1+1", "+1", " +1",
+                          "ok ", " ok"):
+                with self.subTest(key=key, value=value):
+                    self.assertTrue(self.g.pin_problems(self.PIN_PATH,
+                                                        self.pin_text(**{key: value})))
+        for key in ("title", "description"):     # inverse: an @ or - INSIDE the text is fine
+            with self.subTest(inside=key):
+                self.assertEqual(self.g.pin_problems(
+                    self.PIN_PATH, self.pin_text(**{key: "Dogs - cats @ home, 2-pack"})), [])
+
+    def test_pin_size_cap_boundary_is_exactly_4096_bytes(self):
+        base = self.pin_text()
+        for size, ok in ((4095, True), (4096, True), (4097, False)):
+            with self.subTest(size=size):
+                text = base + " " * (size - len(base.encode("utf-8")))
+                self.assertEqual(len(text.encode("utf-8")), size)
+                self.assertEqual(self.g.pin_problems(self.PIN_PATH, text) == [], ok)
+
+    def test_pin_size_cap_counts_bytes_not_characters(self):
+        obj = self.pin_obj(title="\u00e9" * 300, description="\u00e9" * 1000)
+        text = json.dumps(obj, ensure_ascii=False)
+        text += " " * (4090 - len(text))
+        self.assertLess(len(text), 4096)
+        self.assertGreater(len(text.encode("utf-8")), 4096)
+        self.assertTrue(self.g.pin_problems(self.PIN_PATH, text))
+
     # F2: products.json is parsed, not substring-searched ------------------------------
 
     def test_json_escaped_placeholder_cannot_bypass_the_parse(self):
@@ -6232,6 +6274,64 @@ class TestAutomergeGate(unittest.TestCase):
         self.assertTrue(self.g.products_problems(escaped, "[]"))
         prose = '[{"chewy_note": "UNVERIFIED: chewy_url is a REVIEW: sentinel"}]'
         self.assertEqual(self.g.products_problems(prose, "[]"), [], "prose is not a sentinel")
+
+    def test_review_sentinel_is_anything_starting_with_review_like_the_pipeline(self):
+        """generate_posts.py / validate_published_chewy_links.py use startswith("REVIEW")."""
+        for value in ("REVIEW", "REVIEW:https://x", "REVIEW-x", "REVIEWED", "REVIEW https://x",
+                      "REVIEW\u00a0x", "REVIEW_"):
+            with self.subTest(value=value):
+                text = json.dumps([{"topic": "a", "chewy_url": value}])
+                self.assertTrue(self.g.products_problems(text, "[]"), value)
+        for value in ("review", "Review:x", "UNREVIEW", " REVIEW", "x REVIEW", "", None, 5):
+            with self.subTest(harmless=value):
+                text = json.dumps([{"topic": "a", "chewy_url": value}])
+                self.assertEqual(self.g.products_problems(text, "[]"), [], value)
+
+    def test_review_sentinel_is_compared_per_topic_and_field(self):
+        def prods(*entries):
+            return json.dumps(list(entries))
+        a_rev = {"topic": "a", "chewy_url": "REVIEW:https://chewy.example/a", "asin": "B0A"}
+        b_clean = {"topic": "b", "chewy_url": None, "asin": "B0B"}
+        base = prods(a_rev, b_clean)
+        # untouched, other edits, re-ordered, sentinel re-pointed: all fine
+        self.assertEqual(self.g.products_problems(base, base), [])
+        self.assertEqual(self.g.products_problems(
+            prods(b_clean, {**a_rev, "asin": "B0Z"}), base), [])
+        self.assertEqual(self.g.products_problems(prods(b_clean, a_rev), base), [])
+        self.assertEqual(self.g.products_problems(
+            prods(a_rev, b_clean, {"topic": "c", "chewy_url": None}), base), [])
+        self.assertEqual(self.g.products_problems(
+            prods({**a_rev, "chewy_url": "REVIEW:https://chewy.example/other"}, b_clean),
+            base), [], "same topic + field, new URL: not a new sentinel")
+        # moved to another topic (old one cleared): held
+        moved = prods({**a_rev, "chewy_url": None}, {**b_clean, "chewy_url": "REVIEW:https://x"})
+        self.assertTrue(self.g.products_problems(moved, base), "moved to topic b")
+        # same value on a new topic while the old one stays: held
+        both = prods(a_rev, {**b_clean, "chewy_url": a_rev["chewy_url"]})
+        self.assertTrue(self.g.products_problems(both, base), "copied to topic b")
+        # a brand-new topic carrying one: held
+        new_topic = prods(a_rev, b_clean, {"topic": "c", "chewy_url": "REVIEW"})
+        self.assertTrue(self.g.products_problems(new_topic, base), "new topic c")
+        # same topic, different field: held
+        other_field = prods({**a_rev, "image": "REVIEW:x"}, b_clean)
+        self.assertTrue(self.g.products_problems(other_field, base), "different field")
+        swapped = prods({**a_rev, "chewy_url": None, "image": "REVIEW:x"}, b_clean)
+        self.assertTrue(self.g.products_problems(swapped, base), "moved to another field")
+        # two entries with one topic name: the second sentinel is one more than the base has
+        twin = prods(a_rev, {**a_rev})
+        self.assertTrue(self.g.products_problems(twin, base), "duplicate topic, second sentinel")
+        # a sentinel in a dict KEY counts too
+        keyed = prods(a_rev, {**b_clean, "REVIEW:k": 1})
+        self.assertTrue(self.g.products_problems(keyed, base), "sentinel as a key")
+
+    def test_verdict_holds_a_products_pr_that_moves_a_review_sentinel(self):
+        base = '[{"topic": "a", "chewy_url": "REVIEW:x"}, {"topic": "b", "chewy_url": null}]'
+        head = '[{"topic": "a", "chewy_url": null}, {"topic": "b", "chewy_url": "REVIEW:x"}]'
+        files = [{"filename": "products.json", "status": "modified"}]
+        self.assertTrue(self.verdict(files=files, products_text=base,
+                                     base_products_text=base).ok)
+        self.assertFalse(self.verdict(files=files, products_text=head,
+                                      base_products_text=base).ok)
 
     def test_the_real_products_json_does_not_trip_the_parse_rules(self):
         text = (REPO / "products.json").read_text(encoding="utf-8")
@@ -6333,6 +6433,25 @@ class TestAutomergeGate(unittest.TestCase):
                 self.assertFalse(self.verdict(pr=pr).ok)
         for name in ("automerge", "no-automerge-please-not", "noautomerge", "keep"):
             with self.subTest(harmless=name):
+                pr = dict(self.good()["pr"], labels=[{"name": name}])
+                self.assertTrue(self.verdict(pr=pr).ok)
+
+    def test_opt_out_label_survives_unicode_lookalikes_and_invisible_characters(self):
+        dashes = ["\u2010", "\u2011", "\u2012", "\u2013", "\u2014", "\u2015", "\u2212",
+                  "\ufe63", "\uff0d"]
+        names = [f"no{d}automerge" for d in dashes]
+        names += ["no\u200b-automerge", "no-\u200bautomerge", "n\u200bo-automerge",
+                  "\u200bno-automerge", "no-automerge\ufeff", "no\u200d-automerge",
+                  "no\u2060-automerge", "no\u00ad-automerge", "no\u200b\u2010automerge",
+                  "\uff4e\uff4f-\uff41\uff55\uff54\uff4f\uff4d\uff45\uff52\uff47\uff45",
+                  "NO\u2014AUTOMERGE", "no\u00a0automerge", "no\u2003automerge"]
+        for name in names:
+            with self.subTest(repr(name)):
+                pr = dict(self.good()["pr"], labels=[{"name": name}])
+                self.assertFalse(self.verdict(pr=pr).ok, f"{name!r} must hold")
+        for name in ("no\u2010automerge-please", "no\u200bautomerge", "automerge",
+                     "no-automation", "\u2014automerge"):
+            with self.subTest(harmless=repr(name)):
                 pr = dict(self.good()["pr"], labels=[{"name": name}])
                 self.assertTrue(self.verdict(pr=pr).ok)
 

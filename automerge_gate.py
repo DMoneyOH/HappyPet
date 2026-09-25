@@ -23,7 +23,7 @@ Conditions (all required):
      symlink, executable or submodule (one recursive tree read).
   6. products.json is PARSED (not substring-searched): no decoded key or value, at any
      depth, may contain NEEDS_ASIN/NEEDS_IMAGE (a held placeholder still burns a
-     publish slot), and no `REVIEW`/`REVIEW:...` sentinel value may be newly introduced
+     publish slot), and no value starting `REVIEW` may be newly introduced (per topic + field)
      relative to the base (main already carries one legitimate REVIEW: chewy_url).
      Unparsable = hold.
   7. Each added `_pin_queue/<slug>.json` is fetched at the head SHA and validated by
@@ -50,6 +50,8 @@ import os
 import re
 import subprocess
 import sys
+import unicodedata
+from collections import Counter
 from pathlib import PurePosixPath
 from typing import NamedTuple
 
@@ -110,8 +112,17 @@ def path_allowed(path) -> bool:
     return isinstance(path, str) and any(p.fullmatch(path) for p in ALLOWED_PATHS)
 
 
+# U+2010-U+2015 (hyphen .. horizontal bar) and U+2212 (minus) all read as a dash to a human.
+_DASHES = dict.fromkeys([*range(0x2010, 0x2016), 0x2212], "-")
+
+
 def _label_key(name) -> str:
-    return re.sub(r"[\s_-]+", "-", str(name).strip().casefold())
+    """Compare-key for a label: NFKC, invisible format characters (category Cf: zero-width
+    space/joiner, BOM, soft hyphen, ...) dropped, Unicode dashes -> '-', then case-folded
+    with runs of space/_/- collapsed to one '-'."""
+    text = unicodedata.normalize("NFKC", str(name))
+    text = "".join(ch for ch in text if unicodedata.category(ch) != "Cf").translate(_DASHES)
+    return re.sub(r"[\s_-]+", "-", text.strip().casefold())
 
 
 def _text_problem(key: str, value) -> str | None:
@@ -181,7 +192,34 @@ def _strings(node, depth=0):
 
 
 def _is_review_sentinel(s: str) -> bool:
-    return s == "REVIEW" or s.startswith("REVIEW:")
+    # Same test the pipeline applies (generate_posts.py, validate_published_chewy_links.py):
+    # ANY value starting with REVIEW is a sentinel, not only REVIEW / REVIEW:<url>.
+    return s.startswith("REVIEW")
+
+
+def _review_sites(node, topic=None, path=(), depth=0, out=None) -> Counter:
+    """Where every REVIEW sentinel sits, as a multiset of (topic, field-path). The value is
+    not part of the key (a sentinel re-pointed at another URL is not a new sentinel), and
+    list positions are not either (re-ordering entries is not a move). `topic` is the
+    `topic` of the top-level entry the sentinel lives in, so a sentinel moved to another
+    topic, or carried by a new topic, is a different site."""
+    if out is None:
+        out = Counter()
+    if depth > 50:
+        raise ValueError("JSON nested too deeply")
+    if isinstance(node, str):
+        if _is_review_sentinel(node):
+            out[(topic, path)] += 1
+    elif isinstance(node, dict):
+        for k, v in node.items():
+            if _is_review_sentinel(k):
+                out[(topic, path + ("<key>",))] += 1
+            _review_sites(v, topic, path + (k,), depth + 1, out)
+    elif isinstance(node, list):
+        for v in node:
+            t = v.get("topic") if depth == 0 and isinstance(v, dict) else topic
+            _review_sites(v, t if isinstance(t, str) else None, path + ("[]",), depth + 1, out)
+    return out
 
 
 def products_problems(head_text, base_text) -> list:
@@ -190,27 +228,23 @@ def products_problems(head_text, base_text) -> list:
     if not isinstance(head_text, str):
         return ["products.json changed but its head content was not available"]
     try:
-        head = list(_strings(json.loads(head_text)))
+        head_json = json.loads(head_text)
+        head = list(_strings(head_json))
+        head_sites = _review_sites(head_json)
     except (ValueError, RecursionError):
         return ["products.json is not parseable JSON"]
     bad = []
     if any(m in s for s in head for m in PLACEHOLDER_MARKERS):
         bad.append("products.json still carries NEEDS_ASIN/NEEDS_IMAGE placeholders")
-    head_review = [s for s in head if _is_review_sentinel(s)]
-    if head_review:
+    if head_sites:
         try:
-            base_review = [s for s in _strings(json.loads(base_text))
-                           if _is_review_sentinel(s)] if isinstance(base_text, str) else None
+            base_sites = _review_sites(json.loads(base_text)) if isinstance(base_text, str) else None
         except (ValueError, RecursionError):
-            base_review = None
-        if base_review is None:
+            base_sites = None
+        if base_sites is None:
             bad.append("products.json has REVIEW sentinel(s) and the base is unreadable")
-        else:
-            for s in base_review:      # multiset difference: pre-existing ones are fine
-                if s in head_review:
-                    head_review.remove(s)
-            if head_review:
-                bad.append("products.json introduces a new REVIEW sentinel")
+        elif head_sites - base_sites:      # Counter difference: only sites beyond the base's
+            bad.append("products.json introduces a new REVIEW sentinel")
     return bad
 
 
