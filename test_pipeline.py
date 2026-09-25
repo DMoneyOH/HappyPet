@@ -5868,5 +5868,236 @@ class TestRefillSurvivesAMissingSharedSymbol(unittest.TestCase):
                         f"the failure was not logged: {lines}")
 
 
+def _load_automerge_gate():
+    import importlib.util
+    spec = importlib.util.spec_from_file_location(
+        "automerge_gate", REPO / "automerge_gate.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+class TestAutomergeGate(unittest.TestCase):
+    """automerge_gate.py -- decides which PRs the automerge workflow may merge.
+
+    The baseline below is the exact shape of routine Stage-1 PR #111 (author
+    DMoneyOH, performed_via_github_app.slug 'claude', three added files, green
+    pytest). Each case flips ONE thing and expects a hold, so a passing
+    baseline plus failing variants means every guard is actually load-bearing.
+    """
+
+    REPO_NAME = "DMoneyOH/HappyPet"
+    SHA = "a" * 40
+    SLUG = "best-odor-eliminators-pet-stains"
+
+    def setUp(self):
+        self.g = _load_automerge_gate()
+
+    def good(self):
+        return dict(
+            pr={"state": "open", "merged": False, "draft": False,
+                "base": {"ref": "main"},
+                "head": {"sha": self.SHA, "repo": {"full_name": self.REPO_NAME}},
+                "labels": []},
+            issue={"user": {"login": "DMoneyOH"},
+                   "performed_via_github_app": {"slug": "claude"}},
+            files=[{"filename": f"_posts/DRAFT-{self.SLUG}.md", "status": "added"},
+                   {"filename": f"_pin_queue/{self.SLUG}.json", "status": "added"},
+                   {"filename": f"assets/images/pins/{self.SLUG}.jpg", "status": "added"}],
+            check_runs=[{"name": "pytest", "status": "completed",
+                         "conclusion": "success", "app": {"slug": "github-actions"}}],
+            run_sha=self.SHA, repo=self.REPO_NAME, products_text=None)
+
+    def verdict(self, **over):
+        kw = self.good()
+        kw.update(over)
+        return self.g.evaluate(**kw)
+
+    def test_baseline_routine_pr_merges_and_publishes(self):
+        v = self.verdict()
+        self.assertTrue(v.ok, v.reasons)
+        self.assertTrue(v.publish)
+
+    def test_every_single_flip_is_a_hold(self):
+        def with_pr(**kv):
+            pr = self.good()["pr"]
+            pr.update(kv)
+            return {"pr": pr}
+
+        def with_issue(**kv):
+            i = self.good()["issue"]
+            i.update(kv)
+            return {"issue": i}
+
+        ok_check = {"name": "pytest", "status": "completed", "conclusion": "success",
+                    "app": {"slug": "github-actions"}}
+        other = {"name": "lint", "app": {"slug": "github-actions"}}
+        cases = {
+            "draft PR":            with_pr(draft=True),
+            "closed PR":           with_pr(state="closed"),
+            "already merged":      with_pr(merged=True, state="closed"),
+            "base is not main":    with_pr(base={"ref": "release"}),
+            "fork head":           with_pr(head={"sha": self.SHA,
+                                                 "repo": {"full_name": "evil/HappyPet"}}),
+            "head moved after CI": with_pr(head={"sha": "b" * 40,
+                                                 "repo": {"full_name": self.REPO_NAME}}),
+            "opt-out label":       with_pr(labels=[{"name": "no-automerge"}]),
+            "author is a stranger": with_issue(user={"login": "mallory"}),
+            "owner PR, no app (like #116)": with_issue(performed_via_github_app=None),
+            "other app":           with_issue(performed_via_github_app={"slug": "dependabot"}),
+            "claude-lookalike slug": with_issue(performed_via_github_app={"slug": "claude-evil"}),
+            "zero checks (vacuous green)": {"check_runs": []},
+            "pytest red":          {"check_runs": [{**ok_check, "conclusion": "failure"}]},
+            "pytest pending":      {"check_runs": [{**ok_check, "status": "in_progress",
+                                                    "conclusion": None}]},
+            "pytest cancelled":    {"check_runs": [{**ok_check, "conclusion": "cancelled"}]},
+            "pytest from a spoofing app": {"check_runs": [{**ok_check, "app": {"slug": "shady"}}]},
+            "other check pending": {"check_runs": [ok_check, {**other, "status": "queued",
+                                                              "conclusion": None}]},
+            "other check red":     {"check_runs": [ok_check, {**other, "status": "completed",
+                                                              "conclusion": "failure"}]},
+            "empty file list":     {"files": []},
+            "too many files":      {"files": [{"filename": f"_pin_queue/s{n}.json",
+                                               "status": "added"} for n in range(31)]},
+            "CI ran on another sha": {"run_sha": "c" * 40},
+        }
+        for name, over in cases.items():
+            with self.subTest(name):
+                v = self.verdict(**over)
+                self.assertFalse(v.ok, f"{name} must be held")
+                self.assertTrue(v.reasons)
+
+    def test_path_allowlist_case_table(self):
+        allowed = [
+            f"_posts/DRAFT-{self.SLUG}.md",
+            f"_pin_queue/{self.SLUG}.json",
+            "assets/images/pins/best-cat-trees-v2.jpg",
+            "products.json",
+        ]
+        held = [
+            "_posts/2026-09-24-best-odor-eliminators-pet-stains.md",  # live post, deploys directly
+            "_posts/sub/DRAFT-x.md",
+            "_posts/DRAFT-x.md.bak",
+            "_posts/DRAFT-X.md",                    # upper case is not a slug
+            "_posts/DRAFT-.md",
+            "_posts/DRAFT-x.md\n",                  # fullmatch, not $-anchored
+            "_pin_queue/sent/x.json",
+            "_pin_queue/.fired/x.fired",
+            "_pin_queue/.pending-slugs",
+            "_pin_queue/../generate_posts.py",
+            "assets/images/pins/x.png",
+            "assets/images/pins/sub/x.jpg",
+            "products.json.bak",
+            "sub/products.json",
+            ".github/workflows/publish.yml",
+            ".github/workflows/automerge.yml",
+            ".claude/skills/happypet-stage1/SKILL.md",
+            "automerge_gate.py",
+            "generate_posts.py",
+            "test_pipeline.py",
+            "_config.yml",
+            "",
+            None,
+        ]
+        for p in allowed:
+            with self.subTest(allowed=p):
+                self.assertTrue(self.g.path_allowed(p))
+        for p in held:
+            with self.subTest(held=p):
+                self.assertFalse(self.g.path_allowed(p))
+
+    def test_one_bad_file_among_good_ones_holds_the_whole_pr(self):
+        files = self.good()["files"] + [{"filename": "test_pipeline.py", "status": "modified"}]
+        v = self.verdict(files=files)
+        self.assertFalse(v.ok)
+        self.assertTrue(any("test_pipeline.py" in r for r in v.reasons))
+
+    def test_a_rename_out_of_a_protected_path_is_held(self):
+        """The new name looks fine; previous_filename is what exposes the source."""
+        files = self.good()["files"] + [
+            {"filename": "_posts/DRAFT-stolen.md", "status": "renamed",
+             "previous_filename": ".github/workflows/publish.yml"}]
+        self.assertFalse(self.verdict(files=files).ok)
+
+    def test_deleting_an_off_allowlist_file_is_held(self):
+        files = self.good()["files"] + [{"filename": "generate_posts.py", "status": "removed"}]
+        self.assertFalse(self.verdict(files=files).ok)
+
+    def test_products_json_only_with_no_placeholders_merges_without_publishing(self):
+        v = self.verdict(files=[{"filename": "products.json", "status": "modified"}],
+                         products_text='[{"topic": "best-a", "asin": "B0ABCD1234"}]')
+        self.assertTrue(v.ok, v.reasons)
+        self.assertFalse(v.publish, "a products.json merge must not publish a leftover draft")
+
+    def test_products_json_with_placeholders_or_unreadable_is_held(self):
+        for text in ('[{"asin": "NEEDS_ASIN"}]', '[{"image": "NEEDS_IMAGE"}]', None):
+            with self.subTest(text=text):
+                v = self.verdict(files=[{"filename": "products.json", "status": "modified"}],
+                                 products_text=text)
+                self.assertFalse(v.ok)
+
+    def test_pin_only_pr_merges_without_publishing(self):
+        v = self.verdict(files=[{"filename": f"_pin_queue/{self.SLUG}.json",
+                                 "status": "modified"}])
+        self.assertTrue(v.ok, v.reasons)
+        self.assertFalse(v.publish)
+
+    def test_publish_only_when_a_draft_is_added(self):
+        for status in ("modified", "removed"):
+            with self.subTest(status=status):
+                files = [{"filename": f"_posts/DRAFT-{self.SLUG}.md", "status": status}]
+                self.assertFalse(self.verdict(files=files).publish)
+
+    # ---- the workflow file itself: text-level guards, same style as the refill test
+
+    def wf(self):
+        return (REPO / ".github/workflows/automerge.yml").read_text(encoding="utf-8")
+
+    def wf_code(self):
+        return "\n".join(ln for ln in self.wf().splitlines()
+                         if not ln.lstrip().startswith("#"))
+
+    def test_workflow_never_uses_pull_request_target_or_checks_out_pr_code(self):
+        code = self.wf_code()
+        self.assertNotIn("pull_request_target", code)
+        self.assertIn("workflow_run:", code)
+        for forbidden in ("head.ref", "head_branch", "github.event.pull_request.head",
+                          "ref: ${{ github.event.workflow_run"):
+            self.assertNotIn(forbidden, code)
+        # exactly one checkout, and it is pinned to the default branch
+        self.assertEqual(code.count("actions/checkout@"), 1)
+        self.assertIn("ref: ${{ github.event.repository.default_branch }}", code)
+
+    def test_workflow_permissions_are_least_privilege(self):
+        code = self.wf_code()
+        self.assertIn("\npermissions: {}\n", code, "workflow-level default must be empty")
+        for perm in ("contents: write", "pull-requests: write", "checks: read", "actions: write"):
+            self.assertIn(perm, code)
+        for extra in ("issues:", "id-token", "packages:", "pages:", "write-all"):
+            self.assertNotIn(extra, code)
+
+    def test_workflow_actions_are_pinned_by_sha(self):
+        uses = [ln for ln in self.wf_code().splitlines() if "uses:" in ln]
+        self.assertTrue(uses, "the scan found no `uses:` line -- suspect the scan")
+        for ln in uses:
+            self.assertRegex(ln, r"@[0-9a-f]{40}\b", f"unpinned action: {ln.strip()}")
+
+    def test_workflow_is_gated_by_the_kill_switch_variable_and_ci_success(self):
+        code = self.wf_code()
+        self.assertIn("vars.AUTOMERGE_ENABLED == 'true'", code)
+        self.assertIn("github.event.workflow_run.conclusion == 'success'", code)
+        self.assertIn("github.event.workflow_run.head_repository.full_name == github.repository",
+                      code)
+        # the trigger names the CI workflow by its display name -- keep them in sync
+        self.assertIn('workflows: ["CI — Tests"]', code)
+        ci = (REPO / ".github/workflows/test.yml").read_text(encoding="utf-8")
+        self.assertTrue(ci.startswith("name: CI — Tests"))
+
+    def test_workflow_passes_untrusted_values_through_env_not_shell_text(self):
+        run_lines = [ln.strip() for ln in self.wf_code().splitlines()
+                     if ln.strip().startswith("run:")]
+        self.assertEqual(run_lines, ["run: python3 automerge_gate.py"])
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
