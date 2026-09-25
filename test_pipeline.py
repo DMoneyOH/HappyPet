@@ -5607,7 +5607,7 @@ class TestPublishedChewyLinkCoverage(unittest.TestCase):
         continuing to be quoted."""
         queued = set(self.v.load_products())
         live = {e["slug"] for e in self.entries if e["source"] == "front-matter"}
-        self.assertEqual(len(live), 8, sorted(live))
+        self.assertEqual(len(live), 9, sorted(live))
         self.assertEqual(queued & live, set())
 
     def test_a_queue_sourced_link_is_labelled_as_such(self):
