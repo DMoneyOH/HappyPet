@@ -6162,5 +6162,710 @@ class TestRefillSurvivesAMissingSharedSymbol(unittest.TestCase):
                         f"the failure was not logged: {lines}")
 
 
+def _load_automerge_gate():
+    import importlib.util
+    spec = importlib.util.spec_from_file_location(
+        "automerge_gate", REPO / "automerge_gate.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+class TestAutomergeGate(unittest.TestCase):
+    """automerge_gate.py -- decides which PRs the automerge workflow may merge.
+
+    The baseline below is the exact shape of routine Stage-1 PR #111 (author
+    DMoneyOH, performed_via_github_app.slug 'claude', three added files, green
+    pytest). Each case flips ONE thing and expects a hold, so a passing
+    baseline plus failing variants means every guard is actually load-bearing.
+    """
+
+    REPO_NAME = "DMoneyOH/HappyPet"
+    SHA = "a" * 40
+    SLUG = "best-odor-eliminators-pet-stains"
+
+    def setUp(self):
+        self.g = _load_automerge_gate()
+
+    def good(self):
+        return dict(
+            pr={"state": "open", "merged": False, "draft": False,
+                "base": {"ref": "main"},
+                "head": {"sha": self.SHA, "repo": {"full_name": self.REPO_NAME}},
+                "labels": []},
+            issue={"user": {"login": "DMoneyOH"},
+                   "performed_via_github_app": {"slug": "claude"}},
+            files=[{"filename": f"_posts/DRAFT-{self.SLUG}.md", "status": "added"},
+                   {"filename": f"_pin_queue/{self.SLUG}.json", "status": "added"},
+                   {"filename": f"assets/images/pins/{self.SLUG}.jpg", "status": "added"}],
+            check_runs=[{"name": "pytest", "status": "completed",
+                         "conclusion": "success", "app": {"slug": "github-actions"}}],
+            run_sha=self.SHA, repo=self.REPO_NAME, products_text=None)
+
+    def verdict(self, **over):
+        kw = self.good()
+        kw.update(over)
+        names = [f["filename"] for f in kw["files"]
+                 if isinstance(f, dict) and isinstance(f.get("filename"), str)]
+        if "modes" not in over:
+            kw["modes"] = {n: "100644" for n in names}
+        if "pin_texts" not in over:
+            kw["pin_texts"] = {n: json.dumps(self.pin_obj(slug=Path(n).stem))
+                               for n in names if n.startswith("_pin_queue/")}
+        return self.g.evaluate(**kw)
+
+    def test_baseline_routine_pr_merges_and_publishes(self):
+        v = self.verdict()
+        self.assertTrue(v.ok, v.reasons)
+        self.assertTrue(v.publish)
+
+    def test_every_single_flip_is_a_hold(self):
+        def with_pr(**kv):
+            pr = self.good()["pr"]
+            pr.update(kv)
+            return {"pr": pr}
+
+        def with_issue(**kv):
+            i = self.good()["issue"]
+            i.update(kv)
+            return {"issue": i}
+
+        ok_check = {"name": "pytest", "status": "completed", "conclusion": "success",
+                    "app": {"slug": "github-actions"}}
+        other = {"name": "lint", "app": {"slug": "github-actions"}}
+        cases = {
+            "draft PR":            with_pr(draft=True),
+            "closed PR":           with_pr(state="closed"),
+            "already merged":      with_pr(merged=True, state="closed"),
+            "base is not main":    with_pr(base={"ref": "release"}),
+            "fork head":           with_pr(head={"sha": self.SHA,
+                                                 "repo": {"full_name": "evil/HappyPet"}}),
+            "head moved after CI": with_pr(head={"sha": "b" * 40,
+                                                 "repo": {"full_name": self.REPO_NAME}}),
+            "opt-out label":       with_pr(labels=[{"name": "no-automerge"}]),
+            "author is a stranger": with_issue(user={"login": "mallory"}),
+            "owner PR, no app (like #116)": with_issue(performed_via_github_app=None),
+            "other app":           with_issue(performed_via_github_app={"slug": "dependabot"}),
+            "claude-lookalike slug": with_issue(performed_via_github_app={"slug": "claude-evil"}),
+            "zero checks (vacuous green)": {"check_runs": []},
+            "pytest red":          {"check_runs": [{**ok_check, "conclusion": "failure"}]},
+            "pytest pending":      {"check_runs": [{**ok_check, "status": "in_progress",
+                                                    "conclusion": None}]},
+            "pytest cancelled":    {"check_runs": [{**ok_check, "conclusion": "cancelled"}]},
+            "pytest from a spoofing app": {"check_runs": [{**ok_check, "app": {"slug": "shady"}}]},
+            "other check pending": {"check_runs": [ok_check, {**other, "status": "queued",
+                                                              "conclusion": None}]},
+            "other check red":     {"check_runs": [ok_check, {**other, "status": "completed",
+                                                              "conclusion": "failure"}]},
+            "empty file list":     {"files": []},
+            "too many files":      {"files": [{"filename": f"_pin_queue/s{n}.json",
+                                               "status": "added"} for n in range(31)]},
+            "CI ran on another sha": {"run_sha": "c" * 40},
+        }
+        for name, over in cases.items():
+            with self.subTest(name):
+                v = self.verdict(**over)
+                self.assertFalse(v.ok, f"{name} must be held")
+                self.assertTrue(v.reasons)
+
+    def test_path_allowlist_case_table(self):
+        allowed = [
+            f"_posts/DRAFT-{self.SLUG}.md",
+            f"_pin_queue/{self.SLUG}.json",
+            "assets/images/pins/best-cat-trees-v2.jpg",
+            "products.json",
+        ]
+        held = [
+            "_posts/2026-09-24-best-odor-eliminators-pet-stains.md",  # live post, deploys directly
+            "_posts/sub/DRAFT-x.md",
+            "_posts/DRAFT-x.md.bak",
+            "_posts/DRAFT-X.md",                    # upper case is not a slug
+            "_posts/DRAFT-.md",
+            "_posts/DRAFT-x.md\n",                  # fullmatch, not $-anchored
+            "_pin_queue/sent/x.json",
+            "_pin_queue/.fired/x.fired",
+            "_pin_queue/.pending-slugs",
+            "_pin_queue/../generate_posts.py",
+            "assets/images/pins/x.png",
+            "assets/images/pins/sub/x.jpg",
+            "products.json.bak",
+            "sub/products.json",
+            ".github/workflows/publish.yml",
+            ".github/workflows/automerge.yml",
+            ".claude/skills/happypet-stage1/SKILL.md",
+            "automerge_gate.py",
+            "generate_posts.py",
+            "test_pipeline.py",
+            "_config.yml",
+            "",
+            None,
+        ]
+        for p in allowed:
+            with self.subTest(allowed=p):
+                self.assertTrue(self.g.path_allowed(p))
+        for p in held:
+            with self.subTest(held=p):
+                self.assertFalse(self.g.path_allowed(p))
+
+    def test_one_bad_file_among_good_ones_holds_the_whole_pr(self):
+        files = self.good()["files"] + [{"filename": "test_pipeline.py", "status": "modified"}]
+        v = self.verdict(files=files)
+        self.assertFalse(v.ok)
+        self.assertTrue(any("test_pipeline.py" in r for r in v.reasons))
+
+    def test_a_rename_out_of_a_protected_path_is_held(self):
+        """The new name looks fine; previous_filename is what exposes the source."""
+        files = self.good()["files"] + [
+            {"filename": "_posts/DRAFT-stolen.md", "status": "renamed",
+             "previous_filename": ".github/workflows/publish.yml"}]
+        self.assertFalse(self.verdict(files=files).ok)
+
+    def test_an_off_allowlist_rename_source_is_held_even_if_status_lies(self):
+        """Defence in depth under the status rule: previous_filename is checked on its own."""
+        for prev in (".github/workflows/publish.yml", "generate_posts.py", 5, ""):
+            with self.subTest(prev=prev):
+                files = self.good()["files"] + [
+                    {"filename": "products.json", "status": "modified", "previous_filename": prev}]
+                self.assertFalse(self.verdict(files=files, products_text="[]",
+                                              base_products_text="[]").ok)
+
+    def test_deleting_an_off_allowlist_file_is_held(self):
+        files = self.good()["files"] + [{"filename": "generate_posts.py", "status": "removed"}]
+        self.assertFalse(self.verdict(files=files).ok)
+
+    def test_products_json_only_with_no_placeholders_merges_without_publishing(self):
+        v = self.verdict(files=[{"filename": "products.json", "status": "modified"}],
+                         products_text='[{"topic": "best-a", "asin": "B0ABCD1234"}]',
+                         base_products_text="[]")
+        self.assertTrue(v.ok, v.reasons)
+        self.assertFalse(v.publish, "a products.json merge must not publish a leftover draft")
+
+    def test_products_json_with_placeholders_or_unreadable_is_held(self):
+        for text in ('[{"asin": "NEEDS_ASIN"}]', '[{"image": "NEEDS_IMAGE"}]', None):
+            with self.subTest(text=text):
+                v = self.verdict(files=[{"filename": "products.json", "status": "modified"}],
+                                 products_text=text)
+                self.assertFalse(v.ok)
+
+    def test_pin_only_pr_merges_without_publishing(self):
+        v = self.verdict(files=[{"filename": f"_pin_queue/{self.SLUG}.json",
+                                 "status": "added"}])
+        self.assertTrue(v.ok, v.reasons)
+        self.assertFalse(v.publish)
+
+    def test_publish_only_when_a_draft_is_added(self):
+        for status in ("modified", "removed"):
+            with self.subTest(status=status):
+                files = [{"filename": f"_posts/DRAFT-{self.SLUG}.md", "status": status}]
+                self.assertFalse(self.verdict(files=files).publish)
+
+    # ---- fix round (Verifier findings F1-F7) ---------------------------------------
+
+    PIN_PATH = f"_pin_queue/{SLUG}.json"
+
+    def pin_obj(self, **over):
+        d = {"title": "Fresh Home, Happy Pets: Top Odor Eliminators for Pet Stains",
+             "article_url": ("https://happypetproductreviews.com/pet-grooming/"
+                             f"best-odor-eliminators-pet-stains/?utm_source=pinterest"
+                             "&utm_medium=social&utm_campaign=pin"),
+             "description": "An enzyme spray that actually removes pet urine smell.",
+             "image_url": ("https://happypetproductreviews.com/assets/images/pins/"
+                           f"{self.SLUG}.jpg?v=20260924"),
+             "species": "both", "slug": self.SLUG,
+             "topical_sheet": "HAPPYPET_SHEET_ID_HOME"}
+        d.update(over)
+        return d
+
+    def pin_text(self, **over):
+        return json.dumps(self.pin_obj(**over), indent=2)
+
+    def pin_verdict(self, text):
+        return self.verdict(pin_texts={self.PIN_PATH: text})
+
+    # F1: pin JSON content ------------------------------------------------------------
+
+    def test_a_real_looking_pin_file_passes(self):
+        self.assertEqual(self.g.pin_problems(self.PIN_PATH, self.pin_text()), [])
+
+    def test_all_38_real_historical_pin_files_pass_the_validator(self):
+        """Inverse direction: an alarm that fires on ordinary traffic gets ignored.
+        Every real file the pipeline has ever produced must validate."""
+        files = sorted((REPO / "_pin_queue" / "sent").glob("*.json"))
+        self.assertGreater(len(files), 30, "suspect the glob, not the repo")
+        for f in files:
+            with self.subTest(f.name):
+                self.assertEqual(
+                    self.g.pin_problems(f"_pin_queue/{f.stem}.json",
+                                        f.read_text(encoding="utf-8")), [])
+
+    def test_pin_injection_payload_table_is_held(self):
+        url = "https://happypetproductreviews.com/pet-grooming/best-x/"
+        base = "https://happypetproductreviews.com/pet-grooming/best-odor-eliminators-pet-stains/"
+        payloads = {
+            "newline then second output line (Tessa repro)": {"article_url": url + "\nslugs=evil"},
+            "trailing newline": {"article_url": url + "\n"},
+            "CRLF": {"article_url": url + "\r\nslugs=evil"},
+            "quote-semicolon-echo": {"article_url": url + '"; echo pwned; echo "'},
+            "command substitution": {"article_url": url + "$(id)"},
+            "backtick": {"article_url": url + "`id`"},
+            "semicolon in path": {"article_url": url + ";id"},
+            "different query": {"article_url": base + "?utm_source=x&a=1"},
+            "extra query after utm": {"article_url": base + "?utm_source=pinterest&utm_medium="
+                                      "social&utm_campaign=pin&x=1"},
+            "fragment": {"article_url": base + "#x"},
+            "http scheme": {"article_url": base.replace("https", "http")},
+            "other host": {"article_url": "https://evil.example/pet-grooming/best-x/"},
+            "host suffix trick": {"article_url": "https://happypetproductreviews.com.evil.io/a/b/"},
+            "userinfo trick": {"article_url": "https://happypetproductreviews.com@evil.io/a/b/"},
+            "dot-dot path": {"article_url": "https://happypetproductreviews.com/a/../b/"},
+            "curl option": {"article_url": "-o /tmp/x"},
+            "url is a list": {"article_url": [url]},
+            "url is null": {"article_url": None},
+            "image newline": {"image_url": "https://happypetproductreviews.com/assets/images/"
+                                           "pins/x.jpg\nslugs=evil"},
+            "image other host": {"image_url": "https://evil.example/assets/images/pins/x.jpg"},
+            "image wrong ext": {"image_url": "https://happypetproductreviews.com/assets/"
+                                             "images/pins/x.svg"},
+            "title newline": {"title": "ok\nslugs=evil"},
+            "title CRLF": {"title": "ok\r\nx"},
+            "title quote": {"title": 'say "hi"'},
+            "title backtick": {"title": "a `b`"},
+            "title backslash": {"title": "a\\nb"},
+            "title angle": {"title": "<script>x"},
+            "title spreadsheet formula": {"title": "=HYPERLINK(\"x\")"},
+            "title plus formula": {"title": "+1+1"},
+            "title line separator": {"title": "a\u2028b"},
+            "title too long": {"title": "a" * 301},
+            "title empty": {"title": ""},
+            "description NUL": {"description": "a\x00b"},
+            "description tab": {"description": "a\tb"},
+            "description too long": {"description": "a" * 1001},
+            "slug not the file name": {"slug": "best-other"},
+            "slug traversal": {"slug": "../x"},
+            "species bad": {"species": "dog\nx"},
+            "sheet bad": {"topical_sheet": "HAPPYPET_SHEET_ID_HOME\nx"},
+            "unknown key": {"evil": "x"},
+        }
+        for name, over in payloads.items():
+            with self.subTest(name):
+                problems = self.g.pin_problems(self.PIN_PATH, self.pin_text(**over))
+                self.assertTrue(problems, f"{name} must be held")
+                self.assertFalse(self.pin_verdict(self.pin_text(**over)).ok)
+
+    def test_pin_structure_problems_are_held(self):
+        good = self.pin_obj()
+        cases = {
+            "not JSON": "{nope",
+            "empty": "",
+            "list": "[]",
+            "string": '"x"',
+            "null": "null",
+            "missing title": json.dumps({k: v for k, v in good.items() if k != "title"}),
+            "missing article_url": json.dumps({k: v for k, v in good.items() if k != "article_url"}),
+            "missing slug": json.dumps({k: v for k, v in good.items() if k != "slug"}),
+            "too big": json.dumps({**good, "description": "a" * 900}) + " " * 4200,
+            "None content": None,
+        }
+        for name, text in cases.items():
+            with self.subTest(name):
+                self.assertTrue(self.g.pin_problems(self.PIN_PATH, text))
+        self.assertFalse(self.verdict(pin_texts={}).ok, "unfetched pin content must hold")
+        self.assertFalse(self.verdict(pin_texts={self.PIN_PATH: None}).ok)
+
+    def test_legitimate_pin_variations_are_not_falsely_held(self):
+        variants = [
+            {"article_url": "https://happypetproductreviews.com/pet-grooming/best-x/"},
+            {"image_url": "https://happypetproductreviews.com/assets/images/pins/x.jpg"},
+            {"image_url": "https://happypetproductreviews.com/assets/images/pins/x-v2.jpg"
+                          "?v=20260101"},
+            {"image_url": "https://m.media-amazon.com/images/I/71gSvAen4NL._AC_SX425_.jpg"
+                          "?v=20260419"},
+            {"topical_sheet": None},
+            {"description": "Costs $20 | it's great \u2011 really"},
+            {"title": "Pawsitively Protected: The Best Dog Boots for Hot Pavement"},
+        ]
+        for over in variants:
+            with self.subTest(over):
+                self.assertEqual(self.g.pin_problems(self.PIN_PATH, self.pin_text(**over)), [])
+
+    # Tessa re-check: mutants that survived because nothing pinned them ---------------
+
+    def test_pin_host_dot_is_literal_not_a_wildcard(self):
+        """`_SITE` must escape the dot: `happypetproductreviewsXcom` is another host."""
+        for host in ("happypetproductreviewsXcom", "happypetproductreviews-com",
+                     "happypetproductreviews_com", "happypetproductreviews com"):
+            with self.subTest(host=host):
+                url = f"https://{host}/pet-grooming/best-x/"
+                self.assertTrue(self.g.pin_problems(self.PIN_PATH,
+                                                    self.pin_text(article_url=url)))
+                img = f"https://{host}/assets/images/pins/x.jpg"
+                self.assertTrue(self.g.pin_problems(self.PIN_PATH,
+                                                    self.pin_text(image_url=img)))
+
+    def test_pin_text_starting_with_a_formula_leader_is_held_even_after_whitespace(self):
+        for key in ("title", "description"):
+            for value in ("@SUM(1)", " @SUM(1)", "-1+1", " -1+1", "=1+1", " =1+1", "+1", " +1",
+                          "ok ", " ok"):
+                with self.subTest(key=key, value=value):
+                    self.assertTrue(self.g.pin_problems(self.PIN_PATH,
+                                                        self.pin_text(**{key: value})))
+        for key in ("title", "description"):     # inverse: an @ or - INSIDE the text is fine
+            with self.subTest(inside=key):
+                self.assertEqual(self.g.pin_problems(
+                    self.PIN_PATH, self.pin_text(**{key: "Dogs - cats @ home, 2-pack"})), [])
+
+    def test_pin_size_cap_boundary_is_exactly_4096_bytes(self):
+        base = self.pin_text()
+        for size, ok in ((4095, True), (4096, True), (4097, False)):
+            with self.subTest(size=size):
+                text = base + " " * (size - len(base.encode("utf-8")))
+                self.assertEqual(len(text.encode("utf-8")), size)
+                self.assertEqual(self.g.pin_problems(self.PIN_PATH, text) == [], ok)
+
+    def test_pin_size_cap_counts_bytes_not_characters(self):
+        obj = self.pin_obj(title="\u00e9" * 300, description="\u00e9" * 1000)
+        text = json.dumps(obj, ensure_ascii=False)
+        text += " " * (4090 - len(text))
+        self.assertLess(len(text), 4096)
+        self.assertGreater(len(text.encode("utf-8")), 4096)
+        self.assertTrue(self.g.pin_problems(self.PIN_PATH, text))
+
+    # F2: products.json is parsed, not substring-searched ------------------------------
+
+    def test_json_escaped_placeholder_cannot_bypass_the_parse(self):
+        escaped = '[{"topic": "best-x", "asin": "\\u004eEEDS_ASIN"}]'
+        self.assertNotIn("NEEDS_ASIN", escaped, "the fixture must defeat a raw substring search")
+        self.assertTrue(self.g.products_problems(escaped, escaped))
+        cases = {
+            "escaped image": '[{"image": "\\u004EEEDS_IMAGE"}]',
+            "escaped inside url": '[{"affiliate_url": "https://a/dp/NEEDS_\\u0041SIN?tag=x"}]',
+            "nested value": '[{"a": {"b": [{"c": "NEEDS_ASIN"}]}}]',
+            "as a key": '[{"NEEDS_IMAGE": "x"}]',
+            "escaped key": '{"\\u004eEEDS_ASIN": 1}',
+            "top-level string": '"NEEDS_ASIN"',
+        }
+        for name, text in cases.items():
+            with self.subTest(name):
+                self.assertTrue(self.g.products_problems(text, "[]"), name)
+
+    def test_unparsable_products_json_is_held(self):
+        for text in ("{nope", "", "[", "[]]", "NaN garbage", None):
+            with self.subTest(text=text):
+                self.assertTrue(self.g.products_problems(text, "[]"))
+        deep = "[" * 200 + "]" * 200
+        self.assertTrue(self.g.products_problems(deep, "[]"))
+
+    def test_review_sentinel_only_blocks_when_newly_introduced(self):
+        old = '[{"topic": "a", "chewy_url": "REVIEW:https://chewy.example/x"}]'
+        self.assertEqual(self.g.products_problems(old, old), [], "pre-existing sentinel is fine")
+        new = ('[{"topic": "a", "chewy_url": "REVIEW:https://chewy.example/x"},'
+               ' {"topic": "b", "chewy_url": "REVIEW"}]')
+        self.assertTrue(self.g.products_problems(new, old))
+        self.assertTrue(self.g.products_problems(new, "[]"))
+        self.assertTrue(self.g.products_problems(old, None), "unreadable base + sentinel = hold")
+        self.assertTrue(self.g.products_problems(old, "{broken"))
+        escaped = '[{"chewy_url": "\\u0052EVIEW:https://x"}]'
+        self.assertTrue(self.g.products_problems(escaped, "[]"))
+        prose = '[{"chewy_note": "UNVERIFIED: chewy_url is a REVIEW: sentinel"}]'
+        self.assertEqual(self.g.products_problems(prose, "[]"), [], "prose is not a sentinel")
+
+    def test_review_sentinel_is_anything_starting_with_review_like_the_pipeline(self):
+        """generate_posts.py / validate_published_chewy_links.py use startswith("REVIEW")."""
+        for value in ("REVIEW", "REVIEW:https://x", "REVIEW-x", "REVIEWED", "REVIEW https://x",
+                      "REVIEW\u00a0x", "REVIEW_"):
+            with self.subTest(value=value):
+                text = json.dumps([{"topic": "a", "chewy_url": value}])
+                self.assertTrue(self.g.products_problems(text, "[]"), value)
+        for value in ("review", "Review:x", "UNREVIEW", " REVIEW", "x REVIEW", "", None, 5):
+            with self.subTest(harmless=value):
+                text = json.dumps([{"topic": "a", "chewy_url": value}])
+                self.assertEqual(self.g.products_problems(text, "[]"), [], value)
+
+    def test_review_sentinel_is_compared_per_topic_and_field(self):
+        def prods(*entries):
+            return json.dumps(list(entries))
+        a_rev = {"topic": "a", "chewy_url": "REVIEW:https://chewy.example/a", "asin": "B0A"}
+        b_clean = {"topic": "b", "chewy_url": None, "asin": "B0B"}
+        base = prods(a_rev, b_clean)
+        # untouched, other edits, re-ordered, sentinel re-pointed: all fine
+        self.assertEqual(self.g.products_problems(base, base), [])
+        self.assertEqual(self.g.products_problems(
+            prods(b_clean, {**a_rev, "asin": "B0Z"}), base), [])
+        self.assertEqual(self.g.products_problems(prods(b_clean, a_rev), base), [])
+        self.assertEqual(self.g.products_problems(
+            prods(a_rev, b_clean, {"topic": "c", "chewy_url": None}), base), [])
+        self.assertEqual(self.g.products_problems(
+            prods({**a_rev, "chewy_url": "REVIEW:https://chewy.example/other"}, b_clean),
+            base), [], "same topic + field, new URL: not a new sentinel")
+        # moved to another topic (old one cleared): held
+        moved = prods({**a_rev, "chewy_url": None}, {**b_clean, "chewy_url": "REVIEW:https://x"})
+        self.assertTrue(self.g.products_problems(moved, base), "moved to topic b")
+        # same value on a new topic while the old one stays: held
+        both = prods(a_rev, {**b_clean, "chewy_url": a_rev["chewy_url"]})
+        self.assertTrue(self.g.products_problems(both, base), "copied to topic b")
+        # a brand-new topic carrying one: held
+        new_topic = prods(a_rev, b_clean, {"topic": "c", "chewy_url": "REVIEW"})
+        self.assertTrue(self.g.products_problems(new_topic, base), "new topic c")
+        # same topic, different field: held
+        other_field = prods({**a_rev, "image": "REVIEW:x"}, b_clean)
+        self.assertTrue(self.g.products_problems(other_field, base), "different field")
+        swapped = prods({**a_rev, "chewy_url": None, "image": "REVIEW:x"}, b_clean)
+        self.assertTrue(self.g.products_problems(swapped, base), "moved to another field")
+        # two entries with one topic name: the second sentinel is one more than the base has
+        twin = prods(a_rev, {**a_rev})
+        self.assertTrue(self.g.products_problems(twin, base), "duplicate topic, second sentinel")
+        # a sentinel in a dict KEY counts too
+        keyed = prods(a_rev, {**b_clean, "REVIEW:k": 1})
+        self.assertTrue(self.g.products_problems(keyed, base), "sentinel as a key")
+
+    def test_verdict_holds_a_products_pr_that_moves_a_review_sentinel(self):
+        base = '[{"topic": "a", "chewy_url": "REVIEW:x"}, {"topic": "b", "chewy_url": null}]'
+        head = '[{"topic": "a", "chewy_url": null}, {"topic": "b", "chewy_url": "REVIEW:x"}]'
+        files = [{"filename": "products.json", "status": "modified"}]
+        self.assertTrue(self.verdict(files=files, products_text=base,
+                                     base_products_text=base).ok)
+        self.assertFalse(self.verdict(files=files, products_text=head,
+                                      base_products_text=base).ok)
+
+    def test_the_real_products_json_does_not_trip_the_parse_rules(self):
+        text = (REPO / "products.json").read_text(encoding="utf-8")
+        reasons = self.g.products_problems(text, text)
+        self.assertFalse([r for r in reasons if "parseable" in r or "REVIEW" in r], reasons)
+
+    def test_verdict_holds_a_products_pr_with_an_escaped_placeholder(self):
+        v = self.verdict(files=[{"filename": "products.json", "status": "modified"}],
+                         products_text='[{"asin": "\\u004eEEDS_ASIN"}]', base_products_text="[]")
+        self.assertFalse(v.ok)
+
+    # F3: the exact merge and dispatch commands ----------------------------------------
+
+    def run_process(self, **over):
+        """Run process() end to end against a fake gh; return (rc, gh calls made)."""
+        kw = self.good()
+        kw.update(over)
+        calls = []
+        pulls = [dict(kw["pr"], base={"ref": "main", "sha": "d" * 40})]
+
+        def fake_json(*args):
+            if args[1].endswith("/issues/117"):
+                return kw["issue"]
+            return pulls.pop(0) if pulls else {"merged": True}
+
+        g = self.g
+        with patch.object(g, "gh", lambda *a: calls.append(list(a)) or ""), \
+             patch.object(g, "gh_json", fake_json), \
+             patch.object(g, "fetch_files", lambda *a: kw["files"]), \
+             patch.object(g, "fetch_check_runs", lambda *a: kw["check_runs"]), \
+             patch.object(g, "fetch_text", lambda repo, path, ref:
+                          self.pin_text() if path.startswith("_pin_queue/") else "[]"), \
+             patch.object(g, "fetch_modes", lambda *a: {f["filename"]: "100644"
+                                                        for f in kw["files"]}), \
+             patch.object(g, "summary", lambda *_: None):
+            rc = g.process(self.REPO_NAME, 117, kw["run_sha"], dry_run=False)
+        return rc, calls
+
+    def test_the_exact_merge_and_publish_commands_are_pinned(self):
+        rc, calls = self.run_process()
+        self.assertEqual(rc, 0)
+        self.assertEqual(calls, [
+            ["pr", "merge", "117", "--repo", self.REPO_NAME, "--merge",
+             "--match-head-commit", self.SHA],
+            ["workflow", "run", "publish.yml", "--repo", self.REPO_NAME, "--ref", "main"],
+        ])
+        flat = " ".join(" ".join(c) for c in calls)
+        for forbidden in ("--admin", "--auto", "--delete-branch", "--squash", "--rebase"):
+            self.assertNotIn(forbidden, flat)
+
+    def test_a_held_pr_makes_no_write_call_at_all(self):
+        draft = dict(self.good()["pr"], draft=True)
+        rc, calls = self.run_process(pr=draft)
+        self.assertEqual(rc, 0)
+        self.assertEqual(calls, [])
+
+    def test_an_unexpected_exception_in_the_gate_fails_closed(self):
+        def boom(*a, **k):
+            raise RuntimeError("unforeseen shape")
+        with patch.object(self.g, "evaluate", boom):
+            rc, calls = self.run_process()
+        self.assertEqual(rc, 0)
+        self.assertEqual(calls, [], "a gate error must never reach the merge")
+
+    def test_a_products_only_merge_does_not_dispatch_publish(self):
+        rc, calls = self.run_process(files=[{"filename": "products.json", "status": "modified"}])
+        self.assertEqual(rc, 0)
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(calls[0][:2], ["pr", "merge"])
+
+    # F4: only 'added' for the draft, pin image and pin JSON ---------------------------
+
+    def test_only_added_is_mergeable_for_draft_pin_image_and_pin_json(self):
+        paths = [f"_posts/DRAFT-{self.SLUG}.md", self.PIN_PATH,
+                 f"assets/images/pins/{self.SLUG}.jpg"]
+        for path in paths:
+            for status in ("modified", "removed", "renamed", "changed", "copied", None, "ADDED"):
+                with self.subTest(path=path, status=status):
+                    files = [f for f in self.good()["files"] if f["filename"] != path]
+                    files.append({"filename": path, "status": status})
+                    self.assertFalse(self.verdict(files=files).ok)
+
+    def test_products_json_may_be_modified_but_not_removed_or_renamed(self):
+        for status, ok in (("modified", True), ("added", True), ("removed", False),
+                           ("renamed", False)):
+            with self.subTest(status):
+                v = self.verdict(files=[{"filename": "products.json", "status": status}],
+                                 products_text="[]", base_products_text="[]")
+                self.assertEqual(v.ok, ok, v.reasons)
+
+    # F5: label normalisation --------------------------------------------------------
+
+    def test_opt_out_label_matches_however_it_is_spelled(self):
+        for name in ("no-automerge", "No-Automerge", "NO-AUTOMERGE", " no-automerge ",
+                     "no_automerge", "no automerge", "No Automerge", "no--automerge",
+                     "no-_automerge", "no\tautomerge"):
+            with self.subTest(name):
+                pr = dict(self.good()["pr"], labels=[{"name": name}])
+                self.assertFalse(self.verdict(pr=pr).ok)
+        for name in ("automerge", "no-automerge-please-not", "noautomerge", "keep"):
+            with self.subTest(harmless=name):
+                pr = dict(self.good()["pr"], labels=[{"name": name}])
+                self.assertTrue(self.verdict(pr=pr).ok)
+
+    def test_opt_out_label_survives_unicode_lookalikes_and_invisible_characters(self):
+        dashes = ["\u2010", "\u2011", "\u2012", "\u2013", "\u2014", "\u2015", "\u2212",
+                  "\ufe63", "\uff0d"]
+        names = [f"no{d}automerge" for d in dashes]
+        names += ["no\u200b-automerge", "no-\u200bautomerge", "n\u200bo-automerge",
+                  "\u200bno-automerge", "no-automerge\ufeff", "no\u200d-automerge",
+                  "no\u2060-automerge", "no\u00ad-automerge", "no\u200b\u2010automerge",
+                  "\uff4e\uff4f-\uff41\uff55\uff54\uff4f\uff4d\uff45\uff52\uff47\uff45",
+                  "NO\u2014AUTOMERGE", "no\u00a0automerge", "no\u2003automerge"]
+        for name in names:
+            with self.subTest(repr(name)):
+                pr = dict(self.good()["pr"], labels=[{"name": name}])
+                self.assertFalse(self.verdict(pr=pr).ok, f"{name!r} must hold")
+        for name in ("no\u2010automerge-please", "no\u200bautomerge", "automerge",
+                     "no-automation", "\u2014automerge"):
+            with self.subTest(harmless=repr(name)):
+                pr = dict(self.good()["pr"], labels=[{"name": name}])
+                self.assertTrue(self.verdict(pr=pr).ok)
+
+    def test_a_malformed_label_entry_does_not_crash_or_disarm_the_opt_out(self):
+        pr = dict(self.good()["pr"], labels=[None, "No-Automerge", {"name": None}])
+        self.assertFalse(self.verdict(pr=pr).ok)
+
+    # F6: malformed entries fail closed ----------------------------------------------
+
+    def test_malformed_file_entries_are_held_not_skipped(self):
+        for bad in (None, "x", 5, {}, {"status": "added"}, {"filename": None, "status": "added"},
+                    {"filename": 123, "status": "added"}, {"filename": "", "status": "added"},
+                    {"filename": ["a"], "status": "added"}):
+            with self.subTest(bad=bad):
+                v = self.verdict(files=self.good()["files"] + [bad])
+                self.assertFalse(v.ok)
+                self.assertTrue(any("malformed" in r for r in v.reasons), v.reasons)
+        files = self.good()["files"] + [{"filename": "products.json", "status": "modified",
+                                         "previous_filename": 5}]
+        self.assertFalse(self.verdict(files=files, products_text="[]").ok)
+
+    def test_malformed_check_entries_fail_closed_with_a_clear_reason(self):
+        ok = self.good()["check_runs"][0]
+        for runs in ([None], [ok, None], [ok, "pytest"], [ok, 5], [ok, []]):
+            with self.subTest(runs=runs):
+                v = self.verdict(check_runs=runs)
+                self.assertFalse(v.ok)
+                self.assertTrue(any("malformed check entry" in r for r in v.reasons), v.reasons)
+
+    def test_a_check_entry_missing_its_app_is_held_not_a_crash(self):
+        ok = self.good()["check_runs"][0]
+        v = self.verdict(check_runs=[{k: val for k, val in ok.items() if k != "app"}])
+        self.assertFalse(v.ok)
+
+    # F7: symlink / executable / submodule ---------------------------------------------
+
+    def test_only_regular_files_pass_the_mode_check(self):
+        draft = f"_posts/DRAFT-{self.SLUG}.md"
+        for mode in ("120000", "100755", "160000", "040000", None, ""):
+            with self.subTest(mode=mode):
+                modes = {f["filename"]: "100644" for f in self.good()["files"]}
+                modes[draft] = mode
+                self.assertFalse(self.verdict(modes=modes).ok)
+        self.assertFalse(self.verdict(modes=None).ok, "an unreadable tree must hold")
+        self.assertFalse(self.verdict(modes={}).ok, "a path missing from the tree must hold")
+
+    def test_a_truncated_tree_read_holds(self):
+        with patch.object(self.g, "gh_json", lambda *a: {"truncated": True, "tree": []}):
+            self.assertIsNone(self.g.fetch_modes(self.REPO_NAME, self.SHA))
+        tree = {"truncated": False, "tree": [
+            {"path": "a.md", "type": "blob", "mode": "100644"},
+            {"path": "link", "type": "blob", "mode": "120000"},
+            {"path": "sub", "type": "commit", "mode": "160000"},
+            {"path": "dir", "type": "tree", "mode": "040000"}]}
+        with patch.object(self.g, "gh_json", lambda *a: tree):
+            self.assertEqual(self.g.fetch_modes(self.REPO_NAME, self.SHA),
+                             {"a.md": "100644", "link": "120000"})
+
+    # log-injection guard on attacker-controlled names echoed in reasons ---------------
+
+    def test_summary_output_is_one_sanitised_line(self):
+        import io
+        from contextlib import redirect_stdout
+        buf = io.StringIO()
+        with redirect_stdout(buf):
+            self.g.summary("PR #1: left for a human -- path not on allowlist: a\n::add-mask::b\r\n")
+        out = buf.getvalue()
+        self.assertEqual(out.count("\n"), 1)
+        self.assertTrue(out.startswith("PR #1:"))
+
+    # ---- the workflow file itself: text-level guards, same style as the refill test
+
+    def wf(self):
+        return (REPO / ".github/workflows/automerge.yml").read_text(encoding="utf-8")
+
+    def wf_code(self):
+        return "\n".join(ln for ln in self.wf().splitlines()
+                         if not ln.lstrip().startswith("#"))
+
+    def test_workflow_never_uses_pull_request_target_or_checks_out_pr_code(self):
+        code = self.wf_code()
+        self.assertNotIn("pull_request_target", code)
+        self.assertIn("workflow_run:", code)
+        for forbidden in ("head.ref", "head_branch", "github.event.pull_request.head",
+                          "ref: ${{ github.event.workflow_run"):
+            self.assertNotIn(forbidden, code)
+        # exactly one checkout, and it is pinned to the default branch
+        self.assertEqual(code.count("actions/checkout@"), 1)
+        self.assertIn("ref: ${{ github.event.repository.default_branch }}", code)
+
+    def test_workflow_permissions_are_least_privilege(self):
+        code = self.wf_code()
+        self.assertIn("\npermissions: {}\n", code, "workflow-level default must be empty")
+        for perm in ("contents: write", "pull-requests: write", "checks: read", "actions: write"):
+            self.assertIn(perm, code)
+        for extra in ("issues:", "id-token", "packages:", "pages:", "write-all"):
+            self.assertNotIn(extra, code)
+
+    def test_workflow_actions_are_pinned_by_sha(self):
+        uses = [ln for ln in self.wf_code().splitlines() if "uses:" in ln]
+        self.assertTrue(uses, "the scan found no `uses:` line -- suspect the scan")
+        for ln in uses:
+            self.assertRegex(ln, r"@[0-9a-f]{40}\b", f"unpinned action: {ln.strip()}")
+
+    def test_workflow_is_gated_by_the_kill_switch_variable_and_ci_success(self):
+        code = self.wf_code()
+        self.assertIn("vars.AUTOMERGE_ENABLED == 'true'", code)
+        self.assertIn("github.event.workflow_run.conclusion == 'success'", code)
+        self.assertIn("github.event.workflow_run.head_repository.full_name == github.repository",
+                      code)
+        # the trigger names the CI workflow by its display name -- keep them in sync
+        self.assertIn('workflows: ["CI — Tests"]', code)
+        ci = (REPO / ".github/workflows/test.yml").read_text(encoding="utf-8")
+        self.assertTrue(ci.startswith("name: CI — Tests"))
+
+    def test_workflow_passes_untrusted_values_through_env_not_shell_text(self):
+        run_lines = [ln.strip() for ln in self.wf_code().splitlines()
+                     if ln.strip().startswith("run:")]
+        self.assertEqual(run_lines, ["run: python3 automerge_gate.py"])
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
