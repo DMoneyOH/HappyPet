@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-test_smtp.py — Verify Gmail SMTP credentials are working.
+smtp_check.py — Verify Gmail SMTP credentials are working.
 Loads GMAIL_ACCOUNT + GMAIL_APP_PASSWORD from ~/.env and attempts auth.
-Usage: python3 scripts/test_smtp.py
+Usage: python3 scripts/smtp_check.py
 """
 import smtplib, os, sys
 from pathlib import Path
