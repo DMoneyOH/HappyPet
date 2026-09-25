@@ -7,6 +7,7 @@ species: cat
 tags: [catnip toys]
 description: "Catnip toys that hold your cat's attention past the first sniff, plus honest picks for every play style and budget."
 affiliate_url: "https://www.amazon.com/dp/B09WHBG4DV?tag=pawpicks04-20"
+chewy_url: "https://chewy.sjv.io/c/7160344/3054490/32975?prodsku=3694686&u=https%3A%2F%2Fwww.chewy.com%2Fpotaroma-3pcs-pillows-soft-durable%2Fdp%2F3694686%3Futm_source%3Dgoogle-product%26utm_medium%3Dorganic%26utm_content%3DPotaroma&intsrc=APIG_24727"
 image: "https://m.media-amazon.com/images/I/71Ay6ojN2mL._AC_SX466_.jpg"
 pin_image: "https://happypetproductreviews.com/assets/images/pins/best-catnip-toys.jpg?v=20260910"
 ---
