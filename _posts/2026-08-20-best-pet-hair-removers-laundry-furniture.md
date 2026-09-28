@@ -7,7 +7,7 @@ species: both
 tags: [pet hair remover]
 description: "Stop fighting fur: the reusable roller that lifts cat and dog hair off couches, car seats, and bedding with zero refills."
 affiliate_url: "https://www.amazon.com/dp/B00BAGTNAQ?tag=pawpicks04-20"
-chewy_url: "https://chewy.sjv.io/c/7160344/3054490/32975?prodsku=136285&u=https%3A%2F%2Fwww.chewy.com%2Fchomchom-roller-pet-hair-remover%2Fdp%2F163270%3Futm_source%3Dgoogle-product%26utm_medium%3Dorganic%26utm_content%3DChomChom%2520Roller&intsrc=APIG_24727"
+chewy_url: "https://www.chewy.com/chomchom-roller-dog-cat-hair-remover/dp/3998782"
 image: "https://m.media-amazon.com/images/I/71mmJsbMGZL._AC_SX679_.jpg"
 pin_image: "https://happypetproductreviews.com/assets/images/pins/best-pet-hair-removers-laundry-furniture.jpg?v=20260820"
 ---
