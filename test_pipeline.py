@@ -5934,9 +5934,18 @@ class TestPublishedChewyLinkCoverage(unittest.TestCase):
             status, detail = self.v.classify_offline(e)
             self.assertNotEqual(status, "NO_URL", f"{e['slug']}: {detail}")
 
-    def test_the_live_unwrapped_fortiflora_link_is_reported(self):
+    def test_the_live_fortiflora_link_is_now_a_wrapped_deep_link(self):
+        """Was the live UNWRAPPED example until the bare URL was re-wrapped on
+        2026-09-28. The unwrapped verdict itself is still pinned below against
+        the same URL, so the classifier keeps its coverage."""
         by_slug = {e["slug"]: e for e in self.entries}
         status, detail = self.v.classify_offline(by_slug["best-dog-probiotic-supplements"])
+        self.assertEqual(status, "CLEAN", detail)
+
+    def test_a_bare_chewy_url_is_still_reported_as_unwrapped(self):
+        entry = {"chewy_url": CHEWY_UNWRAPPED_FORTIFLORA,
+                 "product_name": "Purina Pro Plan FortiFlora"}
+        status, detail = self.v.classify_offline(entry)
         self.assertEqual(status, "UNWRAPPED", detail)
 
 
