@@ -430,23 +430,30 @@ def resolve_product(topic_title: str, query: str) -> dict | None:
     return {**top, "runners_up": "; ".join(runners)}
 
 
-def chewy_enrich(name: str, upc: str | None = None) -> dict:
+def chewy_enrich_detail(name: str, upc: str | None = None) -> tuple[dict, str | None]:
+    """chewy_enrich plus the Chewy product name the lookup matched (None when
+    nothing matched), for callers that must show a human what was matched."""
     empty = {"chewy_url": None, "chewy_price": None,
              "chewy_stock": None, "chewy_rating": None}
     try:
         from chewy_lookup import lookup, ChewyAPIError
     except ImportError:
-        return empty
+        return empty, None
     try:
         r = lookup(name, upc)
         if r.get("chewy_url"):
-            return {"chewy_url": r.get("chewy_url"), "chewy_price": r.get("chewy_price"),
-                    "chewy_stock": r.get("chewy_stock"), "chewy_rating": r.get("chewy_rating")}
+            return ({"chewy_url": r.get("chewy_url"), "chewy_price": r.get("chewy_price"),
+                     "chewy_stock": r.get("chewy_stock"), "chewy_rating": r.get("chewy_rating")},
+                    r.get("chewy_matched_name"))
     except ChewyAPIError as exc:
         log(f"chewy lookup unavailable for '{name[:40]}': {exc}", "WARN")
     except Exception as exc:
         log(f"chewy lookup error for '{name[:40]}': {exc}", "WARN")
-    return empty
+    return empty, None
+
+
+def chewy_enrich(name: str, upc: str | None = None) -> dict:
+    return chewy_enrich_detail(name, upc)[0]
 
 
 def apply_resolution(entry: dict, resolved: dict) -> None:
