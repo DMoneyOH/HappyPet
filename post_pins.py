@@ -17,13 +17,14 @@ Dedup contract (single-owner markers):
   _pin_queue/sent/                        -> owned by push_pins_to_sheets.py (FB-queued marker);
                                              this script must NEVER move files there.
 
-Board routing:
+Board routing -- species board(s) plus exactly one category board:
   species=cat/both -> happypet_pin_cats
   species=dog/both -> happypet_pin_dogs
   FOOD   -> happypet_pin_food
   HEALTH -> happypet_pin_health
   HOME   -> happypet_pin_home
   TOYS   -> happypet_pin_toys
+  anything else (a DOGS/CATS species label, empty, unknown) -> happypet_pin_home
 
 value1=image_url  value2=title (capped at 100 chars)  value3=source_url
 
@@ -93,17 +94,20 @@ MAKER_URL = "https://maker.ifttt.com/trigger/{event}/with/key/{key}"
 # named after the retired topical spreadsheets purely because that is the string
 # products.json already carries; nothing here opens a spreadsheet. Renaming them
 # would mean migrating products.json and refill_products.VALID_SHEETS in step.
+#
+# Only the four CATEGORY boards belong here. The DOGS/CATS labels are species,
+# not categories: mapping them to the species events (524f161) made a dog post
+# labelled DOGS fire happypet_pin_dogs twice and reach one board instead of two.
+# Species boards come from the `species` field alone -- see resolve_events.
 TOPICAL_EVENT = {
     "HAPPYPET_SHEET_ID_FOOD":   "happypet_pin_food",
     "HAPPYPET_SHEET_ID_HEALTH": "happypet_pin_health",
     "HAPPYPET_SHEET_ID_HOME":   "happypet_pin_home",
     "HAPPYPET_SHEET_ID_TOYS":   "happypet_pin_toys",
-    # Species-level sheet IDs: map to their canonical IFTTT events.
-    # No current products use these; included to prevent silent fallback
-    # when future products assign these topical_sheet values.
-    "HAPPYPET_SHEET_ID_DOGS":   "happypet_pin_dogs",
-    "HAPPYPET_SHEET_ID_CATS":   "happypet_pin_cats",
 }
+# Pet Home & Lifestyle: the broadest of the four, used when a queue file's label
+# is not a category (a DOGS/CATS species label, empty, null, unknown).
+DEFAULT_CATEGORY_EVENT = "happypet_pin_home"
 
 MAX_RETRIES  = 3
 BACKOFF_BASE = 15
@@ -157,17 +161,30 @@ def fire_webhook(event, value1, value2, value3, maker_key):
 
 
 def resolve_events(species, topical_sheet):
+    """Species board(s) + exactly one category board, never a duplicate.
+
+    A label that is not one of the four categories is remapped to the default
+    category rather than rejected: this script exits 0 on a failed pin, so a
+    rejection would be a silent no-pin, while the remap still lands on the
+    species board(s) and one category board, and the WARN names the bad label."""
     events = []
+    # Same as the label below: case and edge whitespace don't change the species.
+    species = species.strip().lower() if isinstance(species, str) else species
     if species in ("dog", "both"):
         events.append("happypet_pin_dogs")
     if species in ("cat", "both"):
         events.append("happypet_pin_cats")
-    topical = TOPICAL_EVENT.get(topical_sheet)
-    if topical:
-        events.append(topical)
     if not events:
-        log(f"  WARN: could not resolve events for species='{species}' topical='{topical_sheet}' -- falling back to happypet_pin_dogs", "WARN")
+        log(f"  WARN: unknown species='{species}' -- falling back to happypet_pin_dogs", "WARN")
         events.append("happypet_pin_dogs")
+    # Case and edge whitespace don't change which category a label names.
+    label = topical_sheet.strip().upper() if isinstance(topical_sheet, str) else topical_sheet
+    category = TOPICAL_EVENT.get(label)
+    if category is None:
+        log(f"  WARN: topical_sheet='{topical_sheet}' is not a category label -- "
+            f"using {DEFAULT_CATEGORY_EVENT}", "WARN")
+        category = DEFAULT_CATEGORY_EVENT
+    events.append(category)
     return events
 
 

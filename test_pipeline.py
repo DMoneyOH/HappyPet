@@ -1690,7 +1690,7 @@ class TestRefillPlaceholdersOnlyMode(unittest.TestCase):
     CANDIDATE = {
         "topic": "best-heated-cat-beds", "title": "Best Heated Cat Beds",
         "keyword": "heated cat bed", "species": "cat", "category": "cat-beds",
-        "topical_sheet": "HAPPYPET_SHEET_ID_CATS", "amazon_search_query": "heated cat bed"}
+        "topical_sheet": "HAPPYPET_SHEET_ID_HOME", "amazon_search_query": "heated cat bed"}
 
     def _run(self, *, placeholders_only, candidates, existing=None):
         import refill_products as rp
@@ -1771,7 +1771,7 @@ class TestManualResolve(unittest.TestCase):
             "title": "Best Automatic Litter Boxes",
             "keyword": "best automatic litter box",
             "species": "cat", "category": "cat-gear", "format": "roundup",
-            "topical_sheet": "HAPPYPET_SHEET_ID_CATS",
+            "topical_sheet": "HAPPYPET_SHEET_ID_HOME",
             "name": "NEEDS_ASIN placeholder for best automatic litter box",
             "asin": "NEEDS_ASIN",
             "affiliate_url": "https://www.amazon.com/dp/NEEDS_ASIN?tag=pawpicks04-20",
@@ -4380,8 +4380,9 @@ class TestRetiredTopicalSheetsAreGone(unittest.TestCase):
 
     Structural, not a needle list: assert the whole class of sheet-touching
     machinery is absent from these modules rather than naming one symbol at a
-    time. The category LABELS of the same name survive in TOPICAL_EVENT and are
-    asserted live below -- deleting those would silently break board routing."""
+    time. Four of the six LABELS of the same name (FOOD/HEALTH/HOME/TOYS) survive
+    in TOPICAL_EVENT as category-board labels and are asserted live below. The
+    DOGS/CATS labels do not survive: species boards come from `species` alone."""
 
     def setUp(self):
         import post_pins as pp
@@ -4418,11 +4419,262 @@ class TestRetiredTopicalSheetsAreGone(unittest.TestCase):
 
     def test_the_category_labels_survive_for_board_routing(self):
         """Inverse direction. These strings are products.json category labels,
-        not spreadsheet IDs; a sweep that removed them by name would send every
-        pin to the happypet_pin_dogs fallback board."""
-        self.assertEqual(len(self.pp.TOPICAL_EVENT), 6)
+        not spreadsheet IDs; a sweep that removed them by name would remap every
+        pin's category to the happypet_pin_home default, so every post would
+        lose its real category board.
+
+        Four, not six: the DOGS/CATS labels were removed from TOPICAL_EVENT on
+        purpose -- a species label there is exactly what double-fired the
+        species board (see TestPinBoardRule)."""
+        self.assertEqual(len(self.pp.TOPICAL_EVENT), 4)
         self.assertEqual(self.pp.resolve_events("cat", "HAPPYPET_SHEET_ID_FOOD"),
                          ["happypet_pin_cats", "happypet_pin_food"])
+
+
+class TestPinBoardRule(unittest.TestCase):
+    """The Director's rule (2026-09-28): every post pins to its species board(s)
+    -- Dog and/or Cat, both when the post covers both -- PLUS exactly one of the
+    four Pet [Category] boards. A species board is never the category board.
+
+    The defect: TOPICAL_EVENT mapped HAPPYPET_SHEET_ID_DOGS/_CATS to the species
+    events, so a dog post labelled DOGS fired happypet_pin_dogs twice and reached
+    one distinct board (run 36420797336).
+
+    Expected values below are literal tables, not recomputed from post_pins'
+    own maps, so a wrong map cannot agree with itself."""
+
+    SPECIES = {
+        "dog":  ["happypet_pin_dogs"],
+        "cat":  ["happypet_pin_cats"],
+        "both": ["happypet_pin_dogs", "happypet_pin_cats"],
+    }
+    CATEGORY = {
+        "HAPPYPET_SHEET_ID_HOME":   "happypet_pin_home",
+        "HAPPYPET_SHEET_ID_TOYS":   "happypet_pin_toys",
+        "HAPPYPET_SHEET_ID_FOOD":   "happypet_pin_food",
+        "HAPPYPET_SHEET_ID_HEALTH": "happypet_pin_health",
+    }
+    DEFAULT_CATEGORY_EVENT = "happypet_pin_home"   # Pet Home & Lifestyle
+
+    def setUp(self):
+        import post_pins as pp
+        self.pp = pp
+        self.logged = []
+        self._p = patch.object(pp, "log", side_effect=lambda m, *a, **k: self.logged.append(m))
+        self._p.start()
+        self.addCleanup(self._p.stop)
+
+    def test_every_species_by_category_pair_resolves_to_the_rule(self):
+        for species, sp_events in self.SPECIES.items():
+            for label, cat_event in self.CATEGORY.items():
+                with self.subTest(species=species, category=label):
+                    events = self.pp.resolve_events(species, label)
+                    self.assertEqual(events, sp_events + [cat_event])
+                    self.assertEqual(len(set(events)), len(sp_events) + 1)
+                    self.assertIn(len(set(events)), (2, 3))
+
+    def test_a_species_label_never_produces_a_second_species_event(self):
+        """Remapped, not rejected: post_pins exits 0 on a failed pin, so a raise
+        here would be a green-looking no-pin. The species label carries no
+        category information, so it goes to the default category board and a
+        WARN names the bad value."""
+        cases = [
+            ("dog",  "HAPPYPET_SHEET_ID_DOGS"),
+            ("cat",  "HAPPYPET_SHEET_ID_CATS"),
+            ("both", "HAPPYPET_SHEET_ID_DOGS"),   # best-portable-pet-playpens shape
+            ("both", "HAPPYPET_SHEET_ID_CATS"),
+            ("dog",  "HAPPYPET_SHEET_ID_CATS"),
+            ("cat",  "HAPPYPET_SHEET_ID_DOGS"),
+        ]
+        for species, label in cases:
+            with self.subTest(species=species, topical=label):
+                self.logged.clear()
+                events = self.pp.resolve_events(species, label)
+                self.assertEqual(events, self.SPECIES[species] + [self.DEFAULT_CATEGORY_EVENT])
+                self.assertEqual(len(events), len(set(events)), "duplicate event fired")
+                self.assertTrue(any(label in m for m in self.logged),
+                                "the remap must be visible in the log")
+
+    def test_missing_or_unknown_category_label_gets_exactly_one_category(self):
+        """Includes the legacy shapes seen in _pin_queue/sent/: an empty string
+        and a JSON null (best-calming-treats-dogs)."""
+        for topical in ("", None, "   ", "HAPPYPET_SHEET_ID_BIRDS",
+                        "HAPPYPET_SHEET_ID_ FOOD", "HAPPYPET_SHEET_ID_FOODS",
+                        "HAPPYPET_SHEET_ID_​FOOD"):
+            with self.subTest(topical=topical):
+                events = self.pp.resolve_events("cat", topical)
+                self.assertEqual(events, ["happypet_pin_cats", self.DEFAULT_CATEGORY_EVENT])
+
+    def test_case_and_edge_whitespace_variants_of_a_category_label_still_match(self):
+        """A hand-edited or pasted label that differs only in case or surrounding
+        whitespace names the same category; it must not fall through to Home."""
+        for topical in ("happypet_sheet_id_food", "Happypet_Sheet_Id_Food",
+                        " HAPPYPET_SHEET_ID_FOOD", "HAPPYPET_SHEET_ID_FOOD\t",
+                        "\nhappypet_sheet_id_food\r\n", "\xa0HAPPYPET_SHEET_ID_FOOD\xa0"):
+            with self.subTest(topical=topical):
+                self.assertEqual(self.pp.resolve_events("cat", topical),
+                                 ["happypet_pin_cats", "happypet_pin_food"])
+
+    def test_normalising_a_species_label_does_not_reopen_species_routing(self):
+        """Inverse direction: case-folding must not turn a lower-case species
+        label back into a species event. It still goes to the default category."""
+        for topical in ("happypet_sheet_id_dogs", " HAPPYPET_SHEET_ID_CATS ",
+                        "Happypet_Sheet_Id_Dogs"):
+            with self.subTest(topical=topical):
+                events = self.pp.resolve_events("both", topical)
+                self.assertEqual(events, ["happypet_pin_dogs", "happypet_pin_cats",
+                                          self.DEFAULT_CATEGORY_EVENT])
+
+    def test_unknown_species_still_gets_a_species_board_and_one_category(self):
+        """The pre-existing happypet_pin_dogs fallback survives, re-keyed to the
+        case it can still reach: a species value that is not dog/cat/both even
+        after case and whitespace are normalised."""
+        for species in ("", None, "   ", "bird", "dogs", "c at", "kitten"):
+            with self.subTest(species=species):
+                self.logged.clear()
+                events = self.pp.resolve_events(species, "HAPPYPET_SHEET_ID_TOYS")
+                self.assertEqual(events, ["happypet_pin_dogs", "happypet_pin_toys"])
+                self.assertTrue(self.logged, "the species fallback must WARN")
+
+    def test_case_and_edge_whitespace_variants_of_a_species_reach_its_board(self):
+        """A messy species value names the same species. "Cat" must reach the Cat
+        board, not the Dog fallback -- the fallback would be the wrong board, not
+        just a missing one -- and a recognised species must not WARN."""
+        cases = {
+            "Cat": ["happypet_pin_cats"], "CAT": ["happypet_pin_cats"],
+            " cat ": ["happypet_pin_cats"], "cat\n": ["happypet_pin_cats"],
+            "\xa0Cat\t": ["happypet_pin_cats"],
+            "Dog": ["happypet_pin_dogs"], " DOG": ["happypet_pin_dogs"],
+            "Both": ["happypet_pin_dogs", "happypet_pin_cats"],
+            " BOTH\r\n": ["happypet_pin_dogs", "happypet_pin_cats"],
+        }
+        for species, sp_events in cases.items():
+            with self.subTest(species=species):
+                self.logged.clear()
+                events = self.pp.resolve_events(species, "HAPPYPET_SHEET_ID_TOYS")
+                self.assertEqual(events, sp_events + ["happypet_pin_toys"])
+                self.assertEqual(self.logged, [], "a recognised species must not WARN")
+
+    def test_category_events_and_species_events_are_disjoint(self):
+        """Structural catch-all: if no category label can ever map to a species
+        event, a duplicate is impossible by construction, whatever the input."""
+        species_events = {"happypet_pin_dogs", "happypet_pin_cats"}
+        self.assertEqual(set(self.pp.TOPICAL_EVENT.values()) & species_events, set())
+        self.assertEqual(self.pp.TOPICAL_EVENT, self.CATEGORY)
+
+    def test_every_queued_product_resolves_to_species_plus_one_of_the_four(self):
+        """products.json is what generate_posts copies into each pin-queue file,
+        so a species label here is the bug waiting to fire. Every entry must name
+        a real category directly -- not merely survive via the default remap."""
+        products = json.loads((REPO / "products.json").read_text(encoding="utf-8"))
+        for p in products:
+            with self.subTest(topic=p.get("topic")):
+                self.assertIn(p.get("species"), self.SPECIES)
+                self.assertIn(p.get("topical_sheet"), self.CATEGORY)
+                events = self.pp.resolve_events(p["species"], p["topical_sheet"])
+                self.assertEqual(events, self.SPECIES[p["species"]]
+                                 + [self.CATEGORY[p["topical_sheet"]]])
+
+    def test_the_driven_main_fires_each_board_once(self):
+        """Behavioural: drive the real main() over a queue file carrying the
+        exact shape that double-fired in run 36420797336, and assert on what
+        fire_webhook was actually handed."""
+        fired = self._drive_main("dog", "HAPPYPET_SHEET_ID_DOGS")
+        self.assertEqual(fired, ["happypet_pin_dogs", self.DEFAULT_CATEGORY_EVENT])
+
+    def test_the_driven_main_routes_a_real_category_label(self):
+        """The DOGS case above lands on the default board whichever field main()
+        reads, so it cannot see a wiring break. A cat post labelled FOOD can:
+        reading the wrong queue field, or swapping species and label, changes
+        the fired list."""
+        fired = self._drive_main("cat", "HAPPYPET_SHEET_ID_FOOD")
+        self.assertEqual(fired, ["happypet_pin_cats", "happypet_pin_food"])
+
+    def _drive_main(self, species, topical_sheet):
+        queue = {"title": "Best Pet Thing", "article_url": "https://x/",
+                 "description": "d", "image_url": "https://x/a.jpg",
+                 "species": species, "slug": "t", "topical_sheet": topical_sheet}
+        fired = []
+        with tempfile.TemporaryDirectory() as tmp:
+            qdir = Path(tmp) / "_pin_queue"
+            qdir.mkdir()
+            (qdir / "t.json").write_text(json.dumps(queue), encoding="utf-8")
+            with patch.object(self.pp, "REPO_DIR", Path(tmp)), \
+                 patch.object(self.pp, "brain_get_secret", return_value="k"), \
+                 patch.object(self.pp, "check_url_live", return_value=True), \
+                 patch.object(self.pp, "check_image_has_content", return_value=True), \
+                 patch.object(self.pp.time, "sleep", lambda *_: None), \
+                 patch("subprocess.run", return_value=MagicMock(returncode=0, stdout="", stderr="")), \
+                 patch.object(self.pp, "fire_webhook",
+                              side_effect=lambda ev, *a: fired.append(ev) or True), \
+                 patch.object(sys, "argv", ["post_pins.py"]):
+                self.pp.main()
+        return fired
+
+
+class TestRefillTopicalSheetIsACategory(unittest.TestCase):
+    """refill_products must never seed a species label as topical_sheet."""
+
+    FOUR = {"HAPPYPET_SHEET_ID_HOME", "HAPPYPET_SHEET_ID_TOYS",
+            "HAPPYPET_SHEET_ID_FOOD", "HAPPYPET_SHEET_ID_HEALTH"}
+
+    def test_valid_sheets_is_exactly_the_four_categories(self):
+        import refill_products as rp
+        self.assertEqual(set(rp.VALID_SHEETS), self.FOUR)
+        self.assertEqual(len(rp.VALID_SHEETS), 4)
+
+    def test_the_schema_enum_follows_valid_sheets(self):
+        import refill_products as rp
+        enum = rp.TOPIC_SCHEMA["properties"]["topics"]["items"]["properties"]["topical_sheet"]["enum"]
+        self.assertEqual(set(enum), self.FOUR)
+
+    def _ideate(self, topics):
+        import refill_products as rp
+        raw = json.dumps({"topics": topics})
+        prompts = []
+        with patch.object(rp.gp, "_call_gemini",
+                          side_effect=lambda model, prompt, **k: prompts.append(prompt) or raw), \
+             patch.object(rp, "log", lambda *a, **k: None):
+            out = rp.ideate_topics(set(), set(), 10)
+        return out, prompts[0]
+
+    def _topic(self, slug, sheet):
+        return {"topic": slug, "title": "T", "keyword": "k", "species": "dog",
+                "category": "dog-toys", "topical_sheet": sheet,
+                "amazon_search_query": "q"}
+
+    def test_ideation_drops_a_species_label_the_model_returned_anyway(self):
+        """The responseSchema enum is the model's constraint, not ours: a topic
+        carrying a non-category label is dropped rather than seeded."""
+        out, _ = self._ideate([
+            self._topic("best-a", "HAPPYPET_SHEET_ID_DOGS"),
+            self._topic("best-b", "HAPPYPET_SHEET_ID_CATS"),
+            self._topic("best-c", "HAPPYPET_SHEET_ID_TOYS"),
+            self._topic("best-d", ""),
+        ])
+        self.assertEqual([t["topic"] for t in out], ["best-c"])
+
+    def test_every_category_label_survives_ideation(self):
+        """Inverse direction: the filter must not eat legitimate topics."""
+        labels = sorted(self.FOUR)
+        out, _ = self._ideate([self._topic(f"best-x{i}", s) for i, s in enumerate(labels)])
+        self.assertEqual([t["topical_sheet"] for t in out], labels)
+
+    def test_the_prompt_names_the_four_categories_and_no_species_label(self):
+        _, prompt = self._ideate([])
+        for label in self.FOUR:
+            self.assertIn(label, prompt)
+        self.assertNotIn("HAPPYPET_SHEET_ID_DOGS", prompt)
+        self.assertNotIn("HAPPYPET_SHEET_ID_CATS", prompt)
+        self.assertNotIn("must fit the species", prompt)
+
+    def test_the_prompt_files_grooming_under_health(self):
+        """Director's call, 2026-09-28: grooming is Health & Wellness, not Toys."""
+        _, prompt = self._ideate([])
+        lines = {l.strip().split(" ", 1)[0]: l for l in prompt.splitlines()
+                 if l.strip().startswith("HAPPYPET_SHEET_ID_")}
+        self.assertIn("grooming", lines["HAPPYPET_SHEET_ID_HEALTH"])
+        self.assertNotIn("grooming", lines["HAPPYPET_SHEET_ID_TOYS"])
 
 
 class TestVaultPathSelectionGuards(unittest.TestCase):
@@ -6117,7 +6369,7 @@ class TestRefillIdeationResolvesItsModelConstant(unittest.TestCase):
             return json.dumps({"topics": [{
                 "topic": "heated-cat-bed", "title": "Best Heated Cat Beds",
                 "keyword": "heated cat bed", "species": "cat",
-                "category": "cat-beds", "topical_sheet": "HAPPYPET_SHEET_ID_CATS",
+                "category": "cat-beds", "topical_sheet": "HAPPYPET_SHEET_ID_HOME",
                 "amazon_search_query": "heated cat bed",
             }]})
 

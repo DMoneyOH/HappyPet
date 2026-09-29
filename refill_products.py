@@ -70,8 +70,10 @@ BATCH     = int(os.environ.get("REFILL_BATCH", "10"))
 FORCE     = os.environ.get("FORCE_REFILL", "") == "1"
 PLACEHOLDERS_ONLY = os.environ.get("REFILL_PLACEHOLDERS_ONLY", "") == "1"
 
-VALID_SHEETS     = ("HAPPYPET_SHEET_ID_DOGS", "HAPPYPET_SHEET_ID_CATS",
-                    "HAPPYPET_SHEET_ID_HOME", "HAPPYPET_SHEET_ID_FOOD",
+# The four Pet [Category] Pinterest boards, as post_pins.TOPICAL_EVENT labels.
+# No DOGS/CATS species label: the species board comes from `species`, and a
+# species label here made post_pins fire the species board twice.
+VALID_SHEETS     = ("HAPPYPET_SHEET_ID_HOME", "HAPPYPET_SHEET_ID_FOOD",
                     "HAPPYPET_SHEET_ID_TOYS", "HAPPYPET_SHEET_ID_HEALTH")
 # Kept in sync with the categories already live in _posts/ front matter --
 # the old 6-bucket set forced every non-food/non-health topic (toys, beds,
@@ -488,7 +490,11 @@ Rules:
   topics share the same category -- spread them across toys, training, grooming, beds,
   collars/harnesses, crates, litter, scratching, carriers, feeders, tech, and feeding,
   not just gear/food/health.
-- topical_sheet must fit the species
+- topical_sheet is the product's Pinterest category board, exactly one of:
+  HAPPYPET_SHEET_ID_HOME (Pet Home & Lifestyle: beds, litter, travel, cleaning),
+  HAPPYPET_SHEET_ID_TOYS (Pet Toys & Accessories: toys, enrichment, collars),
+  HAPPYPET_SHEET_ID_FOOD (Pet Food & Treats: food, treats, feeding),
+  HAPPYPET_SHEET_ID_HEALTH (Pet Health & Wellness: supplements, dental care, calming, grooming)
 - amazon_search_query: what a shopper would type into Amazon to find the single best mainstream product for this topic
 - Favor products relevant in {month} and the coming two months (seasonality), mixed across species, category, and price points.
 Answer strictly as JSON."""
@@ -499,6 +505,12 @@ Answer strictly as JSON."""
     topics = json.loads(raw)["topics"]
     out, seen = [], set(pub) | set(queued)
     for t in topics:
+        # responseSchema's enum constrains the model, not us -- never seed a
+        # label post_pins cannot route to a category board.
+        if t.get("topical_sheet") not in VALID_SHEETS:
+            log(f"dropped candidate '{t.get('topic')}' -- topical_sheet "
+                f"'{t.get('topical_sheet')}' is not a category board", "WARN")
+            continue
         slug = slugify(t["topic"])
         if not slug.startswith("best-"):
             slug = "best-" + slug
