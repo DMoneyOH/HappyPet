@@ -164,9 +164,10 @@ def resolve_events(species, topical_sheet):
     """Species board(s) + exactly one category board, never a duplicate.
 
     A label that is not one of the four categories is remapped to the default
-    category rather than rejected: this script exits 0 on a failed pin, so a
-    rejection would be a silent no-pin, while the remap still lands on the
-    species board(s) and one category board, and the WARN names the bad label."""
+    category rather than rejected: the remap still lands on the species board(s)
+    and one category board, and the WARN names the bad label. It was chosen when
+    this script exited 0 on a failed pin, so a rejection was a silent no-pin. It
+    now exits 1 on a failed pin; whether to keep the remap is an open decision."""
     events = []
     # Same as the label below: case and edge whitespace don't change the species.
     species = species.strip().lower() if isinstance(species, str) else species
@@ -262,8 +263,19 @@ def main():
         # once fired best-cat-tree-large when only best-cat-tree was requested)
         queue_files = [f for f in queue_files if f.stem in slug_filter]
 
+    # A requested slug with no queue file and no all-events sentinel was never
+    # pinned: its queue file is gone (e.g. moved to sent/ after a failed fire)
+    # or never existed. That used to exit 0 as "nothing to do".
+    queued_stems = {f.stem for f in queue_files}
+    missing = sorted(s for s in slug_filter
+                     if s not in queued_stems and not (fired_dir / f"{s}.fired").exists())
+    for s in missing:
+        log(f"MISSING: requested slug '{s}' has no queue file and no .fired sentinel", "ERROR")
+
     if not queue_files:
         log("No queued pins found -- nothing to do")
+        if missing:
+            sys.exit(1)
         return
 
     log(f"START -- {len(queue_files)} pin(s){' [DRY RUN]' if args.dry_run else ''}")
@@ -369,7 +381,11 @@ def main():
             log(f"FAIL: {qf.name} -- {exc}", "ERROR")
             failed += 1
 
-    log(f"DONE -- {processed} pinned, {failed} failed")
+    log(f"DONE -- {processed} pinned, {failed} failed, {len(missing)} missing")
+    # Nonzero so pin.yml's run goes red and its failure email fires; pin.yml
+    # sets continue-on-error on this step so the Sheets and consume steps still run.
+    if failed or missing:
+        sys.exit(1)
 
 
 if __name__ == "__main__":

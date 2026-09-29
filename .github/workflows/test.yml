@@ -37,4 +37,4 @@ jobs:
         run: pip install --quiet -r requirements.txt pytest
 
       - name: Run test suite
-        run: python3 -m pytest test_pipeline.py -q
+        run: python3 -m pytest test_pipeline.py test_pin_failure_exit.py -q
