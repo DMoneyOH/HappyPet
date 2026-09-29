@@ -126,7 +126,12 @@ jobs:
           exit 1
 
       - name: Post pins via IFTTT Maker webhooks
+        id: post
         if: steps.resolve.outputs.nothing_to_pin != 'true'
+        # post_pins.py exits 1 on a failed or missing pin. continue-on-error lets
+        # the Sheets and consume steps below still run; the assert step after
+        # them fails the job on this step's outcome, so the alert email fires.
+        continue-on-error: true
         env:
           IFTTT_MAKER_KEY:          ${{ secrets.IFTTT_MAKER_KEY }}
           GCP_SA_KEY_B64:           ${{ secrets.GCP_SA_KEY_B64 }}
@@ -173,6 +178,12 @@ jobs:
               sleep 3
             done
           fi
+
+      - name: Fail the job if posting pins failed
+        if: steps.post.outcome == 'failure'
+        run: |
+          echo "::error::post_pins.py exited nonzero (failed or missing pin) -- see the post step's log"
+          exit 1
 
       - name: Upload logs as artifact
         if: always()
