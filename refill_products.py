@@ -492,9 +492,9 @@ Rules:
   not just gear/food/health.
 - topical_sheet is the product's Pinterest category board, exactly one of:
   HAPPYPET_SHEET_ID_HOME (Pet Home & Lifestyle: beds, litter, travel, cleaning),
-  HAPPYPET_SHEET_ID_TOYS (Pet Toys & Accessories: toys, enrichment, grooming, collars),
+  HAPPYPET_SHEET_ID_TOYS (Pet Toys & Accessories: toys, enrichment, collars),
   HAPPYPET_SHEET_ID_FOOD (Pet Food & Treats: food, treats, feeding),
-  HAPPYPET_SHEET_ID_HEALTH (Pet Health & Wellness: supplements, dental care, calming)
+  HAPPYPET_SHEET_ID_HEALTH (Pet Health & Wellness: supplements, dental care, calming, grooming)
 - amazon_search_query: what a shopper would type into Amazon to find the single best mainstream product for this topic
 - Favor products relevant in {month} and the coming two months (seasonality), mixed across species, category, and price points.
 Answer strictly as JSON."""

@@ -175,7 +175,9 @@ def resolve_events(species, topical_sheet):
     if not events:
         log(f"  WARN: unknown species='{species}' -- falling back to happypet_pin_dogs", "WARN")
         events.append("happypet_pin_dogs")
-    category = TOPICAL_EVENT.get(topical_sheet)
+    # Case and edge whitespace don't change which category a label names.
+    label = topical_sheet.strip().upper() if isinstance(topical_sheet, str) else topical_sheet
+    category = TOPICAL_EVENT.get(label)
     if category is None:
         log(f"  WARN: topical_sheet='{topical_sheet}' is not a category label -- "
             f"using {DEFAULT_CATEGORY_EVENT}", "WARN")
