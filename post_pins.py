@@ -168,6 +168,8 @@ def resolve_events(species, topical_sheet):
     rejection would be a silent no-pin, while the remap still lands on the
     species board(s) and one category board, and the WARN names the bad label."""
     events = []
+    # Same as the label below: case and edge whitespace don't change the species.
+    species = species.strip().lower() if isinstance(species, str) else species
     if species in ("dog", "both"):
         events.append("happypet_pin_dogs")
     if species in ("cat", "both"):

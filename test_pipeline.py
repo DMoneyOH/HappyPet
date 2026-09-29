@@ -4527,13 +4527,33 @@ class TestPinBoardRule(unittest.TestCase):
 
     def test_unknown_species_still_gets_a_species_board_and_one_category(self):
         """The pre-existing happypet_pin_dogs fallback survives, re-keyed to the
-        case it can still reach: a species value that is not dog/cat/both."""
-        for species in ("", None, "bird", "Dog"):
+        case it can still reach: a species value that is not dog/cat/both even
+        after case and whitespace are normalised."""
+        for species in ("", None, "   ", "bird", "dogs", "c at", "kitten"):
             with self.subTest(species=species):
                 self.logged.clear()
                 events = self.pp.resolve_events(species, "HAPPYPET_SHEET_ID_TOYS")
                 self.assertEqual(events, ["happypet_pin_dogs", "happypet_pin_toys"])
                 self.assertTrue(self.logged, "the species fallback must WARN")
+
+    def test_case_and_edge_whitespace_variants_of_a_species_reach_its_board(self):
+        """A messy species value names the same species. "Cat" must reach the Cat
+        board, not the Dog fallback -- the fallback would be the wrong board, not
+        just a missing one -- and a recognised species must not WARN."""
+        cases = {
+            "Cat": ["happypet_pin_cats"], "CAT": ["happypet_pin_cats"],
+            " cat ": ["happypet_pin_cats"], "cat\n": ["happypet_pin_cats"],
+            "\xa0Cat\t": ["happypet_pin_cats"],
+            "Dog": ["happypet_pin_dogs"], " DOG": ["happypet_pin_dogs"],
+            "Both": ["happypet_pin_dogs", "happypet_pin_cats"],
+            " BOTH\r\n": ["happypet_pin_dogs", "happypet_pin_cats"],
+        }
+        for species, sp_events in cases.items():
+            with self.subTest(species=species):
+                self.logged.clear()
+                events = self.pp.resolve_events(species, "HAPPYPET_SHEET_ID_TOYS")
+                self.assertEqual(events, sp_events + ["happypet_pin_toys"])
+                self.assertEqual(self.logged, [], "a recognised species must not WARN")
 
     def test_category_events_and_species_events_are_disjoint(self):
         """Structural catch-all: if no category label can ever map to a species
