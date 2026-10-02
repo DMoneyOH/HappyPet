@@ -315,16 +315,17 @@ class TestProductsJsonAffiliateContract(unittest.TestCase):
 
 
 class TestAmazonAssociatesTag(unittest.TestCase):
-    """Every Amazon product link in products.json and _posts/ carries the current
-    Associates tag, and none carries a stale one.
+    """Every Amazon link in products.json and _posts/ is a full amazon.com link
+    carrying exactly the current Associates tag: no other tag, no missing tag,
+    and no amzn.to short link.
 
     The tag changed on 2026-10-02 after the old Associates application was
     rejected. The expected value is a literal on purpose: refill_products'
     AFFILIATE_TAG is env-derived and is the thing under test, so importing it
     would make this test agree with whatever the code says.
 
-    amzn.to short links are exempt: their tag lives inside Amazon's redirect and
-    cannot be read offline. products.json must carry none of them.
+    amzn.to short links are banned outright: their tag lives inside Amazon's
+    redirect, so nothing offline can tell which account they credit.
     """
 
     TAG = "happypetdc-20"
@@ -334,18 +335,14 @@ class TestAmazonAssociatesTag(unittest.TestCase):
     AMAZON_URL_RE = re.compile(
         r"(?<![\w.-])(?:https?://)?(?:www\.)?amazon\.[a-z]{2,3}(?:\.[a-z]{2})?/[^\s\"')\]<>]*",
         re.IGNORECASE)
+    SHORT_URL_RE = re.compile(r"(?<![\w.-])(?:https?://)?amzn\.to/[^\s\"')\]<>]*", re.IGNORECASE)
     TAG_RE = re.compile(r"[?&;]tag=([^&#\s\"')\]<>]*)", re.IGNORECASE)
-    PRODUCT_PATH_RE = re.compile(r"/(?:dp|gp/product)/", re.IGNORECASE)
 
     def _offenders(self, text):
-        bad = []
+        bad = [m.group(0) for m in self.SHORT_URL_RE.finditer(text)]
         for m in self.AMAZON_URL_RE.finditer(text):
-            url = m.group(0)
-            tags = self.TAG_RE.findall(url)
-            if tags and set(tags) != {self.TAG}:
-                bad.append(url)
-            elif not tags and self.PRODUCT_PATH_RE.search(url):
-                bad.append(url)
+            if set(self.TAG_RE.findall(m.group(0))) != {self.TAG}:
+                bad.append(m.group(0))
         return bad
 
     def _sources(self):
@@ -356,13 +353,20 @@ class TestAmazonAssociatesTag(unittest.TestCase):
         for url in ("https://www.amazon.com/dp/B0FAKE0001?tag=pawpicks04-20",
                     "HTTPS://AMAZON.COM/dp/B0FAKE0001?th=1&tag=other-20",
                     "amazon.com/dp/B0FAKE0001",
-                    "https://www.amazon.com/gp/product/B0FAKE0001"):
+                    "https://www.amazon.com/gp/product/B0FAKE0001",
+                    "https://www.amazon.com/s?k=cat+tree",
+                    "https://www.amazon.com/dp/B0FAKE0001?tag=happypetdc-20&tag=other-20",
+                    "https://amzn.to/4sVt7G2",
+                    "HTTP://AMZN.TO/4sVt7G2",
+                    "amzn.to/4sVt7G2"):
             with self.subTest(url=url):
                 self.assertEqual(self._offenders(f"[x]({url})"), [url])
-        clean = ("[x](https://www.amazon.com/dp/B0FAKE0001?tag=happypetdc-20) "
+        clean = ("[x](https://www.amazon.com/dp/B0FAKE0001?th=1&tag=happypetdc-20) "
+                 "affiliate_url: \"https://www.amazon.com/dp/B0FAKE0001?tag=happypetdc-20\" "
+                 "[Fancy Feast](https://www.amazon.com/s?k=Fancy+Feast+Classic+Pate&tag=happypetdc-20) "
                  "image: \"https://m.media-amazon.com/images/I/71abc._AC_SX425_.jpg\" "
                  "https://images-na.ssl-images-amazon.com/images/P/B000FLETX8.01.jpg "
-                 "https://amzn.to/4sVt7G2 https://chewy.sjv.io/c/1/2/3?u=x")
+                 "https://chewy.sjv.io/c/1/2/3?u=x")
         self.assertEqual(self._offenders(clean), [])
 
     def test_every_amazon_link_carries_current_tag(self):
@@ -376,9 +380,6 @@ class TestAmazonAssociatesTag(unittest.TestCase):
         hits = [f"{path.name}: {stale}" for path in self._sources()
                 for stale in self.STALE_TAGS if stale in path.read_text(encoding="utf-8")]
         self.assertEqual(hits, [])
-
-    def test_products_json_has_no_short_links(self):
-        self.assertNotIn("amzn.to", (REPO / "products.json").read_text(encoding="utf-8"))
 
 
 class TestScorecardEvaluation(unittest.TestCase):
