@@ -8060,5 +8060,52 @@ class TestRefillAutomergeGate(unittest.TestCase):
         self.assertIn("AUTOMERGE_ENABLED: ${{ vars.AUTOMERGE_ENABLED }}", code)
 
 
+class TestCreedBandRetailerLink(unittest.TestCase):
+    """The home page's "how we choose" band: order, the retailer count, and
+    the link from "Retailers we link" to the About page's disclosure."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.home = (REPO / "_layouts" / "home.html").read_text(encoding="utf-8")
+        cls.about = (REPO / "about.md").read_text(encoding="utf-8")
+        cls.css = _strip_css_comments(
+            (REPO / "assets" / "css" / "style.css").read_text(encoding="utf-8"))
+        band = re.search(r'<div class="creed-nums">(.*?)</div>\s*</div>', cls.home, re.S)
+        assert band, "home.html has no creed-nums block"
+        cls.band = band.group(1)
+
+    def test_band_order_and_retailer_count(self):
+        labels = re.findall(r"<span>([^<]+)</span>", self.band)
+        self.assertEqual(
+            labels, ["Reviews published", "Retailers we link", "Sponsored posts"])
+        self.assertRegex(
+            self.band, r"<b>2</b><span>Retailers we link</span>")
+
+    def test_retailers_item_links_to_an_anchor_that_exists_on_about(self):
+        m = re.search(
+            r'<a class="creed-num[^"]*" href="\{\{ site\.baseurl \}\}/about/#([\w-]+)">'
+            r'<b>2</b><span>Retailers we link</span></a>', self.band)
+        self.assertIsNotNone(m, "the retailer item is not an anchor to /about/#...")
+        self.assertRegex(self.about, r'<h2 id="%s">Affiliate disclosure</h2>' % m.group(1))
+        self.assertEqual(self.about.count('id="%s"' % m.group(1)), 1)
+
+    def test_link_keeps_a_visible_focus_state(self):
+        # The ring comes from the global :focus-visible rule; nothing may
+        # switch it off for the band's link.
+        self.assertRegex(self.css, r":focus-visible\s*\{\s*outline:\s*2px solid")
+        for rule in re.findall(r"[^{}]*creed-num[^{}]*\{[^}]*\}", self.css):
+            self.assertNotRegex(rule, r"outline\s*:\s*(none|0)")
+
+    def test_dropped_retailer_is_gone_from_the_visible_site(self):
+        # Built from parts so a repo-wide grep for the name stays at zero.
+        gone = "pet" + "co"
+        for rel in ("_layouts/default.html", "_layouts/home.html",
+                    "_layouts/post.html", "about.md", "contact.md",
+                    "privacy-policy.md"):
+            text = (REPO / rel).read_text(encoding="utf-8")
+            self.assertNotIn(gone, text.lower(), rel)
+        self.assertIn("Amazon and Chewy", self.about)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

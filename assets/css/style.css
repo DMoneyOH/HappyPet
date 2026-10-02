@@ -970,6 +970,13 @@ button { font: inherit; color: inherit; }
   text-transform: uppercase;
   color: var(--on-band-2);
 }
+/* The retailer count links to the About page's affiliate disclosure. It is a
+   block anchor, so it keeps the grid cell and the type of its siblings; the
+   global :focus-visible ring shows when it is tabbed to. Underline the label
+   only (as .crumb a does), never the number's highlight block. */
+a.creed-num { text-decoration: none; }
+a.creed-num:hover span,
+a.creed-num:focus-visible span { text-decoration: underline; }
 
 .creed-points {
   display: grid;
@@ -1179,6 +1186,7 @@ button { font: inherit; color: inherit; }
   max-width: 68ch;
 }
 .prose > * + * { margin-top: 1.1rem; }
+.prose h2[id] { scroll-margin-top: 5rem; } /* clear the sticky .mast */
 .prose h2 {
   font-family: var(--font-display);
   font-weight: 800;
