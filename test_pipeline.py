@@ -14,6 +14,7 @@ Coverage per handover STEP 7:
 Run: python3 -m pytest test_pipeline.py -v
 """
 
+import contextlib
 import json
 import os
 import re
@@ -7004,7 +7005,10 @@ class TestAutomergeGate(unittest.TestCase):
              patch.object(g, "fetch_modes", lambda *a: {f["filename"]: "100644"
                                                         for f in kw["files"]}), \
              patch.object(g, "summary", lambda *_: None):
-            rc = g.process(self.REPO_NAME, 117, kw["run_sha"], dry_run=False)
+            try:
+                rc = g.process(self.REPO_NAME, 117, kw["run_sha"], dry_run=False)
+            except Exception as exc:    # a gate error: main() holds the PR and exits 1
+                rc = exc
         return rc, calls
 
     def test_the_exact_merge_and_publish_commands_are_pinned(self):
@@ -7026,12 +7030,18 @@ class TestAutomergeGate(unittest.TestCase):
         self.assertEqual(calls, [])
 
     def test_an_unexpected_exception_in_the_gate_fails_closed(self):
+        """It leaves process() before any write; main() holds the PR and exits 1."""
         def boom(*a, **k):
             raise RuntimeError("unforeseen shape")
         with patch.object(self.g, "evaluate", boom):
             rc, calls = self.run_process()
-        self.assertEqual(rc, 0)
+        self.assertIsInstance(rc, RuntimeError)
         self.assertEqual(calls, [], "a gate error must never reach the merge")
+
+    def test_unreadable_check_runs_hold(self):
+        v = self.verdict(check_runs=None)
+        self.assertFalse(v.ok)
+        self.assertTrue(any("check runs" in r for r in v.reasons), v.reasons)
 
     def test_a_products_only_merge_does_not_dispatch_publish(self):
         rc, calls = self.run_process(files=[{"filename": "products.json", "status": "modified"}])
@@ -7212,7 +7222,7 @@ class TestAutomergeGate(unittest.TestCase):
 
 class TestRefillAutomergeGate(unittest.TestCase):
     """automerge_gate.py's refill rule (build step 2 of the refill automation design spec,
-    PR #120, branch docs/refill-automation-spec). A `refill/*` PR is merged only when: the
+    docs/superpowers/specs/2026-09-25-refill-automation-design.md). A `refill/*` PR is merged only when: the
     head branch fully matches refill/<slug>, the PR is same-repo, it changes ONLY
     products.json, CI is green on the exact head SHA, no NEEDS_ appears anywhere in the head
     file, existing entries are unchanged and in order with new entries only at the end
@@ -7564,6 +7574,13 @@ class TestRefillAutomergeGate(unittest.TestCase):
                 self.assertFalse(v.ok, name)
                 self.assertTrue(any("ASIN" in r for r in v.reasons), v.reasons)
 
+    def test_a_non_string_asin_is_a_hold_reason_not_a_crash(self):
+        for asin in (["B0ABCD1234"], {"a": "B0ABCD1234"}, 5, None):
+            with self.subTest(asin=asin):
+                v = self.with_head(self.base_entries() + [self.entry(asin=asin)])
+                self.assertFalse(v.ok)
+                self.assertTrue(any("asin" in r for r in v.reasons), v.reasons)
+
     def test_an_unavailable_file_says_so(self):
         for over in ({"products_text": None}, {"merge_base_text": None}):
             with self.subTest(over):
@@ -7683,7 +7700,10 @@ class TestRefillAutomergeGate(unittest.TestCase):
 
     # ---- process(): routing, merge base, no issues fetch -------------------------
 
-    def run_process(self, dry_run=False, compare=None, **over):
+    def run_process(self, dry_run=False, compare=None, fail=None, **over):
+        """process() against a fake gh. Returns (rc, gh write calls, reads); rc is the
+        exception instead when process() raises. `fail`=(function name, exception) makes
+        that fetch raise."""
         kw = self.good()
         kw.update(over)
         calls, reads = [], []
@@ -7701,15 +7721,30 @@ class TestRefillAutomergeGate(unittest.TestCase):
             return {self.SHA: kw["products_text"],
                     self.MERGE_BASE: kw["merge_base_text"]}.get(ref)
 
+        def raiser(exc):
+            def boom(*a, **k):
+                raise exc
+            return boom
+
         g = self.g
-        with patch.object(g, "gh", lambda *a: calls.append(list(a)) or ""), \
-             patch.object(g, "gh_json", fake_json), \
-             patch.object(g, "fetch_files", lambda *a: kw["files"]), \
-             patch.object(g, "fetch_check_runs", lambda *a: kw["check_runs"]), \
-             patch.object(g, "fetch_text", fake_text), \
-             patch.object(g, "fetch_modes", lambda *a: kw["modes"]), \
-             patch.object(g, "summary", lambda *_: None):
-            rc = g.process(self.REPO_NAME, 130, kw["run_sha"], dry_run=dry_run)
+        patches = [
+            patch.object(g, "gh", lambda *a: calls.append(list(a)) or ""),
+            patch.object(g, "gh_json", fake_json),
+            patch.object(g, "fetch_files", lambda *a: kw["files"]),
+            patch.object(g, "fetch_check_runs", lambda *a: kw["check_runs"]),
+            patch.object(g, "fetch_text", fake_text),
+            patch.object(g, "fetch_modes", lambda *a: kw["modes"]),
+            patch.object(g, "summary", lambda *_: None),
+        ]
+        if fail:
+            patches.append(patch.object(g, fail[0], raiser(fail[1])))
+        with contextlib.ExitStack() as stack:
+            for p in patches:
+                stack.enter_context(p)
+            try:
+                rc = g.process(self.REPO_NAME, 130, kw["run_sha"], dry_run=dry_run)
+            except Exception as exc:
+                rc = exc
         return rc, calls, reads
 
     def test_a_refill_pr_is_merged_with_the_pinned_command_and_no_publish(self):
@@ -7740,44 +7775,16 @@ class TestRefillAutomergeGate(unittest.TestCase):
                 rc, calls, _ = self.run_process(compare=compare)
                 self.assertEqual((rc, calls), (0, []))
 
-    def test_an_unexpected_exception_in_the_refill_rule_fails_closed(self):
-        def boom(*a, **k):
-            raise RuntimeError("unforeseen shape")
-        with patch.object(self.g, "evaluate_refill", boom):
-            rc, calls, _ = self.run_process()
-        self.assertEqual((rc, calls), (0, []))
+    def test_an_unexpected_exception_in_the_refill_rule_is_a_gate_error(self):
+        """It propagates out of process() before any write; main() turns it into a hold
+        line and a red run (test_a_gate_error_holds_that_pr_and_reddens_the_run)."""
+        rc, calls, _ = self.run_process(fail=("evaluate_refill", RuntimeError("unforeseen")))
+        self.assertIsInstance(rc, RuntimeError)
+        self.assertEqual(calls, [])
 
-    def test_a_refill_branch_never_falls_back_to_the_routine_rule(self):
-        """Even shaped like a routine Stage-1 PR, a refill/* PR is judged by the refill rule."""
-        files = [{"filename": "_posts/DRAFT-best-x.md", "status": "added"}]
-        with patch.object(self.g, "evaluate", lambda *a, **k: self.g.Verdict(True, [], True)):
-            rc, calls, _ = self.run_process(files=files)
-        self.assertEqual((rc, calls), (0, []))
-
-    def test_every_refill_prefixed_branch_routes_to_the_refill_rule(self):
-        """Routing is on the `refill/` prefix; the strict refill/<slug> check is the refill
-        rule's. A Claude-App-attributed, routine-shaped PR on a malformed refill branch must
-        be held, not handed to the routine rule (which is stubbed to say yes here)."""
-        files = [{"filename": "_posts/DRAFT-best-x.md", "status": "added"}]
-        yes = lambda *a, **k: self.g.Verdict(True, [], True)
-        for ref in ("refill/Abc", "refill/a_b", "refill/", "refill/a/b", "refill/x.lock",
-                    "refill/x\n", "refill/../x"):
-            with self.subTest(ref=ref):
-                pr = self.good()["pr"]
-                pr["head"] = {**pr["head"], "ref": ref}
-                pr["performed_via_github_app"] = {"slug": "claude"}
-                with patch.object(self.g, "evaluate", yes):
-                    rc, calls, reads = self.run_process(pr=pr, files=files)
-                self.assertEqual((rc, calls), (0, []))
-                self.assertFalse(any("/issues/" in r for r in reads), "fell back to routine")
-        for ref in ("claude/x", "Refill/x", "xrefill/x", None):
-            with self.subTest(routine=ref):
-                pr = self.good()["pr"]
-                pr["head"] = {**pr["head"], "ref": ref}
-                _, _, reads = self.run_process(pr=pr)
-                self.assertTrue(any("/issues/" in r for r in reads), "not routed to routine")
-
-    def test_a_fetch_failure_in_the_refill_path_is_a_hold(self):
+    def test_a_fetch_failure_in_the_refill_path_is_a_gate_error(self):
+        """Same policy as an evaluation error: no write call, and the exception reaches
+        main(), which holds the PR and exits 1."""
         import subprocess as sp
         failures = {
             "files":   ("fetch_files", sp.CalledProcessError(1, ["gh"])),
@@ -7788,16 +7795,40 @@ class TestRefillAutomergeGate(unittest.TestCase):
         }
         for name, (fn, exc) in failures.items():
             with self.subTest(name):
-                def boom(*a, _e=exc, **k):
-                    raise _e
-                lines = []
-                kw = self.good()
-                g = self.g
-                with patch.object(g, "gh", lambda *a: lines.append(("WRITE", a)) or ""),                      patch.object(g, "gh_json", lambda *a: kw["pr"]),                      patch.object(g, "fetch_files", lambda *a: kw["files"]),                      patch.object(g, "fetch_check_runs", lambda *a: kw["check_runs"]),                      patch.object(g, "fetch_text", lambda *a: kw["products_text"]),                      patch.object(g, "fetch_modes", lambda *a: kw["modes"]),                      patch.object(g, "fetch_merge_base", lambda *a: self.MERGE_BASE),                      patch.object(g, fn, boom),                      patch.object(g, "summary", lines.append):
-                    rc = g.process(self.REPO_NAME, 130, self.SHA, dry_run=False)
-                self.assertEqual(rc, 0)
-                self.assertFalse([x for x in lines if isinstance(x, tuple)], "no write call")
-                self.assertTrue(any("left for a human" in str(x) for x in lines), lines)
+                rc, calls, _ = self.run_process(fail=(fn, exc))
+                self.assertIs(rc, exc)
+                self.assertEqual(calls, [], "no write call")
+
+    def test_a_refill_branch_never_falls_back_to_the_routine_rule(self):
+        """Even shaped like a routine Stage-1 PR, a refill/* PR is judged by the refill rule."""
+        files = [{"filename": "_posts/DRAFT-best-x.md", "status": "added"}]
+        with patch.object(self.g, "evaluate", lambda *a, **k: self.g.Verdict(True, [], True)):
+            rc, calls, _ = self.run_process(files=files)
+        self.assertEqual((rc, calls), (0, []))
+
+    def test_every_refill_prefixed_branch_routes_to_the_refill_rule(self):
+        """Routing is on the `refill/` prefix; the strict refill/<slug> check is the refill
+        rule's. A routine-shaped PR on a malformed refill branch must be held, not handed to
+        the routine rule. The routine rule is stubbed to say yes, which stands in for a
+        Claude-App-attributed PR: the attribution lives on the issue, and the refill path
+        never reads the issue at all."""
+        files = [{"filename": "_posts/DRAFT-best-x.md", "status": "added"}]
+        yes = lambda *a, **k: self.g.Verdict(True, [], True)
+        for ref in ("refill/Abc", "refill/a_b", "refill/", "refill/a/b", "refill/x.lock",
+                    "refill/x\n", "refill/../x"):
+            with self.subTest(ref=ref):
+                pr = self.good()["pr"]
+                pr["head"] = {**pr["head"], "ref": ref}
+                with patch.object(self.g, "evaluate", yes):
+                    rc, calls, reads = self.run_process(pr=pr, files=files)
+                self.assertEqual((rc, calls), (0, []))
+                self.assertFalse(any("/issues/" in r for r in reads), "fell back to routine")
+        for ref in ("claude/x", "Refill/x", "xrefill/x", None):
+            with self.subTest(routine=ref):
+                pr = self.good()["pr"]
+                pr["head"] = {**pr["head"], "ref": ref}
+                _, _, reads = self.run_process(pr=pr)
+                self.assertTrue(any("/issues/" in r for r in reads), "not routed to routine")
 
     # ---- check runs: every page is read, or the PR is held ------------------------
 
@@ -7811,51 +7842,82 @@ class TestRefillAutomergeGate(unittest.TestCase):
         with patch.object(self.g, "gh_json", fake):
             return self.g.fetch_check_runs(self.REPO_NAME, self.SHA), asked
 
+    @staticmethod
+    def runs(start, count):
+        return [{"id": i, "name": f"c{i}", "status": "completed", "conclusion": "success"}
+                for i in range(start, start + count)]
+
     def test_check_runs_are_read_across_every_page(self):
-        run = {"name": "lint", "status": "completed", "conclusion": "success"}
-        runs, asked = self.fetch_runs([[run] * 100, [run] * 100, [run] * 7], 207)
-        self.assertEqual(len(runs), 207)
+        runs, asked = self.fetch_runs(
+            [self.runs(1, 100), self.runs(101, 100), self.runs(201, 7)], 207)
+        self.assertEqual(sorted(r["id"] for r in runs), list(range(1, 208)))
         self.assertEqual(asked, [f"repos/{self.REPO_NAME}/commits/{self.SHA}/check-runs"
                                  f"?per_page=100&page={n}" for n in (1, 2, 3)])
         self.assertEqual(self.fetch_runs([[]], 0)[0], [])
 
     def test_check_runs_that_do_not_add_up_are_unreadable(self):
-        run = {"name": "lint"}
+        no_id = [{"name": "lint", "status": "completed", "conclusion": "success"}]
         for name, pages, total in (
-                ("a page came back short", [[run] * 100, []], 150),
-                ("more than reported", [[run] * 3], 2),
-                ("total missing", [[run]], None),
-                ("total not an int", [[run]], "1"),
+                ("a page came back short", [self.runs(1, 100), []], 150),
+                ("more than reported", [self.runs(1, 3)], 2),
+                ("total missing", [self.runs(1, 1)], None),
+                ("total not an int", [self.runs(1, 1)], "1"),
+                ("total is a bool", [self.runs(1, 1)], True),
                 ("runs not a list", [{"x": 1}], 1),
-                ("over the page cap", [[run] * 100] * 11, 1100)):
+                ("a run without an id", [no_id], 1),
+                ("an id that is not an int", [[dict(self.runs(1, 1)[0], id="1")]], 1),
+                ("over the page cap", [self.runs(i * 100, 100) for i in range(11)], 1100)):
             with self.subTest(name):
                 self.assertIsNone(self.fetch_runs(pages, total)[0])
 
-    def test_unreadable_check_runs_hold_in_both_rules(self):
-        self.assertFalse(self.verdict(check_runs=None).ok)
-        routine = TestAutomergeGate("test_baseline_routine_pr_merges_and_publishes")
-        routine.setUp()
-        kw = routine.good()
-        kw["check_runs"] = None
-        v = self.g.evaluate(**kw)
+    def test_a_run_repeated_across_pages_cannot_stand_in_for_a_missed_one(self):
+        """Pages can shift while they are read. Run 100 shows up twice and run 101 never
+        does; the raw count still equals total_count, the unique count does not."""
+        page1 = self.runs(1, 100)
+        page2 = [page1[-1]] + self.runs(102, 49)
+        self.assertEqual(len(page1) + len(page2), 150)
+        self.assertIsNone(self.fetch_runs([page1, page2], 150)[0])
+
+    def test_unreadable_check_runs_hold_the_refill_rule(self):
+        v = self.verdict(check_runs=None)
         self.assertFalse(v.ok)
         self.assertTrue(any("check runs" in r for r in v.reasons), v.reasons)
 
-    def test_one_pr_that_errors_does_not_stop_the_others(self):
-        seen = []
+    # ---- main(): one policy for gate errors ---------------------------------------
 
-        def proc(repo, n, sha, dry_run):
-            seen.append(n)
-            if n == 1:
-                raise ValueError("malformed JSON from the API")
-            return 0
+    def run_main_with(self, proc, numbers="[1, 2]"):
         lines = []
-        env = {"REPO": self.REPO_NAME, "RUN_HEAD_SHA": self.SHA, "PR_NUMBERS": "[1, 2]"}
-        with patch.dict(os.environ, env, clear=False),              patch.object(self.g, "process", proc), patch.object(self.g, "summary", lines.append):
+        env = {"REPO": self.REPO_NAME, "RUN_HEAD_SHA": self.SHA, "PR_NUMBERS": numbers}
+        with patch.dict(os.environ, env, clear=False), \
+             patch.object(self.g, "process", proc), \
+             patch.object(self.g, "summary", lines.append):
             rc = self.g.main([])
-        self.assertEqual(seen, [1, 2])
-        self.assertEqual(rc, 1, "an errored PR must leave the run red")
-        self.assertTrue(any(l.startswith("PR #1:") for l in lines), lines)
+        return rc, lines
+
+    def test_a_gate_error_holds_that_pr_and_reddens_the_run(self):
+        """Fetch failure, evaluation exception or malformed API JSON, on either path: the
+        PR is held, a line names it, the other PRs still run, and the run exits 1."""
+        import subprocess as sp
+        for exc in (ValueError("malformed JSON from the API"), RuntimeError("x"),
+                    sp.CalledProcessError(1, ["gh", "api", "x"], stderr="HTTP 502")):
+            with self.subTest(type(exc).__name__):
+                seen = []
+
+                def proc(repo, n, sha, dry_run, _e=exc):
+                    seen.append(n)
+                    if n == 1:
+                        raise _e
+                    return 0
+                rc, lines = self.run_main_with(proc)
+                self.assertEqual(seen, [1, 2], "one bad PR must not stop the others")
+                self.assertEqual(rc, 1, "a gate error must leave the run red")
+                one = [l for l in lines if l.startswith("PR #1:")]
+                self.assertEqual(len(one), 1, lines)
+                self.assertIn("gate error", one[0])
+
+    def test_a_plain_hold_exits_zero(self):
+        rc, lines = self.run_main_with(lambda repo, n, sha, dry_run: 0)
+        self.assertEqual(rc, 0)
 
     # ---- the AUTOMERGE_ENABLED kill switch, mirrored in Python ---------------------
 

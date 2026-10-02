@@ -323,7 +323,7 @@ def _pr_problems(pr: dict, run_sha: str, repo: str) -> list:
     return why
 
 
-def evaluate(pr: dict, issue: dict, files: list, check_runs: list,
+def evaluate(pr: dict, issue: dict, files: list, check_runs: list | None,
              run_sha: str, repo: str, products_text: str | None = None,
              base_products_text: str | None = None, pin_texts: dict | None = None,
              modes: dict | None = None) -> Verdict:
@@ -362,12 +362,12 @@ def evaluate(pr: dict, issue: dict, files: list, check_runs: list,
 
 # ------------------------------------------------------------------ refill rule
 # A separate rule for `refill/*` PRs: build step 2 of the refill automation design spec
-# (docs/superpowers/specs/2026-09-25-refill-automation-design.md on branch
-# docs/refill-automation-spec, PR #120, not yet on main). Refill PRs come from the local
-# refill session, which pushes and opens them under the Director's own gh login, so they
-# never carry the Claude App attribution the routine rule above requires. Instead of who
-# opened them, this rule judges what they change: products.json only, and only by
-# appending canonical entries or filling placeholders in place.
+# (docs/superpowers/specs/2026-09-25-refill-automation-design.md). A refill PR may come
+# from the local refill session under the Director's own gh login, or from refill.yml
+# (dispatch-only, held) under GITHUB_TOKEN; neither carries the Claude App attribution the
+# routine rule above requires. So this rule does not judge who opened the PR. It judges
+# what the PR changes: products.json only, and only by appending canonical entries or
+# filling placeholders in place.
 #
 # Merges only when ALL hold:
 #   1. head branch fully matches REFILL_BRANCH; PR open, not draft, based on main, no
@@ -391,21 +391,27 @@ def evaluate(pr: dict, issue: dict, files: list, check_runs: list,
 REFILL_BRANCH = re.compile(rf"refill/{_SLUG}")
 AFFILIATE_TAG = "happypetdc-20"      # literal: refill_products.py lets an env var override it
 _ASIN = re.compile(r"B0[A-Z0-9]{8}")
-# Product photo for a new products.json entry. Stricter than the pin rule's _IMAGE_URL on
+# Product photo for a new products.json entry. Separate from the pin rule's _IMAGE_URL on
 # purpose: that one validates pin JSON written by Stage 1 (site pin jpg, or one historical
-# Amazon CDN jpg, with an optional ?v= cache-bust); this one validates what manual_resolve.py
-# accepts (refill_products.IMAGE_HOST_RE: jpg/jpeg/png/webp on m.media-amazon.com, no
-# query), with fullmatch and a closed character set instead of [^\s"'].
+# Amazon CDN jpg, with an optional ?v= cache-bust). This one is stricter than the producer's
+# own check, refill_products.IMAGE_HOST_RE, which is case-insensitive and whose [^\s"']
+# class admits `?` (so a query string). The gate is case-sensitive, uses fullmatch over a
+# closed character set, and admits no query.
 _AMAZON_IMAGE = re.compile(
     r"https://m\.media-amazon\.com/images/I/[A-Za-z0-9._+-]+\.(?:jpg|jpeg|png|webp)")
 # Impact tracking link to Chewy. 32975 is CHEWY_CAMPAIGN_ID and APIG_24727 carries
 # CHEWY_CATALOG_ID 24727 (both chewy_lookup.py defaults). 7160344 and 3054490 are not named
-# anywhere in this repo: they are the fixed segments Impact's catalog API returns, identical
-# in all 35 distinct chewy_url values in products.json history. The `u` value may hold only
-# URL-encoded characters, so it cannot add a second query parameter.
+# anywhere in this repo; they are copied from the stored links. On 2026-10-02, all 35
+# distinct non-empty chewy_url values in `git log -p -- products.json` (REVIEW: prefix
+# removed; the same set on main and on all local refs) began with
+# https://chewy.sjv.io/c/7160344/3054490/32975? . The `u` value may hold only URL-encoded
+# characters, so it cannot add a second query parameter.
 _CHEWY_URL = re.compile(
     r"https://chewy\.sjv\.io/c/7160344/3054490/32975\?prodsku=[0-9]+"
     r"&u=https%3A%2F%2Fwww\.chewy\.com%2F[A-Za-z0-9%._~-]+(?:&intsrc=APIG_[0-9]+)?")
+
+
+REFILL_PREFIX = "refill/"    # routing: every branch with this prefix gets the refill rule
 
 
 def is_refill_branch(ref) -> bool:
@@ -506,12 +512,13 @@ def refill_products_problems(head_text, merge_base_text) -> list:
     asins = Counter(e.get("asin") for e in head if isinstance(e.get("asin"), str))
     for e in fresh:
         bad += refill_entry_problems(e)
-        if asins[e.get("asin")] > 1:
+        if isinstance(e.get("asin"), str) and asins[e["asin"]] > 1:
             bad.append(f"entry {e['topic']!r}: ASIN {e.get('asin')!r} appears more than once")
     return bad
 
 
-def evaluate_refill(pr: dict, files: list, check_runs: list, run_sha: str, repo: str,
+def evaluate_refill(pr: dict, files: list, check_runs: list | None, run_sha: str,
+                    repo: str,
                     products_text: str | None, merge_base_text: str | None,
                     modes: dict | None) -> Verdict:
     """Pure decision for a refill/* PR. `merge_base_text` is products.json at the merge base
@@ -558,18 +565,26 @@ CHECK_RUN_PAGES = 10            # 1,000 runs; a head SHA with more is held
 
 
 def fetch_check_runs(repo: str, sha: str) -> list | None:
-    """Every check run on `sha`, read page by page, or None when the pages do not add up
-    to the endpoint's own total_count (the caller holds on None)."""
-    runs, total = [], None
+    """Every check run on `sha`, read page by page and de-duplicated by run id, or None when
+    a run has no integer id or the unique runs read do not equal the endpoint's own
+    total_count (the caller holds on None). Pages can shift while they are read, so a raw
+    count could match while one run is read twice and another is missed."""
+    runs, total = {}, None
     for page in range(1, CHECK_RUN_PAGES + 1):
         data = gh_json("api", f"repos/{repo}/commits/{sha}/check-runs?per_page=100&page={page}")
         total, batch = data.get("total_count"), data.get("check_runs")
+        # type(...) is int, not isinstance: bool is a subclass of int, so isinstance would
+        # accept a total_count of `true` as 1.
         if type(total) is not int or not isinstance(batch, list):
             return None
-        runs += batch
+        for run in batch:
+            run_id = run.get("id") if isinstance(run, dict) else None
+            if type(run_id) is not int:
+                return None
+            runs[run_id] = run
         if len(runs) >= total or len(batch) < 100:
             break
-    return runs if len(runs) == total else None
+    return list(runs.values()) if len(runs) == total else None
 
 
 def fetch_text(repo: str, path: str, ref: str) -> str | None:
@@ -623,29 +638,24 @@ def summary(text: str) -> None:
 
 
 def process_refill(repo: str, number: int, pr: dict, run_sha: str, dry_run: bool) -> int:
-    """The refill rule's reads. It never reads the issues endpoint. A failed read is a hold,
-    the same as a failed evaluation."""
+    """The refill rule's reads. It never reads the issues endpoint. Any exception here is a
+    gate error, handled once in main()."""
     head_sha = (pr.get("head") or {}).get("sha") or ""
     base_sha = (pr.get("base") or {}).get("sha") or ""
-    try:
-        files = fetch_files(repo, number)
-        checks = fetch_check_runs(repo, head_sha) if head_sha else []
-        products = fetch_text(repo, "products.json", head_sha) if head_sha else None
-        merge_base = (fetch_merge_base(repo, base_sha, head_sha)
-                      if head_sha and base_sha else None)
-        base_products = fetch_text(repo, "products.json", merge_base) if merge_base else None
-        modes = fetch_modes(repo, head_sha) if head_sha else None
-        v = evaluate_refill(pr, files, checks, run_sha, repo, products, base_products, modes)
-    except Exception as exc:  # fail closed: an unforeseen shape is a hold, never a merge
-        summary(f"PR #{number}: left for a human -- gate error {type(exc).__name__}")
-        return 0
+    files = fetch_files(repo, number)
+    checks = fetch_check_runs(repo, head_sha) if head_sha else []
+    products = fetch_text(repo, "products.json", head_sha) if head_sha else None
+    merge_base = fetch_merge_base(repo, base_sha, head_sha) if head_sha and base_sha else None
+    base_products = fetch_text(repo, "products.json", merge_base) if merge_base else None
+    modes = fetch_modes(repo, head_sha) if head_sha else None
+    v = evaluate_refill(pr, files, checks, run_sha, repo, products, base_products, modes)
     return act(repo, number, head_sha, v, dry_run)
 
 
 def process(repo: str, number: int, run_sha: str, dry_run: bool) -> int:
     pr = gh_json("api", f"repos/{repo}/pulls/{number}")
     ref = (pr.get("head") or {}).get("ref")
-    if isinstance(ref, str) and ref.startswith("refill/"):
+    if isinstance(ref, str) and ref.startswith(REFILL_PREFIX):
         return process_refill(repo, number, pr, run_sha, dry_run)
     issue = gh_json("api", f"repos/{repo}/issues/{number}")
     files = fetch_files(repo, number)
@@ -661,12 +671,8 @@ def process(repo: str, number: int, run_sha: str, dry_run: bool) -> int:
                  if isinstance(p, str) and _PIN_JSON.fullmatch(p)} if head_sha else {}
     modes = fetch_modes(repo, head_sha) if head_sha else None
 
-    try:
-        v = evaluate(pr, issue, files, checks, run_sha, repo, products, base_products,
-                     pin_texts, modes)
-    except Exception as exc:  # fail closed: an unforeseen shape is a hold, never a merge
-        summary(f"PR #{number}: left for a human -- gate error {type(exc).__name__}")
-        return 0
+    v = evaluate(pr, issue, files, checks, run_sha, repo, products, base_products,
+                 pin_texts, modes)
     return act(repo, number, head_sha, v, dry_run)
 
 
@@ -702,19 +708,27 @@ def main(argv: list) -> int:
         summary("no same-repo PR attached to this CI run -- nothing to do")
         return 0
     rc = 0
-    for n in numbers:
+    for n in numbers:          # main() is the single gate-error boundary; see gate_error()
         if not isinstance(n, int):
             summary(f"ignoring non-integer PR number {n!r}")
             continue
         try:
             rc |= process(repo, n, run_sha, dry_run)
-        except subprocess.CalledProcessError as exc:
-            summary(f"PR #{n}: gh failed ({exc.cmd[:3]}): {(exc.stderr or '').strip()[:300]}")
-            rc = 1
-        except Exception as exc:  # one bad PR must not stop the others; it is never merged
-            summary(f"PR #{n}: left for a human -- error {type(exc).__name__}")
-            rc = 1
+        except Exception as exc:
+            rc = gate_error(n, exc)
     return rc
+
+
+def gate_error(number: int, exc: Exception) -> int:
+    """The one policy for a gate error on either rule -- a failed fetch, malformed API JSON
+    or an exception in evaluation. Nothing further is done for that PR (an error raised
+    before the merge call means it is held), the summary names it, the remaining PRs still
+    run, and the run exits non-zero. A plain hold verdict is not an error and exits 0."""
+    detail = type(exc).__name__
+    if isinstance(exc, subprocess.CalledProcessError):
+        detail += f" from {exc.cmd[:3]}: {(exc.stderr or '').strip()[:300]}"
+    summary(f"PR #{number}: gate error ({detail}) -- nothing further done for this PR")
+    return 1
 
 
 if __name__ == "__main__":
