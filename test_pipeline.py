@@ -7128,5 +7128,493 @@ class TestAutomergeGate(unittest.TestCase):
         self.assertEqual(run_lines, ["run: python3 automerge_gate.py"])
 
 
+class TestRefillAutomergeGate(unittest.TestCase):
+    """automerge_gate.py's refill rule (docs/superpowers/specs/2026-09-25-refill-automation-
+    design.md, build step 2). A `refill/*` PR is merged only when: the head branch fully
+    matches the refill pattern, the PR is same-repo, it changes ONLY products.json, CI is
+    green on the exact head SHA, no NEEDS_ / REVIEW marker is in what it adds, no existing
+    entry changed, and every new or filled entry carries the canonical Amazon link, an
+    m.media-amazon.com image and a null or chewy.sjv.io Chewy link.
+
+    The baseline is one canonical new entry appended to a two-entry queue. Each case flips
+    ONE thing and expects a hold. Expected values are literals, never recomputed by the
+    gate's own helpers.
+    """
+
+    REPO_NAME = "DMoneyOH/HappyPet"
+    SHA = "a" * 40
+    BASE_SHA = "d" * 40
+    MERGE_BASE = "e" * 40
+    BRANCH = "refill/2026-10-05-1200"
+    # Real values from products.json history (git log --all -- products.json, 2026-10-02).
+    REAL_IMAGES = (
+        "https://m.media-amazon.com/images/I/81r09hTCRNL._AC_SX679_.jpg",
+        "https://m.media-amazon.com/images/I/61-U8XMaW2L._AC_SX679_.jpg",
+        "https://m.media-amazon.com/images/I/611T5GXwQXL._AC_SX466_.jpg",
+        "https://m.media-amazon.com/images/I/61MPOYxs87L._AC_SL1500_.jpg",
+        "https://m.media-amazon.com/images/I/61yepIfxn0L._AC_SX300_SY300_QL70_FMwebp_.jpg",
+        "https://m.media-amazon.com/images/I/711DeELZYIL._AC_SY450_.jpg",
+    )
+    REAL_CHEWY = (
+        "https://chewy.sjv.io/c/7160344/3054490/32975?prodsku=1112910&u=https%3A%2F%2Fwww."
+        "chewy.com%2Fbeggin-flavor-stix-bacon-peanut%2Fdp%2F1112910%3Futm_source%3Dgoogle-"
+        "product%26utm_medium%3Dorganic%26utm_content%3DBeggin%2527&intsrc=APIG_24727",
+        "https://chewy.sjv.io/c/7160344/3054490/32975?prodsku=1548534&u=https%3A%2F%2Fwww."
+        "chewy.com%2Frocco-roxie-supply-co-professional%2Fdp%2F1548534%3Futm_source%3Dgoogle-"
+        "product%26utm_medium%3Dorganic%26utm_content%3DRocco%2520%2526%2520Roxie%2520Supply"
+        "%2520Co.&intsrc=APIG_24727",
+    )
+
+    def setUp(self):
+        self.g = _load_automerge_gate()
+
+    @staticmethod
+    def entry(topic="best-snuffle-mats-dogs", asin="B0ABCD1234", **over):
+        e = {"topic": topic, "title": "Sniff & Seek: The Best Snuffle Mats for Dogs",
+             "keyword": "best snuffle mat for dogs", "name": "Paw5 Wooly Snuffle Mat",
+             "asin": asin, "affiliate_url": f"https://www.amazon.com/dp/{asin}?tag=pawpicks04-20",
+             "image": "https://m.media-amazon.com/images/I/71abcXYZ._AC_SX425_.jpg",
+             "species": "dog", "category": "dog-toys", "format": "roundup",
+             "topical_sheet": "HAPPYPET_SHEET_ID_TOYS", "stars": 4.5, "price": "29.99",
+             "runners_up": "A; B", "chewy_url": None, "chewy_price": None,
+             "chewy_stock": None, "chewy_rating": None,
+             "amazon_search_query": "snuffle mat for dogs"}
+        e.update(over)
+        return e
+
+    def base_entries(self):
+        return [self.entry("best-heated-outdoor-cat-houses", "B07HMPRTXF"),
+                self.entry("best-dog-booster-seats", "B0GG8LR3RW",
+                           chewy_url="REVIEW:" + self.REAL_CHEWY[0])]
+
+    def good(self):
+        base = self.base_entries()
+        return dict(
+            pr={"state": "open", "merged": False, "draft": False,
+                "base": {"ref": "main", "sha": self.BASE_SHA},
+                "head": {"sha": self.SHA, "ref": self.BRANCH,
+                         "repo": {"full_name": self.REPO_NAME}},
+                "user": {"login": "github-actions[bot]"}, "labels": []},
+            files=[{"filename": "products.json", "status": "modified"}],
+            check_runs=[{"name": "pytest", "status": "completed",
+                         "conclusion": "success", "app": {"slug": "github-actions"}}],
+            run_sha=self.SHA, repo=self.REPO_NAME,
+            products_text=json.dumps(base + [self.entry()], indent=2),
+            merge_base_text=json.dumps(base, indent=2),
+            modes={"products.json": "100644"})
+
+    def verdict(self, **over):
+        kw = self.good()
+        kw.update(over)
+        return self.g.evaluate_refill(**kw)
+
+    def with_head(self, entries):
+        return self.verdict(products_text=json.dumps(entries))
+
+    # ---- baseline and single flips ------------------------------------------------
+
+    def test_baseline_refill_pr_merges_and_never_publishes(self):
+        v = self.verdict()
+        self.assertTrue(v.ok, v.reasons)
+        self.assertFalse(v.publish, "a products.json merge must not dispatch publish")
+
+    def test_every_single_flip_is_a_hold(self):
+        def with_pr(**kv):
+            pr = self.good()["pr"]
+            pr.update(kv)
+            return {"pr": pr}
+
+        head = self.good()["pr"]["head"]
+        ok_check = self.good()["check_runs"][0]
+        other = {"name": "lint", "app": {"slug": "github-actions"}}
+        cases = {
+            "draft PR":            with_pr(draft=True),
+            "closed PR":           with_pr(state="closed"),
+            "already merged":      with_pr(merged=True, state="closed"),
+            "base is not main":    with_pr(base={"ref": "release", "sha": self.BASE_SHA}),
+            "fork head":           with_pr(head={**head, "repo": {"full_name": "evil/HappyPet"}}),
+            "fork, no repo":       with_pr(head={**head, "repo": None}),
+            "head moved after CI": with_pr(head={**head, "sha": "b" * 40}),
+            "wrong branch":        with_pr(head={**head, "ref": "claude/happy-x"}),
+            "no branch":           with_pr(head={k: v for k, v in head.items() if k != "ref"}),
+            "opt-out label":       with_pr(labels=[{"name": "No-Automerge"}]),
+            "zero checks":         {"check_runs": []},
+            "pytest red":          {"check_runs": [{**ok_check, "conclusion": "failure"}]},
+            "pytest pending":      {"check_runs": [{**ok_check, "status": "in_progress",
+                                                    "conclusion": None}]},
+            "pytest from a spoofing app": {"check_runs": [{**ok_check, "app": {"slug": "x"}}]},
+            "other check pending": {"check_runs": [ok_check, {**other, "status": "queued",
+                                                              "conclusion": None}]},
+            "other check red":     {"check_runs": [ok_check, {**other, "status": "completed",
+                                                              "conclusion": "failure"}]},
+            "CI ran on another sha": {"run_sha": "c" * 40},
+            "head file unavailable": {"products_text": None},
+            "merge-base file unavailable": {"merge_base_text": None},
+            "tree unreadable":     {"modes": None},
+        }
+        for name, over in cases.items():
+            with self.subTest(name):
+                v = self.verdict(**over)
+                self.assertFalse(v.ok, f"{name} must be held")
+                self.assertTrue(v.reasons)
+
+    # ---- condition 1: branch name -------------------------------------------------
+
+    def test_branch_name_case_table(self):
+        allowed = ["refill/2026-09-25-1232", "refill/2026-07-08-chewy-upc-backfill",
+                   "refill/x"]
+        held = ["Refill/2026-09-25-1232", "REFILL/x", "refill/", "refill", "refill-x",
+                "xrefill/x", "a/refill/x", "refill/../x", "refill/a/b", "refill/x\n",
+                "refill/x ", " refill/x", "refill/X", "refill/x.lock", "refill/-x",
+                "refill/x-", "refill//x", "refill\\x", "refill∕x", "ｒefill/x",
+                "refill/x​", "chewy/x", "claude/x", "main", "", None, 5, ["refill/x"]]
+        for ref in allowed:
+            with self.subTest(allowed=ref):
+                self.assertTrue(self.g.is_refill_branch(ref))
+        for ref in held:
+            with self.subTest(held=ref):
+                self.assertFalse(self.g.is_refill_branch(ref))
+                pr = self.good()["pr"]
+                pr["head"] = {**pr["head"], "ref": ref}
+                self.assertFalse(self.verdict(pr=pr).ok)
+
+    # ---- condition 2: only products.json, modified, regular file -----------------
+
+    def test_only_a_modified_products_json_is_mergeable(self):
+        pj = {"filename": "products.json", "status": "modified"}
+        cases = {
+            "extra test file":   [pj, {"filename": "test_pipeline.py", "status": "modified"}],
+            "extra draft":       [pj, {"filename": "_posts/DRAFT-best-x.md", "status": "added"}],
+            "extra workflow":    [pj, {"filename": ".github/workflows/deploy.yml",
+                                       "status": "modified"}],
+            "other file only":   [{"filename": "refill_products.py", "status": "modified"}],
+            "lookalike path":    [{"filename": "sub/products.json", "status": "modified"}],
+            "trailing newline":  [{"filename": "products.json\n", "status": "modified"}],
+            "added":             [{"filename": "products.json", "status": "added"}],
+            "removed":           [{"filename": "products.json", "status": "removed"}],
+            "renamed in":        [{"filename": "products.json", "status": "renamed",
+                                   "previous_filename": "generate_posts.py"}],
+            "rename source, status lies": [{"filename": "products.json", "status": "modified",
+                                            "previous_filename": "generate_posts.py"}],
+            "copied":            [{"filename": "products.json", "status": "copied"}],
+            "status missing":    [{"filename": "products.json"}],
+            "duplicate entry":   [pj, dict(pj)],
+            "empty list":        [],
+            "malformed entry":   [pj, None],
+            "not a list":        None,
+        }
+        for name, files in cases.items():
+            with self.subTest(name):
+                self.assertFalse(self.verdict(files=files).ok, f"{name} must be held")
+
+    def test_only_a_regular_file_mode_passes(self):
+        for mode in ("120000", "100755", "160000", None, ""):
+            with self.subTest(mode=mode):
+                self.assertFalse(self.verdict(modes={"products.json": mode}).ok)
+        self.assertFalse(self.verdict(modes={}).ok)
+
+    # ---- condition 4: NEEDS_ / REVIEW markers ------------------------------------
+
+    def test_a_needs_marker_anywhere_in_the_head_file_holds(self):
+        base = self.base_entries()
+        cases = {
+            "NEEDS_ASIN asin":   self.entry(asin="NEEDS_ASIN"),
+            "NEEDS_IMAGE image": self.entry(image="NEEDS_IMAGE"),
+            "other NEEDS_ value": self.entry(name="NEEDS_REVIEW something"),
+            "NEEDS_ in a key":   {**self.entry(), "NEEDS_X": 1},
+            "NEEDS_ nested":     {**self.entry(), "extra": {"a": ["NEEDS_ASIN"]}},
+        }
+        for name, e in cases.items():
+            with self.subTest(name):
+                v = self.with_head(base + [e])
+                self.assertFalse(v.ok, name)
+                self.assertTrue(any("NEEDS_" in r for r in v.reasons), v.reasons)
+        # a placeholder that was already on the base and is still unfilled is a hold too
+        stuck = self.entry("best-cat-trees", "NEEDS_ASIN", image="NEEDS_IMAGE",
+                           affiliate_url="https://www.amazon.com/dp/NEEDS_ASIN?tag=pawpicks04-20")
+        v = self.verdict(products_text=json.dumps(base + [stuck, self.entry()]),
+                         merge_base_text=json.dumps(base + [stuck]))
+        self.assertFalse(v.ok)
+
+    def test_a_json_escaped_needs_marker_cannot_bypass_the_parse(self):
+        text = json.dumps(self.base_entries() + [self.entry()])
+        text = text.replace('"B0ABCD1234"', '"\\u004eEEDS_ASIN"', 1)
+        self.assertIn("\\u004eEEDS_ASIN", text)
+        self.assertFalse(self.verdict(products_text=text).ok)
+
+    def test_a_review_marker_in_a_new_entry_holds(self):
+        base = self.base_entries()
+        cases = {
+            "REVIEW: chewy":   self.entry(chewy_url="REVIEW:" + self.REAL_CHEWY[0]),
+            "bare REVIEW":     self.entry(chewy_url="REVIEW"),
+            "REVIEW in name":  self.entry(name="REVIEW: check fit"),
+            "REVIEW key":      {**self.entry(), "REVIEW:note": "x"},
+            "REVIEW nested":   {**self.entry(), "extra": ["REVIEW:x"]},
+        }
+        for name, e in cases.items():
+            with self.subTest(name):
+                v = self.with_head(base + [e])
+                self.assertFalse(v.ok, name)
+                self.assertTrue(any("REVIEW" in r for r in v.reasons), v.reasons)
+
+    def test_an_unchanged_review_entry_already_on_the_base_does_not_hold(self):
+        """Inverse: the base carries a legitimate REVIEW chewy_url. It is not in the diff."""
+        self.assertTrue(any(str(e["chewy_url"]).startswith("REVIEW")
+                            for e in self.base_entries()))
+        self.assertTrue(self.verdict().ok)
+
+    # ---- semantic diff: existing entries -----------------------------------------
+
+    def test_changing_or_removing_an_existing_entry_holds(self):
+        base = self.base_entries()
+        retagged = dict(base[0], affiliate_url="https://www.amazon.com/dp/B07HMPRTXF?tag=evil-20")
+        cases = {
+            "retag existing":  [retagged, base[1], self.entry()],
+            "new image":       [dict(base[0], image=self.REAL_IMAGES[1]), base[1], self.entry()],
+            "price edit":      [dict(base[0], price="1.00"), base[1], self.entry()],
+            "added field":     [dict(base[0], note="x"), base[1], self.entry()],
+            "removed existing": [base[0], self.entry()],
+            "review resolved": [base[0], dict(base[1], chewy_url=self.REAL_CHEWY[0]),
+                                self.entry()],
+        }
+        for name, head in cases.items():
+            with self.subTest(name):
+                v = self.with_head(head)
+                self.assertFalse(v.ok, name)
+
+    def test_reordering_existing_entries_is_not_a_change(self):
+        base = self.base_entries()
+        self.assertTrue(self.with_head([self.entry(), base[1], base[0]]).ok)
+
+    def test_filling_a_base_placeholder_with_a_canonical_entry_merges(self):
+        base = self.base_entries()
+        seed = self.entry("best-cat-trees", "NEEDS_ASIN", image="NEEDS_IMAGE",
+                          name="NEEDS_ASIN placeholder for best cat tree",
+                          affiliate_url="https://www.amazon.com/dp/NEEDS_ASIN?tag=pawpicks04-20")
+        filled = self.entry("best-cat-trees", "B0BY7S5L92")
+        v = self.verdict(products_text=json.dumps(base + [filled]),
+                         merge_base_text=json.dumps(base + [seed]))
+        self.assertTrue(v.ok, v.reasons)
+        bad = dict(filled, affiliate_url="https://www.amazon.com/dp/B0BY7S5L92?tag=evil-20")
+        self.assertFalse(self.verdict(products_text=json.dumps(base + [bad]),
+                                      merge_base_text=json.dumps(base + [seed])).ok)
+
+    def test_a_pr_that_adds_no_entry_is_held(self):
+        self.assertFalse(self.with_head(self.base_entries()).ok)
+
+    def test_duplicate_or_malformed_topics_hold(self):
+        base = self.base_entries()
+        cases = {
+            "duplicate new":       base + [self.entry(), self.entry()],
+            "new dup of existing": base + [self.entry("best-heated-outdoor-cat-houses")],
+            "topic missing":       base + [{k: v for k, v in self.entry().items()
+                                            if k != "topic"}],
+            "topic not a slug":    base + [self.entry("Best Snuffle Mats")],
+            "topic not a string":  base + [self.entry(topic=5)],
+            "entry not an object": base + ["best-x"],
+        }
+        for name, head in cases.items():
+            with self.subTest(name):
+                self.assertFalse(self.with_head(head).ok, name)
+        dup_base = json.dumps(base + [base[0]])
+        self.assertFalse(self.verdict(merge_base_text=dup_base).ok, "duplicate in base")
+
+    def test_unparsable_or_wrong_shape_files_hold(self):
+        for text in ("", "{", "null", "{}", '"x"', "[1]", "[" * 5000 + "]" * 5000):
+            with self.subTest(head=text[:20]):
+                self.assertFalse(self.verdict(products_text=text).ok)
+            with self.subTest(base=text[:20]):
+                self.assertFalse(self.verdict(merge_base_text=text).ok)
+
+    # ---- semantic diff: link shape of new entries ---------------------------------
+
+    def test_affiliate_url_must_be_the_canonical_link_for_the_asin(self):
+        good = "https://www.amazon.com/dp/B0ABCD1234?tag=pawpicks04-20"
+        held = [
+            "https://www.amazon.com/dp/B0ABCD1234?tag=other-20",
+            "https://www.amazon.com/dp/B0ZZZZ9999?tag=pawpicks04-20",
+            "http://www.amazon.com/dp/B0ABCD1234?tag=pawpicks04-20",
+            "https://amazon.com/dp/B0ABCD1234?tag=pawpicks04-20",
+            "https://amzn.to/4cuvtEY",
+            "https://www.amazon.com/dp/B0ABCD1234?tag=pawpicks04-20&tag=evil-20",
+            "https://www.amazon.com/dp/B0ABCD1234?tag=pawpicks04-20\n",
+            "https://www.amazon.com.evil.com/dp/B0ABCD1234?tag=pawpicks04-20",
+            "", None,
+        ]
+        self.assertTrue(self.with_head(self.base_entries() + [self.entry(affiliate_url=good)]).ok)
+        for url in held:
+            with self.subTest(url=url):
+                e = self.entry(affiliate_url=url)
+                self.assertFalse(self.with_head(self.base_entries() + [e]).ok)
+
+    def test_the_affiliate_tag_is_a_literal_not_the_env_override(self):
+        with patch.dict(os.environ, {"AMAZON_PAAPI_PARTNER_TAG": "evil-20"}):
+            g = _load_automerge_gate()
+            e = self.entry(affiliate_url="https://www.amazon.com/dp/B0ABCD1234?tag=evil-20")
+            kw = self.good()
+            kw["products_text"] = json.dumps(self.base_entries() + [e])
+            self.assertFalse(g.evaluate_refill(**kw).ok)
+
+    def test_asin_shape(self):
+        for asin in ("B0abcd1234", "B0ABCD123", "B0ABCD12345", "A0ABCD1234", "1234567890",
+                     "B0ABCD123\n", "", None, 5):
+            with self.subTest(asin=asin):
+                e = self.entry(asin=asin,
+                               affiliate_url=f"https://www.amazon.com/dp/{asin}?tag=pawpicks04-20")
+                self.assertFalse(self.with_head(self.base_entries() + [e]).ok)
+
+    def test_image_must_be_an_m_media_amazon_product_photo(self):
+        held = [
+            "https://images-na.ssl-images-amazon.com/images/I/71abc.jpg",
+            "https://m.media-amazon.com/images/I/01rrzVoKd5L.svg",
+            "http://m.media-amazon.com/images/I/71abc.jpg",
+            "https://m.media-amazon.com.evil.com/images/I/71abc.jpg",
+            "https://mXmedia-amazon.com/images/I/71abc.jpg",
+            "https://m.media-amazon.com/images/I/../x.jpg",
+            "https://m.media-amazon.com/images/I/a/b.jpg",
+            "https://m.media-amazon.com/images/I/71abc.jpg?x=1",
+            "https://m.media-amazon.com/images/I/71abc.jpg\n",
+            "https://evil.com/m.media-amazon.com/images/I/71abc.jpg",
+            "NEEDS_IMAGE", "", None,
+        ]
+        for url in self.REAL_IMAGES:
+            with self.subTest(real=url):
+                self.assertTrue(self.with_head(self.base_entries() + [self.entry(image=url)]).ok)
+        for url in held:
+            with self.subTest(held=url):
+                self.assertFalse(self.with_head(self.base_entries() + [self.entry(image=url)]).ok)
+
+    def test_chewy_url_must_be_null_or_a_chewy_sjv_io_link(self):
+        held = [
+            "https://www.chewy.com/x/dp/1",
+            "https://chewy.sjv.io.evil.com/c/7160344/3054490/32975?prodsku=1&u=x",
+            "http://chewy.sjv.io/c/7160344/3054490/32975?prodsku=1&u=https%3A%2F%2Fwww.chewy.com%2Fx",
+            "https://chewy.sjv.io/c/9999999/3054490/32975?prodsku=1&u=https%3A%2F%2Fwww.chewy.com%2Fx",
+            "https://chewy.sjv.io/c/7160344/3054490/32975?prodsku=1&u=https%3A%2F%2Fevil.com%2Fx",
+            "https://chewy.sjv.io/c/7160344/3054490/32975?prodsku=1&u=https%3A%2F%2Fwww.chewy.com"
+            "%2Fx&u=https%3A%2F%2Fevil.com",
+            self.REAL_CHEWY[0] + "\n",
+            "", 5, False,
+        ]
+        for url in (None,) + self.REAL_CHEWY:
+            with self.subTest(ok=url):
+                v = self.with_head(self.base_entries() + [self.entry(chewy_url=url)])
+                self.assertTrue(v.ok, v.reasons)
+        for url in held:
+            with self.subTest(held=url):
+                v = self.with_head(self.base_entries() + [self.entry(chewy_url=url)])
+                self.assertFalse(v.ok)
+        e = {k: v for k, v in self.entry().items() if k != "chewy_url"}
+        self.assertFalse(self.with_head(self.base_entries() + [e]).ok, "missing chewy_url")
+
+    def test_the_real_products_json_is_a_valid_base(self):
+        real = json.loads((REPO / "products.json").read_text(encoding="utf-8"))
+        real = [e for e in real if "NEEDS_" not in json.dumps(e)]
+        v = self.verdict(products_text=json.dumps(real + [self.entry("best-zz-new-topic")]),
+                         merge_base_text=json.dumps(real))
+        self.assertTrue(v.ok, v.reasons)
+
+    # ---- process(): routing, merge base, no issues fetch -------------------------
+
+    def run_process(self, dry_run=False, compare=None, **over):
+        kw = self.good()
+        kw.update(over)
+        calls, reads = [], []
+        pulls = [kw["pr"]]
+
+        def fake_json(*args):
+            reads.append(args[1])
+            if "/compare/" in args[1]:
+                return compare if compare is not None else {
+                    "merge_base_commit": {"sha": self.MERGE_BASE}}
+            return pulls.pop(0) if pulls else {"merged": True}
+
+        def fake_text(repo, path, ref):
+            reads.append(f"{path}@{ref}")
+            return {self.SHA: kw["products_text"],
+                    self.MERGE_BASE: kw["merge_base_text"]}.get(ref)
+
+        g = self.g
+        with patch.object(g, "gh", lambda *a: calls.append(list(a)) or ""), \
+             patch.object(g, "gh_json", fake_json), \
+             patch.object(g, "fetch_files", lambda *a: kw["files"]), \
+             patch.object(g, "fetch_check_runs", lambda *a: kw["check_runs"]), \
+             patch.object(g, "fetch_text", fake_text), \
+             patch.object(g, "fetch_modes", lambda *a: kw["modes"]), \
+             patch.object(g, "summary", lambda *_: None):
+            rc = g.process(self.REPO_NAME, 130, kw["run_sha"], dry_run=dry_run)
+        return rc, calls, reads
+
+    def test_a_refill_pr_is_merged_with_the_pinned_command_and_no_publish(self):
+        rc, calls, reads = self.run_process()
+        self.assertEqual(rc, 0)
+        self.assertEqual(calls, [["pr", "merge", "130", "--repo", self.REPO_NAME, "--merge",
+                                  "--match-head-commit", self.SHA]])
+        self.assertIn(f"repos/{self.REPO_NAME}/compare/{self.BASE_SHA}...{self.SHA}", reads)
+        self.assertIn(f"products.json@{self.MERGE_BASE}", reads)
+        self.assertNotIn(f"products.json@{self.BASE_SHA}", reads,
+                         "the semantic diff is against the merge base, not the base tip")
+        self.assertFalse(any("/issues/" in r for r in reads),
+                         "the refill rule must not depend on the issues endpoint")
+
+    def test_a_held_refill_pr_makes_no_write_call(self):
+        bad = json.dumps(self.base_entries() + [self.entry(asin="NEEDS_ASIN")])
+        rc, calls, _ = self.run_process(products_text=bad)
+        self.assertEqual((rc, calls), (0, []))
+
+    def test_dry_run_never_merges_a_good_refill_pr(self):
+        rc, calls, _ = self.run_process(dry_run=True)
+        self.assertEqual((rc, calls), (0, []))
+
+    def test_an_unreadable_merge_base_holds(self):
+        for compare in ({}, {"merge_base_commit": None}, {"merge_base_commit": {"sha": ""}},
+                        {"merge_base_commit": {"sha": 5}}, []):
+            with self.subTest(compare=compare):
+                rc, calls, _ = self.run_process(compare=compare)
+                self.assertEqual((rc, calls), (0, []))
+
+    def test_an_unexpected_exception_in_the_refill_rule_fails_closed(self):
+        def boom(*a, **k):
+            raise RuntimeError("unforeseen shape")
+        with patch.object(self.g, "evaluate_refill", boom):
+            rc, calls, _ = self.run_process()
+        self.assertEqual((rc, calls), (0, []))
+
+    def test_a_refill_branch_never_falls_back_to_the_routine_rule(self):
+        """Even shaped like a routine Stage-1 PR, a refill/* PR is judged by the refill rule."""
+        files = [{"filename": "_posts/DRAFT-best-x.md", "status": "added"}]
+        with patch.object(self.g, "evaluate", lambda *a, **k: self.g.Verdict(True, [], True)):
+            rc, calls, _ = self.run_process(files=files)
+        self.assertEqual((rc, calls), (0, []))
+
+    # ---- the AUTOMERGE_ENABLED kill switch, mirrored in Python ---------------------
+
+    def run_main(self, env_value, argv=()):
+        seen = []
+        env = {"REPO": self.REPO_NAME, "RUN_HEAD_SHA": self.SHA, "PR_NUMBERS": "[130]"}
+        if env_value is not None:
+            env["AUTOMERGE_ENABLED"] = env_value
+        with patch.dict(os.environ, env, clear=False), \
+             patch.object(self.g, "process",
+                          lambda repo, n, sha, dry_run: seen.append(dry_run) or 0), \
+             patch.object(self.g, "summary", lambda *_: None):
+            if env_value is None:
+                os.environ.pop("AUTOMERGE_ENABLED", None)
+            self.g.main(list(argv))
+        return seen
+
+    def test_merging_needs_automerge_enabled_to_be_exactly_true(self):
+        self.assertEqual(self.run_main("true"), [False])
+        for value in (None, "", "false", "TRUE", "True", " true", "true\n", "1", "yes"):
+            with self.subTest(value=value):
+                self.assertEqual(self.run_main(value), [True],
+                                 f"AUTOMERGE_ENABLED={value!r} must evaluate only")
+        self.assertEqual(self.run_main("true", ["--dry-run"]), [True])
+
+    def test_workflow_passes_the_kill_switch_variable_to_the_gate(self):
+        code = (REPO / ".github/workflows/automerge.yml").read_text(encoding="utf-8")
+        self.assertIn("AUTOMERGE_ENABLED: ${{ vars.AUTOMERGE_ENABLED }}", code)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

@@ -61,4 +61,6 @@ jobs:
           REPO: ${{ github.repository }}
           RUN_HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
           PR_NUMBERS: ${{ toJSON(github.event.workflow_run.pull_requests.*.number) }}
+          # Second copy of the kill switch: the gate merges only on exactly "true".
+          AUTOMERGE_ENABLED: ${{ vars.AUTOMERGE_ENABLED }}
         run: python3 automerge_gate.py

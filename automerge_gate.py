@@ -42,8 +42,12 @@ is truncated by the API, but MAX_FILES=30 already holds anything that large), an
 draft's markdown BODY is not inspected -- it is what Stage 1 writes and what CI's
 content-integrity tests judge.
 
-Env: GH_TOKEN, REPO (owner/name), RUN_HEAD_SHA, PR_NUMBERS (JSON list).
-`--dry-run` evaluates and prints; it never merges or dispatches.
+A PR whose head branch is `refill/<slug>` is judged by the separate refill rule instead
+(`evaluate_refill`, see the comment above it); it never falls back to the rule above.
+
+Env: GH_TOKEN, REPO (owner/name), RUN_HEAD_SHA, PR_NUMBERS (JSON list), AUTOMERGE_ENABLED.
+`--dry-run` evaluates and prints; it never merges or dispatches. So does any run where
+AUTOMERGE_ENABLED is not exactly "true".
 """
 import json
 import os
@@ -346,6 +350,157 @@ def evaluate(pr: dict, issue: dict, files: list, check_runs: list,
     return Verdict(not why, why, publish)
 
 
+# ------------------------------------------------------------------ refill rule
+# A separate rule for `refill/*` PRs (docs/superpowers/specs/2026-09-25-refill-automation-
+# design.md, build step 2). Those PRs are opened by refill.yml's GITHUB_TOKEN and filled by
+# a push from the Director's own credentials, so they never carry the Claude App attribution
+# the routine rule above requires. Instead of who opened them, this rule judges what they
+# change: products.json only, and only by adding canonical entries.
+#
+# Merges only when ALL hold:
+#   1. head branch fully matches REFILL_BRANCH; PR open, not draft, based on main, no
+#      opt-out label, head SHA is the SHA CI tested;
+#   2. same repo (not a fork);
+#   3. the ONLY changed file is products.json, status `modified`, no rename source, a
+#      regular file at head;
+#   4. the `pytest` check is green on the head SHA and no other check is pending or red;
+#   5. products.json, parsed: no decoded key or value anywhere contains NEEDS_; every entry
+#      on the merge base that is not a placeholder is unchanged in head; at least one entry
+#      is new (or fills a base placeholder), and each such entry carries no REVIEW marker,
+#      the canonical affiliate link for its ASIN, an m.media-amazon.com image and a null or
+#      chewy.sjv.io chewy_url.
+# The diff is judged against the MERGE BASE, not the base tip, so a main-side edit made
+# during the refill window does not read as the PR changing an existing entry.
+
+REFILL_BRANCH = re.compile(rf"refill/{_SLUG}")
+AFFILIATE_TAG = "pawpicks04-20"      # literal: refill_products.py lets an env var override it
+_ASIN = re.compile(r"B0[A-Z0-9]{8}")
+_AMAZON_IMAGE = re.compile(
+    r"https://m\.media-amazon\.com/images/I/[A-Za-z0-9._+-]+\.(?:jpg|jpeg|png|webp)")
+_CHEWY_URL = re.compile(
+    r"https://chewy\.sjv\.io/c/7160344/3054490/32975\?prodsku=[0-9]+"
+    r"&u=https%3A%2F%2Fwww\.chewy\.com%2F[A-Za-z0-9%._~-]+(?:&intsrc=APIG_[0-9]+)?")
+
+
+def is_refill_branch(ref) -> bool:
+    return isinstance(ref, str) and REFILL_BRANCH.fullmatch(ref) is not None
+
+
+def _is_placeholder(entry: dict) -> bool:
+    return entry.get("asin") == "NEEDS_ASIN" or entry.get("image") == "NEEDS_IMAGE"
+
+
+def _by_topic(text, label: str):
+    """{topic: entry} for a products.json text, or (None, reason) when it is not a list of
+    objects with unique slug topics."""
+    try:
+        data = json.loads(text) if isinstance(text, str) else None
+        list(_strings(data))                      # depth guard
+    except (ValueError, RecursionError):
+        return None, f"{label} products.json is not parseable JSON"
+    if not isinstance(data, list):
+        return None, f"{label} products.json is not a list"
+    entries = {}
+    for e in data:
+        topic = e.get("topic") if isinstance(e, dict) else None
+        if not (isinstance(topic, str) and re.fullmatch(_SLUG, topic)):
+            return None, f"{label} products.json has an entry without a slug topic"
+        if topic in entries:
+            return None, f"{label} products.json has duplicate topic {topic!r}"
+        entries[topic] = e
+    return entries, None
+
+
+def refill_entry_problems(entry: dict) -> list:
+    """Problems with one new or filled entry; empty list = canonical."""
+    topic = entry["topic"]
+    bad = []
+    if any(_is_review_sentinel(s) for s in _strings(entry)):
+        bad.append("carries a REVIEW marker")
+    asin = entry.get("asin")
+    if not (isinstance(asin, str) and _ASIN.fullmatch(asin)):
+        bad.append("asin is not a B0 ASIN")
+    elif entry.get("affiliate_url") != f"https://www.amazon.com/dp/{asin}?tag={AFFILIATE_TAG}":
+        bad.append("affiliate_url is not the canonical link for its ASIN")
+    image = entry.get("image")
+    if not (isinstance(image, str) and _AMAZON_IMAGE.fullmatch(image)):
+        bad.append("image is not an m.media-amazon.com product photo")
+    if "chewy_url" not in entry:
+        bad.append("chewy_url is missing")
+    elif entry["chewy_url"] is not None and not (
+            isinstance(entry["chewy_url"], str) and _CHEWY_URL.fullmatch(entry["chewy_url"])):
+        bad.append("chewy_url is neither null nor a chewy.sjv.io link")
+    return [f"entry {topic!r}: {b}" for b in bad]
+
+
+def refill_products_problems(head_text, merge_base_text) -> list:
+    head, why = _by_topic(head_text, "head")
+    if why:
+        return [why]
+    base, why = _by_topic(merge_base_text, "merge-base")
+    if why:
+        return [why]
+    if any("NEEDS_" in s for s in _strings(list(head.values()))):
+        return ["products.json carries a NEEDS_ marker"]
+    bad = []
+    fresh = []
+    for topic, old in base.items():
+        if topic not in head:
+            bad.append(f"existing entry {topic!r} was removed")
+        elif _is_placeholder(old):
+            fresh.append(head[topic])
+        elif head[topic] != old:
+            bad.append(f"existing entry {topic!r} was changed")
+    fresh += [e for t, e in head.items() if t not in base]
+    if not fresh:
+        bad.append("products.json adds no entry")
+    for e in fresh:
+        bad += refill_entry_problems(e)
+    return bad
+
+
+def evaluate_refill(pr: dict, files: list, check_runs: list, run_sha: str, repo: str,
+                    products_text: str | None, merge_base_text: str | None,
+                    modes: dict | None) -> Verdict:
+    """Pure decision for a refill/* PR. `merge_base_text` is products.json at the merge base
+    of the PR's base and head. A refill merge never dispatches publish."""
+    why = []
+
+    if pr.get("state") != "open" or pr.get("merged"):
+        why.append("PR is not open")
+    if pr.get("draft"):
+        why.append("PR is a draft")
+    if (pr.get("base") or {}).get("ref") != BASE_BRANCH:
+        why.append(f"base is not {BASE_BRANCH}")
+    head = pr.get("head") or {}
+    if not is_refill_branch(head.get("ref")):
+        why.append("head branch is not refill/<slug>")
+    if ((head.get("repo") or {}).get("full_name")) != repo:
+        why.append("head is not in this repository (fork)")
+    head_sha = head.get("sha")
+    if not head_sha or head_sha != run_sha:
+        why.append("head SHA is not the SHA the CI run tested (PR moved after CI)")
+    if any(_label_key((lb or {}).get("name") if isinstance(lb, dict) else lb) == OPT_OUT_LABEL
+           for lb in pr.get("labels") or []):
+        why.append(f"labelled {OPT_OUT_LABEL}")
+
+    why += _check_problems(check_runs)
+
+    if not (isinstance(files, list) and len(files) == 1 and isinstance(files[0], dict)):
+        why.append("the PR must change exactly one file, products.json")
+    else:
+        f = files[0]
+        if f.get("filename") != "products.json" or f.get("status") != "modified" \
+                or f.get("previous_filename") is not None:
+            why.append("the only change allowed is a modified products.json")
+        elif (modes or {}).get("products.json") != REGULAR_FILE_MODE:
+            why.append("products.json is not a regular file at head")
+        else:
+            why += refill_products_problems(products_text, merge_base_text)
+
+    return Verdict(not why, why, False)
+
+
 # ------------------------------------------------------------------ gh plumbing
 
 def gh(*args: str) -> str:
@@ -385,6 +540,13 @@ def fetch_modes(repo: str, sha: str) -> dict | None:
     return {e["path"]: e.get("mode") for e in data.get("tree", []) if e.get("type") == "blob"}
 
 
+def fetch_merge_base(repo: str, base_sha: str, head_sha: str) -> str | None:
+    """SHA of the merge base of base...head (REST compare, `merge_base_commit.sha`)."""
+    data = gh_json("api", f"repos/{repo}/compare/{base_sha}...{head_sha}")
+    sha = (data.get("merge_base_commit") or {}).get("sha") if isinstance(data, dict) else None
+    return sha if isinstance(sha, str) and sha else None
+
+
 def merge_args(repo: str, number: int, head_sha: str) -> list:
     """The exact merge command. --match-head-commit makes a push after the green run fail
     instead of merging code CI never saw. No --admin, --auto or --delete-branch."""
@@ -411,8 +573,28 @@ def summary(text: str) -> None:
             pass  # a summary must never break the gate
 
 
+def process_refill(repo: str, number: int, pr: dict, run_sha: str, dry_run: bool) -> int:
+    """The refill rule's reads. It never reads the issues endpoint."""
+    files = fetch_files(repo, number)
+    head_sha = (pr.get("head") or {}).get("sha") or ""
+    base_sha = (pr.get("base") or {}).get("sha") or ""
+    checks = fetch_check_runs(repo, head_sha) if head_sha else []
+    products = fetch_text(repo, "products.json", head_sha) if head_sha else None
+    merge_base = fetch_merge_base(repo, base_sha, head_sha) if head_sha and base_sha else None
+    base_products = fetch_text(repo, "products.json", merge_base) if merge_base else None
+    modes = fetch_modes(repo, head_sha) if head_sha else None
+    try:
+        v = evaluate_refill(pr, files, checks, run_sha, repo, products, base_products, modes)
+    except Exception as exc:  # fail closed: an unforeseen shape is a hold, never a merge
+        summary(f"PR #{number}: left for a human -- gate error {type(exc).__name__}")
+        return 0
+    return act(repo, number, head_sha, v, dry_run)
+
+
 def process(repo: str, number: int, run_sha: str, dry_run: bool) -> int:
     pr = gh_json("api", f"repos/{repo}/pulls/{number}")
+    if is_refill_branch((pr.get("head") or {}).get("ref")):
+        return process_refill(repo, number, pr, run_sha, dry_run)
     issue = gh_json("api", f"repos/{repo}/issues/{number}")
     files = fetch_files(repo, number)
     head_sha = (pr.get("head") or {}).get("sha") or ""
@@ -433,6 +615,11 @@ def process(repo: str, number: int, run_sha: str, dry_run: bool) -> int:
     except Exception as exc:  # fail closed: an unforeseen shape is a hold, never a merge
         summary(f"PR #{number}: left for a human -- gate error {type(exc).__name__}")
         return 0
+    return act(repo, number, head_sha, v, dry_run)
+
+
+def act(repo: str, number: int, head_sha: str, v: Verdict, dry_run: bool) -> int:
+    """Hold, dry-run, or merge on a verdict -- shared by both rules."""
     if not v.ok:
         summary(f"PR #{number}: left for a human -- " + "; ".join(v.reasons))
         return 0
@@ -452,7 +639,10 @@ def process(repo: str, number: int, run_sha: str, dry_run: bool) -> int:
 
 
 def main(argv: list) -> int:
-    dry_run = "--dry-run" in argv
+    # The kill switch, mirrored from the workflow's `if:`. GitHub compares strings there
+    # case-insensitively; here only the exact string "true" arms a merge. Anything else
+    # evaluates and prints, as --dry-run does.
+    dry_run = "--dry-run" in argv or os.environ.get("AUTOMERGE_ENABLED") != "true"
     repo = os.environ["REPO"]
     run_sha = os.environ["RUN_HEAD_SHA"]
     numbers = json.loads(os.environ.get("PR_NUMBERS") or "[]")
