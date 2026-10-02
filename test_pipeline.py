@@ -7742,6 +7742,109 @@ class TestRefillAutomergeGate(unittest.TestCase):
             rc, calls, _ = self.run_process(files=files)
         self.assertEqual((rc, calls), (0, []))
 
+    def test_every_refill_prefixed_branch_routes_to_the_refill_rule(self):
+        """Routing is on the `refill/` prefix; the strict refill/<slug> check is the refill
+        rule's. A Claude-App-attributed, routine-shaped PR on a malformed refill branch must
+        be held, not handed to the routine rule (which is stubbed to say yes here)."""
+        files = [{"filename": "_posts/DRAFT-best-x.md", "status": "added"}]
+        yes = lambda *a, **k: self.g.Verdict(True, [], True)
+        for ref in ("refill/Abc", "refill/a_b", "refill/", "refill/a/b", "refill/x.lock",
+                    "refill/x\n", "refill/../x"):
+            with self.subTest(ref=ref):
+                pr = self.good()["pr"]
+                pr["head"] = {**pr["head"], "ref": ref}
+                pr["performed_via_github_app"] = {"slug": "claude"}
+                with patch.object(self.g, "evaluate", yes):
+                    rc, calls, reads = self.run_process(pr=pr, files=files)
+                self.assertEqual((rc, calls), (0, []))
+                self.assertFalse(any("/issues/" in r for r in reads), "fell back to routine")
+        for ref in ("claude/x", "Refill/x", "xrefill/x", None):
+            with self.subTest(routine=ref):
+                pr = self.good()["pr"]
+                pr["head"] = {**pr["head"], "ref": ref}
+                _, _, reads = self.run_process(pr=pr)
+                self.assertTrue(any("/issues/" in r for r in reads), "not routed to routine")
+
+    def test_a_fetch_failure_in_the_refill_path_is_a_hold(self):
+        import subprocess as sp
+        failures = {
+            "files":   ("fetch_files", sp.CalledProcessError(1, ["gh"])),
+            "checks":  ("fetch_check_runs", ValueError("bad json")),
+            "text":    ("fetch_text", RuntimeError("x")),
+            "modes":   ("fetch_modes", KeyError("tree")),
+            "compare": ("fetch_merge_base", ValueError("bad json")),
+        }
+        for name, (fn, exc) in failures.items():
+            with self.subTest(name):
+                def boom(*a, _e=exc, **k):
+                    raise _e
+                lines = []
+                kw = self.good()
+                g = self.g
+                with patch.object(g, "gh", lambda *a: lines.append(("WRITE", a)) or ""),                      patch.object(g, "gh_json", lambda *a: kw["pr"]),                      patch.object(g, "fetch_files", lambda *a: kw["files"]),                      patch.object(g, "fetch_check_runs", lambda *a: kw["check_runs"]),                      patch.object(g, "fetch_text", lambda *a: kw["products_text"]),                      patch.object(g, "fetch_modes", lambda *a: kw["modes"]),                      patch.object(g, "fetch_merge_base", lambda *a: self.MERGE_BASE),                      patch.object(g, fn, boom),                      patch.object(g, "summary", lines.append):
+                    rc = g.process(self.REPO_NAME, 130, self.SHA, dry_run=False)
+                self.assertEqual(rc, 0)
+                self.assertFalse([x for x in lines if isinstance(x, tuple)], "no write call")
+                self.assertTrue(any("left for a human" in str(x) for x in lines), lines)
+
+    # ---- check runs: every page is read, or the PR is held ------------------------
+
+    def fetch_runs(self, pages, total):
+        asked = []
+
+        def fake(*args):
+            asked.append(args[1])
+            n = int(args[1].rsplit("page=", 1)[1])
+            return {"total_count": total, "check_runs": pages[n - 1] if n <= len(pages) else []}
+        with patch.object(self.g, "gh_json", fake):
+            return self.g.fetch_check_runs(self.REPO_NAME, self.SHA), asked
+
+    def test_check_runs_are_read_across_every_page(self):
+        run = {"name": "lint", "status": "completed", "conclusion": "success"}
+        runs, asked = self.fetch_runs([[run] * 100, [run] * 100, [run] * 7], 207)
+        self.assertEqual(len(runs), 207)
+        self.assertEqual(asked, [f"repos/{self.REPO_NAME}/commits/{self.SHA}/check-runs"
+                                 f"?per_page=100&page={n}" for n in (1, 2, 3)])
+        self.assertEqual(self.fetch_runs([[]], 0)[0], [])
+
+    def test_check_runs_that_do_not_add_up_are_unreadable(self):
+        run = {"name": "lint"}
+        for name, pages, total in (
+                ("a page came back short", [[run] * 100, []], 150),
+                ("more than reported", [[run] * 3], 2),
+                ("total missing", [[run]], None),
+                ("total not an int", [[run]], "1"),
+                ("runs not a list", [{"x": 1}], 1),
+                ("over the page cap", [[run] * 100] * 11, 1100)):
+            with self.subTest(name):
+                self.assertIsNone(self.fetch_runs(pages, total)[0])
+
+    def test_unreadable_check_runs_hold_in_both_rules(self):
+        self.assertFalse(self.verdict(check_runs=None).ok)
+        routine = TestAutomergeGate("test_baseline_routine_pr_merges_and_publishes")
+        routine.setUp()
+        kw = routine.good()
+        kw["check_runs"] = None
+        v = self.g.evaluate(**kw)
+        self.assertFalse(v.ok)
+        self.assertTrue(any("check runs" in r for r in v.reasons), v.reasons)
+
+    def test_one_pr_that_errors_does_not_stop_the_others(self):
+        seen = []
+
+        def proc(repo, n, sha, dry_run):
+            seen.append(n)
+            if n == 1:
+                raise ValueError("malformed JSON from the API")
+            return 0
+        lines = []
+        env = {"REPO": self.REPO_NAME, "RUN_HEAD_SHA": self.SHA, "PR_NUMBERS": "[1, 2]"}
+        with patch.dict(os.environ, env, clear=False),              patch.object(self.g, "process", proc), patch.object(self.g, "summary", lines.append):
+            rc = self.g.main([])
+        self.assertEqual(seen, [1, 2])
+        self.assertEqual(rc, 1, "an errored PR must leave the run red")
+        self.assertTrue(any(l.startswith("PR #1:") for l in lines), lines)
+
     # ---- the AUTOMERGE_ENABLED kill switch, mirrored in Python ---------------------
 
     def run_main(self, env_value, argv=()):

@@ -252,7 +252,9 @@ def products_problems(head_text, base_text) -> list:
     return bad
 
 
-def _check_problems(check_runs: list) -> list:
+def _check_problems(check_runs: list | None) -> list:
+    if not isinstance(check_runs, list):
+        return ["check runs could not be read completely"]
     why = []
     runs = []
     for c in check_runs:
@@ -538,9 +540,22 @@ def fetch_files(repo: str, number: int) -> list:
     return [json.loads(ln) for ln in lines.splitlines() if ln.strip()]
 
 
-def fetch_check_runs(repo: str, sha: str) -> list:
-    data = gh_json("api", f"repos/{repo}/commits/{sha}/check-runs?per_page=100")
-    return data.get("check_runs") or []
+CHECK_RUN_PAGES = 10            # 1,000 runs; a head SHA with more is held
+
+
+def fetch_check_runs(repo: str, sha: str) -> list | None:
+    """Every check run on `sha`, read page by page, or None when the pages do not add up
+    to the endpoint's own total_count (the caller holds on None)."""
+    runs, total = [], None
+    for page in range(1, CHECK_RUN_PAGES + 1):
+        data = gh_json("api", f"repos/{repo}/commits/{sha}/check-runs?per_page=100&page={page}")
+        total, batch = data.get("total_count"), data.get("check_runs")
+        if type(total) is not int or not isinstance(batch, list):
+            return None
+        runs += batch
+        if len(runs) >= total or len(batch) < 100:
+            break
+    return runs if len(runs) == total else None
 
 
 def fetch_text(repo: str, path: str, ref: str) -> str | None:
@@ -594,16 +609,18 @@ def summary(text: str) -> None:
 
 
 def process_refill(repo: str, number: int, pr: dict, run_sha: str, dry_run: bool) -> int:
-    """The refill rule's reads. It never reads the issues endpoint."""
-    files = fetch_files(repo, number)
+    """The refill rule's reads. It never reads the issues endpoint. A failed read is a hold,
+    the same as a failed evaluation."""
     head_sha = (pr.get("head") or {}).get("sha") or ""
     base_sha = (pr.get("base") or {}).get("sha") or ""
-    checks = fetch_check_runs(repo, head_sha) if head_sha else []
-    products = fetch_text(repo, "products.json", head_sha) if head_sha else None
-    merge_base = fetch_merge_base(repo, base_sha, head_sha) if head_sha and base_sha else None
-    base_products = fetch_text(repo, "products.json", merge_base) if merge_base else None
-    modes = fetch_modes(repo, head_sha) if head_sha else None
     try:
+        files = fetch_files(repo, number)
+        checks = fetch_check_runs(repo, head_sha) if head_sha else []
+        products = fetch_text(repo, "products.json", head_sha) if head_sha else None
+        merge_base = (fetch_merge_base(repo, base_sha, head_sha)
+                      if head_sha and base_sha else None)
+        base_products = fetch_text(repo, "products.json", merge_base) if merge_base else None
+        modes = fetch_modes(repo, head_sha) if head_sha else None
         v = evaluate_refill(pr, files, checks, run_sha, repo, products, base_products, modes)
     except Exception as exc:  # fail closed: an unforeseen shape is a hold, never a merge
         summary(f"PR #{number}: left for a human -- gate error {type(exc).__name__}")
@@ -613,7 +630,8 @@ def process_refill(repo: str, number: int, pr: dict, run_sha: str, dry_run: bool
 
 def process(repo: str, number: int, run_sha: str, dry_run: bool) -> int:
     pr = gh_json("api", f"repos/{repo}/pulls/{number}")
-    if is_refill_branch((pr.get("head") or {}).get("ref")):
+    ref = (pr.get("head") or {}).get("ref")
+    if isinstance(ref, str) and ref.startswith("refill/"):
         return process_refill(repo, number, pr, run_sha, dry_run)
     issue = gh_json("api", f"repos/{repo}/issues/{number}")
     files = fetch_files(repo, number)
@@ -678,6 +696,9 @@ def main(argv: list) -> int:
             rc |= process(repo, n, run_sha, dry_run)
         except subprocess.CalledProcessError as exc:
             summary(f"PR #{n}: gh failed ({exc.cmd[:3]}): {(exc.stderr or '').strip()[:300]}")
+            rc = 1
+        except Exception as exc:  # one bad PR must not stop the others; it is never merged
+            summary(f"PR #{n}: left for a human -- error {type(exc).__name__}")
             rc = 1
     return rc
 
