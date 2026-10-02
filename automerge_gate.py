@@ -370,11 +370,15 @@ def evaluate(pr: dict, issue: dict, files: list, check_runs: list,
 #   3. the ONLY changed file is products.json, status `modified`, no rename source, a
 #      regular file at head;
 #   4. the `pytest` check is green on the head SHA and no other check is pending or red;
-#   5. products.json, parsed: no decoded key or value anywhere contains NEEDS_; every entry
-#      on the merge base that is not a placeholder is unchanged in head; at least one entry
-#      is new (or fills a base placeholder), and each such entry carries no REVIEW marker,
-#      the canonical affiliate link for its ASIN, an m.media-amazon.com image and a null or
-#      chewy.sjv.io chewy_url.
+#   5. products.json, parsed: no decoded key or value anywhere in the head file contains
+#      NEEDS_; head is the merge-base list in the same order, every non-placeholder entry
+#      unchanged (compared with JSON types, so 1, 1.0 and true differ), followed only by
+#      new entries at the end. A base NEEDS_ASIN/NEEDS_IMAGE placeholder may be filled in
+#      place: same position, same topic. At least one entry must be new or filled, and each
+#      such entry must carry no REVIEW sentinel or `REVIEW:` anywhere in its strings, an
+#      ASIN no other head entry uses, the canonical affiliate link for its ASIN (exact,
+#      case-sensitive tag), an m.media-amazon.com image and a null or chewy.sjv.io
+#      chewy_url.
 # The diff is judged against the MERGE BASE, not the base tip, so a main-side edit made
 # during the refill window does not read as the PR changing an existing entry.
 
@@ -396,32 +400,50 @@ def _is_placeholder(entry: dict) -> bool:
     return entry.get("asin") == "NEEDS_ASIN" or entry.get("image") == "NEEDS_IMAGE"
 
 
-def _by_topic(text, label: str):
-    """{topic: entry} for a products.json text, or (None, reason) when it is not a list of
-    objects with unique slug topics."""
+def _reject_deep_nesting(node) -> None:
+    """Raise ValueError if `node` nests deeper than _strings() allows."""
+    for _ in _strings(node):
+        pass
+
+
+def _entries(text, label: str):
+    """The products.json entries in file order, or (None, reason) when the file is
+    unavailable or is not a list of objects with unique slug topics."""
+    if not isinstance(text, str):
+        return None, f"{label} products.json is not available"
     try:
-        data = json.loads(text) if isinstance(text, str) else None
-        list(_strings(data))                      # depth guard
+        data = json.loads(text)
+        _reject_deep_nesting(data)
     except (ValueError, RecursionError):
         return None, f"{label} products.json is not parseable JSON"
     if not isinstance(data, list):
         return None, f"{label} products.json is not a list"
-    entries = {}
+    topics = set()
     for e in data:
         topic = e.get("topic") if isinstance(e, dict) else None
         if not (isinstance(topic, str) and re.fullmatch(_SLUG, topic)):
             return None, f"{label} products.json has an entry without a slug topic"
-        if topic in entries:
+        if topic in topics:
             return None, f"{label} products.json has duplicate topic {topic!r}"
-        entries[topic] = e
-    return entries, None
+        topics.add(topic)
+    return data, None
+
+
+def _canonical(entry) -> str:
+    """Type-aware identity for an entry: 1, 1.0 and true dump differently; key order does
+    not matter."""
+    return json.dumps(entry, sort_keys=True)
+
+
+def _has_review_marker(s: str) -> bool:
+    return _is_review_sentinel(s) or "REVIEW:" in s
 
 
 def refill_entry_problems(entry: dict) -> list:
     """Problems with one new or filled entry; empty list = canonical."""
     topic = entry["topic"]
     bad = []
-    if any(_is_review_sentinel(s) for s in _strings(entry)):
+    if any(_has_review_marker(s) for s in _strings(entry)):
         bad.append("carries a REVIEW marker")
     asin = entry.get("asin")
     if not (isinstance(asin, str) and _ASIN.fullmatch(asin)):
@@ -440,28 +462,36 @@ def refill_entry_problems(entry: dict) -> list:
 
 
 def refill_products_problems(head_text, merge_base_text) -> list:
-    head, why = _by_topic(head_text, "head")
+    head, why = _entries(head_text, "head")
     if why:
         return [why]
-    base, why = _by_topic(merge_base_text, "merge-base")
+    base, why = _entries(merge_base_text, "merge-base")
     if why:
         return [why]
-    if any("NEEDS_" in s for s in _strings(list(head.values()))):
+    if any("NEEDS_" in s for s in _strings(head)):
         return ["products.json carries a NEEDS_ marker"]
+    if len(head) < len(base):
+        return ["products.json removes an existing entry"]
     bad = []
     fresh = []
-    for topic, old in base.items():
-        if topic not in head:
-            bad.append(f"existing entry {topic!r} was removed")
+    # Head must be the merge base, in order, with base placeholders filled in place, followed
+    # only by new entries.
+    for i, old in enumerate(base):
+        if head[i]["topic"] != old["topic"]:
+            bad.append(f"existing entry {old['topic']!r} is not at position {i} "
+                       "(moved, removed or displaced by an insert)")
         elif _is_placeholder(old):
-            fresh.append(head[topic])
-        elif head[topic] != old:
-            bad.append(f"existing entry {topic!r} was changed")
-    fresh += [e for t, e in head.items() if t not in base]
+            fresh.append(head[i])
+        elif _canonical(head[i]) != _canonical(old):
+            bad.append(f"existing entry {old['topic']!r} was changed")
+    fresh += head[len(base):]
     if not fresh:
         bad.append("products.json adds no entry")
+    asins = Counter(e.get("asin") for e in head if isinstance(e.get("asin"), str))
     for e in fresh:
         bad += refill_entry_problems(e)
+        if asins[e.get("asin")] > 1:
+            bad.append(f"entry {e['topic']!r}: ASIN {e.get('asin')!r} appears more than once")
     return bad
 
 

@@ -7432,6 +7432,8 @@ class TestRefillAutomergeGate(unittest.TestCase):
             "REVIEW in name":  self.entry(name="REVIEW: check fit"),
             "REVIEW key":      {**self.entry(), "REVIEW:note": "x"},
             "REVIEW nested":   {**self.entry(), "extra": ["REVIEW:x"]},
+            "REVIEW: mid-name": self.entry(name="Paw5 Wooly Snuffle Mat (REVIEW: size)"),
+            "REVIEW: in runners_up": self.entry(runners_up="A; REVIEW: B"),
         }
         for name, e in cases.items():
             with self.subTest(name):
@@ -7464,9 +7466,32 @@ class TestRefillAutomergeGate(unittest.TestCase):
                 v = self.with_head(head)
                 self.assertFalse(v.ok, name)
 
-    def test_reordering_existing_entries_is_not_a_change(self):
+    def test_existing_entries_must_keep_their_order_with_new_ones_only_at_the_end(self):
         base = self.base_entries()
-        self.assertTrue(self.with_head([self.entry(), base[1], base[0]]).ok)
+        cases = {
+            "existing reordered":   [base[1], base[0], self.entry()],
+            "new inserted at top":  [self.entry(), base[0], base[1]],
+            "new inserted between": [base[0], self.entry(), base[1]],
+            "existing removed":     [base[1], self.entry()],
+        }
+        for name, head in cases.items():
+            with self.subTest(name):
+                self.assertFalse(self.with_head(head).ok, name)
+        two_new = base + [self.entry(), self.entry("best-cat-tunnels", "B0CJFQKNQ9")]
+        self.assertTrue(self.with_head(two_new).ok, "several new entries at the end merge")
+
+    def test_an_existing_entry_is_compared_with_its_json_types(self):
+        """1, 1.0 and True are == in Python; they are three different values in the file."""
+        for old, new in ((4, 4.0), (1, True), (0, False), (4.5, "4.5"), (None, "")):
+            with self.subTest(old=old, new=new):
+                base = [dict(self.base_entries()[0], stars=old), self.base_entries()[1]]
+                head = [dict(base[0], stars=new), base[1], self.entry()]
+                self.assertFalse(self.verdict(products_text=json.dumps(head),
+                                              merge_base_text=json.dumps(base)).ok)
+        # the order of keys inside an entry is not a change
+        base = self.base_entries()
+        flipped = dict(reversed(list(base[0].items())))
+        self.assertTrue(self.with_head([flipped, base[1], self.entry()]).ok)
 
     def test_filling_a_base_placeholder_with_a_canonical_entry_merges(self):
         base = self.base_entries()
@@ -7480,6 +7505,29 @@ class TestRefillAutomergeGate(unittest.TestCase):
         bad = dict(filled, affiliate_url="https://www.amazon.com/dp/B0BY7S5L92?tag=evil-20")
         self.assertFalse(self.verdict(products_text=json.dumps(base + [bad]),
                                       merge_base_text=json.dumps(base + [seed])).ok)
+        # in place in the middle, with a new entry appended after it
+        v = self.verdict(products_text=json.dumps([base[0], filled, base[1], self.entry()]),
+                         merge_base_text=json.dumps([base[0], seed, base[1]]))
+        self.assertTrue(v.ok, v.reasons)
+
+    def test_a_placeholder_fill_that_moves_or_renames_holds(self):
+        base = self.base_entries()
+        seed = self.entry("best-cat-trees", "NEEDS_ASIN", image="NEEDS_IMAGE",
+                          affiliate_url="https://www.amazon.com/dp/NEEDS_ASIN?tag=happypetdc-20")
+        filled = self.entry("best-cat-trees", "B0BY7S5L92")
+        mb = json.dumps([seed] + base)
+        cases = {
+            "moved to the end":   base + [filled],
+            "moved after one":    [base[0], filled, base[1]],
+            "topic changed":      [dict(filled, topic="best-cat-towers")] + base,
+            "filled and dropped": base + [self.entry()],
+        }
+        for name, head in cases.items():
+            with self.subTest(name):
+                self.assertFalse(self.verdict(products_text=json.dumps(head),
+                                              merge_base_text=mb).ok, name)
+        self.assertTrue(self.verdict(products_text=json.dumps([filled] + base),
+                                     merge_base_text=mb).ok)
 
     def test_a_pr_that_adds_no_entry_is_held(self):
         self.assertFalse(self.with_head(self.base_entries()).ok)
@@ -7501,6 +7549,27 @@ class TestRefillAutomergeGate(unittest.TestCase):
         dup_base = json.dumps(base + [base[0]])
         self.assertFalse(self.verdict(merge_base_text=dup_base).ok, "duplicate in base")
 
+    def test_a_duplicate_asin_holds(self):
+        base = self.base_entries()
+        cases = {
+            "new repeats an existing ASIN": base + [self.entry(asin="B07HMPRTXF")],
+            "two new share an ASIN":        base + [self.entry(),
+                                                    self.entry("best-cat-tunnels")],
+        }
+        for name, head in cases.items():
+            with self.subTest(name):
+                v = self.with_head(head)
+                self.assertFalse(v.ok, name)
+                self.assertTrue(any("ASIN" in r for r in v.reasons), v.reasons)
+
+    def test_an_unavailable_file_says_so(self):
+        for over in ({"products_text": None}, {"merge_base_text": None}):
+            with self.subTest(over):
+                v = self.verdict(**over)
+                self.assertFalse(v.ok)
+                self.assertTrue(any("not available" in r for r in v.reasons), v.reasons)
+                self.assertFalse(any("not a list" in r for r in v.reasons), v.reasons)
+
     def test_unparsable_or_wrong_shape_files_hold(self):
         for text in ("", "{", "null", "{}", '"x"', "[1]", "[" * 5000 + "]" * 5000):
             with self.subTest(head=text[:20]):
@@ -7515,6 +7584,9 @@ class TestRefillAutomergeGate(unittest.TestCase):
         held = [
             "https://www.amazon.com/dp/B0ABCD1234?tag=other-20",
             "https://www.amazon.com/dp/B0ABCD1234?tag=pawpicks04-20",  # retired tag (#131)
+            "https://www.amazon.com/dp/B0ABCD1234?tag=HAPPYPETDC-20",  # tags are case-sensitive
+            "https://www.amazon.com/dp/B0ABCD1234?tag=Happypetdc-20",
+            "https://WWW.AMAZON.COM/dp/B0ABCD1234?tag=happypetdc-20",
             "https://www.amazon.com/dp/B0ZZZZ9999?tag=happypetdc-20",
             "http://www.amazon.com/dp/B0ABCD1234?tag=happypetdc-20",
             "https://amazon.com/dp/B0ABCD1234?tag=happypetdc-20",
