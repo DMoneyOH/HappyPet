@@ -21,7 +21,7 @@ permalink: /privacy-policy/
   <p>We may use cookies and similar tracking technologies for the following purposes:</p>
   <ul>
     <li><strong>Analytics:</strong> We use Google Analytics to understand how visitors use our site. You can opt out at <a href="https://tools.google.com/dlpage/gaoptout">tools.google.com/dlpage/gaoptout</a>.</li>
-    <li><strong>Affiliate tracking:</strong> We participate in affiliate programs including Amazon Associates and Chewy (whose program runs through Impact.com). These programs may use cookies to track referrals and attribute purchases. We do not control these third-party cookies.</li>
+    <li><strong>Affiliate tracking:</strong> We participate in affiliate programs including Amazon Associates and Chewy. These programs may use cookies to track referrals and attribute purchases. We do not control these third-party cookies.</li>
   </ul>
 
   <h2>Affiliate Disclosure</h2>
