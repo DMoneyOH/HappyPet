@@ -49,7 +49,7 @@ def test_gate_flags_a_link_to_a_product_with_no_record():
     # still queued -- repoint it when this entry is retired.
     with tempfile.TemporaryDirectory() as td:
         body = Path(td) / "body.md"
-        body.write_text("[Petbobi tie-out](https://www.amazon.com/dp/B07CXJGZY5?tag=dynamicconc0b-20) tops the list. "
+        body.write_text("[Petbobi tie-out](https://www.amazon.com/dp/B07CXJGZY5?tag=happypetdc-20) tops the list. "
                         "[Invented Runner-Up](https://amzn.to/4Xy9ZkL) is second.",
                         encoding="utf-8")
         card = Path(td) / "card.json"
@@ -70,8 +70,8 @@ def test_gate_does_not_flag_the_entrys_own_link():
     # to carry would hold every article, and would be switched off within a day.
     with tempfile.TemporaryDirectory() as td:
         body = Path(td) / "body.md"
-        body.write_text("[Petbobi tie-out](https://www.amazon.com/dp/B07CXJGZY5?tag=dynamicconc0b-20) tops the list, and "
-                        "[here it is again](https://www.amazon.com/dp/B07CXJGZY5?tag=dynamicconc0b-20).", encoding="utf-8")
+        body.write_text("[Petbobi tie-out](https://www.amazon.com/dp/B07CXJGZY5?tag=happypetdc-20) tops the list, and "
+                        "[here it is again](https://www.amazon.com/dp/B07CXJGZY5?tag=happypetdc-20).", encoding="utf-8")
         card = Path(td) / "card.json"
         card.write_text(json.dumps({"pass": True,
             "scores": {"human_voice": 4, "warmth": 4, "readability": 4, "accuracy": 4}}),

@@ -6,7 +6,7 @@ categories: [dog-travel]
 species: dog
 tags: [best dog travel water bottle]
 description: "The leak-proof dog water bottle that lets your dog drink on every walk, hike, and road trip."
-affiliate_url: "https://www.amazon.com/dp/B089W25KG3?tag=dynamicconc0b-20"
+affiliate_url: "https://www.amazon.com/dp/B089W25KG3?tag=happypetdc-20"
 image: "https://m.media-amazon.com/images/I/71pou1A0rDL._AC_SX679_.jpg"
 pin_image: "https://happypetproductreviews.com/assets/images/pins/best-dog-travel-water-bottles.jpg?v=20260727"
 ---
@@ -23,7 +23,7 @@ Three bottles cover most situations here, from a quick loop around the block to 
 
 ### Featured pick: Kalimdor Dog Water Bottle, Leak Proof Portable Puppy Water Dispenser, 19oz
 
-The [Kalimdor Dog Water Bottle, Leak Proof Portable Puppy Water Dispenser, 19oz](https://www.amazon.com/dp/B089W25KG3?tag=dynamicconc0b-20) carries a 4.5/5 star rating and lands at $12.99, cheap enough that you stop thinking about the price and just use it. The design does one thing well. Squeeze the bottle and water fills the flip-up trough at the top. Let go, and whatever your dog leaves behind drains back inside instead of running onto the ground. That one-handed motion counts for a lot when your other hand holds a leash and a full poop bag. The 19oz size carries a medium dog through a long walk, and the lock button stops drips while the bottle rattles around in a bag. Small and medium dog owners tend to keep this one clipped to the leash and forget they are carrying it, which is about the highest praise a walking accessory earns.
+The [Kalimdor Dog Water Bottle, Leak Proof Portable Puppy Water Dispenser, 19oz](https://www.amazon.com/dp/B089W25KG3?tag=happypetdc-20) carries a 4.5/5 star rating and lands at $12.99, cheap enough that you stop thinking about the price and just use it. The design does one thing well. Squeeze the bottle and water fills the flip-up trough at the top. Let go, and whatever your dog leaves behind drains back inside instead of running onto the ground. That one-handed motion counts for a lot when your other hand holds a leash and a full poop bag. The 19oz size carries a medium dog through a long walk, and the lock button stops drips while the bottle rattles around in a bag. Small and medium dog owners tend to keep this one clipped to the leash and forget they are carrying it, which is about the highest praise a walking accessory earns.
 
 Pros:
 
@@ -59,4 +59,4 @@ Weight decides whether the thing leaves the house at all. A heavy stainless bott
 | PupFlask Large Dog Water Bottle 27oz Stainless Steel | Big dogs, long hikes | $$ | 27oz |
 | SOICTA Portable Dog Water Bottle 19oz | Budget backup | $ | 19oz |
 
-If you walk a beagle or a corgi around the neighborhood twice a day, buy the [Kalimdor Dog Water Bottle, Leak Proof Portable Puppy Water Dispenser, 19oz](https://www.amazon.com/dp/B089W25KG3?tag=dynamicconc0b-20) and stop researching. It does the job, it does not leak on your keys, and at $12.99 you will not wince if your dog chews the cap in a year. Own a lab that treats a hike like a marathon, and the bigger stainless PupFlask makes more sense. Just want something in the car for surprise stops, and the SOICTA covers it for pocket change. While you are sorting out gear, a leash walk goes smoother with a collar that fits, so it is worth a look at the right [dog collars small breeds](https://happypetproductreviews.com/dog-collars/best-dog-collars-small-breeds/) too. The best dog travel water bottle is whichever of these matches how your dog actually spends its days outside.
+If you walk a beagle or a corgi around the neighborhood twice a day, buy the [Kalimdor Dog Water Bottle, Leak Proof Portable Puppy Water Dispenser, 19oz](https://www.amazon.com/dp/B089W25KG3?tag=happypetdc-20) and stop researching. It does the job, it does not leak on your keys, and at $12.99 you will not wince if your dog chews the cap in a year. Own a lab that treats a hike like a marathon, and the bigger stainless PupFlask makes more sense. Just want something in the car for surprise stops, and the SOICTA covers it for pocket change. While you are sorting out gear, a leash walk goes smoother with a collar that fits, so it is worth a look at the right [dog collars small breeds](https://happypetproductreviews.com/dog-collars/best-dog-collars-small-breeds/) too. The best dog travel water bottle is whichever of these matches how your dog actually spends its days outside.

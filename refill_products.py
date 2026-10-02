@@ -18,7 +18,7 @@ anything that fails keeps its NEEDS_* placeholders, which the generator's
 validate_product() already refuses to publish. The workflow opens a PR, so a
 human reviews every entry before it enters the queue.
 
-Affiliate links are long-form: https://www.amazon.com/dp/<ASIN>?tag=dynamicconc0b-20
+Affiliate links are long-form: https://www.amazon.com/dp/<ASIN>?tag=happypetdc-20
 
 Env:
   REFILL_THRESHOLD  refill when unpublished count <= this (default 1)
@@ -52,7 +52,7 @@ REPO_DIR      = Path(__file__).parent.resolve()
 PRODUCTS_PATH = REPO_DIR / "products.json"
 RESULT_PATH   = REPO_DIR / "REFILL_RESULT.json"
 
-AFFILIATE_TAG = os.environ.get("AMAZON_PAAPI_PARTNER_TAG", "dynamicconc0b-20")
+AFFILIATE_TAG = os.environ.get("AMAZON_PAAPI_PARTNER_TAG", "happypetdc-20")
 ASIN_RE       = re.compile(r"^B0[A-Z0-9]{8}$")
 # Real product photos only -- .svg on this host is a placeholder sprite
 IMAGE_HOST_RE = re.compile(
