@@ -6,7 +6,7 @@ categories: [cat-carriers]
 species: cat
 tags: [cat carrier travel]
 description: "The right carrier makes vet trips and travel stress-free for both you and your cat."
-affiliate_url: "https://amzn.to/4sVt7G2"
+affiliate_url: "https://www.amazon.com/dp/B000FLETX8?th=1&tag=happypetdc-20"
 image: "https://images-na.ssl-images-amazon.com/images/P/B000FLETX8.01.LZZZZZZZ.jpg"
 ---
 
@@ -48,9 +48,9 @@ A comfortable carrier starts with a soft, washable pad or liner. Some carriers c
 
 Accidents happen, especially when a cat is stressed. A carrier that's easy to clean is invaluable. Removable, machine-washable liners are fantastic. Hard-sided carriers can often be hosed down or wiped clean with pet-safe disinfectants. Soft-sided carriers should ideally have liners that can be removed and washed, or be made of materials that can be easily spot-cleaned.
 
-## The Top Pick -- [Sherpa Original Deluxe Travel Pet Carrier](https://amzn.to/4sVt7G2)
+## The Top Pick -- [Sherpa Original Deluxe Travel Pet Carrier](https://www.amazon.com/dp/B000FLETX8?th=1&tag=happypetdc-20)
 
-After weighing the options against what owners report from countless trips with feline companions, the most consistent performer is the [Sherpa Original Deluxe Travel Pet Carrier](https://amzn.to/4sVt7G2). This soft-sided carrier truly excels in combining comfort, security, and practicality, making cat carrier travel significantly smoother. Its patented spring wire frame allows the rear end of the carrier to be pushed down several inches, conforming to under-seat dimensions on most airlines – a huge plus for those flying with their cats. The multiple mesh windows give excellent ventilation, the top and side entry options make loading easy, and the comfortable faux lambskin liner is removable and washable. The non-slip shoulder strap and seatbelt/luggage strap make it versatile for all modes of transport, so your cat stays safe and secure wherever you go. It’s built to last and designed with real pet travel in mind.
+After weighing the options against what owners report from countless trips with feline companions, the most consistent performer is the [Sherpa Original Deluxe Travel Pet Carrier](https://www.amazon.com/dp/B000FLETX8?th=1&tag=happypetdc-20). This soft-sided carrier truly excels in combining comfort, security, and practicality, making cat carrier travel significantly smoother. Its patented spring wire frame allows the rear end of the carrier to be pushed down several inches, conforming to under-seat dimensions on most airlines – a huge plus for those flying with their cats. The multiple mesh windows give excellent ventilation, the top and side entry options make loading easy, and the comfortable faux lambskin liner is removable and washable. The non-slip shoulder strap and seatbelt/luggage strap make it versatile for all modes of transport, so your cat stays safe and secure wherever you go. It’s built to last and designed with real pet travel in mind.
 
 ## Common Mistakes to Avoid
 
@@ -69,7 +69,7 @@ Start by leaving the carrier out in a common area of your home, making it a fami
 
 ### Should you choose a hard-sided or soft-sided carrier?
 
-It depends on your cat and your needs. Hard-sided carriers offer more protection, are easier to clean, and provide a sense of security for anxious cats. Soft-sided carriers are lighter, often collapsible, and more flexible for airline under-seat requirements. If your cat is an escape artist or prone to accidents, a hard-sided option might be better. For casual, short trips, a soft-sided one like the [Sherpa Original Deluxe Travel Pet Carrier](https://amzn.to/4sVt7G2) is often ideal.
+It depends on your cat and your needs. Hard-sided carriers offer more protection, are easier to clean, and provide a sense of security for anxious cats. Soft-sided carriers are lighter, often collapsible, and more flexible for airline under-seat requirements. If your cat is an escape artist or prone to accidents, a hard-sided option might be better. For casual, short trips, a soft-sided one like the [Sherpa Original Deluxe Travel Pet Carrier](https://www.amazon.com/dp/B000FLETX8?th=1&tag=happypetdc-20) is often ideal.
 
 ### Can you use a dog carrier for a cat?
 
@@ -87,4 +87,4 @@ Acclimation is key. Positive association with the carrier beforehand makes a hug
 
 Choosing the right cat carrier is an investment in your cat's well-being and your own peace of mind. It's not just about getting from point A to point B; it's about making that journey as comfortable, safe, and stress-free as possible. By considering factors like size, material, ventilation, and security, and by taking the time to acclimate your cat to their carrier, you're setting yourself up for success.
 
-Don't wait until the last minute before a trip to find the perfect carrier. Start now, make it a positive experience, and you'll both be ready for whatever adventures lie ahead. For a carrier that consistently delivers on comfort, safety, and convenience for all your cat carrier travel needs, the [Sherpa Original Deluxe Travel Pet Carrier](https://amzn.to/4sVt7G2) earns a hearty recommendation. Happy travels!
+Don't wait until the last minute before a trip to find the perfect carrier. Start now, make it a positive experience, and you'll both be ready for whatever adventures lie ahead. For a carrier that consistently delivers on comfort, safety, and convenience for all your cat carrier travel needs, the [Sherpa Original Deluxe Travel Pet Carrier](https://www.amazon.com/dp/B000FLETX8?th=1&tag=happypetdc-20) earns a hearty recommendation. Happy travels!

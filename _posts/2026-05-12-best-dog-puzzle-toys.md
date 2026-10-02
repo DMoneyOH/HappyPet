@@ -8,7 +8,7 @@ redirect_from:
 species: dog
 tags: [best dog puzzle toys]
 description: "Keep your clever canine busy for hours with the ultimate puzzle toys that actually work."
-affiliate_url: "https://amzn.to/4sAXxfA"
+affiliate_url: "https://www.amazon.com/dp/B005VS9WO6?th=1&tag=happypetdc-20"
 chewy_url: "https://chewy.sjv.io/c/7160344/3054490/32975?prodsku=86001&u=https%3A%2F%2Fwww.chewy.com%2Foutward-hound-hide-squirrel-squeaky%2Fdp%2F113784%3Futm_source%3Dgoogle-product%26utm_medium%3Dorganic%26utm_content%3DOutward%2520Hound&intsrc=APIG_24727"
 image: "https://images-na.ssl-images-amazon.com/images/P/B005VS9WO6.01.LZZZZZZZ.jpg"
 pin_image: "https://happypetproductreviews.com/assets/images/pins/best-dog-puzzle-toys.jpg?v=20260511"
@@ -20,7 +20,7 @@ If you’ve ever watched a border collie stare at a squeaky ball, then toss it a
 
 | Product | Best For | Price Range | Key Attribute |
 |---|---|---|---|
-| **[Outward Hound Hide‑A‑Squirrel Dog Toy, 2‑in‑1 Plush Puzzle, 6 Squeaky Squirrels, XL](https://amzn.to/4sAXxfA)** | Dogs who love plush toys & scent work | $$ | Interactive plush design |
+| **[Outward Hound Hide‑A‑Squirrel Dog Toy, 2‑in‑1 Plush Puzzle, 6 Squeaky Squirrels, XL](https://www.amazon.com/dp/B005VS9WO6?th=1&tag=happypetdc-20)** | Dogs who love plush toys & scent work | $$ | Interactive plush design |
 | Nina Ottosson Dog Tornado | Puzzle‑solvers who enjoy rotating challenges | $$$ | Tiered rotating compartments |
 | Trixie Activity Flip Board | Beginners who need simple flip‑over tasks | $ | Multi‑step flip & slide |
 | KONG Classic (medium) | Chewers who also need mental stimulation | $ | Durable rubber, treat‑fillable |
@@ -72,7 +72,7 @@ By weighing these criteria against your dog’s personality, you can select a pu
 
 | Product | Best For | Price Range | Key Attribute |
 |---|---|---|---|
-| **[Outward Hound Hide‑A‑Squirrel Dog Toy, 2‑in‑1 Plush Puzzle, 6 Squeaky Squirrels, XL](https://amzn.to/4sAXxfA)** | Plush‑loving seekers | $$ | Interactive plush design |
+| **[Outward Hound Hide‑A‑Squirrel Dog Toy, 2‑in‑1 Plush Puzzle, 6 Squeaky Squirrels, XL](https://www.amazon.com/dp/B005VS9WO6?th=1&tag=happypetdc-20)** | Plush‑loving seekers | $$ | Interactive plush design |
 | Nina Ottosson Dog Tornado | Advanced rotators | $$$ | Tiered rotating compartments |
 | Trixie Activity Flip Board | Beginner problem‑solvers | $ | Multi‑step flip & slide |
 | KONG Classic (medium) | Durable chewers | $ | Treat‑fillable rubber |

@@ -7,7 +7,7 @@ species: cat
 tags: [interactive cat toys]
 description: "Bored cat? Destructive behavior? Discover the best interactive cat toys to keep your feline friend happy and engaged!"
 image: "https://images-na.ssl-images-amazon.com/images/P/B00DT2WL26.01.LZZZZZZZ.jpg"
-affiliate_url: "https://amzn.to/4sZKrtw"
+affiliate_url: "https://www.amazon.com/dp/B00DT2WL26?th=1&tag=happypetdc-20"
 ---
 
 Ever come home to a shredded toilet paper roll, claw marks on your favorite armchair, or a persistent, attention-seeking meow that just won't quit? If you're a cat parent, chances are you've experienced the tell-tale signs of a bored kitty. While cuddles and lap time are wonderful, cats are natural hunters, explorers, and problem-solvers. Without enough mental and physical stimulation, they can quickly become restless, stressed, and even destructive. That's where **interactive cat toys** come in!
@@ -33,7 +33,7 @@ This multi-level ball track toy is a consistent winner in real homes, captivatin
 * Some very determined cats might manage to pop a ball out (rare).
 * Can be a bit noisy on hard floors during intense play.
 
-[Check Price on Chewy](https://amzn.to/4sZKrtw)
+[Check Price on Chewy](https://www.amazon.com/dp/B00DT2WL26?th=1&tag=happypetdc-20)
 
 ### PetSafe Bolt Automatic Laser Cat Toy
 
@@ -125,4 +125,4 @@ Finding the perfect **interactive cat toys** for your feline friend can feel lik
 
 Bringing a variety of **interactive cat toys** into your home is one of the best investments you can make for your cat's happiness and your own peace of mind. Not only do these toys provide essential physical exercise, but they also offer crucial mental stimulation, helping to satisfy your cat's natural instincts and prevent boredom-related behavioral issues. The transformation in cats who have access to engaging play is real. From the simple yet captivating Catstages Tower of Tracks to the brain-teasing Trixie Activity Fun Board, there's an interactive toy out there for every feline personality and every budget. So go ahead, treat your cat to some exciting new playtime adventures – your furniture (and your sanity) will thank you!
 
-[Find the top pick, the Catstages Tower of Tracks, on Chewy today!](https://amzn.to/4sZKrtw)
+[Find the top pick, the Catstages Tower of Tracks, on Chewy today!](https://www.amazon.com/dp/B00DT2WL26?th=1&tag=happypetdc-20)

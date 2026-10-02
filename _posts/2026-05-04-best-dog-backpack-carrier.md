@@ -8,14 +8,14 @@ redirect_from:
 species: dog
 tags: [best dog backpack carrier]
 description: "Discover the perfect dog backpack carrier for trail‑blazing hikes and hassle‑free travel adventures."
-affiliate_url: "https://amzn.to/3Q8m7Hr"
+affiliate_url: "https://www.amazon.com/dp/B07B61HMRT?th=1&tag=happypetdc-20"
 image: "https://m.media-amazon.com/images/I/81nV6St3lYL._AC_SX425_.jpg"
 pin_image: "https://happypetproductreviews.com/assets/images/pins/best-dog-backpack-carrier.jpg?v=20260504"
 ---
 A dog backpack carrier answers a narrow problem: a small dog who cannot cover the whole distance on foot, and hands you need for something other than a leash. On a trail that narrows, a leashed small dog is a snag risk rather than a companion; at an airport, a carrier is usually what the airline asks for before the dog goes any further. The pick below is judged on ventilation, how the weight sits on the shoulders, and whether it packs down for travel.  
 
 ### PetAmi Ventilated Dog Backpack – **the top pick**  
-[PetAmi Dog Backpack Carrier, Ventilated, Airline Approved, Up to 18 lb, Black](https://amzn.to/3Q8m7Hr)  
+[PetAmi Dog Backpack Carrier, Ventilated, Airline Approved, Up to 18 lb, Black](https://www.amazon.com/dp/B07B61HMRT?th=1&tag=happypetdc-20)  
 
 Why it is the pick here: mesh panels on more than one side keep air moving through the carrier instead of trapping it against the dog, which is the difference between a dog that settles and a dog that spends the trip panting. The interior is padded where the dog’s weight rests, and the shoulder straps are built to spread that weight across both shoulders rather than loading one. PetAmi rates it for dogs up to 18 lb and lists it as airline approved, and it folds flat when it is not in use. Airlines set their own under-seat dimensions, so check the folded size against the airline you are actually flying before counting on it as a cabin bag.  
 

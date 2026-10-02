@@ -10,7 +10,7 @@ tags: [best dog anxiety vest]
 description: "Calm your nervous pup in minutes with the top-rated anxiety vest for dogs."
 product_name: "ThunderShirt for Dogs, Large, Platinum Sport - Dog Anxiety Relief Calming Vest"
 rating: 4.3
-affiliate_url: "https://amzn.to/4tkpcTm"
+affiliate_url: "https://www.amazon.com/dp/B01FN4GW2M?th=1&tag=happypetdc-20"
 image: "https://images-na.ssl-images-amazon.com/images/P/B01FN4GW2M.01.LZZZZZZZ.jpg"
 pin_image: "https://happypetproductreviews.com/assets/images/pins/best-dog-anxiety-vest.jpg?v=20260427"
 ---
@@ -19,7 +19,7 @@ Picture a rainy Saturday: a golden retriever trembling by the front door as the 
 
 ## Product Overview  
 
-The **[ThunderShirt for Dogs, Large, Platinum Sport - Dog Anxiety Relief Calming Vest](https://amzn.to/4tkpcTm)** is a pressure‑wrap designed to apply gentle, constant pressure to a dog’s torso. This “swaddling” effect mimics the comforting hug a mother gives her pup, helping to calm nervous or overstimulated dogs.  
+The **[ThunderShirt for Dogs, Large, Platinum Sport - Dog Anxiety Relief Calming Vest](https://www.amazon.com/dp/B01FN4GW2M?th=1&tag=happypetdc-20)** is a pressure‑wrap designed to apply gentle, constant pressure to a dog’s torso. This “swaddling” effect mimics the comforting hug a mother gives her pup, helping to calm nervous or overstimulated dogs.  
 
 - **Size & Fit**: The Large size fits dogs 45‑80 lb, with adjustable straps and a Velcro closure for a snug, custom fit.  
 - **Material**: Made from a breathable, water‑resistant polyester blend that holds up to indoor and outdoor use.  
@@ -64,7 +64,7 @@ Across the situations owners write about most often, stormy evenings, fireworks,
 
 **Rating: 4.3/5**  
 
-Ready to give your dog the calm they deserve? Grab the **[ThunderShirt for Dogs, Large, Platinum Sport - Dog Anxiety Relief Calming Vest](https://amzn.to/4tkpcTm)** today and see the difference a gentle hug can make.  
+Ready to give your dog the calm they deserve? Grab the **[ThunderShirt for Dogs, Large, Platinum Sport - Dog Anxiety Relief Calming Vest](https://www.amazon.com/dp/B01FN4GW2M?th=1&tag=happypetdc-20)** today and see the difference a gentle hug can make.  
 
 ---  
 

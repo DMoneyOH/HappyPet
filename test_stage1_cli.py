@@ -11,6 +11,51 @@ def run(*args, cwd=None):
     return subprocess.run([PY, "stage1_cli.py", *args],
                           capture_output=True, text=True, cwd=cwd)
 
+# The --slug tests need one queue entry. They used to read the live products.json
+# queue, which rolls: pin.yml retires an entry after its pin run, and that broke
+# these tests twice (best-dog-cooling-mat 2026-09-24, best-outdoor-dog-tie-outs
+# 2026-09-28). They now load this fixed entry instead: the real
+# best-outdoor-dog-tie-outs record as it stood before retirement (products.json
+# at 697e194^), less its chewy_note.
+TIE_OUTS = {
+    "topic": "best-outdoor-dog-tie-outs",
+    "title": "Freedom & Safety: Top Outdoor Dog Tie-Outs for Backyard Fun",
+    "keyword": "outdoor dog tie out",
+    "name": "Petbobi Dog Tie-Out Cable and Stake - 30ft Heavy Duty Cable with Spring, "
+            "No Tangle, 16in Ground Stake, Ideal for Outdoor Yard, Camping, Suitable for "
+            "Small Medium Large Dogs Up to 120 lbs, Blue",
+    "asin": "B07CXJGZY5",
+    "affiliate_url": "https://www.amazon.com/dp/B07CXJGZY5?tag=pawpicks04-20",
+    "image": "https://m.media-amazon.com/images/I/71ebswoloPL._AC_SX679_.jpg",
+    "species": "dog", "category": "dog-collars", "format": "roundup",
+    "topical_sheet": "HAPPYPET_SHEET_ID_DOGS", "stars": 4.5, "price": "21.99",
+    "runners_up": "Dog Tie Out Cable and Anti Rust Spiral Stake 30ft; "
+                  "Supet Dog Tie Out Cable and Stake",
+    "chewy_url": "REVIEW:https://chewy.sjv.io/c/7160344/3054490/32975?prodsku=4043942"
+                 "&u=https%3A%2F%2Fwww.chewy.com%2Fpetbobi-heavy-duty-16-in-ground-stake"
+                 "%2Fdp%2F4043942%3Futm_source%3Dgoogle-product%26utm_medium%3Dorganic"
+                 "%26utm_content%3DPetbobi&intsrc=APIG_24727",
+    "chewy_price": "21.99", "chewy_stock": "InStock", "chewy_rating": None,
+    "amazon_search_query": "dog tie out stake and cable", "upc": "611056708644",
+}
+
+# Runs stage1_cli.py exactly as run() does, with generate_posts.load_products
+# replaced by a fixed queue read from the file named in argv[1].
+_WITH_QUEUE = (
+    "import json, runpy, sys\n"
+    "import generate_posts as gp\n"
+    "queue = json.loads(open(sys.argv[1], encoding='utf-8').read())\n"
+    "gp.load_products = lambda: queue\n"
+    "sys.argv = ['stage1_cli.py'] + sys.argv[2:]\n"
+    "runpy.run_path('stage1_cli.py', run_name='__main__')\n")
+
+def run_with_queue(entries, *args):
+    with tempfile.TemporaryDirectory() as td:
+        queue = Path(td) / "queue.json"
+        queue.write_text(json.dumps({e["topic"]: e for e in entries}), encoding="utf-8")
+        return subprocess.run([PY, "-c", _WITH_QUEUE, str(queue), *args],
+                              capture_output=True, text=True)
+
 def test_gate_passes_clean_on_standard_article():
     with tempfile.TemporaryDirectory() as td:
         body = Path(td) / "body.md"; body.write_text("clean body text", encoding="utf-8")
@@ -45,19 +90,17 @@ def test_gate_flags_a_link_to_a_product_with_no_record():
     # instead of hitting the hold. best-outdoor-dog-tie-outs' real entry links
     # amazon.com/dp/B07CXJGZY5; amzn.to/4Xy9ZkL is one of the three shortcodes
     # best-dog-backpack-carrier published for carriers that have no record.
-    # These tests read the live products.json queue, so the slug must be one
-    # still queued -- repoint it when this entry is retired.
     with tempfile.TemporaryDirectory() as td:
         body = Path(td) / "body.md"
-        body.write_text("[Petbobi tie-out](https://www.amazon.com/dp/B07CXJGZY5?tag=pawpicks04-20) tops the list. "
+        body.write_text("[Petbobi tie-out](https://www.amazon.com/dp/B07CXJGZY5?tag=happypetdc-20) tops the list. "
                         "[Invented Runner-Up](https://amzn.to/4Xy9ZkL) is second.",
                         encoding="utf-8")
         card = Path(td) / "card.json"
         card.write_text(json.dumps({"pass": True,
             "scores": {"human_voice": 4, "warmth": 4, "readability": 4, "accuracy": 4}}),
             encoding="utf-8")
-        r = run("gate", "--body", str(body), "--scorecard", str(card),
-                "--slug", "best-outdoor-dog-tie-outs")
+        r = run_with_queue([TIE_OUTS], "gate", "--body", str(body), "--scorecard", str(card),
+                           "--slug", "best-outdoor-dog-tie-outs")
         assert r.returncode == 0, r.stderr
         out = json.loads(r.stdout)
         assert out["passed"] is False, out
@@ -70,14 +113,14 @@ def test_gate_does_not_flag_the_entrys_own_link():
     # to carry would hold every article, and would be switched off within a day.
     with tempfile.TemporaryDirectory() as td:
         body = Path(td) / "body.md"
-        body.write_text("[Petbobi tie-out](https://www.amazon.com/dp/B07CXJGZY5?tag=pawpicks04-20) tops the list, and "
-                        "[here it is again](https://www.amazon.com/dp/B07CXJGZY5?tag=pawpicks04-20).", encoding="utf-8")
+        body.write_text("[Petbobi tie-out](https://www.amazon.com/dp/B07CXJGZY5?tag=happypetdc-20) tops the list, and "
+                        "[here it is again](https://www.amazon.com/dp/B07CXJGZY5?tag=happypetdc-20).", encoding="utf-8")
         card = Path(td) / "card.json"
         card.write_text(json.dumps({"pass": True,
             "scores": {"human_voice": 4, "warmth": 4, "readability": 4, "accuracy": 4}}),
             encoding="utf-8")
-        r = run("gate", "--body", str(body), "--scorecard", str(card),
-                "--slug", "best-outdoor-dog-tie-outs")
+        r = run_with_queue([TIE_OUTS], "gate", "--body", str(body), "--scorecard", str(card),
+                           "--slug", "best-outdoor-dog-tie-outs")
         out = json.loads(r.stdout)
         assert out["passed"] is True, out
         assert out["flags"] == [], out["flags"]
@@ -127,6 +170,7 @@ def test_review_prompt_slug_injects_verified_data_instruction():
     # so the reviewer is told not to flag the featured product's checked figures.
     with tempfile.TemporaryDirectory() as td:
         body = Path(td) / "body.md"; body.write_text("article body", encoding="utf-8")
-        r = run("review-prompt", "--slug", "best-outdoor-dog-tie-outs", "--body", str(body))
+        r = run_with_queue([TIE_OUTS], "review-prompt", "--slug", "best-outdoor-dog-tie-outs",
+                           "--body", str(body))
         assert r.returncode == 0, r.stderr
         assert "VERIFIED PRODUCT DATA" in r.stdout

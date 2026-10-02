@@ -8,7 +8,7 @@ redirect_from:
 species: cat
 tags: [best large cat tree]
 description: "The ultimate cat tree that lets your kitty climb, scratch, and snooze in style, without breaking the bank."
-affiliate_url: "https://amzn.to/3QgBugU"
+affiliate_url: "https://www.amazon.com/dp/B0DNPS3YTZ?th=1&tag=happypetdc-20"
 image: "https://m.media-amazon.com/images/I/71e3htQU6oL._AC_SX425_.jpg"
 pin_image: "https://happypetproductreviews.com/assets/images/pins/best-cat-tree-large.jpg?v=20260523"
 ---
@@ -17,7 +17,7 @@ When the living‑room curtain pole becomes a feline runway, you know it’s tim
 
 ## Quick Picks  
 
-### Featured Pick: [Globlazer Heavy Duty Cat Tree, 74in, 7 Sisal Posts, 2 Padded Condos, Dark Grey](https://amzn.to/3QgBugU)  
+### Featured Pick: [Globlazer Heavy Duty Cat Tree, 74in, 7 Sisal Posts, 2 Padded Condos, Dark Grey](https://www.amazon.com/dp/B0DNPS3YTZ?th=1&tag=happypetdc-20)  
 The Globlazer Heavy Duty Cat Tree stands out with a solid 74‑inch height that satisfies even the most ambitious climbers. With seven sisal‑wrapped posts, two padded condos, and a sleek dark‑grey finish, it blends durability with style. Amazon users have given it a **4.7/5** rating, praising its stability and the variety of perches. Many owners report that the wide base prevents wobbling, while the multiple scratching surfaces keep claws healthy.  
 
 **Pros**  
