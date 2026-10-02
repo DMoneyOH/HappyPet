@@ -1,0 +1,64 @@
+name: Auto-merge routine content PRs
+
+# Merges a routine Stage-1 PR once CI is green, then dispatches Stage 2 (publish).
+# Every decision lives in automerge_gate.py (see its docstring); anything
+# that fails a condition is left for a human.
+#
+# DORMANT until the repo Actions variable AUTOMERGE_ENABLED is set to 'true'
+# (Settings -> Secrets and variables -> Actions -> Variables). Deleting the variable
+# or setting it to anything else is the kill switch.
+#
+# Safety shape:
+#   * Trigger is workflow_run on "CI — Tests", never pull_request_target. workflow_run
+#     always runs the workflow file from the default branch, so a PR cannot edit this
+#     file or the gate script it runs.
+#   * The only checkout is the default branch. PR code is never checked out, built or
+#     executed here -- the gate reads the PR through the API.
+#   * The path allowlist excludes code, tests and workflows, so the CI that vouches
+#     for a PR is running main's own test suite over content-only changes.
+#   * Actions are pinned by commit SHA (the SHA actions/checkout@v4 resolved to in
+#     run 36090851260's own log).
+#
+# Class-3 CI on the publish path: needs the two-clone review before it merges.
+
+on:
+  workflow_run:
+    workflows: ["CI — Tests"]
+    types: [completed]
+
+# Nothing by default; the one job below asks for exactly what it uses.
+permissions: {}
+
+concurrency:
+  group: happypet-automerge
+  cancel-in-progress: false
+
+jobs:
+  automerge:
+    if: >
+      vars.AUTOMERGE_ENABLED == 'true' &&
+      github.event.workflow_run.event == 'pull_request' &&
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_repository.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write        # gh pr merge
+      pull-requests: write   # gh pr merge; read PR + files
+      checks: read           # list check runs on the PR head SHA
+      actions: write         # dispatch publish.yml (a GITHUB_TOKEN merge does not fire its push trigger)
+    steps:
+      - name: Checkout default branch (gate script only -- never the PR head)
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Evaluate and merge
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          RUN_HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          PR_NUMBERS: ${{ toJSON(github.event.workflow_run.pull_requests.*.number) }}
+        run: python3 automerge_gate.py
