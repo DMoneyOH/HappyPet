@@ -29,8 +29,9 @@ permalink: /about/
       <h2>How we review</h2>
       <p>Every review on this site is researched thoroughly. We evaluate products on construction quality, safety, ease of use, customer feedback patterns, and price-to-value ratio. We only recommend products we would feel good putting in front of a fellow pet owner.</p>
 
-      <h2>Affiliate disclosure</h2>
+      <h2 id="affiliate-disclosure">Affiliate disclosure</h2>
       <p>To keep this site free, we take part in affiliate programs including Amazon Associates and Chewy. If you click a link and make a purchase, we may earn a small commission at no extra cost to you. This never influences our recommendations. Our goal is always to help you find the best product for your pet, full stop.</p>
+      <p>We link to two retailers, Amazon and Chewy, because between them they carry the widest and most varied range of pet products, so most readers can find the exact item we reviewed.</p>
 
       <h2>Get in touch</h2>
       <p>Have a product you would like us to review, or a question about a recommendation? We would love to hear from you. <a href="{{ site.baseurl }}/contact/">Reach out anytime</a>. We are pet people, and we are always happy to talk shop.</p>
