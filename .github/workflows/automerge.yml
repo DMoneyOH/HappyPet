@@ -1,6 +1,8 @@
-name: Auto-merge routine content PRs
+name: Auto-merge routine content and refill PRs
 
 # Merges a routine Stage-1 PR once CI is green, then dispatches Stage 2 (publish).
+# Merges a refill/* PR (products.json only) under the separate refill rule; that
+# never dispatches publish.
 # Every decision lives in automerge_gate.py (see its docstring); anything
 # that fails a condition is left for a human.
 #

@@ -7211,12 +7211,14 @@ class TestAutomergeGate(unittest.TestCase):
 
 
 class TestRefillAutomergeGate(unittest.TestCase):
-    """automerge_gate.py's refill rule (docs/superpowers/specs/2026-09-25-refill-automation-
-    design.md, build step 2). A `refill/*` PR is merged only when: the head branch fully
-    matches the refill pattern, the PR is same-repo, it changes ONLY products.json, CI is
-    green on the exact head SHA, no NEEDS_ / REVIEW marker is in what it adds, no existing
-    entry changed, and every new or filled entry carries the canonical Amazon link, an
-    m.media-amazon.com image and a null or chewy.sjv.io Chewy link.
+    """automerge_gate.py's refill rule (build step 2 of the refill automation design spec,
+    PR #120, branch docs/refill-automation-spec). A `refill/*` PR is merged only when: the
+    head branch fully matches refill/<slug>, the PR is same-repo, it changes ONLY
+    products.json, CI is green on the exact head SHA, no NEEDS_ appears anywhere in the head
+    file, existing entries are unchanged and in order with new entries only at the end
+    (base placeholders may be filled in place), and every new or filled entry has no REVIEW
+    marker, a unique ASIN, the canonical Amazon link, an m.media-amazon.com image and a null
+    or chewy.sjv.io Chewy link.
 
     The baseline is one canonical new entry appended to a two-entry queue. Each case flips
     ONE thing and expects a hold. Expected values are literals, never recomputed by the
@@ -7601,6 +7603,16 @@ class TestRefillAutomergeGate(unittest.TestCase):
             with self.subTest(url=url):
                 e = self.entry(affiliate_url=url)
                 self.assertFalse(self.with_head(self.base_entries() + [e]).ok)
+
+    def test_the_gate_tag_matches_refill_products_default_tag(self):
+        """A tag swap that updates only one of the two is a failure here, not a gate that
+        silently holds every refill PR. Read from source so the env override cannot mask it."""
+        src = (REPO / "refill_products.py").read_text(encoding="utf-8")
+        m = re.search(r'^AFFILIATE_TAG\s*=\s*os\.environ\.get\(\s*"AMAZON_PAAPI_PARTNER_TAG"'
+                      r'\s*,\s*"([^"]+)"\s*\)', src, re.MULTILINE)
+        self.assertIsNotNone(m, "refill_products.AFFILIATE_TAG default not found -- suspect the scan")
+        self.assertEqual(self.g.AFFILIATE_TAG, m.group(1))
+        self.assertEqual(self.g.AFFILIATE_TAG, "happypetdc-20")
 
     def test_the_affiliate_tag_is_a_literal_not_the_env_override(self):
         with patch.dict(os.environ, {"AMAZON_PAAPI_PARTNER_TAG": "evil-20"}):

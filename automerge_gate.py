@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Auto-merge gate for routine Stage-1 content PRs (run by .github/workflows/automerge.yml).
+"""Auto-merge gate for routine Stage-1 content PRs and refill/* PRs (run by
+.github/workflows/automerge.yml).
 
 A PR is merged only when EVERY condition holds; anything else is left for a human
 (exit 0, reason printed). The decision logic is `evaluate()`, a pure function so the
@@ -42,8 +43,9 @@ is truncated by the API, but MAX_FILES=30 already holds anything that large), an
 draft's markdown BODY is not inspected -- it is what Stage 1 writes and what CI's
 content-integrity tests judge.
 
-A PR whose head branch is `refill/<slug>` is judged by the separate refill rule instead
-(`evaluate_refill`, see the comment above it); it never falls back to the rule above.
+A PR whose head branch starts with `refill/` is judged by the separate refill rule instead
+(`evaluate_refill`; its conditions open the "refill rule" section below). It never falls back
+to the rule above.
 
 Env: GH_TOKEN, REPO (owner/name), RUN_HEAD_SHA, PR_NUMBERS (JSON list), AUTOMERGE_ENABLED.
 `--dry-run` evaluates and prints; it never merges or dispatches. So does any run where
@@ -359,11 +361,13 @@ def evaluate(pr: dict, issue: dict, files: list, check_runs: list,
 
 
 # ------------------------------------------------------------------ refill rule
-# A separate rule for `refill/*` PRs (docs/superpowers/specs/2026-09-25-refill-automation-
-# design.md, build step 2). Those PRs are opened by refill.yml's GITHUB_TOKEN and filled by
-# a push from the Director's own credentials, so they never carry the Claude App attribution
-# the routine rule above requires. Instead of who opened them, this rule judges what they
-# change: products.json only, and only by adding canonical entries.
+# A separate rule for `refill/*` PRs: build step 2 of the refill automation design spec
+# (docs/superpowers/specs/2026-09-25-refill-automation-design.md on branch
+# docs/refill-automation-spec, PR #120, not yet on main). Refill PRs come from the local
+# refill session, which pushes and opens them under the Director's own gh login, so they
+# never carry the Claude App attribution the routine rule above requires. Instead of who
+# opened them, this rule judges what they change: products.json only, and only by
+# appending canonical entries or filling placeholders in place.
 #
 # Merges only when ALL hold:
 #   1. head branch fully matches REFILL_BRANCH; PR open, not draft, based on main, no
@@ -387,8 +391,18 @@ def evaluate(pr: dict, issue: dict, files: list, check_runs: list,
 REFILL_BRANCH = re.compile(rf"refill/{_SLUG}")
 AFFILIATE_TAG = "happypetdc-20"      # literal: refill_products.py lets an env var override it
 _ASIN = re.compile(r"B0[A-Z0-9]{8}")
+# Product photo for a new products.json entry. Stricter than the pin rule's _IMAGE_URL on
+# purpose: that one validates pin JSON written by Stage 1 (site pin jpg, or one historical
+# Amazon CDN jpg, with an optional ?v= cache-bust); this one validates what manual_resolve.py
+# accepts (refill_products.IMAGE_HOST_RE: jpg/jpeg/png/webp on m.media-amazon.com, no
+# query), with fullmatch and a closed character set instead of [^\s"'].
 _AMAZON_IMAGE = re.compile(
     r"https://m\.media-amazon\.com/images/I/[A-Za-z0-9._+-]+\.(?:jpg|jpeg|png|webp)")
+# Impact tracking link to Chewy. 32975 is CHEWY_CAMPAIGN_ID and APIG_24727 carries
+# CHEWY_CATALOG_ID 24727 (both chewy_lookup.py defaults). 7160344 and 3054490 are not named
+# anywhere in this repo: they are the fixed segments Impact's catalog API returns, identical
+# in all 35 distinct chewy_url values in products.json history. The `u` value may hold only
+# URL-encoded characters, so it cannot add a second query parameter.
 _CHEWY_URL = re.compile(
     r"https://chewy\.sjv\.io/c/7160344/3054490/32975\?prodsku=[0-9]+"
     r"&u=https%3A%2F%2Fwww\.chewy\.com%2F[A-Za-z0-9%._~-]+(?:&intsrc=APIG_[0-9]+)?")
