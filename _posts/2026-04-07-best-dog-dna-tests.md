@@ -31,7 +31,7 @@ The Embark Breed Identification Dog DNA Test Kit stands out as the top recommend
 * Higher price point compared to some competitors.
 * Results can take a few weeks to process.
 
-[Get the Embark Breed Identification Dog DNA Test Kit on Chewy](https://www.amazon.com/dp/B07HHF1VLH?th=1&tag=happypetdc-20)
+[Get the Embark Breed Identification Dog DNA Test Kit on Amazon](https://www.amazon.com/dp/B07HHF1VLH?th=1&tag=happypetdc-20)
 
 ### Wisdom Panel Essential Dog DNA Test Kit
 

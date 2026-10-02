@@ -33,7 +33,7 @@ This multi-level ball track toy is a consistent winner in real homes, captivatin
 * Some very determined cats might manage to pop a ball out (rare).
 * Can be a bit noisy on hard floors during intense play.
 
-[Check Price on Chewy](https://www.amazon.com/dp/B00DT2WL26?th=1&tag=happypetdc-20)
+[Check Price on Amazon](https://www.amazon.com/dp/B00DT2WL26?th=1&tag=happypetdc-20)
 
 ### PetSafe Bolt Automatic Laser Cat Toy
 
@@ -125,4 +125,4 @@ Finding the perfect **interactive cat toys** for your feline friend can feel lik
 
 Bringing a variety of **interactive cat toys** into your home is one of the best investments you can make for your cat's happiness and your own peace of mind. Not only do these toys provide essential physical exercise, but they also offer crucial mental stimulation, helping to satisfy your cat's natural instincts and prevent boredom-related behavioral issues. The transformation in cats who have access to engaging play is real. From the simple yet captivating Catstages Tower of Tracks to the brain-teasing Trixie Activity Fun Board, there's an interactive toy out there for every feline personality and every budget. So go ahead, treat your cat to some exciting new playtime adventures – your furniture (and your sanity) will thank you!
 
-[Find the top pick, the Catstages Tower of Tracks, on Chewy today!](https://www.amazon.com/dp/B00DT2WL26?th=1&tag=happypetdc-20)
+[Find the top pick, the Catstages Tower of Tracks, on Amazon today!](https://www.amazon.com/dp/B00DT2WL26?th=1&tag=happypetdc-20)
