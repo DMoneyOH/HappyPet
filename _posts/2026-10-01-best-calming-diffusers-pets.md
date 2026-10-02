@@ -2,7 +2,9 @@
 layout: post
 title: "Peaceful Paws: The Best Calming Diffusers for Anxious Dogs and Cats"
 date: 2026-10-01
-categories: [dog-health]
+categories: [pet-health]
+redirect_from:
+  - /dog-health/best-calming-diffusers-pets/
 species: both
 tags: [calming diffuser for pets]
 description: "Stressed cat spraying or hiding? A calming diffuser for pets might settle things down without a single pill."

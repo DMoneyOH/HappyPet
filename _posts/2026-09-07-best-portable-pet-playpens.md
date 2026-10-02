@@ -2,7 +2,9 @@
 layout: post
 title: "Adventure Ready: Top Portable Pet Playpens for Safe Outdoor Fun"
 date: 2026-09-07
-categories: [dog-crates]
+categories: [pet-crates]
+redirect_from:
+  - /dog-crates/best-portable-pet-playpens/
 species: both
 tags: [portable pet playpen]
 description: "Keep your dog or cat safe outdoors with a foldable, grab-and-go pet playpen that sets up in seconds."
