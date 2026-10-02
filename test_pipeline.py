@@ -223,13 +223,13 @@ class TestOutputContract(unittest.TestCase):
         # (regression: this is the shape refill_products.py now emits for 22/23 entries)
         art = GOOD_ARTICLE.replace(
             "https://amzn.to/3TestABC",
-            "https://www.amazon.com/dp/B00AKOQYXY?tag=pawpicks04-20",
+            "https://www.amazon.com/dp/B00AKOQYXY?tag=happypetdc-20",
         )
         self.gp.validate_output("review", art, "test-slug")
 
     def test_expected_affiliate_url_present_passes_review_gate(self):
         # When the entry's exact affiliate_url is supplied, it must appear verbatim
-        url = "https://www.amazon.com/dp/B00AKOQYXY?tag=pawpicks04-20"
+        url = "https://www.amazon.com/dp/B00AKOQYXY?tag=happypetdc-20"
         art = GOOD_ARTICLE.replace("https://amzn.to/3TestABC", url)
         self.gp.validate_output("review", art, "test-slug", affiliate_url=url)
 
@@ -241,10 +241,10 @@ class TestOutputContract(unittest.TestCase):
 
     def test_wrong_affiliate_link_fails_when_expected_url_given(self):
         # A link different from the expected one (e.g. hallucinated) must raise
-        expected = "https://www.amazon.com/dp/B00AKOQYXY?tag=pawpicks04-20"
+        expected = "https://www.amazon.com/dp/B00AKOQYXY?tag=happypetdc-20"
         art = GOOD_ARTICLE.replace(
             "https://amzn.to/3TestABC",
-            "https://www.amazon.com/dp/WRONG9999?tag=pawpicks04-20",
+            "https://www.amazon.com/dp/WRONG9999?tag=happypetdc-20",
         )
         with self.assertRaises(self.gp.GenerationStageError):
             self.gp.validate_output("review", art, "test-slug", affiliate_url=expected)
@@ -284,7 +284,7 @@ class TestProductValidation(unittest.TestCase):
     def test_needs_asin_in_affiliate_url_fails_even_if_image_resolved(self):
         # image is a real URL; only the affiliate_url still carries the placeholder
         p = dict(self.valid)
-        p["affiliate_url"] = "https://www.amazon.com/dp/NEEDS_ASIN?tag=pawpicks04-20"
+        p["affiliate_url"] = "https://www.amazon.com/dp/NEEDS_ASIN?tag=happypetdc-20"
         errs = self.gp.validate_product("slug", p)
         self.assertTrue(any("NEEDS_ASIN" in e for e in errs))
 
@@ -312,6 +312,74 @@ class TestProductsJsonAffiliateContract(unittest.TestCase):
             if not self.gp.AFFILIATE_LINK_RE.search(url):
                 offenders.append((e.get("topic"), url))
         self.assertEqual(offenders, [], f"affiliate_url(s) not recognized by publish gate: {offenders}")
+
+
+class TestAmazonAssociatesTag(unittest.TestCase):
+    """Every Amazon link in products.json and _posts/ is a full amazon.com link
+    carrying exactly the current Associates tag: no other tag, no missing tag,
+    and no amzn.to short link.
+
+    The tag changed on 2026-10-02 after the old Associates application was
+    rejected. The expected value is a literal on purpose: refill_products'
+    AFFILIATE_TAG is env-derived and is the thing under test, so importing it
+    would make this test agree with whatever the code says.
+
+    amzn.to short links are banned outright: their tag lives inside Amazon's
+    redirect, so nothing offline can tell which account they credit.
+    """
+
+    TAG = "happypetdc-20"
+    STALE_TAGS = ("pawpicks04-20",)
+    # Anchored so image hosts (m.media-amazon.com, images-na.ssl-images-amazon.com)
+    # never match: the character before "amazon." may not be a word char, dot or hyphen.
+    AMAZON_URL_RE = re.compile(
+        r"(?<![\w.-])(?:https?://)?(?:www\.)?amazon\.[a-z]{2,3}(?:\.[a-z]{2})?/[^\s\"')\]<>]*",
+        re.IGNORECASE)
+    SHORT_URL_RE = re.compile(r"(?<![\w.-])(?:https?://)?amzn\.to/[^\s\"')\]<>]*", re.IGNORECASE)
+    TAG_RE = re.compile(r"[?&;]tag=([^&#\s\"')\]<>]*)", re.IGNORECASE)
+
+    def _offenders(self, text):
+        bad = [m.group(0) for m in self.SHORT_URL_RE.finditer(text)]
+        for m in self.AMAZON_URL_RE.finditer(text):
+            if set(self.TAG_RE.findall(m.group(0))) != {self.TAG}:
+                bad.append(m.group(0))
+        return bad
+
+    def _sources(self):
+        yield REPO / "products.json"
+        yield from sorted((REPO / "_posts").glob("*.md"))
+
+    def test_scanner_catches_variants_and_ignores_image_hosts(self):
+        for url in ("https://www.amazon.com/dp/B0FAKE0001?tag=pawpicks04-20",
+                    "HTTPS://AMAZON.COM/dp/B0FAKE0001?th=1&tag=other-20",
+                    "amazon.com/dp/B0FAKE0001",
+                    "https://www.amazon.com/gp/product/B0FAKE0001",
+                    "https://www.amazon.com/s?k=cat+tree",
+                    "https://www.amazon.com/dp/B0FAKE0001?tag=happypetdc-20&tag=other-20",
+                    "https://amzn.to/4sVt7G2",
+                    "HTTP://AMZN.TO/4sVt7G2",
+                    "amzn.to/4sVt7G2"):
+            with self.subTest(url=url):
+                self.assertEqual(self._offenders(f"[x]({url})"), [url])
+        clean = ("[x](https://www.amazon.com/dp/B0FAKE0001?th=1&tag=happypetdc-20) "
+                 "affiliate_url: \"https://www.amazon.com/dp/B0FAKE0001?tag=happypetdc-20\" "
+                 "[Fancy Feast](https://www.amazon.com/s?k=Fancy+Feast+Classic+Pate&tag=happypetdc-20) "
+                 "image: \"https://m.media-amazon.com/images/I/71abc._AC_SX425_.jpg\" "
+                 "https://images-na.ssl-images-amazon.com/images/P/B000FLETX8.01.jpg "
+                 "https://chewy.sjv.io/c/1/2/3?u=x")
+        self.assertEqual(self._offenders(clean), [])
+
+    def test_every_amazon_link_carries_current_tag(self):
+        offenders = []
+        for path in self._sources():
+            for url in self._offenders(path.read_text(encoding="utf-8")):
+                offenders.append(f"{path.name}: {url}")
+        self.assertEqual(offenders, [], f"Amazon link(s) without tag={self.TAG}: {offenders}")
+
+    def test_no_stale_tag_anywhere_in_corpus(self):
+        hits = [f"{path.name}: {stale}" for path in self._sources()
+                for stale in self.STALE_TAGS if stale in path.read_text(encoding="utf-8")]
+        self.assertEqual(hits, [])
 
 
 class TestScorecardEvaluation(unittest.TestCase):
@@ -1615,7 +1683,7 @@ class TestRefillAgent(unittest.TestCase):
             "topic": "best-heated-cat-bed", "title": "T", "keyword": "k",
             "species": "cat", "category": "cat-gear",
             "topical_sheet": "HAPPYPET_SHEET_ID_HOME", "amazon_search_query": "q"})
-        self.assertIn("tag=pawpicks04-20", entry["affiliate_url"])
+        self.assertIn("tag=happypetdc-20", entry["affiliate_url"])
         self.assertEqual(entry["asin"], "NEEDS_ASIN")
         self.assertEqual(entry["image"], "NEEDS_IMAGE")
 
@@ -1774,7 +1842,7 @@ class TestManualResolve(unittest.TestCase):
             "topical_sheet": "HAPPYPET_SHEET_ID_HOME",
             "name": "NEEDS_ASIN placeholder for best automatic litter box",
             "asin": "NEEDS_ASIN",
-            "affiliate_url": "https://www.amazon.com/dp/NEEDS_ASIN?tag=pawpicks04-20",
+            "affiliate_url": "https://www.amazon.com/dp/NEEDS_ASIN?tag=happypetdc-20",
             "image": "NEEDS_IMAGE", "price": None, "stars": None,
             "chewy_url": None, "chewy_price": None,
             "chewy_stock": None, "chewy_rating": None,
@@ -1808,7 +1876,7 @@ class TestManualResolve(unittest.TestCase):
         self.assertEqual(entry["stars"], 4.5)
         self.assertEqual(entry["runners_up"], "Litter-Robot 4; PetSafe ScoopFree")
         self.assertEqual(entry["affiliate_url"],
-                          "https://www.amazon.com/dp/B0ABCD1234?tag=pawpicks04-20")
+                          "https://www.amazon.com/dp/B0ABCD1234?tag=happypetdc-20")
         # chewy_enrich runs for real here with credentials forced empty,
         # which returns an all-None dict cleanly -- must not crash
         self.assertIsNone(entry["chewy_url"])
@@ -2820,7 +2888,7 @@ class TestUnbackedAffiliateLinkGuard(unittest.TestCase):
         uppercase scheme all reach the same place, and a guard that only knows
         the two shapes already in the corpus is a guard the next run walks past.
         """
-        for body in ("see https://www.amazon.com/dp/B0FAKE0001?tag=pawpicks04-20",
+        for body in ("see https://www.amazon.com/dp/B0FAKE0001?tag=happypetdc-20",
                      "see amazon.com/dp/B0FAKE0001",
                      "see www.amazon.com/dp/B0FAKE0001",
                      "see HTTPS://AMAZON.COM/dp/B0FAKE0001",
@@ -2848,14 +2916,14 @@ class TestUnbackedAffiliateLinkGuard(unittest.TestCase):
              "[Fresh Step Clumping Cat Litter Multi-Cat 14lb](https://amzn.to/48cV2sA) "
              "truly shines. Grab [it](https://amzn.to/48cV2sA) today."),
             # long link with the associate tag (best-cat-dental-treats)
-            ("https://www.amazon.com/dp/B0828WNJXC?tag=pawpicks04-20",
-             "[Greenies Cat Treats](https://www.amazon.com/dp/B0828WNJXC?tag=pawpicks04-20) "
+            ("https://www.amazon.com/dp/B0828WNJXC?tag=happypetdc-20",
+             "[Greenies Cat Treats](https://www.amazon.com/dp/B0828WNJXC?tag=happypetdc-20) "
              "sits near the top."),
             # entry written long, body written short-hand: same destination
-            ("https://www.amazon.com/dp/B0727Y5ZD7?tag=pawpicks04-20",
+            ("https://www.amazon.com/dp/B0727Y5ZD7?tag=happypetdc-20",
              "the cover at amazon.com/dp/B0727Y5ZD7 holds up"),
             # a different tracking tag on the same ASIN is the same product
-            ("https://www.amazon.com/dp/B093K2NDS2?tag=pawpicks04-20",
+            ("https://www.amazon.com/dp/B093K2NDS2?tag=happypetdc-20",
              "[Fun Feeder](https://www.amazon.com/dp/B093K2NDS2?tag=other-20)"),
         ]
         for own, body in cases:

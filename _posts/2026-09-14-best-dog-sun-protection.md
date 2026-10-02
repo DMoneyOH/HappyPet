@@ -6,7 +6,7 @@ categories: [dog-health]
 species: dog
 tags: [dog sun protection]
 description: "Keep your pup's eyes safe on sunny hikes with budget dog goggles that actually stay on."
-affiliate_url: "https://www.amazon.com/dp/B09QKRMLCM?tag=pawpicks04-20"
+affiliate_url: "https://www.amazon.com/dp/B09QKRMLCM?tag=happypetdc-20"
 image: "https://m.media-amazon.com/images/I/71Vh4fPE0JL._AC_SX679_.jpg"
 pin_image: "https://happypetproductreviews.com/assets/images/pins/best-dog-sun-protection.jpg?v=20260914"
 ---
@@ -15,7 +15,7 @@ You clip the leash, load the water bottle, and head out for a midday hike, then 
 
 ## Quick picks
 
-For eye coverage on a small dog, the [Lewondr Small Dog Sunglasses UV Protection Goggles Eye Wear Protection with Adjustable Strap Doggy Heart Shape Anti-Fog Sunglasses for Pet Dogs Sun Glasses Doggie Windproof Glasses, Pink](https://www.amazon.com/dp/B09QKRMLCM?tag=pawpicks04-20) lead the list at a low price. The QUMY Dog Goggles UV Protection for Small to Medium Breed suit slightly larger heads. The Dog Helmet and Goggles for Small Dogs Pet Motorcycle Helmet Hat cover the head and eyes together for riders. Any of the three gives your dog sun protection without a big spend.
+For eye coverage on a small dog, the [Lewondr Small Dog Sunglasses UV Protection Goggles Eye Wear Protection with Adjustable Strap Doggy Heart Shape Anti-Fog Sunglasses for Pet Dogs Sun Glasses Doggie Windproof Glasses, Pink](https://www.amazon.com/dp/B09QKRMLCM?tag=happypetdc-20) lead the list at a low price. The QUMY Dog Goggles UV Protection for Small to Medium Breed suit slightly larger heads. The Dog Helmet and Goggles for Small Dogs Pet Motorcycle Helmet Hat cover the head and eyes together for riders. Any of the three gives your dog sun protection without a big spend.
 
 ### Featured pick: Lewondr small dog sunglasses
 
@@ -61,4 +61,4 @@ Think about the whole outfit. Pair eye gear with a cooling vest on hot days, and
 | QUMY dog goggles | Small to medium heads | $$ | Wraparound, stretch strap |
 | Dog helmet and goggles | Riders with tiny dogs | $$ | Helmet plus goggles |
 
-The right gear, matched to the exposure your dog faces and fitted properly, turns a squinting, overheated walk into an easy one. For small dogs, the low price and 4.5/5 rating make the [Lewondr Small Dog Sunglasses UV Protection Goggles Eye Wear Protection with Adjustable Strap Doggy Heart Shape Anti-Fog Sunglasses for Pet Dogs Sun Glasses Doggie Windproof Glasses, Pink](https://www.amazon.com/dp/B09QKRMLCM?tag=pawpicks04-20) an easy place to start, and stepping up to the QUMY goggles or the helmet-and-goggles set makes sense as your dog's size or your outings change. Solid dog sun protection is one small purchase away, so gear up before the next big day outside.
+The right gear, matched to the exposure your dog faces and fitted properly, turns a squinting, overheated walk into an easy one. For small dogs, the low price and 4.5/5 rating make the [Lewondr Small Dog Sunglasses UV Protection Goggles Eye Wear Protection with Adjustable Strap Doggy Heart Shape Anti-Fog Sunglasses for Pet Dogs Sun Glasses Doggie Windproof Glasses, Pink](https://www.amazon.com/dp/B09QKRMLCM?tag=happypetdc-20) an easy place to start, and stepping up to the QUMY goggles or the helmet-and-goggles set makes sense as your dog's size or your outings change. Solid dog sun protection is one small purchase away, so gear up before the next big day outside.

@@ -6,7 +6,7 @@ categories: [cat-health]
 species: cat
 tags: [best cat calming products]
 description: "The budget-friendly calming products cat owners rate highest for storms, noise and stress."
-affiliate_url: "https://amzn.to/4cq8St0"
+affiliate_url: "https://www.amazon.com/dp/B0BGVF6PGW?th=1&tag=happypetdc-20"
 image: "https://images-na.ssl-images-amazon.com/images/P/B0BGVF6PGW.01.LZZZZZZZ.jpg"
 pin_image: "https://happypetproductreviews.com/assets/images/pins/best-cat-calming-products.jpg?v=20260504"
 ---

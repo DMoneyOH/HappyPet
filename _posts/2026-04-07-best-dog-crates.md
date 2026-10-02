@@ -7,7 +7,7 @@ species: dog
 tags: [dog crate]
 description: "Find the perfect dog crate for your dog, no matter their size, with our budget-friendly top picks!"
 image: "https://images-na.ssl-images-amazon.com/images/P/B01DLS2EX8.01.LZZZZZZZ.jpg"
-affiliate_url: "https://amzn.to/4vfkWWC"
+affiliate_url: "https://www.amazon.com/dp/B01DLS2EX8?th=1&tag=happypetdc-20"
 ---
 
 Dog owners all want the best for their four-legged family members, and want them to feel safe, secure, and loved. But sometimes, despite the best intentions, real homes can feel a little... chaotic. Perhaps your energetic puppy loves to chew on everything when your back is turned, or maybe your anxious rescue dog needs a quiet den to retreat to during thunderstorms. That’s where a good dog crate comes in. Far from being a punishment, a properly sized and introduced dog crate can be a sanctuary, a training aid, and a vital safety tool. It helps with house-training, prevents destructive behaviors, and provides a secure space for travel or recovery. But with so many options out there – wire, plastic, fabric, different sizes, and features – how do you choose the right one without breaking the bank? Don't worry, this guide has done the legwork. Here are the best dog crates that offer excellent value and meet the needs of pups big and small.
@@ -31,7 +31,7 @@ The MidWest New World Dog Crate is consistently a top performer in owner reviews
 * Plastic pan can be noisy if not secured well
 * Heavier than fabric or plastic crates
 
-[Get the MidWest New World Dog Crate on Amazon!](https://amzn.to/4vfkWWC)
+[Get the MidWest New World Dog Crate on Amazon!](https://www.amazon.com/dp/B01DLS2EX8?th=1&tag=happypetdc-20)
 
 ### Frisco Fold & Carry Double Door Collapsible Wire Dog Crate
 
@@ -104,4 +104,4 @@ Selecting the right dog crate is crucial for your pet's comfort, safety, and you
 
 Choosing the right dog crate is an investment in your dog's well-being and your home's harmony. After all the comparisons, if it came down to just one all-around winner, it would be the **MidWest Homes for Pets New World Dog Crate**. Its combination of durability, versatility, included divider panel, and incredible value makes it the top choice for most dog owners, from puppyhood through adulthood. It’s a reliable, safe, and comfortable space that will serve your dog well for years to come. Make the crate a positive experience, and you'll both reap the benefits!
 
-[Ready to give your pup their own special den? Grab the MidWest New World Dog Crate on Amazon today!](https://amzn.to/4vfkWWC)
+[Ready to give your pup their own special den? Grab the MidWest New World Dog Crate on Amazon today!](https://www.amazon.com/dp/B01DLS2EX8?th=1&tag=happypetdc-20)

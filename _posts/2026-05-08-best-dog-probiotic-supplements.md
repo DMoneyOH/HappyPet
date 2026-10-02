@@ -6,7 +6,7 @@ categories: [dog-health]
 species: dog
 tags: [best dog probiotic supplements]
 description: "The best dog probiotic supplements that actually support gut health -- ranked and reviewed."
-affiliate_url: "https://amzn.to/485igkB"
+affiliate_url: "https://www.amazon.com/s?k=Purina+Pro+Plan+FortiFlora&tag=happypetdc-20"
 chewy_url: "https://chewy.sjv.io/c/7160344/3054490/32975?u=https%3A%2F%2Fwww.chewy.com%2Fpurina-pro-plan-veterinary-diets%2Fdp%2F50029"
 image: "https://images-na.ssl-images-amazon.com/images/P/B001650NNW.01.LZZZZZZZ.jpg"
 pin_image: "https://happypetproductreviews.com/assets/images/pins/best-dog-probiotic-supplements.jpg?v=20260507"
@@ -34,7 +34,7 @@ Each sachet contains a guaranteed concentration of *Enterococcus faecium* SF68, 
 - Higher per-dose cost compared to bulk chew formats
 - Single-strain formula may not suit dogs needing broader probiotic support
 
-[Buy on Amazon](https://amzn.to/485igkB) | [Buy on Chewy](https://chewy.sjv.io/c/7160344/3054490/32975?u=https%3A%2F%2Fwww.chewy.com%2Fpurina-pro-plan-veterinary-diets%2Fdp%2F50029)
+[Buy on Amazon](https://www.amazon.com/s?k=Purina+Pro+Plan+Veterinary+Supplements+FortiFlora+Daily+Probiotics+for+Dogs%2C+30+ct&tag=happypetdc-20) | [Buy on Chewy](https://chewy.sjv.io/c/7160344/3054490/32975?u=https%3A%2F%2Fwww.chewy.com%2Fpurina-pro-plan-veterinary-diets%2Fdp%2F50029)
 
 ### Nutramax Proviable Probiotics 30 Capsules
 
@@ -71,4 +71,4 @@ This high-count bottle suits owners looking for a longer-term daily supplement w
 
 Probiotic supplementation works best alongside consistent nutrition, regular exercise, and routine veterinary care. A quality probiotic supports gut health -- it does not replace the foundation.
 
-For dogs dealing with digestive disruption, starting with a clinically validated option like [Purina Pro Plan FortiFlora](https://amzn.to/485igkB) gives the best chance of visible improvement quickly. Give it at least two weeks of consistent daily use before evaluating results, and adjust based on how the dog responds.
+For dogs dealing with digestive disruption, starting with a clinically validated option like [Purina Pro Plan FortiFlora](https://www.amazon.com/s?k=Purina+Pro+Plan+FortiFlora&tag=happypetdc-20) gives the best chance of visible improvement quickly. Give it at least two weeks of consistent daily use before evaluating results, and adjust based on how the dog responds.

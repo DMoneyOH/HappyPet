@@ -6,7 +6,7 @@ categories: [dog-food]
 species: dog
 tags: [best puppy food]
 description: "Discover the top puppy food that fuels growth without breaking the bank."
-affiliate_url: "https://amzn.to/3OsS0dc"
+affiliate_url: "https://www.amazon.com/dp/B0DQYK8MP3?th=1&tag=happypetdc-20"
 image: "https://images-na.ssl-images-amazon.com/images/P/B0DQYK8MP3.01.LZZZZZZZ.jpg"
 ---
 
@@ -25,7 +25,7 @@ In the next few minutes, this guide walks you through the top picks, compare key
 
 ### Featured Pick: Royal Canin Size Health Nutrition Small Puppy Dry Dog Food, 4 lb  
 
-The top spot goes to **[Royal Canin Size Health Nutrition Small Puppy Dry Dog Food, 4 lb](https://amzn.to/3OsS0dc)** because it’s formulated specifically for puppies under 20 lb, a group that often gets overlooked in generic formulas. With a verified Amazon rating of 4.8/5, it consistently earns praise for its precise nutrient balance.  
+The top spot goes to **[Royal Canin Size Health Nutrition Small Puppy Dry Dog Food, 4 lb](https://www.amazon.com/dp/B0DQYK8MP3?th=1&tag=happypetdc-20)** because it’s formulated specifically for puppies under 20 lb, a group that often gets overlooked in generic formulas. With a verified Amazon rating of 4.8/5, it consistently earns praise for its precise nutrient balance.  
 
 **Pros**  
 - Tailored kibble size makes chewing easy for tiny jaws.  
@@ -71,6 +71,6 @@ Finally, remember that puppies grow quickly, so their nutritional needs will cha
 
 ## Closing  
 
-Finding the *best puppy food* is a blend of science, observation, and a little trial and error. the top pick, **[Royal Canin Size Health Nutrition Small Puppy Dry Dog Food, 4 lb](https://amzn.to/3OsS0dc)**, delivers a balanced, breed‑neutral formula that many small‑breed owners trust for steady growth and happy, energetic pups. Pair it with regular vet check‑ups, plenty of playtime, and a cozy bedtime routine, and you’ll set the stage for a lifetime of health.  
+Finding the *best puppy food* is a blend of science, observation, and a little trial and error. the top pick, **[Royal Canin Size Health Nutrition Small Puppy Dry Dog Food, 4 lb](https://www.amazon.com/dp/B0DQYK8MP3?th=1&tag=happypetdc-20)**, delivers a balanced, breed‑neutral formula that many small‑breed owners trust for steady growth and happy, energetic pups. Pair it with regular vet check‑ups, plenty of playtime, and a cozy bedtime routine, and you’ll set the stage for a lifetime of health.  
 
 Happy feeding!

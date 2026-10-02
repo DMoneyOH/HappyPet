@@ -6,7 +6,7 @@ categories: [dog-beds]
 species: dog
 tags: [best elevated dog bed]
 description: "Raised dog beds that keep your dog off the hot floor and cool all summer, starting under $30."
-affiliate_url: "https://www.amazon.com/dp/B000P7JKD6?tag=pawpicks04-20"
+affiliate_url: "https://www.amazon.com/dp/B000P7JKD6?tag=happypetdc-20"
 chewy_url: "https://chewy.sjv.io/c/7160344/3054490/32975?prodsku=68873&u=https%3A%2F%2Fwww.chewy.com%2Fcoolaroo-steel-framed-elevated-dog%2Fdp%2F53797%3Futm_source%3Dgoogle-product%26utm_medium%3Dorganic%26utm_content%3DCoolaroo&intsrc=APIG_24727"
 image: "https://m.media-amazon.com/images/I/61P3kLPe3BL._AC_SX679_.jpg"
 pin_image: "https://happypetproductreviews.com/assets/images/pins/best-elevated-dog-beds.jpg?v=20260730"
@@ -20,7 +20,7 @@ The best elevated dog bed for most homes is the Coolaroo Original, a hammock-sty
 
 ### Featured pick: Coolaroo the original cooling elevated dog bed
 
-The [Gale Pacific Coolaroo The Original Cooling Elevated Dog Bed, Indoor and Outdoor, Large, Brunswick Green, 51.00 x 31.50 x 8.00 inches](https://www.amazon.com/dp/B000P7JKD6?tag=pawpicks04-20) holds a 4.5 out of 5 star rating, and the reasons show up again and again in owner feedback. The woven fabric stretches tight across a steel frame, so air passes underneath and keeps the surface cooler than foam. At 51 by 31.5 inches, the large size fits most big dogs with room to stretch out. The frame stands 8 inches off the ground, high enough to clear a wet patio or a dusty garage floor. Priced around $28.34, it undercuts a lot of cushioned beds while lasting longer outdoors. Many owners report the fabric holds its shape through seasons of sun and rain without sagging in the middle.
+The [Gale Pacific Coolaroo The Original Cooling Elevated Dog Bed, Indoor and Outdoor, Large, Brunswick Green, 51.00 x 31.50 x 8.00 inches](https://www.amazon.com/dp/B000P7JKD6?tag=happypetdc-20) holds a 4.5 out of 5 star rating, and the reasons show up again and again in owner feedback. The woven fabric stretches tight across a steel frame, so air passes underneath and keeps the surface cooler than foam. At 51 by 31.5 inches, the large size fits most big dogs with room to stretch out. The frame stands 8 inches off the ground, high enough to clear a wet patio or a dusty garage floor. Priced around $28.34, it undercuts a lot of cushioned beds while lasting longer outdoors. Many owners report the fabric holds its shape through seasons of sun and rain without sagging in the middle.
 
 Pros:
 
@@ -60,4 +60,4 @@ Cleaning deserves a thought before you buy. A woven or mesh top rinses off with 
 | K&H Outdoor Elevated Dog Bed | Full-time outdoor dogs | $$ | Multiple sizes |
 | Simple Trending Elevated Dog Bed | Budget and smaller dogs | $ | Small to medium |
 
-A raised cot earns its place in summer by doing one thing well, keeping a dog off the hot floor so air can carry heat away. Any of these three will manage that. For the widest mix of price and durability, the [Gale Pacific Coolaroo The Original Cooling Elevated Dog Bed, Indoor and Outdoor, Large, Brunswick Green, 51.00 x 31.50 x 8.00 inches](https://www.amazon.com/dp/B000P7JKD6?tag=pawpicks04-20) stays the best elevated dog bed to start with, and at around $28.34 it costs little to find out whether your dog would rather sleep up off the ground.
+A raised cot earns its place in summer by doing one thing well, keeping a dog off the hot floor so air can carry heat away. Any of these three will manage that. For the widest mix of price and durability, the [Gale Pacific Coolaroo The Original Cooling Elevated Dog Bed, Indoor and Outdoor, Large, Brunswick Green, 51.00 x 31.50 x 8.00 inches](https://www.amazon.com/dp/B000P7JKD6?tag=happypetdc-20) stays the best elevated dog bed to start with, and at around $28.34 it costs little to find out whether your dog would rather sleep up off the ground.

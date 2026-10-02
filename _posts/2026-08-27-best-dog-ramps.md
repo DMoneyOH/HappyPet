@@ -6,7 +6,7 @@ categories: [dog-health]
 species: dog
 tags: [best dog ramp]
 description: "Senior dog struggling with the car? The right folding ramp saves her joints and your back."
-affiliate_url: "https://www.amazon.com/dp/B0016HNU12?tag=pawpicks04-20"
+affiliate_url: "https://www.amazon.com/dp/B0016HNU12?tag=happypetdc-20"
 image: "https://m.media-amazon.com/images/I/61jJ0Mw2neL._AC_SX679_.jpg"
 pin_image: "https://happypetproductreviews.com/assets/images/pins/best-dog-ramps.jpg?v=20260827"
 ---
@@ -19,7 +19,7 @@ Three ramps earn a spot here, and each suits a different situation. The best dog
 
 ### Featured pick: PetSafe Happy Ride Folding Pet Ramp
 
-The [PetSafe Happy Ride Folding Pet Ramp, Portable Lightweight Dog Ramp for Cars, Trucks and SUVs](https://www.amazon.com/dp/B0016HNU12?tag=pawpicks04-20) folds flat like a suitcase and opens into one continuous surface, which suits dogs that freeze on stairs. It carries a 4.1 out of 5 rating, and at $59.99 it undercuts many padded orthopedic ramps that cost twice as much. The walking surface uses a high-traction texture that helps paws catch on the way up, and the folded panel travels with one hand. Many owners report that a nervous dog crosses it faster once it learns the ramp does not wobble underfoot.
+The [PetSafe Happy Ride Folding Pet Ramp, Portable Lightweight Dog Ramp for Cars, Trucks and SUVs](https://www.amazon.com/dp/B0016HNU12?tag=happypetdc-20) folds flat like a suitcase and opens into one continuous surface, which suits dogs that freeze on stairs. It carries a 4.1 out of 5 rating, and at $59.99 it undercuts many padded orthopedic ramps that cost twice as much. The walking surface uses a high-traction texture that helps paws catch on the way up, and the folded panel travels with one hand. Many owners report that a nervous dog crosses it faster once it learns the ramp does not wobble underfoot.
 
 The design has limits worth knowing. The single flat fold runs long when open, so you need clearance behind the vehicle to set it at a gentle angle. Smaller dogs adjust in a day, though a large breed may need a week of treat-based coaxing before it trusts the climb.
 
@@ -61,4 +61,4 @@ The table below lines up each best dog ramp side by side so you can match one to
 | Pet Gear Travel Lite Ramp | Tight trunk space | $$ | Trifold |
 | PetSTEP Original Folding Pet Ramp | Heavy-duty outdoor use | $$ | Flat bifold |
 
-A ramp only helps if your dog will use it, so match the pick to your dog's confidence and your storage space before anything else. For most owners hauling a senior dog to the car and back, the [PetSafe Happy Ride Folding Pet Ramp, Portable Lightweight Dog Ramp for Cars, Trucks and SUVs](https://www.amazon.com/dp/B0016HNU12?tag=pawpicks04-20) hits the balance of grip and price without pushing into orthopedic-ramp territory. Give your dog a few short practice runs with treats, keep the slope gentle, and the best dog ramp quickly turns a daily struggle into a routine your dog handles alone.
+A ramp only helps if your dog will use it, so match the pick to your dog's confidence and your storage space before anything else. For most owners hauling a senior dog to the car and back, the [PetSafe Happy Ride Folding Pet Ramp, Portable Lightweight Dog Ramp for Cars, Trucks and SUVs](https://www.amazon.com/dp/B0016HNU12?tag=happypetdc-20) hits the balance of grip and price without pushing into orthopedic-ramp territory. Give your dog a few short practice runs with treats, keep the slope gentle, and the best dog ramp quickly turns a daily struggle into a routine your dog handles alone.
