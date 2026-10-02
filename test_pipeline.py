@@ -7254,7 +7254,7 @@ class TestRefillAutomergeGate(unittest.TestCase):
     def entry(topic="best-snuffle-mats-dogs", asin="B0ABCD1234", **over):
         e = {"topic": topic, "title": "Sniff & Seek: The Best Snuffle Mats for Dogs",
              "keyword": "best snuffle mat for dogs", "name": "Paw5 Wooly Snuffle Mat",
-             "asin": asin, "affiliate_url": f"https://www.amazon.com/dp/{asin}?tag=pawpicks04-20",
+             "asin": asin, "affiliate_url": f"https://www.amazon.com/dp/{asin}?tag=happypetdc-20",
              "image": "https://m.media-amazon.com/images/I/71abcXYZ._AC_SX425_.jpg",
              "species": "dog", "category": "dog-toys", "format": "roundup",
              "topical_sheet": "HAPPYPET_SHEET_ID_TOYS", "stars": 4.5, "price": "29.99",
@@ -7413,7 +7413,7 @@ class TestRefillAutomergeGate(unittest.TestCase):
                 self.assertTrue(any("NEEDS_" in r for r in v.reasons), v.reasons)
         # a placeholder that was already on the base and is still unfilled is a hold too
         stuck = self.entry("best-cat-trees", "NEEDS_ASIN", image="NEEDS_IMAGE",
-                           affiliate_url="https://www.amazon.com/dp/NEEDS_ASIN?tag=pawpicks04-20")
+                           affiliate_url="https://www.amazon.com/dp/NEEDS_ASIN?tag=happypetdc-20")
         v = self.verdict(products_text=json.dumps(base + [stuck, self.entry()]),
                          merge_base_text=json.dumps(base + [stuck]))
         self.assertFalse(v.ok)
@@ -7472,7 +7472,7 @@ class TestRefillAutomergeGate(unittest.TestCase):
         base = self.base_entries()
         seed = self.entry("best-cat-trees", "NEEDS_ASIN", image="NEEDS_IMAGE",
                           name="NEEDS_ASIN placeholder for best cat tree",
-                          affiliate_url="https://www.amazon.com/dp/NEEDS_ASIN?tag=pawpicks04-20")
+                          affiliate_url="https://www.amazon.com/dp/NEEDS_ASIN?tag=happypetdc-20")
         filled = self.entry("best-cat-trees", "B0BY7S5L92")
         v = self.verdict(products_text=json.dumps(base + [filled]),
                          merge_base_text=json.dumps(base + [seed]))
@@ -7511,16 +7511,17 @@ class TestRefillAutomergeGate(unittest.TestCase):
     # ---- semantic diff: link shape of new entries ---------------------------------
 
     def test_affiliate_url_must_be_the_canonical_link_for_the_asin(self):
-        good = "https://www.amazon.com/dp/B0ABCD1234?tag=pawpicks04-20"
+        good = "https://www.amazon.com/dp/B0ABCD1234?tag=happypetdc-20"
         held = [
             "https://www.amazon.com/dp/B0ABCD1234?tag=other-20",
-            "https://www.amazon.com/dp/B0ZZZZ9999?tag=pawpicks04-20",
-            "http://www.amazon.com/dp/B0ABCD1234?tag=pawpicks04-20",
-            "https://amazon.com/dp/B0ABCD1234?tag=pawpicks04-20",
+            "https://www.amazon.com/dp/B0ABCD1234?tag=pawpicks04-20",  # retired tag (#131)
+            "https://www.amazon.com/dp/B0ZZZZ9999?tag=happypetdc-20",
+            "http://www.amazon.com/dp/B0ABCD1234?tag=happypetdc-20",
+            "https://amazon.com/dp/B0ABCD1234?tag=happypetdc-20",
             "https://amzn.to/4cuvtEY",
-            "https://www.amazon.com/dp/B0ABCD1234?tag=pawpicks04-20&tag=evil-20",
-            "https://www.amazon.com/dp/B0ABCD1234?tag=pawpicks04-20\n",
-            "https://www.amazon.com.evil.com/dp/B0ABCD1234?tag=pawpicks04-20",
+            "https://www.amazon.com/dp/B0ABCD1234?tag=happypetdc-20&tag=evil-20",
+            "https://www.amazon.com/dp/B0ABCD1234?tag=happypetdc-20\n",
+            "https://www.amazon.com.evil.com/dp/B0ABCD1234?tag=happypetdc-20",
             "", None,
         ]
         self.assertTrue(self.with_head(self.base_entries() + [self.entry(affiliate_url=good)]).ok)
@@ -7542,7 +7543,7 @@ class TestRefillAutomergeGate(unittest.TestCase):
                      "B0ABCD123\n", "", None, 5):
             with self.subTest(asin=asin):
                 e = self.entry(asin=asin,
-                               affiliate_url=f"https://www.amazon.com/dp/{asin}?tag=pawpicks04-20")
+                               affiliate_url=f"https://www.amazon.com/dp/{asin}?tag=happypetdc-20")
                 self.assertFalse(self.with_head(self.base_entries() + [e]).ok)
 
     def test_image_must_be_an_m_media_amazon_product_photo(self):

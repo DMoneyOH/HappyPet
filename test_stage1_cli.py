@@ -16,7 +16,7 @@ def run(*args, cwd=None):
 # these tests twice (best-dog-cooling-mat 2026-09-24, best-outdoor-dog-tie-outs
 # 2026-09-28). They now load this fixed entry instead: the real
 # best-outdoor-dog-tie-outs record as it stood before retirement (products.json
-# at 697e194^), less its chewy_note.
+# at 697e194^), less its chewy_note, with the tag swapped to happypetdc-20 (#131).
 TIE_OUTS = {
     "topic": "best-outdoor-dog-tie-outs",
     "title": "Freedom & Safety: Top Outdoor Dog Tie-Outs for Backyard Fun",
@@ -25,7 +25,7 @@ TIE_OUTS = {
             "No Tangle, 16in Ground Stake, Ideal for Outdoor Yard, Camping, Suitable for "
             "Small Medium Large Dogs Up to 120 lbs, Blue",
     "asin": "B07CXJGZY5",
-    "affiliate_url": "https://www.amazon.com/dp/B07CXJGZY5?tag=pawpicks04-20",
+    "affiliate_url": "https://www.amazon.com/dp/B07CXJGZY5?tag=happypetdc-20",
     "image": "https://m.media-amazon.com/images/I/71ebswoloPL._AC_SX679_.jpg",
     "species": "dog", "category": "dog-collars", "format": "roundup",
     "topical_sheet": "HAPPYPET_SHEET_ID_DOGS", "stars": 4.5, "price": "21.99",

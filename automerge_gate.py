@@ -373,7 +373,7 @@ def evaluate(pr: dict, issue: dict, files: list, check_runs: list,
 # during the refill window does not read as the PR changing an existing entry.
 
 REFILL_BRANCH = re.compile(rf"refill/{_SLUG}")
-AFFILIATE_TAG = "pawpicks04-20"      # literal: refill_products.py lets an env var override it
+AFFILIATE_TAG = "happypetdc-20"      # literal: refill_products.py lets an env var override it
 _ASIN = re.compile(r"B0[A-Z0-9]{8}")
 _AMAZON_IMAGE = re.compile(
     r"https://m\.media-amazon\.com/images/I/[A-Za-z0-9._+-]+\.(?:jpg|jpeg|png|webp)")
