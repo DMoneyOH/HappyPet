@@ -6,7 +6,7 @@ categories: [dog-crates]
 species: both
 tags: [portable pet playpen]
 description: "Keep your dog or cat safe outdoors with a foldable, grab-and-go pet playpen that sets up in seconds."
-affiliate_url: "https://www.amazon.com/dp/B0BN3S5KYN?tag=pawpicks04-20"
+affiliate_url: "https://www.amazon.com/dp/B0BN3S5KYN?tag=dynamicconc0b-20"
 image: "https://m.media-amazon.com/images/I/81d3K4VaK9L._AC_SY300_SX300_QL70_FMwebp_.jpg"
 pin_image: "https://happypetproductreviews.com/assets/images/pins/best-portable-pet-playpens.jpg?v=20260907"
 ---
@@ -23,7 +23,7 @@ Short on time? Here is the quick version.
 
 ## Featured pick: Love's cabin pop-up playpen
 
-The [Love's cabin Pet Puppy Dog Playpen, Small Dog Tent Crates Cage Indoor/Outdoor, Portable Playpen for Cat, Foldable Pop Up Dog Kennel Playpen with Carrying Case, Removable Zipper Top, Grey](https://www.amazon.com/dp/B0BN3S5KYN?tag=pawpicks04-20) earns a 4.3 out of 5 star rating and sells for about $15.99, which puts it at the low end of the price range for a portable pet playpen. It pops open without poles or assembly and folds back into a flat carrying case when the day ends. The mesh walls let air move through on hot afternoons, and the removable zipper top covers the space so a cat cannot leap out or a hawk cannot swoop in. Owners of puppies and toy breeds tend to reach for this one first because it weighs almost nothing and slides behind a car seat.
+The [Love's cabin Pet Puppy Dog Playpen, Small Dog Tent Crates Cage Indoor/Outdoor, Portable Playpen for Cat, Foldable Pop Up Dog Kennel Playpen with Carrying Case, Removable Zipper Top, Grey](https://www.amazon.com/dp/B0BN3S5KYN?tag=dynamicconc0b-20) earns a 4.3 out of 5 star rating and sells for about $15.99, which puts it at the low end of the price range for a portable pet playpen. It pops open without poles or assembly and folds back into a flat carrying case when the day ends. The mesh walls let air move through on hot afternoons, and the removable zipper top covers the space so a cat cannot leap out or a hawk cannot swoop in. Owners of puppies and toy breeds tend to reach for this one first because it weighs almost nothing and slides behind a car seat.
 
 Where it falls short: the soft sides suit small, calm pets, not a determined chewer or a strong adult dog that leans on the walls.
 
@@ -69,4 +69,4 @@ Match the pen to the pet, not the marketing photo. A calm senior cat and a nippy
 | Siedihit Dog Cat Playpen Indoor for Small Dog | Owners who want more floor space at home and on trips | $$ | Packs down, but bulkier |
 | Dog Cat Playpen Portable Small Animal Playpen Crate | Very small pets and short outings | $ | Lightest, easy to carry |
 
-For most owners chasing an affordable, grab-and-go option, the [Love's cabin Pet Puppy Dog Playpen, Small Dog Tent Crates Cage Indoor/Outdoor, Portable Playpen for Cat, Foldable Pop Up Dog Kennel Playpen with Carrying Case, Removable Zipper Top, Grey](https://www.amazon.com/dp/B0BN3S5KYN?tag=pawpicks04-20) covers the basics without draining the budget. It sets up fast, packs flat, and keeps a small dog or cat safe while you enjoy the afternoon. Match the size to your pet, respect the soft-side limits, and a portable pet playpen turns a stressful outing into an easy one. Pack it once and it earns its spot in the car for every trip after.
+For most owners chasing an affordable, grab-and-go option, the [Love's cabin Pet Puppy Dog Playpen, Small Dog Tent Crates Cage Indoor/Outdoor, Portable Playpen for Cat, Foldable Pop Up Dog Kennel Playpen with Carrying Case, Removable Zipper Top, Grey](https://www.amazon.com/dp/B0BN3S5KYN?tag=dynamicconc0b-20) covers the basics without draining the budget. It sets up fast, packs flat, and keeps a small dog or cat safe while you enjoy the afternoon. Match the size to your pet, respect the soft-side limits, and a portable pet playpen turns a stressful outing into an easy one. Pack it once and it earns its spot in the car for every trip after.
