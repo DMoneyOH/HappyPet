@@ -7145,9 +7145,10 @@ class TestAutomergeGate(unittest.TestCase):
         self.assertFalse(self.verdict(modes=None).ok, "an unreadable tree must hold")
         self.assertFalse(self.verdict(modes={}).ok, "a path missing from the tree must hold")
 
-    def test_a_truncated_tree_read_holds(self):
+    def test_a_truncated_tree_read_is_a_gate_error(self):
         with patch.object(self.g, "gh_json", lambda *a: {"truncated": True, "tree": []}):
-            self.assertIsNone(self.g.fetch_modes(self.REPO_NAME, self.SHA))
+            with self.assertRaises(self.g.UnreadableRead):
+                self.g.fetch_modes(self.REPO_NAME, self.SHA)
         tree = {"truncated": False, "tree": [
             {"path": "a.md", "type": "blob", "mode": "100644"},
             {"path": "link", "type": "blob", "mode": "120000"},
@@ -7768,12 +7769,13 @@ class TestRefillAutomergeGate(unittest.TestCase):
         rc, calls, _ = self.run_process(dry_run=True)
         self.assertEqual((rc, calls), (0, []))
 
-    def test_an_unreadable_merge_base_holds(self):
+    def test_an_unreadable_merge_base_is_a_gate_error(self):
         for compare in ({}, {"merge_base_commit": None}, {"merge_base_commit": {"sha": ""}},
                         {"merge_base_commit": {"sha": 5}}, []):
             with self.subTest(compare=compare):
                 rc, calls, _ = self.run_process(compare=compare)
-                self.assertEqual((rc, calls), (0, []))
+                self.assertIsInstance(rc, self.g.UnreadableRead)
+                self.assertEqual(calls, [])
 
     def test_an_unexpected_exception_in_the_refill_rule_is_a_gate_error(self):
         """It propagates out of process() before any write; main() turns it into a hold
@@ -7840,7 +7842,10 @@ class TestRefillAutomergeGate(unittest.TestCase):
             n = int(args[1].rsplit("page=", 1)[1])
             return {"total_count": total, "check_runs": pages[n - 1] if n <= len(pages) else []}
         with patch.object(self.g, "gh_json", fake):
-            return self.g.fetch_check_runs(self.REPO_NAME, self.SHA), asked
+            try:
+                return self.g.fetch_check_runs(self.REPO_NAME, self.SHA), asked
+            except self.g.UnreadableRead as exc:
+                return exc, asked
 
     @staticmethod
     def runs(start, count):
@@ -7868,7 +7873,7 @@ class TestRefillAutomergeGate(unittest.TestCase):
                 ("an id that is not an int", [[dict(self.runs(1, 1)[0], id="1")]], 1),
                 ("over the page cap", [self.runs(i * 100, 100) for i in range(11)], 1100)):
             with self.subTest(name):
-                self.assertIsNone(self.fetch_runs(pages, total)[0])
+                self.assertIsInstance(self.fetch_runs(pages, total)[0], self.g.UnreadableRead)
 
     def test_a_run_repeated_across_pages_cannot_stand_in_for_a_missed_one(self):
         """Pages can shift while they are read. Run 100 shows up twice and run 101 never
@@ -7876,7 +7881,7 @@ class TestRefillAutomergeGate(unittest.TestCase):
         page1 = self.runs(1, 100)
         page2 = [page1[-1]] + self.runs(102, 49)
         self.assertEqual(len(page1) + len(page2), 150)
-        self.assertIsNone(self.fetch_runs([page1, page2], 150)[0])
+        self.assertIsInstance(self.fetch_runs([page1, page2], 150)[0], self.g.UnreadableRead)
 
     def test_unreadable_check_runs_hold_the_refill_rule(self):
         v = self.verdict(check_runs=None)
@@ -7918,6 +7923,113 @@ class TestRefillAutomergeGate(unittest.TestCase):
     def test_a_plain_hold_exits_zero(self):
         rc, lines = self.run_main_with(lambda repo, n, sha, dry_run: 0)
         self.assertEqual(rc, 0)
+
+    # ---- requirement 8 end to end: an unreadable read is a gate error -------------
+
+    SITE_PIN = {"title": "Best X Toys", "slug": "best-x",
+                "article_url": "https://happypetproductreviews.com/dog-toys/best-x/"}
+
+    def run_two_prs(self, kind, broken):
+        """main() over PRs 1 and 2 of one `kind` ("refill" or "routine") against a fake
+        GitHub API. `broken` breaks one of PR 1's reads: ("text", path, "head"|"base"),
+        ("checks",) or ("tree",); ("none",) breaks nothing. Both PRs share one head SHA (one
+        CI run). AUTOMERGE_ENABLED is unset, so a good PR reports WOULD MERGE.
+        Returns (rc, summary lines, write calls)."""
+        import subprocess as sp
+        mb = self.MERGE_BASE
+        if kind == "refill":
+            files = [{"filename": "products.json", "status": "modified"}]
+            texts = {("products.json", self.SHA): self.good()["products_text"],
+                     ("products.json", mb): self.good()["merge_base_text"]}
+        else:
+            files = [{"filename": "_posts/DRAFT-best-x.md", "status": "added"},
+                     {"filename": "_pin_queue/best-x.json", "status": "added"}]
+            texts = {("_pin_queue/best-x.json", self.SHA): json.dumps(self.SITE_PIN)}
+        side = {self.SHA: "head", mb: "base", self.BASE_SHA: "base"}
+        writes, current = [], {"n": None}
+
+        def pr1_broken(what):
+            return current["n"] == 1 and broken[0] == what
+
+        def gh(*a):
+            if a[0] != "api":
+                writes.append(list(a))
+                return ""
+            url = next(x for x in a if x.startswith("repos/"))
+            if "/files" in url:
+                return "\n".join(json.dumps(f) for f in files)
+            path, ref = url.split("/contents/")[1].split("?ref=")
+            if pr1_broken("text") and broken[1:] == (path, side[ref]):
+                raise sp.CalledProcessError(1, ["gh", "api", url], stderr="HTTP 502")
+            return texts[(path, ref)]
+
+        def gh_json(*a):
+            url = a[1]
+            if url.endswith(("/pulls/1", "/pulls/2")):
+                current["n"] = int(url[-1])
+                ref = "refill/2026-10-05-1200" if kind == "refill" else "claude/x"
+                return {"state": "open", "merged": False, "draft": False, "labels": [],
+                        "base": {"ref": "main", "sha": self.BASE_SHA},
+                        "head": {"sha": self.SHA, "ref": ref,
+                                 "repo": {"full_name": self.REPO_NAME}}}
+            if "/issues/" in url:
+                return {"user": {"login": "DMoneyOH"},
+                        "performed_via_github_app": {"slug": "claude"}}
+            if "/compare/" in url:
+                return {"merge_base_commit": {"sha": mb}}
+            if "/check-runs" in url:
+                run = {"id": 7, "name": "pytest", "status": "completed",
+                       "conclusion": "success", "app": {"slug": "github-actions"}}
+                return {"total_count": 2 if pr1_broken("checks") else 1, "check_runs": [run]}
+            if "/git/trees/" in url:
+                return {"truncated": pr1_broken("tree"),
+                        "tree": [{"path": f["filename"], "type": "blob", "mode": "100644"}
+                                 for f in files]}
+            raise AssertionError(f"unexpected read {url}")
+
+        lines = []
+        env = {"REPO": self.REPO_NAME, "RUN_HEAD_SHA": self.SHA, "PR_NUMBERS": "[1, 2]"}
+        g = self.g
+        with patch.dict(os.environ, env, clear=False), \
+             patch.object(g, "gh", gh), patch.object(g, "gh_json", gh_json), \
+             patch.object(g, "summary", lines.append):
+            os.environ.pop("AUTOMERGE_ENABLED", None)
+            rc = g.main([])
+        return rc, lines, writes
+
+    def assert_gate_error_on_pr1_only(self, rc, lines, writes):
+        self.assertEqual(rc, 1, "an unreadable read must leave the run red")
+        self.assertEqual(writes, [], "nothing may be merged or dispatched")
+        one = [l for l in lines if l.startswith("PR #1:")]
+        two = [l for l in lines if l.startswith("PR #2:")]
+        self.assertEqual(len(one), 1, lines)
+        self.assertIn("gate error", one[0])
+        self.assertEqual(len(two), 1, lines)
+        self.assertIn("WOULD MERGE", two[0], "the other PR must still be evaluated")
+
+    def test_the_two_pr_harness_passes_both_prs_when_nothing_breaks(self):
+        for kind in ("refill", "routine"):
+            with self.subTest(kind):
+                rc, lines, writes = self.run_two_prs(kind, ("none",))
+                self.assertEqual((rc, writes), (0, []), lines)
+                self.assertEqual(sum("WOULD MERGE" in l for l in lines), 2, lines)
+
+    def test_a_failed_file_fetch_is_a_gate_error(self):
+        for kind, broken in (("refill", ("text", "products.json", "head")),
+                             ("refill", ("text", "products.json", "base")),
+                             ("routine", ("text", "_pin_queue/best-x.json", "head"))):
+            with self.subTest(kind=kind, broken=broken):
+                self.assert_gate_error_on_pr1_only(*self.run_two_prs(kind, broken))
+
+    def test_unreadable_check_runs_are_a_gate_error(self):
+        for kind in ("refill", "routine"):
+            with self.subTest(kind):
+                self.assert_gate_error_on_pr1_only(*self.run_two_prs(kind, ("checks",)))
+
+    def test_a_truncated_tree_is_a_gate_error(self):
+        for kind in ("refill", "routine"):
+            with self.subTest(kind):
+                self.assert_gate_error_on_pr1_only(*self.run_two_prs(kind, ("tree",)))
 
     # ---- the AUTOMERGE_ENABLED kill switch, mirrored in Python ---------------------
 

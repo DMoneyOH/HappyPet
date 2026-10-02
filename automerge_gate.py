@@ -545,6 +545,13 @@ def evaluate_refill(pr: dict, files: list, check_runs: list | None, run_sha: str
 
 
 # ------------------------------------------------------------------ gh plumbing
+# A read that fails or comes back incomplete raises -- a gh CalledProcessError, or
+# UnreadableRead below -- so main() records a gate error for that PR (held, named in the
+# summary, run exits 1) instead of evaluating a partial picture as a plain hold.
+
+
+class UnreadableRead(Exception):
+    """An API read that returned, but not enough of it to judge the PR."""
 
 def gh(*args: str) -> str:
     out = subprocess.run(["gh", *args], check=True, capture_output=True, text=True)
@@ -564,11 +571,11 @@ def fetch_files(repo: str, number: int) -> list:
 CHECK_RUN_PAGES = 10            # 1,000 runs; a head SHA with more is held
 
 
-def fetch_check_runs(repo: str, sha: str) -> list | None:
-    """Every check run on `sha`, read page by page and de-duplicated by run id, or None when
-    a run has no integer id or the unique runs read do not equal the endpoint's own
-    total_count (the caller holds on None). Pages can shift while they are read, so a raw
-    count could match while one run is read twice and another is missed."""
+def fetch_check_runs(repo: str, sha: str) -> list:
+    """Every check run on `sha`, read page by page and de-duplicated by run id. Raises
+    UnreadableRead when a run has no integer id or the unique runs read do not equal the
+    endpoint's own total_count. Pages can shift while they are read, so a raw count could
+    match while one run is read twice and another is missed."""
     runs, total = {}, None
     for page in range(1, CHECK_RUN_PAGES + 1):
         data = gh_json("api", f"repos/{repo}/commits/{sha}/check-runs?per_page=100&page={page}")
@@ -576,39 +583,45 @@ def fetch_check_runs(repo: str, sha: str) -> list | None:
         # type(...) is int, not isinstance: bool is a subclass of int, so isinstance would
         # accept a total_count of `true` as 1.
         if type(total) is not int or not isinstance(batch, list):
-            return None
+            raise UnreadableRead("check runs: no integer total_count or no run list")
         for run in batch:
             run_id = run.get("id") if isinstance(run, dict) else None
             if type(run_id) is not int:
-                return None
+                raise UnreadableRead("check runs: a run without an integer id")
             runs[run_id] = run
         if len(runs) >= total or len(batch) < 100:
             break
-    return list(runs.values()) if len(runs) == total else None
+    if len(runs) != total:
+        raise UnreadableRead(f"check runs: read {len(runs)} unique of {total}")
+    return list(runs.values())
 
 
-def fetch_text(repo: str, path: str, ref: str) -> str | None:
-    """Raw file content at a ref, or None when unavailable (the caller holds on None)."""
-    try:
-        return gh("api", "-H", "Accept: application/vnd.github.raw",
-                  f"repos/{repo}/contents/{path}?ref={ref}")
-    except subprocess.CalledProcessError:
-        return None
+def fetch_text(repo: str, path: str, ref: str) -> str:
+    """Raw file content at a ref. A failed fetch raises (CalledProcessError). No caller
+    fetches a file that is expected to be missing: products.json exists on main and at
+    every head that modifies it, and a pin JSON is fetched at the head that adds it. So a
+    404 here is not a normal state, and it is a gate error like any other failure."""
+    return gh("api", "-H", "Accept: application/vnd.github.raw",
+              f"repos/{repo}/contents/{path}?ref={ref}")
 
 
-def fetch_modes(repo: str, sha: str) -> dict | None:
-    """{path: git mode} for every blob at `sha`; None if the tree is truncated."""
+def fetch_modes(repo: str, sha: str) -> dict:
+    """{path: git mode} for every blob at `sha`. Raises UnreadableRead if the tree is
+    truncated."""
     data = gh_json("api", f"repos/{repo}/git/trees/{sha}?recursive=1")
     if data.get("truncated"):
-        return None
+        raise UnreadableRead("git tree is truncated")
     return {e["path"]: e.get("mode") for e in data.get("tree", []) if e.get("type") == "blob"}
 
 
-def fetch_merge_base(repo: str, base_sha: str, head_sha: str) -> str | None:
-    """SHA of the merge base of base...head (REST compare, `merge_base_commit.sha`)."""
+def fetch_merge_base(repo: str, base_sha: str, head_sha: str) -> str:
+    """SHA of the merge base of base...head (REST compare, `merge_base_commit.sha`).
+    Raises UnreadableRead when the response carries no SHA."""
     data = gh_json("api", f"repos/{repo}/compare/{base_sha}...{head_sha}")
     sha = (data.get("merge_base_commit") or {}).get("sha") if isinstance(data, dict) else None
-    return sha if isinstance(sha, str) and sha else None
+    if not (isinstance(sha, str) and sha):
+        raise UnreadableRead("compare response has no merge_base_commit.sha")
+    return sha
 
 
 def merge_args(repo: str, number: int, head_sha: str) -> list:
