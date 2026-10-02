@@ -6,7 +6,7 @@ categories: [dog-grooming]
 species: dog
 tags: [dog grooming tools]
 description: "Tired of pet hair tumbleweeds? Discover the best dog grooming tools for a happier, healthier pup!"
-affiliate_url: "https://amzn.to/4toeb2Q"
+affiliate_url: "https://www.amazon.com/dp/B07MZDTG76?th=1&tag=happypetdc-20"
 image: "https://images-na.ssl-images-amazon.com/images/P/B07MZDTG76.01.LZZZZZZZ.jpg"
 ---
 
@@ -16,13 +16,13 @@ This guide covers brushes, clippers, and deshedders across different coat types,
 
 ## Quick Picks by Coat Type
 
-- **Double coat, heavy shedder:** [FURminator Undercoat Deshedding Tool](https://amzn.to/4toeb2Q)
+- **Double coat, heavy shedder:** [FURminator Undercoat Deshedding Tool](https://www.amazon.com/dp/B07MZDTG76?th=1&tag=happypetdc-20)
 - **Medium/long coat, tangles:** Hertzko Self-Cleaning Slicker Brush
 - **Long, silky, or curly coat:** KONG Grooming Pin Brush
 - **All breeds, nail care:** PetSafe Deluxe Nail Clipper
 
 
-## Featured Pick: [FURminator Undercoat Deshedding Tool for Dogs](https://amzn.to/4toeb2Q)
+## Featured Pick: [FURminator Undercoat Deshedding Tool for Dogs](https://www.amazon.com/dp/B07MZDTG76?th=1&tag=happypetdc-20)
 
 If your dog has a double coat. German Shepherds, Huskies, Golden Retrievers, Corgis, most working breeds, this tool is genuinely different from a regular brush. The stainless steel edge reaches through the topcoat and pulls out loose undercoat hair that would otherwise end up on your furniture. Used weekly during shedding season, it makes a noticeable difference in how much hair ends up everywhere else.
 
@@ -98,7 +98,7 @@ It won't make nail trimming fun, but it makes it easier. One limitation worth kn
 
 | Tool | Coat Type | Main Job | Replaces Regular Brushing? |
 |---|---|---|---|
-| [FURminator](https://amzn.to/4toeb2Q) | Double coat | Undercoat removal | No, supplement, not replace |
+| [FURminator](https://www.amazon.com/dp/B07MZDTG76?th=1&tag=happypetdc-20) | Double coat | Undercoat removal | No, supplement, not replace |
 | Hertzko Slicker | Medium/long | Detangle, surface hair | Yes for daily maintenance |
 | KONG Pin Brush | Long/silky/curly | Daily brushing | Yes |
 | PetSafe Nail Clipper | All breeds | Nail trimming | N/A |
@@ -119,4 +119,4 @@ It won't make nail trimming fun, but it makes it easier. One limitation worth kn
 
 Buying a good brush doesn't matter much if you use it infrequently. A five-minute brush through three times a week prevents the kind of matting that requires an hour of careful work, or a vet visit if the mat is tight enough to hide a skin issue underneath. The tool is only part of it.
 
-The [FURminator](https://amzn.to/4toeb2Q) is the strongest recommendation here for double-coated shedders, it's one of those tools where the difference is immediately obvious. For everything else, match the brush to the coat and use it consistently.
+The [FURminator](https://www.amazon.com/dp/B07MZDTG76?th=1&tag=happypetdc-20) is the strongest recommendation here for double-coated shedders, it's one of those tools where the difference is immediately obvious. For everything else, match the brush to the coat and use it consistently.

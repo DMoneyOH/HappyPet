@@ -8,7 +8,7 @@ redirect_from:
 species: cat
 tags: [best cat beds]
 description: "Cozy indoor cats swear by these lounge-worthy beds. Find the perfect spot for your whiskered napper!"
-affiliate_url: "https://amzn.to/485i19b"
+affiliate_url: "https://www.amazon.com/dp/B0D31SZC4L?th=1&tag=happypetdc-20"
 image: "https://m.media-amazon.com/images/I/81-U9aAoCDL._AC_SX425_.jpg"
 ---
 
@@ -20,7 +20,7 @@ This roundup compares fabrics and construction across the popular options and co
 
 | Rank | Product | Why It Stands Out |
 |------|---------|-------------------|
-| 1 | **[Bedsure ComfyFleece Cute Cat Couch for Pets, 24inch, Cream](https://amzn.to/485i19b)** | Soft fleece, sturdy base, high rating |
+| 1 | **[Bedsure ComfyFleece Cute Cat Couch for Pets, 24inch, Cream](https://www.amazon.com/dp/B0D31SZC4L?th=1&tag=happypetdc-20)** | Soft fleece, sturdy base, high rating |
 | 2 | Cozy Cave Cat Bed | Enclosed design, warm interior |
 | 3 | PetFusion Ultra‑Plush Cat Bed | Orthopedic foam, modern look |
 | 4 | K&H Pet Products Original Pet Cot | Elevated, breathable mesh |
@@ -80,4 +80,4 @@ Remember, the **best cat beds** are the ones your cat actually uses. If you noti
 
 ## Closing  
 
-Finding a cozy, durable spot for your indoor cat doesn’t have to be a gamble. the top pick, the **[Bedsure ComfyFleece Cute Cat Couch for Pets, 24inch, Cream](https://amzn.to/485i19b)**, delivers the plush comfort and practical design that many cat owners rave about, all at a reasonable price. Give your whiskered companion the lounge experience they deserve, and enjoy the peace of mind that comes with a bed built to last. Happy napping!  
+Finding a cozy, durable spot for your indoor cat doesn’t have to be a gamble. the top pick, the **[Bedsure ComfyFleece Cute Cat Couch for Pets, 24inch, Cream](https://www.amazon.com/dp/B0D31SZC4L?th=1&tag=happypetdc-20)**, delivers the plush comfort and practical design that many cat owners rave about, all at a reasonable price. Give your whiskered companion the lounge experience they deserve, and enjoy the peace of mind that comes with a bed built to last. Happy napping!  
