@@ -297,15 +297,10 @@ def _file_problems(files: list, modes) -> list:
     return why
 
 
-def evaluate(pr: dict, issue: dict, files: list, check_runs: list,
-             run_sha: str, repo: str, products_text: str | None = None,
-             base_products_text: str | None = None, pin_texts: dict | None = None,
-             modes: dict | None = None) -> Verdict:
-    """Pure decision. `pr`=REST pulls/{n}, `issue`=REST issues/{n}, `files`=REST
-    pulls/{n}/files entries, `check_runs`=check_runs of the PR head SHA, `modes`=
-    {path: git mode} at the head SHA, `pin_texts`={path: head content} for each pin JSON."""
+def _pr_problems(pr: dict, run_sha: str, repo: str) -> list:
+    """The checks both rules open with: open, not a draft, based on main, same repo, head SHA
+    is the SHA the CI run tested, no opt-out label."""
     why = []
-
     if pr.get("state") != "open" or pr.get("merged"):
         why.append("PR is not open")
     if pr.get("draft"):
@@ -321,6 +316,17 @@ def evaluate(pr: dict, issue: dict, files: list, check_runs: list,
     if any(_label_key((lb or {}).get("name") if isinstance(lb, dict) else lb) == OPT_OUT_LABEL
            for lb in pr.get("labels") or []):
         why.append(f"labelled {OPT_OUT_LABEL}")
+    return why
+
+
+def evaluate(pr: dict, issue: dict, files: list, check_runs: list,
+             run_sha: str, repo: str, products_text: str | None = None,
+             base_products_text: str | None = None, pin_texts: dict | None = None,
+             modes: dict | None = None) -> Verdict:
+    """Pure decision. `pr`=REST pulls/{n}, `issue`=REST issues/{n}, `files`=REST
+    pulls/{n}/files entries, `check_runs`=check_runs of the PR head SHA, `modes`=
+    {path: git mode} at the head SHA, `pin_texts`={path: head content} for each pin JSON."""
+    why = _pr_problems(pr, run_sha, repo)
 
     author = (issue.get("user") or {}).get("login")
     app = (issue.get("performed_via_github_app") or {}).get("slug")
@@ -464,25 +470,9 @@ def evaluate_refill(pr: dict, files: list, check_runs: list, run_sha: str, repo:
                     modes: dict | None) -> Verdict:
     """Pure decision for a refill/* PR. `merge_base_text` is products.json at the merge base
     of the PR's base and head. A refill merge never dispatches publish."""
-    why = []
-
-    if pr.get("state") != "open" or pr.get("merged"):
-        why.append("PR is not open")
-    if pr.get("draft"):
-        why.append("PR is a draft")
-    if (pr.get("base") or {}).get("ref") != BASE_BRANCH:
-        why.append(f"base is not {BASE_BRANCH}")
-    head = pr.get("head") or {}
-    if not is_refill_branch(head.get("ref")):
+    why = _pr_problems(pr, run_sha, repo)
+    if not is_refill_branch((pr.get("head") or {}).get("ref")):
         why.append("head branch is not refill/<slug>")
-    if ((head.get("repo") or {}).get("full_name")) != repo:
-        why.append("head is not in this repository (fork)")
-    head_sha = head.get("sha")
-    if not head_sha or head_sha != run_sha:
-        why.append("head SHA is not the SHA the CI run tested (PR moved after CI)")
-    if any(_label_key((lb or {}).get("name") if isinstance(lb, dict) else lb) == OPT_OUT_LABEL
-           for lb in pr.get("labels") or []):
-        why.append(f"labelled {OPT_OUT_LABEL}")
 
     why += _check_problems(check_runs)
 
