@@ -6153,7 +6153,21 @@ class TestPublishedChewyLinkCoverage(unittest.TestCase):
         continuing to be quoted."""
         queued = set(self.v.load_products())
         live = {e["slug"] for e in self.entries if e["source"] == "front-matter"}
-        self.assertEqual(len(live), 9, sorted(live))
+        # The number of live links grows with every post published with one (8 on
+        # 2026-09-23, 9 on 09-24, 10 on 10-01), so it is not pinned. Pinned instead:
+        # every post known to carry a link is found, and every slug found is one
+        # published post whose own front matter carries an https chewy_url.
+        known = {"best-automatic-litter-box", "best-calming-diffusers-pets",
+                 "best-cat-dental-treats", "best-catnip-toys", "best-dog-nail-grinder",
+                 "best-dog-probiotic-supplements", "best-dog-puzzle-toys",
+                 "best-elevated-dog-beds", "best-gps-dog-trackers",
+                 "best-pet-hair-removers-laundry-furniture"}
+        self.assertLessEqual(known, live, sorted(known - live))
+        for slug in live:
+            posts = list((REPO / "_posts").glob(f"2*-{slug}.md"))
+            self.assertEqual(len(posts), 1, slug)
+            front = posts[0].read_text(encoding="utf-8").split("\n---", 1)[0]
+            self.assertRegex(front, r'(?m)^chewy_url: *"?https://', slug)
         self.assertEqual(queued & live, set())
 
     def test_a_queue_sourced_link_is_labelled_as_such(self):
