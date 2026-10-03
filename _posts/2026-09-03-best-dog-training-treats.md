@@ -7,6 +7,7 @@ species: dog
 tags: [best dog training treats]
 description: "Small, soft, and cheap enough to hand out all session, these treats keep your dog locked in and eager."
 affiliate_url: "https://www.amazon.com/dp/B08XY6CFFW?tag=happypetdc-20"
+chewy_url: "https://chewy.sjv.io/c/7160344/3054490/32975?prodsku=294114&u=https%3A%2F%2Fwww.chewy.com%2Fblue-buffalo-blue-bits-tender-beef%2Fdp%2F320464%3Futm_source%3Dgoogle-product%26utm_medium%3Dorganic%26utm_content%3DBlue%2520Buffalo&intsrc=APIG_24727"
 image: "https://m.media-amazon.com/images/I/81U2E6K0nxL._AC_UL320_.jpg"
 pin_image: "https://happypetproductreviews.com/assets/images/pins/best-dog-training-treats.jpg?v=20260903"
 ---
