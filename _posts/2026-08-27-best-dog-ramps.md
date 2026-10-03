@@ -7,6 +7,7 @@ species: dog
 tags: [best dog ramp]
 description: "Senior dog struggling with the car? The right folding ramp saves her joints and your back."
 affiliate_url: "https://www.amazon.com/dp/B0016HNU12?tag=happypetdc-20"
+chewy_url: "https://chewy.sjv.io/c/7160344/3054490/32975?prodsku=68759&u=https%3A%2F%2Fwww.chewy.com%2Fpetsafe-happy-ride-foldable-dog-car%2Fdp%2F53683%3Futm_source%3Dgoogle-product%26utm_medium%3Dorganic%26utm_content%3DPetSafe&intsrc=APIG_24727"
 image: "https://m.media-amazon.com/images/I/61jJ0Mw2neL._AC_SX679_.jpg"
 pin_image: "https://happypetproductreviews.com/assets/images/pins/best-dog-ramps.jpg?v=20260827"
 ---
