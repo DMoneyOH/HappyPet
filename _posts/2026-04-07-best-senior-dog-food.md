@@ -33,7 +33,7 @@ Hill's Science Diet is a brand synonymous with veterinarian-recommended nutritio
 * Contains corn, which some dog owners prefer to avoid.
 * Can be a bit pricier than some budget brands, but offers excellent value for the quality.
 
-[Shop Hill's Science Diet Adult 7+ Senior Dry Dog Food Here!](https://www.amazon.com/dp/B009B87TKG?th=1&tag=happypetdc-20)
+[Hill's Science Diet Adult 7+ Senior Dry Dog Food, 33 lb](https://www.amazon.com/dp/B009B87TKG?th=1&tag=happypetdc-20)
 
 ## Purina Pro Plan Bright Mind Adult 7+ Chicken & Rice Formula
 

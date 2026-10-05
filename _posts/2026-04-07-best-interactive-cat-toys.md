@@ -34,7 +34,7 @@ This multi-level ball track toy is a consistent winner in real homes, captivatin
 * Some very determined cats might manage to pop a ball out (rare).
 * Can be a bit noisy on hard floors during intense play.
 
-[Check Price on Amazon](https://www.amazon.com/dp/B00DT2WL26?th=1&tag=happypetdc-20)
+[Catstages Tower of Tracks Interactive Cat Toy](https://www.amazon.com/dp/B00DT2WL26?th=1&tag=happypetdc-20)
 
 ### PetSafe Bolt Automatic Laser Cat Toy
 
