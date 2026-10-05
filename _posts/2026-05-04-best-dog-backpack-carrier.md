@@ -9,6 +9,7 @@ species: dog
 tags: [best dog backpack carrier]
 description: "Discover the perfect dog backpack carrier for trail‑blazing hikes and hassle‑free travel adventures."
 affiliate_url: "https://www.amazon.com/dp/B07B61HMRT?th=1&tag=happypetdc-20"
+chewy_url: "https://chewy.sjv.io/c/7160344/3054490/32975?u=https%3A%2F%2Fwww.chewy.com%2Fpetami-deluxe-backpack-dog-cat%2Fdp%2F352875&intsrc=APIG_24727"
 image: "https://m.media-amazon.com/images/I/81nV6St3lYL._AC_SX425_.jpg"
 pin_image: "https://happypetproductreviews.com/assets/images/pins/best-dog-backpack-carrier.jpg?v=20260504"
 ---

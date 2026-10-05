@@ -7,6 +7,7 @@ species: dog
 tags: [best dog joint supplements]
 description: "The joint supplements owners rate highest for mobility and hip support, compared side by side."
 affiliate_url: "https://www.amazon.com/dp/B003ULL1NQ?th=1&tag=happypetdc-20"
+chewy_url: "https://chewy.sjv.io/c/7160344/3054490/32975?u=https%3A%2F%2Fwww.chewy.com%2Fnutramax-cosequin-hip-joint-maximum%2Fdp%2F101451&intsrc=APIG_24727"
 image: "https://images-na.ssl-images-amazon.com/images/P/B003ULL1NQ.01.LZZZZZZZ.jpg"
 ---
 
