@@ -33,7 +33,7 @@ For premium nutrition that won't completely drain your savings, Blue Buffalo Wil
 * Can be a bit pricier than budget-level foods
 * Some cats may initially be picky about the LifeSource Bits
 
-[Shop Blue Buffalo Wilderness Grain-Free Dry Cat Food here!](https://www.amazon.com/dp/B002UT92EY?tag=happypetdc-20)
+[Blue Buffalo Wilderness Grain-Free Dry Cat Food, Chicken, 12 lb](https://www.amazon.com/dp/B002UT92EY?tag=happypetdc-20)
 
 ### Additional Pick – Merrick Purrfect Bistro Grain-Free Dry Cat Food
 
