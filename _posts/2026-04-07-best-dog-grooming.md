@@ -7,6 +7,7 @@ species: dog
 tags: [dog grooming tools]
 description: "Tired of pet hair tumbleweeds? Discover the best dog grooming tools for a happier, healthier pup!"
 affiliate_url: "https://www.amazon.com/dp/B07MZDTG76?th=1&tag=happypetdc-20"
+chewy_url: "https://chewy.sjv.io/c/7160344/3054490/32975?u=https%3A%2F%2Fwww.chewy.com%2Ffurminator-long-hair-dog-deshedding%2Fdp%2F269737&intsrc=APIG_24727"
 image: "https://images-na.ssl-images-amazon.com/images/P/B07MZDTG76.01.LZZZZZZZ.jpg"
 ---
 

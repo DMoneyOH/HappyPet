@@ -7,6 +7,7 @@ species: dog
 tags: [flea prevention dogs]
 description: "Stop the itch! Discover the best budget-friendly flea prevention for your dog and keep them happy and healthy."
 affiliate_url: "https://www.amazon.com/dp/B00B8CG602?th=1&tag=happypetdc-20"
+chewy_url: "https://chewy.sjv.io/c/7160344/3054490/32975?u=https%3A%2F%2Fwww.chewy.com%2Fseresto-flea-tick-collar-dogs-over-18%2Fdp%2F46498&intsrc=APIG_24727"
 image: "https://images-na.ssl-images-amazon.com/images/P/B00B8CG602.01.LZZZZZZZ.jpg"
 ---
 
