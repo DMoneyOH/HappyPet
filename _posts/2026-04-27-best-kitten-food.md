@@ -7,6 +7,7 @@ species: cat
 tags: [best kitten food]
 description: "Find the kitten food that fuels growth, protects immunity, and fits a tight budget."
 affiliate_url: "https://www.amazon.com/dp/B0000AH3RP?th=1&tag=happypetdc-20"
+chewy_url: "https://chewy.sjv.io/c/7160344/3054490/32975?u=https%3A%2F%2Fwww.chewy.com%2Fpurina-one-plus-healthy-kitten%2Fdp%2F119151&intsrc=APIG_24727"
 image: "https://images-na.ssl-images-amazon.com/images/P/B0000AH3RP.01.LZZZZZZZ.jpg"
 pin_image: "https://happypetproductreviews.com/assets/images/pins/best-kitten-food.jpg?v=20260427"
 ---

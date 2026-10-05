@@ -9,6 +9,7 @@ description: "Most scratching posts wobble and get ignored. These are the ones c
 product_name: "SmartCat Ultimate Scratching Post"
 rating: 4.8
 affiliate_url: "https://www.amazon.com/dp/B07W865K8N?th=1&tag=happypetdc-20"
+chewy_url: "https://chewy.sjv.io/c/7160344/3054490/32975?u=https%3A%2F%2Fwww.chewy.com%2Fsmartcat-ultimate-32-in-sisal-cat%2Fdp%2F204624&intsrc=APIG_24727"
 image: "https://images-na.ssl-images-amazon.com/images/P/B07W865K8N.01.LZZZZZZZ.jpg"
 ---
 

@@ -9,6 +9,7 @@ description: "Cats and dogs drink more water when it's moving. This fountain is 
 product_name: "PetSafe Drinkwell Platinum Pet Fountain 168oz"
 rating: 4.2
 affiliate_url: "https://www.amazon.com/dp/B000L3XYZ4?th=1&tag=happypetdc-20"
+chewy_url: "https://chewy.sjv.io/c/7160344/3054490/32975?u=https%3A%2F%2Fwww.chewy.com%2Fpetsafe-drinkwell-platinum-plastic%2Fdp%2F48102&intsrc=APIG_24727"
 image: "https://m.media-amazon.com/images/I/718yk3RUXAL._AC_SL1500_.jpg"
 ---
 
