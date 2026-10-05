@@ -7,6 +7,7 @@ species: dog
 tags: [best puppy food]
 description: "Discover the top puppy food that fuels growth without breaking the bank."
 affiliate_url: "https://www.amazon.com/dp/B0DQYK8MP3?th=1&tag=happypetdc-20"
+chewy_url: "https://chewy.sjv.io/c/7160344/3054490/32975?u=https%3A%2F%2Fwww.chewy.com%2Froyal-canin-size-health-nutrition%2Fdp%2F1590358&intsrc=APIG_24727"
 image: "https://images-na.ssl-images-amazon.com/images/P/B0DQYK8MP3.01.LZZZZZZZ.jpg"
 ---
 

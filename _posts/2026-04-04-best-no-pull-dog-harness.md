@@ -9,6 +9,7 @@ description: "Stops pulling without hurting your dog. The PetSafe Easy Walk is t
 product_name: "PetSafe Easy Walk No-Pull Dog Harness XL"
 rating: 4.5
 affiliate_url: "https://www.amazon.com/dp/B000BHT5OY?th=1&tag=happypetdc-20"
+chewy_url: "https://chewy.sjv.io/c/7160344/3054490/32975?u=https%3A%2F%2Fwww.chewy.com%2Fpetsafe-easy-walk-dog-harness%2Fdp%2F48925&intsrc=APIG_24727"
 image: "https://images-na.ssl-images-amazon.com/images/P/B000BHT5OY.01.LZZZZZZZ.jpg"
 ---
 

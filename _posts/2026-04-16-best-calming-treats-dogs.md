@@ -7,6 +7,7 @@ species: dog
 tags: [best calming treats for dogs]
 description: "The calming treats owners rate highest for storms, fireworks and vet visits, without breaking the bank."
 affiliate_url: "https://www.amazon.com/dp/B075SSR5CG?th=1&tag=happypetdc-20"
+chewy_url: "https://chewy.sjv.io/c/7160344/3054490/32975?u=https%3A%2F%2Fwww.chewy.com%2Fnaturvet-quiet-moments-soft-chews%2Fdp%2F128187&intsrc=APIG_24727"
 image: "https://m.media-amazon.com/images/I/71gSvAen4NL._AC_SX425_.jpg"
 ---
 
