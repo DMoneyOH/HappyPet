@@ -31,7 +31,7 @@ The MidWest New World Dog Crate is consistently a top performer in owner reviews
 * Plastic pan can be noisy if not secured well
 * Heavier than fabric or plastic crates
 
-[Get the MidWest New World Dog Crate on Amazon!](https://www.amazon.com/dp/B01DLS2EX8?th=1&tag=happypetdc-20)
+[MidWest Homes for Pets 42-Inch New World Dog Crate](https://www.amazon.com/dp/B01DLS2EX8?th=1&tag=happypetdc-20)
 
 ### Frisco Fold & Carry Double Door Collapsible Wire Dog Crate
 

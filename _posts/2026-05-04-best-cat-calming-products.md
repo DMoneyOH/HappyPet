@@ -23,7 +23,7 @@ A thunderclap rattles the living room and a usually-chill tabby bolts under the 
 
 | Product | Type | When It Shines |
 |---|---|---|
-| **Purina Pro Plan Veterinary Supplements Calming Care** | Chewable supplement | Daily anxiety, travel, vet visits |
+| **[Purina Pro Plan Veterinary Supplements Calming Care](https://www.amazon.com/dp/B0BGVF6PGW?th=1&tag=happypetdc-20)** | Chewable supplement | Daily anxiety, travel, vet visits |
 | **Feliway Classic Diffuser** | Plug‑in pheromone diffuser | Ongoing stress from new environments, loud noises |
 | **VetriScience Composure Chews** | Chewable supplement | Mild to moderate anxiety, grooming stress |
 | **ThunderEase Calming Collar** | Collar with calming oils | Thunderstorms, fireworks, sudden bangs |
