@@ -7,6 +7,7 @@ species: dog
 tags: [best slow feeder dog bowl]
 description: "Stop the gulping: the right slow feeder bowl turns a 30-second inhale into calmer, healthier meals for your dog."
 affiliate_url: "https://www.amazon.com/dp/B093K2NDS2?tag=happypetdc-20"
+chewy_url: "https://chewy.sjv.io/c/7160344/3054490/32975?prodsku=226745&u=https%3A%2F%2Fwww.chewy.com%2Foutward-hound-fun-feeder-drop-dog%2Fdp%2F253267%3Futm_source%3Dgoogle-product%26utm_medium%3Dorganic%26utm_content%3DOutward%2520Hound&intsrc=APIG_24727"
 image: "https://m.media-amazon.com/images/I/81vY11uDMAL._AC_SX466_.jpg"
 pin_image: "https://happypetproductreviews.com/assets/images/pins/best-slow-feeder-dog-bowls.jpg?v=20260810"
 ---

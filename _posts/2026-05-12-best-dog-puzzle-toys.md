@@ -9,7 +9,7 @@ species: dog
 tags: [best dog puzzle toys]
 description: "Keep your clever canine busy for hours with the ultimate puzzle toys that actually work."
 affiliate_url: "https://www.amazon.com/dp/B005VS9WO6?th=1&tag=happypetdc-20"
-chewy_url: "https://chewy.sjv.io/c/7160344/3054490/32975?prodsku=86001&u=https%3A%2F%2Fwww.chewy.com%2Foutward-hound-hide-squirrel-squeaky%2Fdp%2F113784%3Futm_source%3Dgoogle-product%26utm_medium%3Dorganic%26utm_content%3DOutward%2520Hound&intsrc=APIG_24727"
+chewy_url: "https://chewy.sjv.io/c/7160344/3054490/32975?prodsku=86003&u=https%3A%2F%2Fwww.chewy.com%2Foutward-hound-hide-squirrel-squeaky%2Fdp%2F113786%3Futm_source%3Dgoogle-product%26utm_medium%3Dorganic%26utm_content%3DOutward%2520Hound&intsrc=APIG_24727"
 image: "https://images-na.ssl-images-amazon.com/images/P/B005VS9WO6.01.LZZZZZZZ.jpg"
 pin_image: "https://happypetproductreviews.com/assets/images/pins/best-dog-puzzle-toys.jpg?v=20260511"
 ---

@@ -7,6 +7,7 @@ species: cat
 tags: [best cat calming products]
 description: "The budget-friendly calming products cat owners rate highest for storms, noise and stress."
 affiliate_url: "https://www.amazon.com/dp/B0BGVF6PGW?th=1&tag=happypetdc-20"
+chewy_url: "https://chewy.sjv.io/c/7160344/3054490/32975?prodsku=684734&u=https%3A%2F%2Fwww.chewy.com%2Fpurina-pro-plan-veterinary-diets%2Fdp%2F684734%3Futm_source%3Dgoogle-product%26utm_medium%3Dorganic%26utm_content%3DPurina%2520Pro%2520Plan%2520Veterinary%2520Diets&intsrc=APIG_24727"
 image: "https://images-na.ssl-images-amazon.com/images/P/B0BGVF6PGW.01.LZZZZZZZ.jpg"
 pin_image: "https://happypetproductreviews.com/assets/images/pins/best-cat-calming-products.jpg?v=20260504"
 ---
