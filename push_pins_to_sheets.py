@@ -77,9 +77,7 @@ import json
 import os
 import sys
 import shutil
-import smtplib
 import time
-from email.mime.text import MIMEText
 import datetime as _dt
 from pathlib import Path
 
@@ -137,11 +135,7 @@ def get_sheets_creds():
         scopes=['https://www.googleapis.com/auth/spreadsheets'])
 LOG_PATH            = REPO_DIR / 'LOGS' / f"HappyPet_{_dt.date.today().isoformat()}.log"
 LOG_PATH.parent.mkdir(exist_ok=True)
-QUEUE_LOW_THRESHOLD = 3
-ALERT_FROM          = 'hello@happypetproductreviews.com'
-ALERT_TO            = 'hello@happypetproductreviews.com'
-SMTP_HOST           = 'smtp.gmail.com'
-SMTP_PORT           = 587
+QUEUE_LOW_THRESHOLD = 3   # sender, recipient and SMTP host live in queue_alert.py
 
 # Transient Sheets API failures. On 2026-08-20 a single 503 from Google's
 # frontend hit gc.open_by_key(), which sat outside every try block, and took the
@@ -275,28 +269,15 @@ def retire_from_products(slug: str) -> int:
 
 
 def count_unpublished() -> int:
-    p = REPO_DIR / 'products.json'
-    if not p.exists():
-        return 0
-    products = json.loads(p.read_text())
-    published = set()
-    for md in (REPO_DIR / '_posts').glob('*.md'):
-        if md.stem.startswith('DRAFT-'):
-            published.add(md.stem[len('DRAFT-'):])  # pending counts as spoken-for
-            continue
-        parts = md.stem.split('-', 3)
-        if len(parts) == 4:
-            published.add(parts[3])
-    return sum(1 for e in products if e.get('topic') not in published)
+    # The shared definition (queue_alert.py), so this alert and refill_watchdog
+    # never disagree: only entries the next runs can actually publish count.
+    import queue_alert
+    return len(queue_alert.publishable_unpublished())
 
 
 def send_queue_alert(unpublished_count: int) -> None:
-    smtp_user  = os.environ.get('GMAIL_SMTP_USER', ALERT_FROM)
-    smtp_login = os.environ.get('GMAIL_ACCOUNT', smtp_user)
-    smtp_pass  = os.environ.get('GMAIL_APP_PASSWORD', '')
-    if not smtp_pass:
-        log('GMAIL_APP_PASSWORD not set -- skipping email alert', 'WARN')
-        return
+    import queue_alert
+    import generate_posts as gp
     subject = f'[HappyPet] Queue low: only {unpublished_count} unpublished articles remaining'
     body = (
         f'Happy Pet Product Reviews queue alert\n\n'
@@ -305,35 +286,13 @@ def send_queue_alert(unpublished_count: int) -> None:
         f'Current unpublished topics:\n'
     )
     try:
-        p = REPO_DIR / 'products.json'
-        if p.exists():
-            products = json.loads(p.read_text())
-            published = set()
-            for md in (REPO_DIR / '_posts').glob('*.md'):
-                if md.stem.startswith('DRAFT-'):
-                    published.add(md.stem[len('DRAFT-'):])
-                    continue
-                parts = md.stem.split('-', 3)
-                if len(parts) == 4:
-                    published.add(parts[3])
-            for e in products:
-                if e.get('topic') not in published:
-                    body += f"  - {e.get('topic')} ({e.get('title', '')})\n"
+        products = gp.load_products()
+        for slug in queue_alert.publishable_unpublished(products):
+            body += f"  - {slug} ({products[slug].get('title', '')})\n"
     except Exception as _e:
         log(f'  Alert body build warning: {_e}', 'WARN')
-    try:
-        msg = MIMEText(body)
-        msg['Subject'] = subject
-        msg['From']    = smtp_user
-        msg['To']      = ALERT_TO
-        with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=30) as s:
-            s.starttls()
-            s.login(smtp_login, smtp_pass)
-            s.sendmail(smtp_user, [ALERT_TO], msg.as_string())
-        log(f'ALERT EMAIL sent to {ALERT_TO}')
-    except Exception as e:
-        log(f'ALERT EMAIL failed: {e}', 'ERROR')
-
+    sent, what = queue_alert.send_alert(subject, body)
+    log(what, 'INFO' if sent else ('WARN' if 'NOT sent' in what else 'ERROR'))
 
 def read_fb_queue_state(ws) -> tuple[set, _dt.date]:
     """

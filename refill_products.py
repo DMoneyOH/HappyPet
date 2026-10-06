@@ -459,7 +459,11 @@ def chewy_enrich(name: str, upc: str | None = None) -> dict:
     return empty
 
 
-def apply_resolution(entry: dict, resolved: dict) -> None:
+def apply_resolution(entry: dict, resolved: dict, enrich_chewy: bool = True) -> None:
+    """enrich_chewy=False skips chewy_enrich, so this call does not import
+    chewy_lookup (whose import reads Impact credentials from the local vault when
+    IMPACT_* are unset) and adds no name-matched Chewy link, which the GTIN-only
+    rule forbids. True stays the default for refill.yml's CI path."""
     entry["name"]          = resolved["name"]
     entry["asin"]          = resolved["asin"]
     entry["affiliate_url"] = f"https://www.amazon.com/dp/{resolved['asin']}?tag={AFFILIATE_TAG}"
@@ -470,7 +474,8 @@ def apply_resolution(entry: dict, resolved: dict) -> None:
         entry["runners_up"] = resolved["runners_up"]
     if resolved.get("upc"):
         entry["upc"] = resolved["upc"]
-    entry.update(chewy_enrich(resolved["name"], resolved.get("upc")))
+    if enrich_chewy:
+        entry.update(chewy_enrich(resolved["name"], resolved.get("upc")))
 
 
 # ------------------------------------------------------------ topic ideation

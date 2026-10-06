@@ -8508,5 +8508,480 @@ class TestCreedBandRetailerLink(unittest.TestCase):
         self.assertIn("Amazon and Chewy", self.about)
 
 
+class TestManualResolveChewyOffByDefault(unittest.TestCase):
+    """manual_resolve.py skips Chewy unless --chewy is passed (refill automation,
+    2026-10-06). The name-matching lookup violates the GTIN-only rule for Chewy
+    links, and importing chewy_lookup reads Impact credentials from the vault."""
+
+    PLACEHOLDER = {
+        "topic": "best-x-things", "title": "T", "keyword": "k", "species": "dog",
+        "category": "toys", "format": "roundup", "topical_sheet": "HAPPYPET_SHEET_ID_TOYS",
+        "name": "NEEDS_ASIN placeholder for k", "asin": "NEEDS_ASIN",
+        "affiliate_url": "https://www.amazon.com/dp/NEEDS_ASIN?tag=happypetdc-20",
+        "image": "NEEDS_IMAGE", "price": None, "stars": None, "chewy_url": None,
+        "chewy_price": None, "chewy_stock": None, "chewy_rating": None}
+    ARGS = ["--topic", "best-x-things", "--name", "Acme Dog Toy, Large",
+            "--asin", "B0ABCD1234",
+            "--image", "https://m.media-amazon.com/images/I/71abcXYZ._AC_SX425_.jpg",
+            "--price", "12.99", "--stars", "4.5", "--upc", "012345678905"]
+
+    def _run(self, extra):
+        import refill_products as rp
+        import manual_resolve as mr
+        with tempfile.TemporaryDirectory() as d:
+            path = Path(d) / "products.json"
+            path.write_text(json.dumps([dict(self.PLACEHOLDER)]))
+            with patch.object(rp, "PRODUCTS_PATH", path):
+                mr.main(self.ARGS + extra)
+            return json.loads(path.read_text(encoding="utf-8"))[0]
+
+    def test_default_never_calls_chewy_enrich(self):
+        import refill_products as rp
+        with patch.object(rp, "chewy_enrich", side_effect=AssertionError("chewy_enrich ran")):
+            entry = self._run([])
+        self.assertEqual(entry["asin"], "B0ABCD1234")
+        self.assertEqual(entry["upc"], "012345678905")
+        self.assertIsNone(entry["chewy_url"])
+
+    def test_the_opt_in_flag_still_reaches_chewy_enrich(self):
+        # Inverse direction: --chewy is the only way in.
+        import refill_products as rp
+        calls = []
+        with patch.object(rp, "chewy_enrich",
+                          side_effect=lambda *a: calls.append(a) or {"chewy_url": None}):
+            self._run(["--chewy"])
+        self.assertEqual(calls, [("Acme Dog Toy, Large", "012345678905")])
+
+    def test_importing_the_refill_modules_never_touches_the_vault(self):
+        # Fresh interpreter, IMPACT_* unset: chewy_lookup (which reads the vault at
+        # import) and brain_secrets must not be loaded by any of these imports.
+        import subprocess
+        env = {k: v for k, v in os.environ.items() if not k.startswith("IMPACT_")}
+        code = ("import sys; import refill_cli, manual_resolve, refill_watchdog, "
+                "refill_products, queue_alert; "
+                "print(sorted(m for m in ('chewy_lookup', 'brain_secrets') if m in sys.modules))")
+        out = subprocess.run([sys.executable, "-c", code], cwd=REPO, env=env,
+                             capture_output=True, text=True, check=True).stdout.strip()
+        self.assertEqual(out, "[]")
+
+    def test_impact_placeholders_keep_chewy_lookup_out_of_the_vault(self):
+        # Second layer, for the opt-in path: run-refill.ps1 sets IMPACT_* to a
+        # non-secret placeholder, and chewy_lookup reads the vault only when one
+        # of them is empty.
+        import importlib.util
+        import brain_secrets
+        def load_fresh():
+            spec = importlib.util.spec_from_file_location("chewy_lookup_fresh",
+                                                          REPO / "chewy_lookup.py")
+            mod = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(mod)
+            return mod
+        env = {"IMPACT_ACCOUNT_SID": "disabled-local-refill",
+               "IMPACT_AUTH_TOKEN": "disabled-local-refill"}
+        with patch.dict(os.environ, env), patch.object(
+                brain_secrets, "get_secret", side_effect=AssertionError("vault read")):
+            self.assertEqual(load_fresh().ACCOUNT_SID, "disabled-local-refill")
+        calls = []
+        with patch.dict(os.environ, {"IMPACT_ACCOUNT_SID": "", "IMPACT_AUTH_TOKEN": ""}), \
+             patch.object(brain_secrets, "get_secret", side_effect=lambda k: calls.append(k)):
+            load_fresh()
+        self.assertEqual(calls, ["IMPACT_ACCOUNT_SID", "IMPACT_AUTH_TOKEN"])
+
+    def test_the_manual_path_doc_never_uses_the_flag(self):
+        doc = (REPO / "docs" / "refill-manual-resolve.md").read_text(encoding="utf-8")
+        self.assertNotIn("--no-chewy", doc)
+        self.assertNotRegex(doc, r"manual_resolve\.py[^`]*--chewy")
+        self.assertIn("Never pass `--chewy`", doc)
+
+
+class TestRefillCli(unittest.TestCase):
+    """refill_cli.py -- the offline half of the local refill session. Every test runs
+    on a fixture repo (posts, pin files, a two-entry queue), never the live
+    products.json. Expected values are literals."""
+
+    GOOD_IMAGE = "https://m.media-amazon.com/images/I/71abcXYZ._AC_SX425_.jpg"
+    QUEUED = ("best-queued-one", "best-queued-two")
+
+    def setUp(self):
+        import refill_cli
+        self.cli = refill_cli
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        d = Path(self.tmp.name)
+        (d / "_posts").mkdir()
+        (d / "_posts" / "2026-01-01-best-published-post.md").write_text("---\n---\n")
+        (d / "_posts" / "DRAFT-best-drafted-post.md").write_text("---\n---\n")
+        (d / "_posts" / "2026-01-02-bare-post.md").write_text("---\n---\n")
+        q = d / "_pin_queue"
+        (q / "sent").mkdir(parents=True)
+        (q / ".fired").mkdir()
+        (q / "best-only-pending.json").write_text("{}")
+        (q / "sent" / "best-only-sent.json").write_text("{}")
+        (q / ".fired" / "best-only-fired.fired").write_text("")
+        (q / ".fired" / ".gitkeep").write_text("")
+        self.base = d / "base.json"
+        self.head = d / "products.json"
+        self.plan = d / "plan.json"
+        queue = [self.full_entry(topic=t, asin=f"B0QUEUED0{i}") for i, t in
+                 enumerate(self.QUEUED)]
+        for p in (self.base, self.head):
+            p.write_text(json.dumps(queue, indent=2), encoding="utf-8")
+        for patcher in (patch.object(self.cli, "REPO_DIR", d),
+                        patch.object(self.cli.gp, "POSTS_DIR", d / "_posts")):
+            patcher.start()
+            self.addCleanup(patcher.stop)
+
+    def topic(self, **over):
+        t = {"topic": "best-widget-for-tests", "title": "Best Widgets for Test Pets",
+             "keyword": "best widget for pets", "species": "dog", "category": "toys",
+             "topical_sheet": "HAPPYPET_SHEET_ID_TOYS",
+             "amazon_search_query": "widget for dogs", "product": None}
+        t.update(over)
+        return t
+
+    def product(self, **over):
+        p = {"name": "Acme Widget for Dogs, Medium", "asin": "B0ABCD1234",
+             "image": self.GOOD_IMAGE, "price": "19.99", "stars": 4.6,
+             "runners_up": "Brand B Widget; Brand C Widget", "upc": "012345678905"}
+        p.update(over)
+        return p
+
+    def full_entry(self, topic="best-widget-for-tests", asin="B0ABCD1234", **over):
+        """A filled entry exactly as seed + resolve write it."""
+        e = {"topic": topic, "title": "Best Widgets for Test Pets",
+             "keyword": "best widget for pets",
+             "name": "Acme Widget for Dogs, Medium", "asin": asin,
+             "affiliate_url": f"https://www.amazon.com/dp/{asin}?tag=happypetdc-20",
+             "image": self.GOOD_IMAGE, "species": "dog", "category": "toys",
+             "format": "roundup", "topical_sheet": "HAPPYPET_SHEET_ID_TOYS",
+             "stars": 4.6, "price": "19.99", "runners_up": "Brand B Widget",
+             "chewy_url": None, "chewy_price": None, "chewy_stock": None,
+             "chewy_rating": None, "amazon_search_query": "widget for dogs"}
+        e.update(over)
+        return e
+
+    def run_cli(self, *argv):
+        return io_capture(lambda: self.cli.main([f"--products={self.head}", *argv]))
+
+    def check(self, new_entries):
+        base = json.loads(self.base.read_text(encoding="utf-8"))
+        self.head.write_text(json.dumps(base + new_entries), encoding="utf-8")
+        return self.run_cli("check", "--base", str(self.base))
+
+    # ---- topic validation -----------------------------------------------------
+
+    def test_good_topic_passes(self):
+        self.assertEqual(self.cli.topic_problems(self.topic(), set()), [])
+
+    def test_only_the_22_bare_topics_are_accepted(self):
+        for legacy in ("dog-health", "cat-beds", "pet-grooming", "dog-gear"):
+            self.assertTrue(self.cli.topic_problems(self.topic(category=legacy), set()), legacy)
+        for bad in ("Toys", "toys ", "", None, "gear"):
+            self.assertTrue(self.cli.topic_problems(self.topic(category=bad), set()), bad)
+        self.assertEqual(self.cli.topic_problems(self.topic(category="flea-tick"), set()), [])
+
+    def test_bad_slug_shapes_are_refused(self):
+        for slug in ("widget", "best-Widget", "best-a--b", "best-x-", "best-x\n",
+                     "best-x/y", "best-" + "a" * 60, None, 7):
+            self.assertTrue(self.cli.topic_problems(self.topic(topic=slug), set()), repr(slug))
+
+    def test_collisions_in_either_slug_form(self):
+        for taken in ({"best-widget-for-tests"}, {"widget-for-tests"}):
+            bad = self.cli.topic_problems(self.topic(), taken)
+            self.assertTrue(any("collides" in b for b in bad), taken)
+
+    def test_text_fields_use_the_gates_rule(self):
+        for title in ('Best "Widgets"', "Best <b>Widgets</b>", "Best\tWidgets",
+                      " Best Widgets", "Best `Widgets`", "x" * 201, "",
+                      "=HYPERLINK(1)", "+Widgets", "-Widgets", "@Widgets"):
+            self.assertTrue(self.cli.topic_problems(self.topic(title=title), set()), repr(title))
+
+    def test_species_and_sheet_are_closed_sets(self):
+        self.assertTrue(self.cli.topic_problems(self.topic(species="dogs"), set()))
+        self.assertTrue(self.cli.topic_problems(
+            self.topic(topical_sheet="HAPPYPET_SHEET_ID_DOGS"), set()))
+
+    def test_taken_slugs_has_each_source_in_both_forms(self):
+        taken = self.cli.taken_slugs(json.loads(self.base.read_text(encoding="utf-8")))
+        self.assertEqual(taken, {
+            "best-published-post", "published-post", "best-drafted-post", "drafted-post",
+            "best-queued-one", "queued-one", "best-queued-two", "queued-two",
+            "best-only-pending", "only-pending", "best-only-sent", "only-sent",
+            "best-only-fired", "only-fired", "bare-post"})
+
+    # ---- product validation ---------------------------------------------------
+
+    def test_good_product_passes(self):
+        self.assertEqual(self.cli.product_problems(self.product()), [])
+
+    def test_image_forms_the_producer_accepts_but_the_gate_refuses(self):
+        import refill_products as rp
+        for image in (self.GOOD_IMAGE + "?x=.jpg",
+                      "HTTPS://M.MEDIA-AMAZON.COM/images/I/71abcXYZ._AC_SX425_.jpg"):
+            self.assertTrue(rp.validate_candidate(self.product(image=image)), image)
+            self.assertTrue(self.cli.product_problems(self.product(image=image)), image)
+
+    def test_bad_product_fields(self):
+        for over in ({"asin": "B12345678"}, {"image": "https://images-na.ssl-images-amazon.com/x.jpg"},
+                     {"name": "Sponsored Ad - Widget"}, {"price": "$19.99"}, {"price": 19.99},
+                     {"stars": True}, {"stars": 5.1}, {"stars": "4.5"}, {"upc": "01234567890X"},
+                     {"runners_up": "A\nB"}, {"name": "=Widget"}):
+            self.assertTrue(self.cli.product_problems(self.product(**over)), over)
+        self.assertTrue(self.cli.product_problems(None))
+
+    # ---- check: every seed/resolve rule on every new entry --------------------
+
+    def test_check_passes_a_canonical_new_entry(self):
+        rc, out = self.check([self.full_entry()])
+        self.assertEqual(rc, 0, out)
+
+    def test_check_holds_planted_faults(self):
+        cases = {
+            "published post": self.full_entry(topic="best-published-post"),
+            "draft": self.full_entry(topic="best-drafted-post"),
+            "pin file": self.full_entry(topic="best-only-sent"),
+            "fired pin": self.full_entry(topic="best-only-fired"),
+            "bare-form collision": self.full_entry(topic="best-bare-post"),
+            "missing topical_sheet": {k: v for k, v in self.full_entry().items()
+                                      if k != "topical_sheet"},
+            "missing amazon_search_query": {k: v for k, v in self.full_entry().items()
+                                            if k != "amazon_search_query"},
+            "missing chewy_stock": {k: v for k, v in self.full_entry().items()
+                                    if k != "chewy_stock"},
+            "species": self.full_entry(species="dogs"),
+            "legacy category": self.full_entry(category="dog-toys"),
+            "title text": self.full_entry(title="=Widgets"),
+            "price": self.full_entry(price=19.99),
+            "format": self.full_entry(format="listicle"),
+            "name-matched chewy url": self.full_entry(chewy_url=(
+                "https://chewy.sjv.io/c/7160344/3054490/32975?prodsku=1112910"
+                "&u=https%3A%2F%2Fwww.chewy.com%2Fbeggin%2Fdp%2F1112910")),
+            "chewy price": self.full_entry(chewy_price="9.99"),
+        }
+        for label, entry in cases.items():
+            rc, out = self.check([entry])
+            self.assertEqual(rc, 1, f"{label}: {out}")
+
+    def test_the_gate_alone_passes_the_name_matched_chewy_link(self):
+        # Why the local rule exists: the gate allows any chewy.sjv.io link.
+        g = _load_automerge_gate()
+        entry = self.full_entry(chewy_url=(
+            "https://chewy.sjv.io/c/7160344/3054490/32975?prodsku=1112910"
+            "&u=https%3A%2F%2Fwww.chewy.com%2Fbeggin%2Fdp%2F1112910"))
+        base = self.base.read_text(encoding="utf-8")
+        head = json.dumps(json.loads(base) + [entry])
+        self.assertEqual(g.refill_products_problems(head, base), [])
+        rc, out = self.check([entry])
+        self.assertIn("chewy_url is set", out)
+
+    def test_check_holds_a_duplicate_slug_and_a_duplicate_asin(self):
+        rc, out = self.check([self.full_entry(), self.full_entry(asin="B0WXYZ5678")])
+        self.assertEqual(rc, 1)
+        self.assertIn("collides", out)
+        rc, out = self.check([self.full_entry(),
+                              self.full_entry(topic="best-other-widget")])
+        self.assertEqual(rc, 1)
+        self.assertIn("appears more than once", out)
+
+    def test_queued_entries_are_exempt(self):
+        # The fixture's queued entries would fail several new-entry rules (their
+        # slugs are "taken" by themselves); check must not judge them.
+        rc, out = self.check([])
+        self.assertNotIn("queued-one", out)
+
+    def test_check_reads_bad_files_cleanly(self):
+        self.base.write_text("{not json", encoding="utf-8")
+        with self.assertRaises(SystemExit) as cm:
+            self.run_cli("check", "--base", str(self.base))
+        self.assertIn("base unreadable", str(cm.exception.code))
+        with self.assertRaises(SystemExit):
+            self.run_cli("check", "--base", str(self.base.parent / "missing.json"))
+
+    # ---- end to end -----------------------------------------------------------
+
+    def test_seed_resolve_check_round_trip(self):
+        plan = {"abort": None, "topics": [
+            self.topic(product=self.product()),
+            self.topic(topic="best-other-widget", product=self.product(
+                asin="B0WXYZ5678", image=self.GOOD_IMAGE + "?bad=.jpg")),
+            self.topic(topic="best-published-post", product=self.product(asin="B0ZZZZ9999")),
+        ]}
+        self.plan.write_text(json.dumps(plan), encoding="utf-8")
+        base = json.loads(self.base.read_text(encoding="utf-8"))
+        self.assertEqual(self.run_cli("seed", "--plan", str(self.plan))[0], 0)
+        seeded = json.loads(self.head.read_text(encoding="utf-8"))
+        self.assertEqual([e["topic"] for e in seeded[2:]],
+                         ["best-widget-for-tests", "best-other-widget"])
+        self.assertEqual(self.run_cli("check", "--base", str(self.base))[0], 1)
+        result = self.base.parent / "result.json"
+        import refill_products as rp
+        with patch.object(rp, "chewy_enrich", side_effect=AssertionError("chewy ran")):
+            rc, _ = self.run_cli("resolve", "--plan", str(self.plan), "--base",
+                                 str(self.base), "--result", str(result))
+        self.assertEqual(rc, 0)
+        out = json.loads(result.read_text(encoding="utf-8"))
+        self.assertEqual(out["filled"], ["best-widget-for-tests"])
+        self.assertEqual([x["topic"] for x in out["dropped"]], ["best-other-widget"])
+        final = json.loads(self.head.read_text(encoding="utf-8"))
+        self.assertEqual(final[:2], base)
+        self.assertEqual(len(final), 3)
+        self.assertEqual(final[2]["affiliate_url"],
+                         "https://www.amazon.com/dp/B0ABCD1234?tag=happypetdc-20")
+        self.assertIsNone(final[2]["chewy_url"])
+        rc, out = self.run_cli("check", "--base", str(self.base))
+        self.assertEqual(rc, 0, out)
+
+    def test_check_holds_a_leaked_partner_tag(self):
+        import refill_products as rp
+        self.plan.write_text(json.dumps({"topics": [self.topic(product=self.product())]}),
+                             encoding="utf-8")
+        self.run_cli("seed", "--plan", str(self.plan))
+        with patch.object(rp, "AFFILIATE_TAG", "pawpicks04-20"):
+            self.run_cli("resolve", "--plan", str(self.plan), "--base", str(self.base))
+        rc, out = self.run_cli("check", "--base", str(self.base))
+        self.assertEqual(rc, 1)
+        self.assertIn("affiliate_url is not the canonical link", out)
+
+    def test_resolve_never_touches_a_queued_entry(self):
+        # Even a queued PLACEHOLDER on the branch point, named by the plan with no
+        # product, is neither filled nor dropped: dropping it would delete queue.
+        import refill_products as rp
+        held = rp.build_entry({k: v for k, v in self.topic(topic="best-held-in-base").items()
+                               if k != "product"})
+        queue = json.loads(self.base.read_text(encoding="utf-8")) + [held]
+        for p in (self.base, self.head):
+            p.write_text(json.dumps(queue), encoding="utf-8")
+        self.plan.write_text(json.dumps(
+            {"topics": [self.topic(topic="best-held-in-base", product=None)]}), encoding="utf-8")
+        self.assertEqual(self.run_cli("seed", "--plan", str(self.plan))[0], 1)
+        self.assertEqual(self.run_cli("resolve", "--plan", str(self.plan),
+                                      "--base", str(self.base))[0], 1)
+        self.assertEqual(json.loads(self.head.read_text(encoding="utf-8")), queue)
+
+    def test_an_aborted_plan_seeds_nothing(self):
+        self.plan.write_text(json.dumps({"abort": "SiteStripe bar not visible",
+                                         "topics": [self.topic()]}), encoding="utf-8")
+        before = self.head.read_text(encoding="utf-8")
+        self.assertEqual(self.run_cli("seed", "--plan", str(self.plan))[0], 1)
+        self.assertEqual(self.head.read_text(encoding="utf-8"), before)
+
+    def test_a_plan_with_a_bom_still_loads(self):
+        self.plan.write_bytes(b"\xef\xbb\xbf" + json.dumps({"topics": []}).encode())
+        self.assertEqual(self.cli.load_plan(self.plan), {"topics": []})
+
+    def test_context_lists_topics_and_taken_slugs(self):
+        out = self.base.parent / "ctx.json"
+        self.run_cli("context", "--out", str(out), "--batch", "6")
+        ctx = json.loads(out.read_text(encoding="utf-8"))
+        import categories
+        self.assertEqual(ctx["categories"], list(categories.TOPICS))
+        self.assertEqual(ctx["batch"], 6)
+        self.assertIn("best-published-post", ctx["taken_slugs"])
+        self.assertEqual([q["topic"] for q in ctx["queued"]], list(self.QUEUED))
+
+
+def io_capture(fn):
+    """(return value, captured stdout) of fn()."""
+    import io
+    buf = io.StringIO()
+    with contextlib.redirect_stdout(buf):
+        rc = fn()
+    return rc, buf.getvalue()
+
+
+class TestRefillWatchdog(unittest.TestCase):
+    """refill_watchdog.py -- the dead-man's switch keyed on queue depth, sharing
+    queue_alert's depth function and sender with push_pins_to_sheets."""
+
+    def setUp(self):
+        import refill_watchdog
+        import queue_alert
+        self.w = refill_watchdog
+        self.qa = queue_alert
+
+    def test_verdict_table(self):
+        cases = [  # (publishable depth, open refill PRs or None=unreadable, alerts?)
+            (0, [], True), (0, [7], True), (1, [], True), (1, [7], True),
+            (2, [], False), (3, [7], False), (5, None, True), (0, None, True)]
+        for depth, prs, alerts in cases:
+            self.assertEqual(self.w.verdict(depth, prs) is not None, alerts, (depth, prs))
+
+    def test_an_open_pr_is_named_not_a_silencer(self):
+        self.assertIn("#7, #9", self.w.verdict(1, [7, 9]))
+
+    def test_unreadable_pr_lists_fail_closed(self):
+        for raw in ("", None, "unreadable", "-1", "1", "[1.0]", "[true]", "[-3]", "[0]",
+                    "²", "[²]", "{}", "[1,", " "):
+            self.assertIsNone(self.w.parse_open_prs(raw), repr(raw))
+        self.assertEqual(self.w.parse_open_prs("[]"), [])
+        self.assertEqual(self.w.parse_open_prs("[12,13]\n"), [12, 13])
+
+    def test_held_placeholders_are_not_depth(self):
+        good = dict(SAMPLE_PRODUCT)
+        held = dict(SAMPLE_PRODUCT, asin="NEEDS_ASIN", image="NEEDS_IMAGE")
+        products = {"best-a": good, "best-b": held, "best-c": good}
+        self.assertEqual(self.qa.publishable_unpublished(products, {"best-c"}), ["best-a"])
+
+    def test_push_pins_counts_with_the_same_function(self):
+        import push_pins_to_sheets as pk
+        with patch.object(self.qa, "publishable_unpublished", return_value=["a", "b"]):
+            self.assertEqual(pk.count_unpublished(), 2)
+
+    def _main(self, env, products=None, smtp=None):
+        env = {"GMAIL_SMTP_USER": "", "GMAIL_ACCOUNT": "", "GMAIL_APP_PASSWORD": "", **env}
+        with patch.dict(os.environ, env), \
+             patch.object(self.qa, "publishable_unpublished", return_value=products or []), \
+             patch.object(self.qa.smtplib, "SMTP", **(smtp or {})) as mock_smtp:
+            rc, out = io_capture(self.w.main)
+        return rc, out, mock_smtp
+
+    def test_alert_without_mail_credentials_still_exits_red(self):
+        rc, out, smtp = self._main({"OPEN_REFILL_PRS": "[]"})
+        self.assertEqual(rc, 1)
+        self.assertIn("ALERT", out)
+        self.assertIn("NOT sent", out)
+        smtp.assert_not_called()
+
+    def test_failed_send_is_reported_and_still_red(self):
+        rc, out, _ = self._main({"OPEN_REFILL_PRS": "[]", "GMAIL_APP_PASSWORD": "x"},
+                                smtp={"side_effect": OSError("no route")})
+        self.assertEqual(rc, 1)
+        self.assertIn("Alert email failed", out)
+
+    def test_sent_alert_names_the_open_pr_and_has_a_sender(self):
+        rc, out, smtp = self._main({"OPEN_REFILL_PRS": "[42]", "GMAIL_APP_PASSWORD": "x"},
+                                   products=["best-a"])
+        self.assertEqual(rc, 1)
+        conn = smtp.return_value.__enter__.return_value
+        sender, to, raw = conn.sendmail.call_args.args
+        self.assertEqual(sender, "hello@happypetproductreviews.com")  # never empty
+        self.assertEqual(to, ["hello@happypetproductreviews.com"])
+        self.assertIn("From: hello@happypetproductreviews.com", raw)
+        self.assertIn("/pull/42", raw)
+        conn.login.assert_called_once_with("hello@happypetproductreviews.com", "x")
+
+    def test_a_non_ascii_digit_count_alerts_instead_of_crashing(self):
+        rc, out, _ = self._main({"OPEN_REFILL_PRS": "²"}, products=["a", "b", "c"])
+        self.assertEqual(rc, 1)
+        self.assertIn("could not be read", out)
+
+    def test_healthy_queue_exits_green_and_sends_nothing(self):
+        rc, _, smtp = self._main({"OPEN_REFILL_PRS": "[]"}, products=["a", "b"])
+        self.assertEqual(rc, 0)
+        smtp.assert_not_called()
+
+    def test_workflow_is_read_only_and_passes_values_through_env(self):
+        wf = (REPO / ".github" / "workflows" / "refill-watchdog.yml").read_text(encoding="utf-8")
+        self.assertIn("permissions: {}", wf)
+        self.assertNotRegex(wf, r":\s*write")
+        self.assertIn("persist-credentials: false", wf)
+        self.assertIn("open=unreadable", wf)
+        self.assertIn("map(.number) | tojson", wf)
+        # Every ${{ }} expression is an env: value, never text inside a run: script.
+        for line in wf.splitlines():
+            if "${{" in line:
+                self.assertRegex(line, r"^\s+[A-Z_]+:\s+\$\{\{ [A-Za-z._]+ \}\}$", line)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

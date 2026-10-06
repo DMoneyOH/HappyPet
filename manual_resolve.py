@@ -7,8 +7,10 @@ Amazon resolution in refill_products.py is currently blocked (anonymous
 scrape returning 0/21 resolved as of 2026-07-07 -- see
 docs/superpowers/specs/2026-07-07-refill-manual-resolve-design.md). This
 script takes a product found via a live, logged-in browser session and
-applies it through refill_products.py's existing validation and Chewy
-enrichment -- no Amazon or Chewy network code is duplicated here.
+applies it through refill_products.py's existing validation -- no Amazon or
+Chewy network code is duplicated here. Chewy enrichment is OFF by default
+(chewy_url stays null; Chewy links come from the UPC on the GTIN path); the
+--chewy flag restores the old name-matching lookup and must not be used.
 
 Usage:
     python3 manual_resolve.py --topic best-automatic-litter-box \
@@ -55,6 +57,11 @@ def main(argv: list | None = None) -> None:
                         help="Amazon UPC/GTIN, if visible in the product's "
                              "'Product information' section -- enables an "
                              "exact-match fast path in Chewy enrichment")
+    parser.add_argument("--chewy", action="store_true",
+                        help="DO NOT USE. Runs the old Chewy name-matching lookup through "
+                             "Impact.com, which violates the GTIN-only rule for Chewy links. "
+                             "By default Chewy is skipped and chewy_url stays null; Chewy "
+                             "links are added later from the UPC on the GTIN path")
     args = parser.parse_args(argv)
 
     products = rp.load_products()
@@ -75,7 +82,7 @@ def main(argv: list | None = None) -> None:
     if args.upc:
         resolved["upc"] = args.upc
 
-    rp.apply_resolution(entry, resolved)
+    rp.apply_resolution(entry, resolved, enrich_chewy=args.chewy)
     atomic_write_json(rp.PRODUCTS_PATH, products, trailing_newline=True)
     print(f"APPLIED '{args.topic}': {args.name} ({args.asin})")
 
