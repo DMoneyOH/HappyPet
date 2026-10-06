@@ -5443,104 +5443,257 @@ class TestSheetsApiRetry(unittest.TestCase):
                                  "append_row must never be handed to sheets_retry")
 
 
-class TestPinPayloadIsTitleOnly(unittest.TestCase):
-    """post_pins.py sends value2=title[:100], NOT "title | pin_desc".
+class TestPinJsonPayload(unittest.TestCase):
+    """post_pins.py POSTs {"image_url","title","description","source_url"} to
+    IFTTT's json endpoint as happypet_pinjson_<board>, and the description is the
+    caption printed on the pin image.
 
-    Written because the docstring said "title | pin_desc" for five months after
-    a3fab21 deliberately removed the concatenation, which reads exactly like a
-    bug: the code appears to discard a variable the documentation promises. It
-    is not one. Pinterest caps the field at 100 characters and appending the
-    description overran it.
+    History: the payload used to be value1/value2/value3 with value2 = the title
+    alone (a3fab21 had removed "title | pin_desc" because it overran Pinterest's
+    100-char title cap), so the pin's Pinterest description was the title. The
+    description now travels in its own field, so the title stays title-only.
 
-    The description is not dropped either. generate_posts.py passes the same
-    pin_desc to make_pin_for_post() before writing the queue file, and that
-    renders it onto the pin image, so it reaches Pinterest in the artwork.
-    Restoring the concatenation would publish it twice and re-break the cap.
-
-    These tests exist to make that argument fail loudly rather than be
-    rediscovered and "fixed" from the docstring a third time.
+    The caption comes from the published post's front matter, not the queue
+    file: publish.yml re-renders the final pin from front matter (regen_one),
+    and content sweeps edit front matter without touching queue files. Expected
+    captions below are hand-copied literals from _posts/, chosen from posts whose
+    queue copy has drifted, so reading the queue field instead fails them.
     """
+
+    # Hand-copied from _posts/ front matter (the queue copies differ for the
+    # first two: an em-dash in best-cat-beds, a whole rewrite in the other).
+    REAL_CAPTIONS = {
+        "best-cat-beds":
+            "Cozy indoor cats swear by these lounge-worthy beds. Find the "
+            "perfect spot for your whiskered napper!",
+        "best-dog-joint-supplements":
+            "The joint supplements owners rate highest for mobility and hip "
+            "support, compared side by side.",
+        "best-puppy-food":
+            "Discover the top puppy food that fuels growth without breaking the bank.",
+    }
+
+    JSON_EVENT = {
+        "happypet_pin_dogs":   "happypet_pinjson_dogs",
+        "happypet_pin_cats":   "happypet_pinjson_cats",
+        "happypet_pin_food":   "happypet_pinjson_food",
+        "happypet_pin_health": "happypet_pinjson_health",
+        "happypet_pin_home":   "happypet_pinjson_home",
+        "happypet_pin_toys":   "happypet_pinjson_toys",
+    }
+
+    def setUp(self):
+        import post_pins as pp
+        self.pp = pp
 
     def _source(self):
         return (REPO / "post_pins.py").read_text(encoding="utf-8")
 
-    def test_value2_is_the_title_capped_at_100(self):
-        self.assertIn("value2 = title[:100]", self._source())
-
-    def test_the_queue_description_is_never_concatenated_into_value2(self):
-        """The exact shape a3fab21 removed, plus the obvious variants of it."""
-        # Assignment lines only -- the module docstring necessarily quotes the
-        # old "title | pin_desc" shape while explaining why it is gone.
-        assignments = [l for l in self._source().splitlines()
-                       if re.match(r"\s*value2\s*=[^=]", l)]
-        self.assertTrue(assignments, "no value2 assignment found at all")
-        for line in assignments:
-            with self.subTest(line=line.strip()):
-                for banned in ("pin_desc", "description", '" | "', "' | '"):
-                    self.assertNotIn(banned, line)
-
-    def test_the_fired_payload_carries_no_description(self):
-        """Behavioural, not source-shaped: drive the real main() over a real
-        queue file with the network stubbed, and assert on what fire_webhook
-        was actually handed."""
-        import post_pins as pp
-
-        queue = {"title": "Best Dog Cooling Mats to Beat the Summer Heat",
-                 "article_url": "https://happypetproductreviews.com/dog-gear/x/",
-                 "description": "Beat the summer heat with a mat that actually cools.",
-                 "image_url": "https://happypetproductreviews.com/a/b.jpg",
-                 "species": "dog", "slug": "x", "topical_sheet": ""}
-        captured = []
-
+    def _drive_main(self, slug, queue_overrides=None, fired=()):
+        """Run the real main() over one queue file in a scratch repo dir with the
+        network and git stubbed. Returns [(event, payload)] handed to fire_webhook
+        and the names of the .fired files left behind."""
+        queue = {"title": "Best Pet Thing", "article_url": "https://x/a/",
+                 "description": "queue copy of the caption",
+                 "image_url": "https://x/a.jpg", "species": "dog", "slug": slug,
+                 "topical_sheet": "HAPPYPET_SHEET_ID_FOOD"}
+        queue.update(queue_overrides or {})
+        calls = []
         with tempfile.TemporaryDirectory() as tmp:
             qdir = Path(tmp) / "_pin_queue"
-            qdir.mkdir()
-            (qdir / "x.json").write_text(json.dumps(queue), encoding="utf-8")
-            with patch.object(pp, "REPO_DIR", Path(tmp)), \
-                 patch.object(pp, "brain_get_secret", return_value="k"), \
-                 patch.object(pp, "check_url_live", return_value=True), \
-                 patch.object(pp, "check_image_has_content", return_value=True), \
-                 patch.object(pp, "fire_webhook",
-                              side_effect=lambda ev, v1, v2, v3, key: captured.append(v2) or True), \
+            (qdir / ".fired").mkdir(parents=True)
+            (qdir / f"{slug}.json").write_text(json.dumps(queue), encoding="utf-8")
+            for name in fired:
+                (qdir / ".fired" / name).write_text("t", encoding="utf-8")
+            with patch.object(self.pp, "REPO_DIR", Path(tmp)), \
+                 patch.object(self.pp, "LOG_PATH", Path(tmp) / "t.log"), \
+                 patch.object(self.pp, "brain_get_secret", return_value="k"), \
+                 patch.object(self.pp, "check_url_live", return_value=True), \
+                 patch.object(self.pp, "check_image_has_content", return_value=True), \
+                 patch.object(self.pp.time, "sleep", lambda *_: None), \
+                 patch("subprocess.run", return_value=MagicMock(returncode=0, stdout="", stderr="")), \
+                 patch.object(self.pp, "fire_webhook",
+                              side_effect=lambda ev, payload, key: calls.append((ev, payload)) or True), \
                  patch.object(sys, "argv", ["post_pins.py"]):
-                pp.main()
+                self.pp.main()
+            left = sorted(p.name for p in (qdir / ".fired").iterdir())
+        return calls, left
 
-        self.assertTrue(captured, "no webhook was fired - the test proved nothing")
-        for value2 in captured:
-            self.assertEqual(value2, queue["title"])
-            self.assertNotIn(queue["description"], value2)
-            self.assertNotIn("|", value2)
-            self.assertLessEqual(len(value2), 100)
+    # --- event mapping -------------------------------------------------------
 
-    def test_a_long_title_is_truncated_to_the_pinterest_cap(self):
-        import post_pins as pp
+    def test_json_event_table_is_exactly_the_six_boards(self):
+        self.assertEqual(self.pp.JSON_EVENT, self.JSON_EVENT)
+
+    def test_every_event_resolve_events_can_return_has_a_json_event(self):
+        for species in ("dog", "cat", "both", "unknown"):
+            for label in list(self.pp.TOPICAL_EVENT) + ["", "HAPPYPET_SHEET_ID_DOGS"]:
+                for ev in self.pp.resolve_events(species, label):
+                    self.assertIn(ev, self.JSON_EVENT)
+
+    def test_fire_webhook_posts_json_to_the_json_endpoint(self):
+        seen = {}
+
+        def fake_post(url, body, headers, *, label):
+            seen.update(url=url, body=body, headers=headers)
+            return "Congratulations!"
+        payload = self.pp.build_payload("https://x/a.jpg", "T", "D", "https://x/a/")
+        with patch.object(self.pp, "http_post", side_effect=fake_post), \
+             patch.object(self.pp, "log"):
+            self.assertTrue(self.pp.fire_webhook("happypet_pin_food", payload, "KEY123"))
+        self.assertEqual(seen["url"],
+                         "https://maker.ifttt.com/trigger/happypet_pinjson_food/json/with/key/KEY123")
+        self.assertEqual(seen["headers"], {"Content-Type": "application/json"})
+        self.assertEqual(json.loads(seen["body"]),
+                         {"image_url": "https://x/a.jpg", "title": "T",
+                          "description": "D", "source_url": "https://x/a/"})
+
+    def test_fire_webhook_refuses_an_unmapped_event(self):
+        with patch.object(self.pp, "http_post") as hp:
+            with self.assertRaises(KeyError):
+                self.pp.fire_webhook("happypet_pin_birds", {}, "k")
+            hp.assert_not_called()
+
+    def test_the_key_never_reaches_the_log(self):
+        lines = []
+        payload = self.pp.build_payload("i", "t", "d", "s")
+        for outcome in ("ok", RuntimeError("Maker HTTP 401: nope")):
+            side = (lambda *a, **k: "ok") if outcome == "ok" else outcome
+            with patch.object(self.pp, "http_post", side_effect=side), \
+                 patch.object(self.pp, "log", side_effect=lambda m, *a: lines.append(m)):
+                self.pp.fire_webhook("happypet_pin_dogs", payload, "SEKRETKEY99")
+        self.assertEqual(len(lines), 2)
+        for line in lines:
+            self.assertNotIn("SEKRETKEY99", line)
+
+    # --- the description is the pin-image caption ----------------------------
+
+    def test_description_is_the_front_matter_caption_for_real_posts(self):
+        for slug, caption in self.REAL_CAPTIONS.items():
+            with self.subTest(slug=slug):
+                calls, _ = self._drive_main(slug)
+                self.assertTrue(calls, "no webhook fired - the test proved nothing")
+                for _, payload in calls:
+                    self.assertEqual(payload["description"], caption)
+
+    def test_drifted_queue_copy_is_not_used(self):
+        """best-cat-beds' real queue file carries an em-dash the image doesn't."""
+        calls, _ = self._drive_main("best-cat-beds", {
+            "description": "Cozy indoor cats swear by these lounge-worthy beds"
+                           "—find the perfect spot for your whiskered napper!"})
+        for _, payload in calls:
+            self.assertNotIn("—", payload["description"])
+
+    def test_an_unpublished_slug_falls_back_to_the_queue_description(self):
+        calls, _ = self._drive_main("no-such-post-xyz")
+        self.assertTrue(calls)
+        for _, payload in calls:
+            self.assertEqual(payload["description"], "queue copy of the caption")
+
+    def test_payload_matches_what_the_renderer_draws(self):
+        """Independent of the front-matter parse: re-render real pins through
+        regen_one (photo fetch stubbed, output to a scratch dir) and capture the
+        lines make_pin wraps for the description -- the caption on the image."""
+        import generate_pin_images as g
+        if not g.PIL_AVAILABLE:
+            self.skipTest("Pillow not installed")
+        wrapped = []
+        real_wrap = g.wrap_text
+
+        def spy(draw, text, font, max_width):
+            lines = real_wrap(draw, text, font, max_width)
+            wrapped.append((text, lines))
+            return lines
+        for slug in self.REAL_CAPTIONS:
+            with self.subTest(slug=slug), tempfile.TemporaryDirectory() as tmp:
+                wrapped.clear()
+                with patch.object(g, "wrap_text", side_effect=spy), \
+                     patch.object(g, "fetch_image", return_value=None), \
+                     patch.object(g, "PINS_DIR", Path(tmp)), \
+                     patch.object(g, "log_pin"):
+                    g.regen_one(slug, strict=False)
+                # make_pin wraps the title first, then the description, and draws
+                # at most three description lines.
+                drawn = " ".join(wrapped[1][1][:3])
+                calls, _ = self._drive_main(slug)
+                self.assertEqual(calls[0][1]["description"], drawn)
+
+    def test_every_published_caption_fits_on_the_image_and_the_cap(self):
+        """make_pin draws only the first three wrapped lines. If a caption ever
+        wraps to four, the image would show less than the payload sends."""
+        import generate_pin_images as g
+        if not g.PIL_AVAILABLE:
+            self.skipTest("Pillow not installed")
+        from PIL import Image, ImageDraw
+        draw = ImageDraw.Draw(Image.new("RGB", (1000, 1500)))
+        font = g.get_font("Nunito-Bold.ttf", 36)
+        posts = g.parse_posts()
+        self.assertGreater(len(posts), 10)
+        for p in posts:
+            with self.subTest(slug=p["slug"]):
+                self.assertLessEqual(len(g.wrap_text(draw, p["description"], font, 900)), 3)
+                self.assertLessEqual(len(p["description"]), self.pp.DESC_MAX)
+
+    # --- title / caps --------------------------------------------------------
+
+    def test_title_field_is_the_title_only(self):
+        calls, _ = self._drive_main("best-puppy-food",
+                                    {"title": "Best Puppy Food for Healthy Growth"})
+        for _, payload in calls:
+            self.assertEqual(payload["title"], "Best Puppy Food for Healthy Growth")
+            self.assertNotIn("|", payload["title"])
+            self.assertEqual(set(payload), {"image_url", "title", "description", "source_url"})
+
+    def test_a_long_title_is_capped_at_100_on_a_word_boundary(self):
         long_title = "Best " + ("Extremely Durable " * 12) + "Dog Toy"
         self.assertGreater(len(long_title), 100)
-        captured = []
-        queue = {"title": long_title, "article_url": "https://x/", "description": "d",
-                 "image_url": "https://x/a.jpg", "species": "cat", "slug": "y",
-                 "topical_sheet": ""}
-        with tempfile.TemporaryDirectory() as tmp:
-            qdir = Path(tmp) / "_pin_queue"
-            qdir.mkdir()
-            (qdir / "y.json").write_text(json.dumps(queue), encoding="utf-8")
-            with patch.object(pp, "REPO_DIR", Path(tmp)), \
-                 patch.object(pp, "brain_get_secret", return_value="k"), \
-                 patch.object(pp, "check_url_live", return_value=True), \
-                 patch.object(pp, "check_image_has_content", return_value=True), \
-                 patch.object(pp, "fire_webhook",
-                              side_effect=lambda ev, v1, v2, v3, key: captured.append(v2) or True), \
-                 patch.object(sys, "argv", ["post_pins.py"]):
-                pp.main()
-        self.assertTrue(captured)
-        self.assertEqual(captured[0], long_title[:100])
+        calls, _ = self._drive_main("y", {"title": long_title})
+        # 100 chars ends mid-"Extremely"; the cut backs off to the word before it.
+        self.assertEqual(calls[0][1]["title"],
+                         "Best Extremely Durable Extremely Durable Extremely Durable "
+                         "Extremely Durable Extremely Durable")
+
+    def test_cap_text_cases(self):
+        cap = self.pp.cap_text
+        self.assertEqual(cap("short", 100), "short")
+        self.assertEqual(cap("abc def", 7), "abc def")          # exactly at the cap
+        self.assertEqual(cap("abc defgh", 7), "abc")            # cut mid-word backs off
+        self.assertEqual(cap("abc def ghi", 7), "abc def")      # cut lands on a space
+        self.assertEqual(cap("abcdefghij", 4), "abcd")          # one long word: hard cut
+        self.assertEqual(cap(None, 5), "")
+        long_desc = ("word " * 300).strip()                     # 1499 chars
+        out = cap(long_desc, 800)
+        self.assertLessEqual(len(out), 800)
+        self.assertTrue(long_desc.startswith(out))
+        self.assertEqual(out.split(), ["word"] * len(out.split()))
+
+    def test_long_description_is_capped_at_800(self):
+        calls, _ = self._drive_main("no-such-post-xyz", {"description": "lorem " * 200})
+        self.assertLessEqual(len(calls[0][1]["description"]), 800)
+        self.assertTrue(calls[0][1]["description"].endswith("lorem"))
+
+    # --- boards and dedup unchanged -------------------------------------------
+
+    def test_boards_and_sentinels_keep_the_board_names(self):
+        calls, left = self._drive_main("t", {"species": "both"})
+        self.assertEqual([ev for ev, _ in calls],
+                         ["happypet_pin_dogs", "happypet_pin_cats", "happypet_pin_food"])
+        self.assertEqual(left, ["t.fired", "t.happypet_pin_cats.fired",
+                                "t.happypet_pin_dogs.fired", "t.happypet_pin_food.fired"])
+
+    def test_a_half_fired_slug_does_not_re_pin_its_finished_boards(self):
+        calls, _ = self._drive_main("t", {"species": "both"},
+                                    fired=["t.happypet_pin_dogs.fired"])
+        self.assertEqual([ev for ev, _ in calls], ["happypet_pin_cats", "happypet_pin_food"])
+
+    def test_an_all_events_sentinel_still_skips_the_slug(self):
+        calls, _ = self._drive_main("t", fired=["t.fired"])
+        self.assertEqual(calls, [])
 
     def test_the_docstring_matches_the_code(self):
-        """The defect this class is really about was a docstring that had
-        drifted from the code for five months."""
         doc = self._source().split('"""')[1]
-        self.assertNotIn('value2="title | pin_desc"', doc)
-        self.assertIn("value2=title (capped at 100 chars)", doc)
+        self.assertNotIn("value2", doc)
+        self.assertIn('{"image_url", "title", "description", "source_url"}', doc)
+        self.assertIn("happypet_pinjson_", doc)
 
 
 class TestProductReviewStructuredData(unittest.TestCase):

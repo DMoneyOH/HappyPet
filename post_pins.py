@@ -26,21 +26,28 @@ Board routing -- species board(s) plus exactly one category board:
   TOYS   -> happypet_pin_toys
   anything else (a DOGS/CATS species label, empty, unknown) -> happypet_pin_home
 
-value1=image_url  value2=title (capped at 100 chars)  value3=source_url
+Payload: a JSON body {"image_url", "title", "description", "source_url"} POSTed
+to IFTTT's json endpoint, one per board, as event happypet_pinjson_<board>
+(JSON_EVENT maps each board to it). Each applet's filter code parses the body
+and sets the Pinterest fields one to one.
 
-value2 used to be "title | pin_desc" and this line used to say so long after it
-stopped being true. a3fab21 removed the concatenation deliberately: Pinterest
-caps the field at 100 characters, so appending the description overran the cap
-and caused truncation errors.
+title       = the queue title, capped at 100 chars (Pinterest's title limit).
+description = the caption printed on the pin image, capped at 800 chars.
+              Never "title | description": a3fab21 removed that concatenation
+              because it overran the 100-char title cap. The description now has
+              its own field.
 
-The description is NOT lost by that. generate_posts.py hands the same pin_desc
-to make_pin_for_post() first, which renders it onto the pin image itself
-(generate_pin_images.py draws it under the title), and only then records it in
-the queue file. It reaches Pinterest in the artwork. Putting it back in value2
-would publish it twice and re-break the 100-char cap.
+The caption comes from the published post's front-matter `description`, read
+by generate_pin_images.parse_posts() -- the same parser regen_one() uses when
+publish.yml re-renders the final pin on the runner. The queue file's own
+`description` is only the fallback: content sweeps edit front matter, not queue
+files, and 8 of the first 41 queue copies had drifted from the image.
 
-So: do not "restore" the concatenation on the strength of a docstring.
-test_pipeline.py::TestPinPayloadIsTitleOnly pins the current behavior.
+Board identity (resolve_events, the per-event .fired sentinels) stays keyed on
+the happypet_pin_<board> names; only the URL uses the json event name. Renaming
+the sentinels would make a half-fired slug re-pin its finished boards.
+
+test_pipeline.py::TestPinJsonPayload pins this behavior.
 
 Usage:
   python3 post_pins.py
@@ -49,7 +56,7 @@ Usage:
 """
 
 import argparse, datetime as _dt, json, os, sys, time
-import urllib.error, urllib.parse, urllib.request
+import urllib.error, urllib.request
 from pathlib import Path
 
 REPO_DIR  = Path(__file__).parent.resolve()
@@ -88,7 +95,21 @@ def brain_get_secret(key, project="HappyPet"):
 LOG_PATH  = REPO_DIR / "LOGS" / f"HappyPet_{_dt.date.today().isoformat()}.log"
 LOG_PATH.parent.mkdir(exist_ok=True)
 
-MAKER_URL = "https://maker.ifttt.com/trigger/{event}/with/key/{key}"
+MAKER_URL = "https://maker.ifttt.com/trigger/{event}/json/with/key/{key}"
+
+# Board event -> the JSON-trigger applet event for that board. The one place the
+# old names map to the new; fire_webhook raises KeyError on anything else.
+JSON_EVENT = {
+    "happypet_pin_dogs":   "happypet_pinjson_dogs",
+    "happypet_pin_cats":   "happypet_pinjson_cats",
+    "happypet_pin_food":   "happypet_pinjson_food",
+    "happypet_pin_health": "happypet_pinjson_health",
+    "happypet_pin_home":   "happypet_pinjson_home",
+    "happypet_pin_toys":   "happypet_pinjson_toys",
+}
+
+TITLE_MAX = 100   # Pinterest pin title limit
+DESC_MAX  = 800   # Pinterest pin description limit
 
 # Category label (products.json `topical_sheet`) -> IFTTT event. The keys are
 # named after the retired topical spreadsheets purely because that is the string
@@ -145,18 +166,46 @@ def http_post(url, payload, headers, *, label):
     raise RuntimeError(f"{label} exhausted after {MAX_RETRIES} attempts")
 
 
-def fire_webhook(event, value1, value2, value3, maker_key):
-    url     = MAKER_URL.format(event=event, key=maker_key)
-    payload = urllib.parse.urlencode({
-        "value1": value1, "value2": value2, "value3": value3,
-    }).encode()
-    headers = {"Content-Type": "application/x-www-form-urlencoded"}
+def cap_text(text, limit):
+    """Cap at `limit` chars, cutting at the last whitespace so no word is split.
+    A single word longer than the limit is hard-cut (nothing better exists)."""
+    text = (text or "").strip()
+    if len(text) <= limit:
+        return text
+    if text[limit].isspace():          # the cut lands between words
+        return text[:limit].rstrip()
+    parts = text[:limit].rsplit(None, 1)   # drop the word the cut split
+    return parts[0].rstrip() if len(parts) == 2 else text[:limit]
+
+
+def build_payload(image_url, title, description, source_url):
+    return {
+        "image_url":   image_url,
+        "title":       cap_text(title, TITLE_MAX),
+        "description": cap_text(description, DESC_MAX),
+        "source_url":  source_url,
+    }
+
+
+def load_pin_captions():
+    """slug -> the caption drawn on that post's pin image. Imported here, not at
+    module level: generate_pin_images loads ~/.env and creates the pins dir on
+    import, which nothing else in this script should pay for."""
+    import generate_pin_images
+    return {p["slug"]: p["description"] for p in generate_pin_images.parse_posts()}
+
+
+def fire_webhook(event, payload, maker_key):
+    json_event = JSON_EVENT[event]
+    url     = MAKER_URL.format(event=json_event, key=maker_key)
+    body    = json.dumps(payload).encode()
+    headers = {"Content-Type": "application/json"}
     try:
-        result = http_post(url, payload, headers, label=f"Maker:{event}")
-        log(f"  FIRED {event} -- {result.strip()[:80]}")
+        result = http_post(url, body, headers, label=f"Maker:{json_event}")
+        log(f"  FIRED {json_event} -- {result.strip()[:80]}")
         return True
     except Exception as exc:
-        log(f"  FAIL {event} -- {exc}", "ERROR")
+        log(f"  FAIL {json_event} -- {exc}", "ERROR")
         return False
 
 
@@ -280,6 +329,7 @@ def main():
 
     log(f"START -- {len(queue_files)} pin(s){' [DRY RUN]' if args.dry_run else ''}")
 
+    captions = load_pin_captions()
     processed = 0
     failed    = 0
 
@@ -300,7 +350,12 @@ def main():
             species     = data.get("species", "both")
             topical     = data.get("topical_sheet", "")
 
-            value2 = title[:100]  # Pinterest maxLength=100; title only avoids duplication and truncation errors
+            caption = captions.get(slug)
+            if caption is None:
+                caption = data.get("description", "")
+                log(f"  WARN: no published post for {slug} -- using the queue "
+                    f"file's description as the caption", "WARN")
+            payload = build_payload(image_url, title, caption, article_url)
 
             events = resolve_events(species, topical)
             if not events:
@@ -318,7 +373,8 @@ def main():
             log(f"PIN [{slug}] -> {events} (to fire: {pending_events or 'none, finalizing'})")
             log(f"  image: {image_url[:80]}")
             log(f"  url:   {article_url[:80]}")
-            log(f"  v2:    {value2[:80]}")
+            log(f"  title: {payload['title'][:80]}")
+            log(f"  desc:  {payload['description'][:80]}")
 
             if args.dry_run:
                 log("  DRY RUN -- skipping")
@@ -338,7 +394,7 @@ def main():
 
             pin_ok = True
             for event in pending_events:
-                ok = fire_webhook(event, image_url, value2, article_url, maker_key)
+                ok = fire_webhook(event, payload, maker_key)
                 if ok:
                     _ev_sentinel(event).write_text(_dt.datetime.now(_dt.timezone.utc).isoformat())
                 else:
