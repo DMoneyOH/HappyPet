@@ -894,22 +894,25 @@ def slugify(s: str) -> str:
     return re.sub(r"[^a-z0-9\-]", "", s.lower().replace(" ", "-"))
 
 
+def _post_category(md: Path):
+    """First `categories:` value in a post's front matter, quotes stripped."""
+    m = re.search(r"^categories:\s*\[\s*['\"]?([^\]'\",\s]+)",
+                  md.read_text(encoding="utf-8"), re.M)
+    return m.group(1) if m else None
+
+
 def _published_category(slug: str):
-    """The `categories:` value of the published post for `slug`, or None.
-    SLUG_CATEGORIES only knows the hardcoded ten and the queued products.json
-    entries, so every other published post used to get a made-up path."""
+    """The category of the published post for `slug`, or None. The post's own
+    front matter is the source of truth for its URL; SLUG_CATEGORIES (the
+    hardcoded ten + queued products.json entries) is only the fallback."""
     for md in POSTS_DIR.glob("*.md"):
-        parts = md.stem.split("-", 3)
-        if md.stem.startswith("DRAFT-") or len(parts) != 4 or parts[3] != slug:
-            continue
-        m = re.search(r"^categories:\s*\[\s*([^\],\s]+)", md.read_text(encoding="utf-8"), re.M)
-        if m:
-            return m.group(1)
+        if not md.stem.startswith("DRAFT-") and slug_from_post_stem(md.stem) == slug:
+            return _post_category(md)
     return None
 
 
 def build_url(slug: str, utm: bool = False) -> str:
-    category = SLUG_CATEGORIES.get(slug) or _published_category(slug)
+    category = _published_category(slug) or SLUG_CATEGORIES.get(slug)
     if not category:
         # Unreachable for a validated product (category is required) or a
         # published post; a guessed path would 404, so say so in the log.
@@ -1242,7 +1245,7 @@ def find_related_published_slug(current_slug: str, current_category: str) -> tup
         slug = parts[3]
         if slug == current_slug:
             continue
-        cat = SLUG_CATEGORIES.get(slug) or _published_category(slug) or ""
+        cat = _post_category(md) or SLUG_CATEGORIES.get(slug, "")
         score = 1
         if cat == current_category:
             score = 3

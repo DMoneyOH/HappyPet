@@ -88,7 +88,8 @@ VALID_SHEETS     = ("HAPPYPET_SHEET_ID_HOME", "HAPPYPET_SHEET_ID_FOOD",
 # 2026-10-05 restructure: categories are now species-neutral topics defined in
 # _data/categories.json (species lives in `species`). The ideation LLM is
 # offered ONLY those topics (TOPIC_SCHEMA below); the old species-prefixed
-# names stay valid until phase 2 moves every post and queued entry off them.
+# names stay valid until LEGACY_CATEGORIES is removed (a safety net for queue
+# entries and branches made before phase 2 moved every post to a topic).
 LEGACY_CATEGORIES = ("dog-gear", "dog-food", "dog-health", "dog-toys",
                      "dog-training", "dog-grooming", "dog-beds", "dog-collars",
                      "dog-crates", "dog-harnesses", "dog-carriers", "dog-travel",

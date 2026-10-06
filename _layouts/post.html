@@ -2,12 +2,7 @@
 layout: default
 ---
 {%- assign category = page.categories | first -%}
-{%- assign topic = site.data.categories.topics | where: 'slug', category | first -%}
-{%- if topic -%}
-  {%- assign category_label = topic.label | escape -%}
-{%- else -%}
-  {%- assign category_label = category | replace: '-', ' ' -%}
-{%- endif -%}
+{%- include category-label.html category=category -%}
 {%- assign thumb_path = "/assets/images/thumbs/" | append: page.slug | append: ".jpg" -%}
 {%- assign thumb_file = site.static_files | where: "path", thumb_path | first -%}
 {%- if thumb_file -%}

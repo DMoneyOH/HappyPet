@@ -12,5 +12,3 @@ TOPICS      = tuple(t["slug"] for t in _TOPICS)
 LABELS      = {t["slug"]: t["label"] for t in _TOPICS}
 CTAS        = {t["slug"]: t["cta"] for t in _TOPICS}
 USES        = {t["slug"]: t["use"] for t in _TOPICS}
-CONSUMABLE  = frozenset(t["slug"] for t in _TOPICS if t["consumable"])
-HARD_GOODS  = frozenset(TOPICS) - CONSUMABLE

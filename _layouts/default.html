@@ -146,13 +146,14 @@
           headings for a catalogue that does not exist, which is why they
           read as arbitrary.
 
-          Every label below is a real category in _posts front matter with
-          published reviews behind it, and each one is also the top category
-          for its species by post count: dog-health 8, dog-toys 4, dog-beds 3,
-          dog-travel 3, cat-litter 3, cat-food 3, cat-toys 2, cat-scratching 2.
-          The full VALID_CATEGORIES list in refill_products.py has 25 entries;
-          most are aspirational and several have one post or none, so it is
-          the wrong source for a footer.
+          These labels were picked in round 4 as the top species-prefixed
+          categories by post count (dog-health, dog-toys, dog-beds, dog-travel,
+          cat-litter, cat-food, cat-toys, cat-scratching). Since the 2026-10-05
+          restructure, posts carry species-neutral topics (_data/categories.json)
+          and these are search queries, not category names; each was rechecked
+          then against the title/tag filter and still returns 2+ reviews.
+          The 22 topics are the wrong source for a footer: most have one or two
+          posts per species.
 
           ROUND 5: the label is NO LONGER the query, and that separation is
           the point. The labels used to repeat their own heading — "Dog
