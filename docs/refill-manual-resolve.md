@@ -31,12 +31,14 @@ full history and evidence). Until PA-API keys are available, resolve
    .venv/Scripts/python.exe manual_resolve.py --topic <topic> \
      --name "<product name>" --asin <ASIN> \
      --image <image URL> --price <price> --stars <stars> \
-     [--runners-up "<alt 1>; <alt 2>"]
+     [--runners-up "<alt 1>; <alt 2>"] [--upc <UPC>] --no-chewy
    ```
 
-   This validates the candidate and runs the existing Chewy Impact.com
-   lookup automatically -- reject output means fix the input and retry, not
-   force a bad value through.
+   This validates the candidate -- reject output means fix the input and
+   retry, not force a bad value through. Pass `--no-chewy` on every local
+   run: without it the script name-matches Chewy through Impact.com, and
+   Chewy links follow the GTIN-only rule instead (added later from the UPC,
+   so record `--upc` whenever the page shows one).
 6. Repeat for as many topics as planned for the session (batch size varies
    per session, no fixed target).
 7. Ship it the same way every refill PR ships:

@@ -1,0 +1,59 @@
+name: Refill watchdog
+
+# Dead-man's switch for the local refill run (refill automation step 3). Merging
+# this file ARMS A CRON: it runs every Sunday and Wednesday and emails
+# hello@happypetproductreviews.com when the topic queue is about to run dry.
+# Every decision lives in refill_watchdog.py (see its docstring). It reads; it never
+# writes to the repo, never opens a PR, never dispatches a workflow.
+#
+# Sunday 20:00 UTC is after the biweekly Sunday refill run; Wednesday 20:00 UTC is
+# before the Thursday 12:00 UTC publish. Either can be re-run by hand.
+#
+# Class-3 CI: needs the two-clone review before it merges.
+
+on:
+  schedule:
+    - cron: '0 20 * * 0,3'
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: happypet-refill-watchdog
+  cancel-in-progress: false
+
+jobs:
+  watchdog:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read        # checkout products.json and _posts/
+      pull-requests: read   # count open refill/* PRs
+    steps:
+      - name: Checkout default branch
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Count open refill PRs
+        id: prs
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          # Fail closed: a failed read becomes "unreadable", which the checker alerts on.
+          if OPEN=$(gh pr list --repo "$REPO" --state open --search "head:refill/" \
+                      --json number --jq length); then
+            echo "open=${OPEN}" >> "$GITHUB_OUTPUT"
+          else
+            echo "open=unreadable" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Check queue depth (alerts and goes red when low)
+        env:
+          OPEN_REFILL_PRS:    ${{ steps.prs.outputs.open }}
+          GMAIL_SMTP_USER:    ${{ secrets.GMAIL_SMTP_USER }}
+          GMAIL_ACCOUNT:      ${{ secrets.GMAIL_ACCOUNT }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+        run: python3 refill_watchdog.py

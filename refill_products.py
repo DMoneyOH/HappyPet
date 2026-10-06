@@ -459,7 +459,10 @@ def chewy_enrich(name: str, upc: str | None = None) -> dict:
     return empty
 
 
-def apply_resolution(entry: dict, resolved: dict) -> None:
+def apply_resolution(entry: dict, resolved: dict, enrich_chewy: bool = True) -> None:
+    """enrich_chewy=False skips chewy_enrich entirely, so chewy_lookup is never
+    imported: on this machine that import reaches for Impact credentials in the
+    vault, and its name-matching is not the GTIN-only rule Chewy links follow."""
     entry["name"]          = resolved["name"]
     entry["asin"]          = resolved["asin"]
     entry["affiliate_url"] = f"https://www.amazon.com/dp/{resolved['asin']}?tag={AFFILIATE_TAG}"
@@ -470,7 +473,8 @@ def apply_resolution(entry: dict, resolved: dict) -> None:
         entry["runners_up"] = resolved["runners_up"]
     if resolved.get("upc"):
         entry["upc"] = resolved["upc"]
-    entry.update(chewy_enrich(resolved["name"], resolved.get("upc")))
+    if enrich_chewy:
+        entry.update(chewy_enrich(resolved["name"], resolved.get("upc")))
 
 
 # ------------------------------------------------------------ topic ideation

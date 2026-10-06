@@ -8355,5 +8355,356 @@ class TestCreedBandRetailerLink(unittest.TestCase):
         self.assertIn("Amazon and Chewy", self.about)
 
 
+class TestManualResolveNoChewy(unittest.TestCase):
+    """--no-chewy (refill automation, 2026-10-06): a local run must never reach
+    chewy_lookup. Importing it pulls Impact credentials from the local vault, and
+    its name-matching is not the GTIN-only rule Chewy links follow."""
+
+    PLACEHOLDER = {
+        "topic": "best-x-things", "title": "T", "keyword": "k", "species": "dog",
+        "category": "toys", "format": "roundup", "topical_sheet": "HAPPYPET_SHEET_ID_TOYS",
+        "name": "NEEDS_ASIN placeholder for k", "asin": "NEEDS_ASIN",
+        "affiliate_url": "https://www.amazon.com/dp/NEEDS_ASIN?tag=happypetdc-20",
+        "image": "NEEDS_IMAGE", "price": None, "stars": None, "chewy_url": None,
+        "chewy_price": None, "chewy_stock": None, "chewy_rating": None}
+    ARGS = ["--topic", "best-x-things", "--name", "Acme Dog Toy, Large",
+            "--asin", "B0ABCD1234",
+            "--image", "https://m.media-amazon.com/images/I/71abcXYZ._AC_SX425_.jpg",
+            "--price", "12.99", "--stars", "4.5", "--upc", "012345678905"]
+
+    def _run(self, extra):
+        import refill_products as rp
+        import manual_resolve as mr
+        with tempfile.TemporaryDirectory() as d:
+            path = Path(d) / "products.json"
+            path.write_text(json.dumps([dict(self.PLACEHOLDER)]))
+            with patch.object(rp, "PRODUCTS_PATH", path):
+                mr.main(self.ARGS + extra)
+            return json.loads(path.read_text(encoding="utf-8"))[0]
+
+    def test_flag_never_calls_chewy_enrich(self):
+        import refill_products as rp
+        with patch.object(rp, "chewy_enrich", side_effect=AssertionError("chewy_enrich ran")):
+            entry = self._run(["--no-chewy"])
+        self.assertEqual(entry["asin"], "B0ABCD1234")
+        self.assertEqual(entry["upc"], "012345678905")
+        self.assertIsNone(entry["chewy_url"])
+
+    def test_without_the_flag_enrichment_still_runs(self):
+        # Inverse direction: the CI/default path is unchanged.
+        import refill_products as rp
+        calls = []
+        with patch.object(rp, "chewy_enrich",
+                          side_effect=lambda *a: calls.append(a) or {"chewy_url": None}):
+            self._run([])
+        self.assertEqual(calls, [("Acme Dog Toy, Large", "012345678905")])
+
+    def test_set_impact_vars_keep_chewy_lookup_out_of_the_vault(self):
+        # generate_posts imports chewy_lookup at module load, and chewy_lookup reads
+        # the vault for IMPACT_* when either var is empty. run-refill.ps1 sets both
+        # to a non-secret placeholder so a local run never loads the CI pair.
+        import importlib.util
+        import brain_secrets
+        def load_fresh():
+            spec = importlib.util.spec_from_file_location("chewy_lookup_fresh",
+                                                          REPO / "chewy_lookup.py")
+            mod = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(mod)
+            return mod
+        env = {"IMPACT_ACCOUNT_SID": "disabled-local-refill",
+               "IMPACT_AUTH_TOKEN": "disabled-local-refill"}
+        with patch.dict(os.environ, env), patch.object(
+                brain_secrets, "get_secret", side_effect=AssertionError("vault read")):
+            self.assertEqual(load_fresh().ACCOUNT_SID, "disabled-local-refill")
+        # Inverse: with the vars empty, the vault IS consulted.
+        calls = []
+        with patch.dict(os.environ, {"IMPACT_ACCOUNT_SID": "", "IMPACT_AUTH_TOKEN": ""}), \
+             patch.object(brain_secrets, "get_secret", side_effect=lambda k: calls.append(k)):
+            load_fresh()
+        self.assertEqual(calls, ["IMPACT_ACCOUNT_SID", "IMPACT_AUTH_TOKEN"])
+
+    def test_the_manual_path_doc_passes_the_flag(self):
+        doc = (REPO / "docs" / "refill-manual-resolve.md").read_text(encoding="utf-8")
+        self.assertIn("--no-chewy", doc)
+
+
+class TestRefillCli(unittest.TestCase):
+    """refill_cli.py -- the offline half of the local refill session: seed planned
+    topics, fill them from a plan, run the gate's own refill rule locally. Expected
+    values are literals; the gate itself is the second opinion, not the oracle."""
+
+    GOOD_IMAGE = "https://m.media-amazon.com/images/I/71abcXYZ._AC_SX425_.jpg"
+
+    def setUp(self):
+        import refill_cli
+        self.cli = refill_cli
+
+    def topic(self, **over):
+        t = {"topic": "best-widget-for-tests", "title": "Best Widgets for Test Pets",
+             "keyword": "best widget for pets", "species": "dog", "category": "toys",
+             "topical_sheet": "HAPPYPET_SHEET_ID_TOYS",
+             "amazon_search_query": "widget for dogs", "product": None}
+        t.update(over)
+        return t
+
+    def product(self, **over):
+        p = {"name": "Acme Widget for Dogs, Medium", "asin": "B0ABCD1234",
+             "image": self.GOOD_IMAGE, "price": "19.99", "stars": 4.6,
+             "runners_up": "Brand B Widget; Brand C Widget", "upc": "012345678905"}
+        p.update(over)
+        return p
+
+    # ---- topic validation -----------------------------------------------------
+
+    def test_good_topic_passes(self):
+        self.assertEqual(self.cli.topic_problems(self.topic(), set()), [])
+
+    def test_only_the_22_bare_topics_are_accepted(self):
+        for legacy in ("dog-health", "cat-beds", "pet-grooming", "dog-gear"):
+            self.assertTrue(self.cli.topic_problems(self.topic(category=legacy), set()), legacy)
+        for bad in ("Toys", "toys ", "", None, "gear"):
+            self.assertTrue(self.cli.topic_problems(self.topic(category=bad), set()), bad)
+        self.assertEqual(self.cli.topic_problems(self.topic(category="flea-tick"), set()), [])
+
+    def test_bad_slug_shapes_are_refused(self):
+        for slug in ("widget", "best-Widget", "best-a--b", "best-x-", "best-x\n",
+                     "best-x/y", "best-" + "a" * 60, None, 7):
+            self.assertTrue(self.cli.topic_problems(self.topic(topic=slug), set()), repr(slug))
+
+    def test_collisions_in_either_slug_form(self):
+        for taken in ({"best-widget-for-tests"}, {"widget-for-tests"}):
+            bad = self.cli.topic_problems(self.topic(), taken)
+            self.assertTrue(any("collides" in b for b in bad), taken)
+
+    def test_text_fields_refuse_injection_shapes(self):
+        for title in ('Best "Widgets"', "Best <b>Widgets</b>", "Best\tWidgets",
+                      " Best Widgets", "Best `Widgets`", "x" * 201, ""):
+            self.assertTrue(self.cli.topic_problems(self.topic(title=title), set()), repr(title))
+
+    def test_species_and_sheet_are_closed_sets(self):
+        self.assertTrue(self.cli.topic_problems(self.topic(species="dogs"), set()))
+        self.assertTrue(self.cli.topic_problems(
+            self.topic(topical_sheet="HAPPYPET_SHEET_ID_DOGS"), set()))
+
+    def test_taken_slugs_cover_posts_queue_and_pin_files(self):
+        products = json.loads((REPO / "products.json").read_text(encoding="utf-8"))
+        taken = self.cli.taken_slugs(products)
+        post = sorted((REPO / "_posts").glob("20*.md"))[0].stem.split("-", 3)[3]
+        sent = sorted((REPO / "_pin_queue" / "sent").glob("*.json"))[0].stem
+        fired = sorted(p for p in (REPO / "_pin_queue" / ".fired").iterdir()
+                       if not p.name.startswith("."))[0].name.split(".", 1)[0]
+        for slug in (post, sent, fired, products[0]["topic"]):
+            self.assertIn(slug, taken)
+            self.assertIn(slug.removeprefix("best-"), taken)
+
+    def test_each_pin_queue_folder_is_its_own_source(self):
+        # Real pin files all belong to published posts, so the test above cannot
+        # tell the folders apart. Here each slug exists in exactly one folder.
+        with tempfile.TemporaryDirectory() as d:
+            q = Path(d) / "_pin_queue"
+            (q / "sent").mkdir(parents=True)
+            (q / ".fired").mkdir()
+            (q / "best-only-pending.json").write_text("{}")
+            (q / "sent" / "best-only-sent.json").write_text("{}")
+            (q / ".fired" / "best-only-fired.fired").write_text("")
+            (q / ".fired" / ".gitkeep").write_text("")
+            with patch.object(self.cli, "REPO_DIR", Path(d)), \
+                 patch.object(self.cli.gp, "build_used_slugs", return_value=set()):
+                taken = self.cli.taken_slugs([])
+        self.assertEqual(taken, {"best-only-pending", "only-pending", "best-only-sent",
+                                 "only-sent", "best-only-fired", "only-fired"})
+
+    # ---- product validation ---------------------------------------------------
+
+    def test_good_product_passes(self):
+        self.assertEqual(self.cli.product_problems(self.product()), [])
+
+    def test_image_forms_the_producer_accepts_but_the_gate_refuses(self):
+        # refill_products.IMAGE_HOST_RE is case-insensitive and admits a query string;
+        # the gate's _AMAZON_IMAGE does not. Catch it here, before a push.
+        import refill_products as rp
+        for image in (self.GOOD_IMAGE + "?x=.jpg",
+                      "HTTPS://M.MEDIA-AMAZON.COM/images/I/71abcXYZ._AC_SX425_.jpg"):
+            self.assertTrue(rp.validate_candidate(self.product(image=image)), image)
+            self.assertTrue(self.cli.product_problems(self.product(image=image)), image)
+
+    def test_bad_product_fields(self):
+        for over in ({"asin": "B12345678"}, {"image": "https://images-na.ssl-images-amazon.com/x.jpg"},
+                     {"name": "Sponsored Ad - Widget"}, {"price": "$19.99"}, {"price": 19.99},
+                     {"stars": True}, {"stars": 5.1}, {"stars": "4.5"}, {"upc": "01234567890X"},
+                     {"runners_up": "A\nB"}):
+            self.assertTrue(self.cli.product_problems(self.product(**over)), over)
+        self.assertTrue(self.cli.product_problems(None))
+
+    # ---- end to end on a scratch copy ----------------------------------------
+
+    def _scratch(self, d, plan):
+        base = Path(d) / "base.json"
+        head = Path(d) / "products.json"
+        base.write_text((REPO / "products.json").read_text(encoding="utf-8"), encoding="utf-8")
+        head.write_text(base.read_text(encoding="utf-8"), encoding="utf-8")
+        (Path(d) / "plan.json").write_text(json.dumps(plan), encoding="utf-8")
+        return [f"--products={head}"], str(Path(d) / "plan.json"), str(base), head
+
+    def test_seed_resolve_check_round_trip(self):
+        plan = {"abort": None, "topics": [
+            self.topic(product=self.product()),
+            self.topic(topic="best-other-widget", product=self.product(
+                asin="B0WXYZ5678", image=self.GOOD_IMAGE + "?bad=1")),
+            self.topic(topic="best-dog-crates", product=self.product(asin="B0ZZZZ9999")),
+        ]}
+        with tempfile.TemporaryDirectory() as d:
+            pre, plan_p, base, head = self._scratch(d, plan)
+            base_len = len(json.loads(Path(base).read_text(encoding="utf-8")))
+            self.assertEqual(self.cli.main(pre + ["seed", "--plan", plan_p]), 0)
+            seeded = json.loads(head.read_text(encoding="utf-8"))
+            # best-dog-crates is a published post: never seeded.
+            self.assertEqual([e["topic"] for e in seeded[base_len:]],
+                             ["best-widget-for-tests", "best-other-widget"])
+            # A seeded-but-unfilled file is held by the gate on NEEDS_.
+            self.assertEqual(self.cli.main(pre + ["check", "--base", base]), 1)
+            result = Path(d) / "result.json"
+            import refill_products as rp
+            with patch.object(rp, "chewy_enrich", side_effect=AssertionError("chewy ran")):
+                self.assertEqual(self.cli.main(pre + ["resolve", "--plan", plan_p, "--base", base,
+                                                      "--result", str(result)]), 0)
+            out = json.loads(result.read_text(encoding="utf-8"))
+            self.assertEqual(out["filled"], ["best-widget-for-tests"])
+            self.assertEqual([x["topic"] for x in out["dropped"]], ["best-other-widget"])
+            final = json.loads(head.read_text(encoding="utf-8"))
+            self.assertEqual(final[:base_len], json.loads(Path(base).read_text(encoding="utf-8")))
+            new = final[base_len:]
+            self.assertEqual(len(new), 1)
+            self.assertEqual(new[0]["affiliate_url"],
+                             "https://www.amazon.com/dp/B0ABCD1234?tag=happypetdc-20")
+            self.assertEqual(new[0]["category"], "toys")
+            self.assertIsNone(new[0]["chewy_url"])
+            self.assertEqual(self.cli.main(pre + ["check", "--base", base]), 0)
+
+    def test_check_holds_a_leaked_partner_tag(self):
+        # Planted fault: AMAZON_PAAPI_PARTNER_TAG left set in the environment.
+        import refill_products as rp
+        plan = {"topics": [self.topic(product=self.product())]}
+        with tempfile.TemporaryDirectory() as d:
+            pre, plan_p, base, head = self._scratch(d, plan)
+            self.cli.main(pre + ["seed", "--plan", plan_p])
+            with patch.object(rp, "AFFILIATE_TAG", "pawpicks04-20"):
+                self.cli.main(pre + ["resolve", "--plan", plan_p, "--base", base])
+            out = io_capture(lambda: self.cli.main(pre + ["check", "--base", base]))
+        self.assertEqual(out[0], 1)
+        self.assertIn("affiliate_url is not the canonical link", out[1])
+
+    def test_resolve_never_touches_a_queued_entry(self):
+        # Even a queued PLACEHOLDER on the branch point, named by the plan with no
+        # product, is neither filled nor dropped: dropping it would delete queue.
+        import refill_products as rp
+        held = rp.build_entry({k: v for k, v in self.topic(topic="best-held-in-base").items()
+                               if k != "product"})
+        plan = {"topics": [self.topic(topic="best-held-in-base", product=None)]}
+        with tempfile.TemporaryDirectory() as d:
+            pre, plan_p, base, head = self._scratch(d, plan)
+            queue = json.loads(Path(base).read_text(encoding="utf-8")) + [held]
+            for p in (Path(base), head):
+                p.write_text(json.dumps(queue), encoding="utf-8")
+            before = head.read_text(encoding="utf-8")
+            self.assertEqual(self.cli.main(pre + ["seed", "--plan", plan_p]), 1)
+            self.assertEqual(self.cli.main(pre + ["resolve", "--plan", plan_p, "--base", base]), 1)
+            self.assertEqual(json.loads(head.read_text(encoding="utf-8")), json.loads(before))
+
+    def test_an_aborted_plan_seeds_nothing(self):
+        plan = {"abort": "SiteStripe bar not visible", "topics": [self.topic()]}
+        with tempfile.TemporaryDirectory() as d:
+            pre, plan_p, base, head = self._scratch(d, plan)
+            before = head.read_text(encoding="utf-8")
+            self.assertEqual(self.cli.main(pre + ["seed", "--plan", plan_p]), 1)
+            self.assertEqual(head.read_text(encoding="utf-8"), before)
+
+    def test_context_lists_topics_and_taken_slugs(self):
+        with tempfile.TemporaryDirectory() as d:
+            out = Path(d) / "ctx.json"
+            self.cli.main(["context", "--out", str(out), "--batch", "6"])
+            ctx = json.loads(out.read_text(encoding="utf-8"))
+        import categories
+        self.assertEqual(ctx["categories"], list(categories.TOPICS))
+        self.assertEqual(ctx["batch"], 6)
+        self.assertIn("best-dog-crates", ctx["taken_slugs"])
+
+
+def io_capture(fn):
+    """(return value, captured stdout) of fn()."""
+    import io
+    buf = io.StringIO()
+    with contextlib.redirect_stdout(buf):
+        rc = fn()
+    return rc, buf.getvalue()
+
+
+class TestRefillWatchdog(unittest.TestCase):
+    """refill_watchdog.py -- the dead-man's switch keyed on queue depth."""
+
+    def setUp(self):
+        import refill_watchdog
+        self.w = refill_watchdog
+
+    def test_verdict_table(self):
+        cases = [  # (publishable depth, open refill PRs or None=unreadable, alerts?)
+            (0, 0, True), (0, 1, True), (1, 0, True), (1, 1, False),
+            (2, 0, False), (3, 0, False), (5, None, True), (0, None, True)]
+        for depth, prs, alerts in cases:
+            self.assertEqual(self.w.verdict(depth, prs) is not None, alerts, (depth, prs))
+
+    def test_unreadable_counts_fail_closed(self):
+        for raw in ("", None, "unreadable", "-1", "1.0", " ", "2\n3"):
+            self.assertIsNone(self.w.parse_open_count(raw), repr(raw))
+        self.assertEqual(self.w.parse_open_count("0"), 0)
+        self.assertEqual(self.w.parse_open_count("3\n"), 3)
+
+    def test_held_placeholders_are_not_depth(self):
+        good = dict(SAMPLE_PRODUCT)
+        held = dict(SAMPLE_PRODUCT, asin="NEEDS_ASIN", image="NEEDS_IMAGE")
+        products = {"best-a": good, "best-b": held, "best-c": good}
+        self.assertEqual(self.w.publishable_unpublished(products, {"best-c"}), ["best-a"])
+
+    def test_alert_without_mail_credentials_still_exits_red(self):
+        with patch.dict(os.environ, {"OPEN_REFILL_PRS": "0", "GMAIL_APP_PASSWORD": ""}), \
+             patch.object(self.w.gp, "load_products", return_value={}), \
+             patch.object(self.w.smtplib, "SMTP") as smtp:
+            rc, out = io_capture(self.w.main)
+        self.assertEqual(rc, 1)
+        self.assertIn("ALERT", out)
+        smtp.assert_not_called()
+
+    def test_failed_send_is_reported_and_still_red(self):
+        env = {"OPEN_REFILL_PRS": "0", "GMAIL_APP_PASSWORD": "x", "GMAIL_ACCOUNT": "a",
+               "GMAIL_SMTP_USER": "a"}
+        with patch.dict(os.environ, env), \
+             patch.object(self.w.gp, "load_products", return_value={}), \
+             patch.object(self.w.smtplib, "SMTP", side_effect=OSError("no route")):
+            rc, out = io_capture(self.w.main)
+        self.assertEqual(rc, 1)
+        self.assertIn("Alert email failed", out)
+
+    def test_healthy_queue_exits_green_and_sends_nothing(self):
+        products = {"best-a": dict(SAMPLE_PRODUCT), "best-b": dict(SAMPLE_PRODUCT)}
+        with patch.dict(os.environ, {"OPEN_REFILL_PRS": "0"}), \
+             patch.object(self.w.gp, "load_products", return_value=products), \
+             patch.object(self.w.gp, "build_used_slugs", return_value=set()), \
+             patch.object(self.w.smtplib, "SMTP") as smtp:
+            rc, _ = io_capture(self.w.main)
+        self.assertEqual(rc, 0)
+        smtp.assert_not_called()
+
+    def test_workflow_is_read_only_and_passes_values_through_env(self):
+        wf = (REPO / ".github" / "workflows" / "refill-watchdog.yml").read_text(encoding="utf-8")
+        self.assertIn("permissions: {}", wf)
+        self.assertNotRegex(wf, r":\s*write")
+        self.assertIn("persist-credentials: false", wf)
+        self.assertIn("open=unreadable", wf)
+        # Every ${{ }} expression is an env: value, never text inside a run: script.
+        for line in wf.splitlines():
+            if "${{" in line:
+                self.assertRegex(line, r"^\s+[A-Z_]+:\s+\$\{\{ [A-Za-z._]+ \}\}$", line)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

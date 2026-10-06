@@ -55,6 +55,10 @@ def main(argv: list | None = None) -> None:
                         help="Amazon UPC/GTIN, if visible in the product's "
                              "'Product information' section -- enables an "
                              "exact-match fast path in Chewy enrichment")
+    parser.add_argument("--no-chewy", dest="no_chewy", action="store_true",
+                        help="skip Chewy enrichment entirely (chewy_url stays null). "
+                             "Use on any local run: Chewy links are added later "
+                             "under the GTIN-only rule, never by name-matching here")
     args = parser.parse_args(argv)
 
     products = rp.load_products()
@@ -75,7 +79,7 @@ def main(argv: list | None = None) -> None:
     if args.upc:
         resolved["upc"] = args.upc
 
-    rp.apply_resolution(entry, resolved)
+    rp.apply_resolution(entry, resolved, enrich_chewy=not args.no_chewy)
     atomic_write_json(rp.PRODUCTS_PATH, products, trailing_newline=True)
     print(f"APPLIED '{args.topic}': {args.name} ({args.asin})")
 
