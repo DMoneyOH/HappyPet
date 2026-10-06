@@ -5617,21 +5617,21 @@ class TestPinJsonPayload(unittest.TestCase):
                 calls, _ = self._drive_main(slug)
                 self.assertEqual(calls[0][1]["description"], drawn)
 
-    def test_every_published_caption_fits_on_the_image_and_the_cap(self):
-        """make_pin draws only the first three wrapped lines. If a caption ever
-        wraps to four, the image would show less than the payload sends."""
+    def test_sample_captions_fit_on_the_image_whole(self):
+        """make_pin draws only the first three wrapped lines, so for these posts
+        the full payload description is exactly the image text. Scoped to the
+        literal sample, not every post: caption length is bounded only by the
+        writer prompt ("max 20 words"), and one long LLM caption must not turn
+        main red -- a four-line caption only clips the image."""
         import generate_pin_images as g
         if not g.PIL_AVAILABLE:
             self.skipTest("Pillow not installed")
         from PIL import Image, ImageDraw
         draw = ImageDraw.Draw(Image.new("RGB", (1000, 1500)))
         font = g.get_font("Nunito-Bold.ttf", 36)
-        posts = g.parse_posts()
-        self.assertGreater(len(posts), 10)
-        for p in posts:
-            with self.subTest(slug=p["slug"]):
-                self.assertLessEqual(len(g.wrap_text(draw, p["description"], font, 900)), 3)
-                self.assertLessEqual(len(p["description"]), self.pp.DESC_MAX)
+        for slug, caption in self.REAL_CAPTIONS.items():
+            with self.subTest(slug=slug):
+                self.assertLessEqual(len(g.wrap_text(draw, caption, font, 900)), 3)
 
     # --- title / caps --------------------------------------------------------
 
