@@ -3818,16 +3818,31 @@ class TestPostsAreOnTopics(unittest.TestCase):
     """Category restructure, phase 2 (2026-10-05): every published post moved to
     one topic, its old URL kept as a redirect_from stub."""
 
-    def test_every_published_post_has_exactly_one_topic(self):
-        import categories
+    def test_every_published_post_has_exactly_one_known_category(self):
+        # Topics, or an old name the pipeline still accepts: an old-name post
+        # generated from a queue entry made before this phase merged must not
+        # turn the pytest check (and so refill auto-merge) red. A typo is what
+        # this catches -- it would silently fall through post-card's keyword
+        # chain. Tighten to TOPICS when LEGACY_CATEGORIES is removed.
+        import refill_products as rp
         bad = []
         for md in sorted((REPO / "_posts").glob("*.md")):
             if md.stem.startswith("DRAFT-"):
                 continue
             m = re.search(r"^categories: \[([^\]]*)\]", md.read_text(encoding="utf-8"), re.M)
-            if not m or m.group(1) not in categories.TOPICS:
+            if not m or m.group(1) not in rp.VALID_CATEGORIES:
                 bad.append(f"{md.name}: {m.group(1) if m else None}")
         self.assertEqual(bad, [])
+
+    def test_related_link_candidates_use_their_published_category(self):
+        # Candidates outside SLUG_CATEGORIES used to score as category-less,
+        # so a new topic post tied with every post and took the first one --
+        # a dog travel review linked the automatic cat feeder.
+        import generate_posts as gp
+        with patch.dict(gp.SLUG_CATEGORIES, {}, clear=True):
+            url, _ = gp.find_related_published_slug("best-new-thing", "tech")
+        self.assertIn(url, (f"{gp.SITE_BASE}/tech/best-pet-cameras/",
+                            f"{gp.SITE_BASE}/tech/best-gps-dog-trackers/"))
 
     def test_no_post_body_links_a_published_post_off_its_live_url(self):
         # A body link to /old-category/slug/ still resolves through the stub,

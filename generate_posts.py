@@ -1242,7 +1242,7 @@ def find_related_published_slug(current_slug: str, current_category: str) -> tup
         slug = parts[3]
         if slug == current_slug:
             continue
-        cat = SLUG_CATEGORIES.get(slug, "")
+        cat = SLUG_CATEGORIES.get(slug) or _published_category(slug) or ""
         score = 1
         if cat == current_category:
             score = 3
