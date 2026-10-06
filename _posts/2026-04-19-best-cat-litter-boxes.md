@@ -2,9 +2,10 @@
 layout: post
 title: "Best Cat Litter Boxes for Easy Cleaning and Odor Control"
 date: 2026-04-19
-categories: [cat-litter]
+categories: [litter]
 redirect_from:
   - /cat-gear/best-cat-litter-boxes/
+  - /cat-litter/best-cat-litter-boxes/
 species: cat
 tags: [best cat litter boxes]
 description: "The secret to a mess‑free litter room starts with the right box."
@@ -80,7 +81,7 @@ Choosing the right box starts with understanding your cat’s habits and your ow
 
 Don’t forget **accessibility** for older or arthritic cats. A box with a low entry point or a ramp can make a huge difference, as can a sturdy lid that doesn’t require a cat to push it open with force. Lastly, think about **placement**. A box that fits under a cabinet or beside a litter mat will stay out of high‑traffic zones, reducing tracking.
 
-By weighing these factors—size, lid preference, material, cleaning ease, and accessibility—you’ll land on a box that matches both your cat’s comfort and your desire for a fresher home. For deeper insight on keeping the air clean, check out the article on [cat litter odor control](https://happypetproductreviews.com/cat-litter/best-cat-litter-odor-control/).
+By weighing these factors—size, lid preference, material, cleaning ease, and accessibility—you’ll land on a box that matches both your cat’s comfort and your desire for a fresher home. For deeper insight on keeping the air clean, check out the article on [cat litter odor control](https://happypetproductreviews.com/litter/best-cat-litter-odor-control/).
 
 ## Closing Thoughts
 

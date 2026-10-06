@@ -2,9 +2,10 @@
 layout: post
 title: "Best Dog Cooling Mats to Beat the Summer Heat"
 date: 2026-07-22
-categories: [dog-beds]
+categories: [beds]
 redirect_from:
   - /dog-gear/best-dog-cooling-mat/
+  - /dog-beds/best-dog-cooling-mat/
 species: dog
 tags: [best dog cooling mat]
 description: "Beat the summer heat: the cooling mats that keep your dog comfortable on the hottest days."
@@ -47,7 +48,7 @@ Size comes first. A mat that leaves half your dog on the bare floor wastes its o
 
 Look at how the mat cools. Gel pads need no power and no freezer, and they reset on their own, which suits most homes and most schedules. They do feel firm underfoot, so a dog raised on a plush bed may sulk for a few days before accepting one. Washability decides how long you tolerate the thing living in your house. A mat you can wipe or rinse survives muddy season; a mat that stains and traps odor gets exiled to the garage by August.
 
-Think about where the mat will live. A pad parked by the back door faces different wear than one tucked inside a crate or tossed in the trunk. If your dog runs small, the same care you put into gear like [dog collars small breeds](https://happypetproductreviews.com/dog-collars/best-dog-collars-small-breeds/) applies to a mat: fit beats flash every time. The best dog cooling mat for a toy breed is not the same broad slab that serves a mastiff, and buying up a size to be safe usually just gives your dog cold floor to avoid.
+Think about where the mat will live. A pad parked by the back door faces different wear than one tucked inside a crate or tossed in the trunk. If your dog runs small, the same care you put into gear like [dog collars small breeds](https://happypetproductreviews.com/collars/best-dog-collars-small-breeds/) applies to a mat: fit beats flash every time. The best dog cooling mat for a toy breed is not the same broad slab that serves a mastiff, and buying up a size to be safe usually just gives your dog cold floor to avoid.
 
 ## Comparison table
 

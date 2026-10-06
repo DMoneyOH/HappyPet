@@ -2,7 +2,9 @@
 layout: post
 title: "Best Dog Grooming Tools for Every Coat Type"
 date: 2026-04-07
-categories: [dog-grooming]
+categories: [grooming]
+redirect_from:
+  - /dog-grooming/best-dog-grooming/
 species: dog
 tags: [dog grooming tools]
 description: "Tired of pet hair tumbleweeds? Discover the best dog grooming tools for a happier, healthier pup!"

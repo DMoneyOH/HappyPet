@@ -19,6 +19,8 @@
 
 {%- assign post = include.post -%}
 {%- assign category = post.categories | first -%}
+{%- comment -%} A species-neutral topic from _data/categories.json carries its own bucket and label; the old species-prefixed names fall through to the keyword chain. {%- endcomment -%}
+{%- include category-label.html category=category -%}
 
 {%- if post.species == "cat" -%}
   {%- assign species_filter = "cat" -%}{%- assign species_label = "Cats" -%}
@@ -34,7 +36,9 @@
   The use-case axis. Species answers "is this even for my animal"; this
   answers "what am I shopping for". Both stay live at the same time.
 {%- endcomment -%}
-{%- if category contains "toy" or category contains "scratch" or category contains "chew" -%}
+{%- if topic -%}
+  {%- assign use_filter = topic.use -%}
+{%- elsif category contains "toy" or category contains "scratch" or category contains "chew" -%}
   {%- assign use_filter = "play" -%}
 {%- elsif category contains "bed" or category contains "crate" -%}
   {%- assign use_filter = "rest" -%}
@@ -54,7 +58,6 @@
 
 {%- assign thumb_path = "/assets/images/thumbs/" | append: post.slug | append: ".jpg" -%}
 {%- assign thumb_file = site.static_files | where: "path", thumb_path | first -%}
-{%- assign category_label = category | replace: "-", " " -%}
 
 {%- if include.variant == "major" -%}
   {%- assign variant_class = "entry entry--major" -%}

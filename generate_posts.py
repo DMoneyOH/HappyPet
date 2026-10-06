@@ -717,16 +717,16 @@ _BANNED_INTENSIFIERS_STR = ", ".join(f'"{w}"' for w in BANNED_INTENSIFIERS)
 # Articles 1-10 category map (predate products.json; remain hardcoded)
 # Articles 11+ categories registered at runtime from products.json
 SLUG_CATEGORIES = {
-    "best-dog-collars-small-breeds":    "dog-collars",
-    "best-cat-scratching-posts":        "cat-scratching",
-    "best-no-pull-dog-harness":         "dog-harnesses",
-    "best-automatic-cat-feeder":        "cat-feeders",
-    "best-dog-toys-aggressive-chewers": "dog-toys",
-    "best-cat-litter-odor-control":     "cat-litter",
-    "best-dog-beds-large-breeds":       "dog-beds",
-    "best-pet-water-fountain":          "pet-feeding",
-    "best-puppy-training-pads":         "dog-training",
-    "best-cat-carrier-travel":          "cat-carriers",
+    "best-dog-collars-small-breeds":    "collars",
+    "best-cat-scratching-posts":        "scratching",
+    "best-no-pull-dog-harness":         "harnesses",
+    "best-automatic-cat-feeder":        "feeding",
+    "best-dog-toys-aggressive-chewers": "toys",
+    "best-cat-litter-odor-control":     "litter",
+    "best-dog-beds-large-breeds":       "beds",
+    "best-pet-water-fountain":          "feeding",
+    "best-puppy-training-pads":         "training",
+    "best-cat-carrier-travel":          "carriers",
 }
 
 # Permanent -- covers articles 1-10 which predate products.json. Do not delete.
@@ -894,8 +894,30 @@ def slugify(s: str) -> str:
     return re.sub(r"[^a-z0-9\-]", "", s.lower().replace(" ", "-"))
 
 
+def _post_category(md: Path):
+    """First `categories:` value in a post's front matter, quotes stripped."""
+    m = re.search(r"^categories:\s*\[\s*['\"]?([^\]'\",\s]+)",
+                  md.read_text(encoding="utf-8"), re.M)
+    return m.group(1) if m else None
+
+
+def _published_category(slug: str):
+    """The category of the published post for `slug`, or None. The post's own
+    front matter is the source of truth for its URL; SLUG_CATEGORIES (the
+    hardcoded ten + queued products.json entries) is only the fallback."""
+    for md in POSTS_DIR.glob("*.md"):
+        if not md.stem.startswith("DRAFT-") and slug_from_post_stem(md.stem) == slug:
+            return _post_category(md)
+    return None
+
+
 def build_url(slug: str, utm: bool = False) -> str:
-    category = SLUG_CATEGORIES.get(slug, "pet-accessories")
+    category = _published_category(slug) or SLUG_CATEGORIES.get(slug)
+    if not category:
+        # Unreachable for a validated product (category is required) or a
+        # published post; a guessed path would 404, so say so in the log.
+        log(f"build_url: no category known for {slug} -- using 'health'", "WARN")
+        category = "health"
     base = f"{SITE_BASE}/{category}/{slug}/"
     if utm:
         return base + "?utm_source=pinterest&utm_medium=social&utm_campaign=pin"
@@ -1207,7 +1229,10 @@ def select_next_topic(products: dict, used_slugs: set, recent_species: list = No
 def find_related_published_slug(current_slug: str, current_category: str) -> tuple:
     """
     Find best internal link target at runtime from published _posts/.
-    Scoring: same category = 3, same category prefix = 2, any published = 1.
+    Scoring: same category = 3, same species prefix = 2, any published = 1.
+    The prefix tier only exists for the old species-prefixed names (dog-/cat-/
+    pet-); bare topic names (health, collars...) carry no species, so for them
+    only an exact match ranks above 1.
     Returns (url, anchor_text) or (None, None) if _posts/ is empty.
     """
     candidates = []
@@ -1220,11 +1245,12 @@ def find_related_published_slug(current_slug: str, current_category: str) -> tup
         slug = parts[3]
         if slug == current_slug:
             continue
-        cat = SLUG_CATEGORIES.get(slug, "")
+        cat = _post_category(md) or SLUG_CATEGORIES.get(slug, "")
         score = 1
         if cat == current_category:
             score = 3
-        elif cat.split("-")[0] == current_category.split("-")[0]:
+        elif cat.split("-")[0] in ("dog", "cat", "pet") and \
+                cat.split("-")[0] == current_category.split("-")[0]:
             score = 2
         candidates.append((score, slug))
     if not candidates:

@@ -1,0 +1,27 @@
+{
+  "_note": "The site's topic categories -- the ONE place they are defined. Species is never part of a topic: it lives in each post's `species:` front matter. Read by Jekyll as site.data.categories and by Python through categories.py (refill_products, generate_pin_images, tests). Fields: slug = the `categories:` value and the permalink segment; label = display text (cards, breadcrumbs, pin chip); cta = pin button text; use = the homepage 'what for' filter bucket (play/rest/feed/travel/walk/tech/care). The old species-prefixed names (dog-health, cat-food...) are still accepted until LEGACY_CATEGORIES (refill_products.py) is removed.",
+  "topics": [
+    {"slug": "health",      "label": "Health",      "cta": "Read the Review", "use": "care"},
+    {"slug": "supplements", "label": "Supplements", "cta": "Read the Review", "use": "care"},
+    {"slug": "calming",     "label": "Calming",     "cta": "Read the Review", "use": "care"},
+    {"slug": "dental",      "label": "Dental",      "cta": "Read the Review", "use": "care"},
+    {"slug": "flea-tick",   "label": "Flea & tick", "cta": "Read the Review", "use": "care"},
+    {"slug": "grooming",    "label": "Grooming",    "cta": "Read the Review", "use": "care"},
+    {"slug": "outdoor",     "label": "Outdoor",     "cta": "See Our Picks",   "use": "walk"},
+    {"slug": "food",        "label": "Food",        "cta": "Read the Review", "use": "feed"},
+    {"slug": "treats",      "label": "Treats",      "cta": "See Our Picks",   "use": "feed"},
+    {"slug": "feeding",     "label": "Feeding",     "cta": "Read the Review", "use": "feed"},
+    {"slug": "toys",        "label": "Toys",        "cta": "See Our Picks",   "use": "play"},
+    {"slug": "collars",     "label": "Collars",     "cta": "See Our Picks",   "use": "walk"},
+    {"slug": "harnesses",   "label": "Harnesses",   "cta": "Read the Review", "use": "walk"},
+    {"slug": "training",    "label": "Training",    "cta": "See Our Picks",   "use": "care"},
+    {"slug": "litter",      "label": "Litter",      "cta": "Read the Review", "use": "care"},
+    {"slug": "scratching",  "label": "Scratching",  "cta": "See Our Picks",   "use": "play"},
+    {"slug": "beds",        "label": "Beds",        "cta": "Read the Review", "use": "rest"},
+    {"slug": "crates",      "label": "Crates",      "cta": "Read the Review", "use": "rest"},
+    {"slug": "carriers",    "label": "Carriers",    "cta": "Read the Review", "use": "travel"},
+    {"slug": "travel",      "label": "Travel",      "cta": "Read the Review", "use": "travel"},
+    {"slug": "cleaning",    "label": "Cleaning",    "cta": "Read the Review", "use": "care"},
+    {"slug": "tech",        "label": "Tech",        "cta": "Read the Review", "use": "tech"}
+  ]
+}

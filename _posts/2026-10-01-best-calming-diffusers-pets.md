@@ -2,9 +2,10 @@
 layout: post
 title: "Peaceful Paws: The Best Calming Diffusers for Anxious Dogs and Cats"
 date: 2026-10-01
-categories: [pet-health]
+categories: [calming]
 redirect_from:
   - /dog-health/best-calming-diffusers-pets/
+  - /pet-health/best-calming-diffusers-pets/
 species: both
 tags: [calming diffuser for pets]
 description: "Stressed cat spraying or hiding? A calming diffuser for pets might settle things down without a single pill."
@@ -58,7 +59,7 @@ Give it time, even when the waiting feels long. Owner reviews repeatedly mention
 
 Rule out the vet first. It's the unglamorous step, and it matters. Sudden spraying or aggression can point to pain or a urinary problem. A diffuser can't fix those, and a vet visit costs less than months of refills that never help.
 
-Pair it with other changes. A diffuser supports calm, but your pet's daily setup matters just as much. For small dogs that get worked up on walks, a well-fitted collar helps; these [dog collars small breeds](https://happypetproductreviews.com/dog-collars/best-dog-collars-small-breeds/) picks cover lightweight options that won't rub. Add a predictable routine and a quiet retreat spot, and the diffuser has a better shot at working.
+Pair it with other changes. A diffuser supports calm, but your pet's daily setup matters just as much. For small dogs that get worked up on walks, a well-fitted collar helps; these [dog collars small breeds](https://happypetproductreviews.com/collars/best-dog-collars-small-breeds/) picks cover lightweight options that won't rub. Add a predictable routine and a quiet retreat spot, and the diffuser has a better shot at working.
 
 Watch the refill cost. Pheromone diffusers run on refills, and those keep coming. Factor that ongoing purchase into your budget before you commit to any calming diffuser for pets.
 

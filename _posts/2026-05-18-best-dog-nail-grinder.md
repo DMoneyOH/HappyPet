@@ -2,7 +2,9 @@
 layout: post
 title: "Best Dog Nail Grinder for Stress-Free Grooming at Home"
 date: 2026-05-18
-categories: [dog-health]
+categories: [grooming]
+redirect_from:
+  - /dog-health/best-dog-nail-grinder/
 species: dog
 tags: [best dog nail grinder]
 description: "Stop nail‑trim nightmares. Discover the quiet, stress‑free grinder that keeps paws happy at home."

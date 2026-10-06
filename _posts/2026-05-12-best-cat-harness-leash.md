@@ -2,9 +2,10 @@
 layout: post
 title: "Best Cat Harness and Leash for Safe Outdoor Adventures"
 date: 2026-05-12
-categories: [cat-harnesses]
+categories: [harnesses]
 redirect_from:
   - /cat-gear/best-cat-harness-leash/
+  - /cat-harnesses/best-cat-harness-leash/
 species: cat
 tags: [best cat harness and leash]
 description: "Unlock safe outdoor fun for your cat with the perfect harness and leash combo"

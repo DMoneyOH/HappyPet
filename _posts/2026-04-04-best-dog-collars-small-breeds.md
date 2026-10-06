@@ -2,7 +2,9 @@
 layout: post
 title: "Best Dog Collars for Small Breeds"
 date: 2026-04-04
-categories: [dog-collars]
+categories: [collars]
+redirect_from:
+  - /dog-collars/best-dog-collars-small-breeds/
 species: dog
 tags: [dog collars small breeds]
 description: "Finding a collar that fits a tiny neck without slipping or chafing is harder than it sounds. We found the ones that work."
@@ -106,7 +108,7 @@ For small dogs, lighter buckles and hardware are generally preferred to avoid we
 Does your dog spend a lot of time outdoors? Do they love to swim? Are they a "puller" on the leash?
 *   **Everyday Wear:** A comfortable, durable nylon collar is usually perfect.
 *   **Outdoor/Water Dogs:** Look for water-resistant materials like neoprene or coated nylon.
-*   **Pullers:** While a good collar is essential for tags and identification, if your small dog pulls excessively, you might also consider [no-pull harnesses for small dogs](/dog-harnesses/best-no-pull-dog-harness/) for walks to distribute pressure more evenly and prevent strain on their delicate neck.
+*   **Pullers:** While a good collar is essential for tags and identification, if your small dog pulls excessively, you might also consider [no-pull harnesses for small dogs](/harnesses/best-no-pull-dog-harness/) for walks to distribute pressure more evenly and prevent strain on their delicate neck.
 
 ### 5. Prioritize Safety Features
 

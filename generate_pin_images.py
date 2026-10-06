@@ -34,6 +34,7 @@ def log_pin(msg: str, level: str = "INFO") -> None:
 
 REPO      = Path(__file__).parent
 import sys as _sys; _sys.path.insert(0, str(REPO))
+import categories
 
 # This module needs no secrets and touches no spreadsheet. It used to carry a
 # brain_secrets / gspread fallback for update_sheets(), which wrote pin URLs into
@@ -67,6 +68,7 @@ CAT_LABELS = {
     'dog-beds':'Dog Beds',         'dog-collars':'Dog Collars',
     'dog-toys':'Dog Toys',         'dog-harnesses':'Dog Harnesses',
     'pet-feeding':'Pet Feeding',   'dog-training':'Dog Training',
+    **categories.LABELS,   # the species-neutral topics, from _data/categories.json
 }
 CTA_LABELS = {
     'cat-feeders':'Read the Review',   'cat-carriers':'See Our Pick',
@@ -74,6 +76,7 @@ CTA_LABELS = {
     'dog-beds':'Read the Review',      'dog-collars':'See Our Picks',
     'dog-toys':'See Our Picks',        'dog-harnesses':'Read the Review',
     'pet-feeding':'Read the Review',   'dog-training':'See Our Picks',
+    **categories.CTAS,
 }
 
 def get_font(name, size):

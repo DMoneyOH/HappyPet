@@ -46,6 +46,7 @@ import urllib.request
 from pathlib import Path
 
 from json_io import atomic_write_json, read_json
+import categories
 import generate_posts as gp
 
 REPO_DIR      = Path(__file__).parent.resolve()
@@ -83,13 +84,20 @@ VALID_SHEETS     = ("HAPPYPET_SHEET_ID_HOME", "HAPPYPET_SHEET_ID_FOOD",
 # Every non-gear bucket here maps to a homepage topic pill (see
 # _layouts/home.html); recovery #45 added carriers/travel/harnesses/beds/
 # grooming so re-categorized live posts (and future topics) stay reachable.
-VALID_CATEGORIES = ("dog-gear", "dog-food", "dog-health", "dog-toys",
-                    "dog-training", "dog-grooming", "dog-beds", "dog-collars",
-                    "dog-crates", "dog-harnesses", "dog-carriers", "dog-travel",
-                    "cat-gear", "cat-food", "cat-health", "cat-toys",
-                    "cat-litter", "cat-scratching", "cat-carriers", "cat-feeders",
-                    "cat-harnesses", "cat-beds",
-                    "pet-tech", "pet-feeding", "pet-grooming")
+#
+# 2026-10-05 restructure: categories are now species-neutral topics defined in
+# _data/categories.json (species lives in `species`). The ideation LLM is
+# offered ONLY those topics (TOPIC_SCHEMA below); the old species-prefixed
+# names stay valid until LEGACY_CATEGORIES is removed (a safety net for queue
+# entries and branches made before phase 2 moved every post to a topic).
+LEGACY_CATEGORIES = ("dog-gear", "dog-food", "dog-health", "dog-toys",
+                     "dog-training", "dog-grooming", "dog-beds", "dog-collars",
+                     "dog-crates", "dog-harnesses", "dog-carriers", "dog-travel",
+                     "cat-gear", "cat-food", "cat-health", "cat-toys",
+                     "cat-litter", "cat-scratching", "cat-carriers", "cat-feeders",
+                     "cat-harnesses", "cat-beds",
+                     "pet-tech", "pet-feeding", "pet-grooming")
+VALID_CATEGORIES = categories.TOPICS + LEGACY_CATEGORIES
 
 DESKTOP_UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
               "(KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36")
@@ -118,7 +126,7 @@ TOPIC_SCHEMA = {
                     "title":               {"type": "string"},
                     "keyword":             {"type": "string"},
                     "species":             {"type": "string", "enum": ["dog", "cat", "both"]},
-                    "category":            {"type": "string", "enum": list(VALID_CATEGORIES)},
+                    "category":            {"type": "string", "enum": list(categories.TOPICS)},
                     "topical_sheet":       {"type": "string", "enum": list(VALID_SHEETS)},
                     "amazon_search_query": {"type": "string"},
                 },
@@ -484,12 +492,11 @@ Rules:
 - title: an engaging article headline for that roundup
 - keyword: the primary SEO search phrase
 - species: dog, cat, or both
-- category must be the MOST SPECIFIC fit available (e.g. "dog-toys" for a toy topic,
-  "cat-litter" for a litter topic) -- only fall back to the generic "dog-gear"/"cat-gear"
-  bucket when nothing more specific applies. Do not let more than 2-3 of the {batch}
-  topics share the same category -- spread them across toys, training, grooming, beds,
-  collars/harnesses, crates, litter, scratching, carriers, feeders, tech, and feeding,
-  not just gear/food/health.
+- category is the product TOPIC, exactly one of: {', '.join(categories.TOPICS)}.
+  Never put the species in the category -- species has its own field. Pick the
+  MOST SPECIFIC fit (e.g. "dental" for dental chews, "flea-tick" for flea prevention,
+  "litter" for a litter topic; "health" only when no narrower topic applies).
+  Do not let more than 2-3 of the {batch} topics share the same category.
 - topical_sheet is the product's Pinterest category board, exactly one of:
   HAPPYPET_SHEET_ID_HOME (Pet Home & Lifestyle: beds, litter, travel, cleaning),
   HAPPYPET_SHEET_ID_TOYS (Pet Toys & Accessories: toys, enrichment, collars),

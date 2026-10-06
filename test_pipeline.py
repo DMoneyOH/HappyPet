@@ -1702,10 +1702,42 @@ class TestRefillAgent(unittest.TestCase):
         import refill_products as rp
         specific = {"dog-toys", "cat-toys", "cat-litter", "dog-training", "pet-tech"}
         self.assertTrue(specific.issubset(set(rp.VALID_CATEGORIES)))
-        # TOPIC_SCHEMA's enum is built from VALID_CATEGORIES -- keep them in sync
+
+    def test_the_llm_is_offered_only_the_species_neutral_topics(self):
+        # Category restructure, phase 1 (2026-10-05): the ideation enum is the
+        # topic list from _data/categories.json and nothing else -- no old
+        # species-prefixed name, no "-gear" catch-all.
+        import refill_products as rp
+        enum = rp.TOPIC_SCHEMA["properties"]["topics"]["items"]["properties"]["category"]["enum"]
+        self.assertIn("flea-tick", enum)
+        self.assertIn("collars", enum)
         self.assertEqual(
-            rp.TOPIC_SCHEMA["properties"]["topics"]["items"]["properties"]["category"]["enum"],
-            list(rp.VALID_CATEGORIES))
+            [c for c in enum if c.split("-")[0] in ("dog", "cat", "pet")], [])
+        self.assertEqual(len(enum), 22)
+
+    def test_old_and_new_category_names_both_validate(self):
+        # Both sets validate until LEGACY_CATEGORIES is removed: an entry queued
+        # on another branch before phase 2 may still carry an old name.
+        import refill_products as rp
+        for name in ("dog-health", "cat-beds", "pet-grooming", "dog-travel",
+                     "health", "flea-tick", "cleaning", "tech"):
+            self.assertIn(name, rp.VALID_CATEGORIES)
+        data = json.loads((REPO / "products.json").read_text(encoding="utf-8"))
+        for e in data:
+            self.assertIn(e["category"], rp.VALID_CATEGORIES, e["topic"])
+
+    def test_the_prompt_names_every_topic_and_no_gear_fallback(self):
+        import refill_products as rp
+        captured = {}
+        def fake_call(model, prompt, **kw):
+            captured["prompt"] = prompt
+            return json.dumps({"topics": []})
+        with patch.object(rp.gp, "_call_gemini", side_effect=fake_call):
+            rp.ideate_topics(set(), set(), 3)
+        import categories
+        listed = re.search(r"exactly one of: ([^\n.]+)", captured["prompt"]).group(1)
+        self.assertEqual([t.strip() for t in listed.split(",")], list(categories.TOPICS))
+        self.assertNotIn("gear", captured["prompt"])
 
     def test_image_validation_rejects_svg_placeholder(self):
         # run #2 shipped an .svg sprite as a "product image" -- never again
@@ -3553,7 +3585,10 @@ KNOWN_UNMAPPED_QUEUE = set()
 
 
 def _category_maps_to_pill(category: str) -> bool:
+    import categories
     cat = (category or "").lower()
+    if cat in categories.USES:
+        return True   # a topic carries its own bucket (post-card.html looks it up)
     return any(kw in cat for kw in PILL_KEYWORDS)
 
 
@@ -3665,6 +3700,31 @@ class TestCategoryPillMapping(unittest.TestCase):
                 f'contains "{kw}"', card,
                 f'"{kw}" in PILL_KEYWORDS but not referenced in post-card.html')
 
+    def test_every_topic_maps_to_a_real_filter_button(self):
+        # The single source (_data/categories.json) gives every topic a "use"
+        # bucket; post-card.html emits it as data-use. A bucket the homepage has
+        # no button for is a topic no filter can reach.
+        import categories
+        home = (REPO / "_layouts" / "home.html").read_text(encoding="utf-8")
+        buttons = set(re.findall(r'data-axis="use" data-value="([a-z]+)"', home)) - {"all"}
+        self.assertEqual(len(buttons), 7, "home.html filter markup changed shape")
+        bad = {t: u for t, u in categories.USES.items() if u not in buttons}
+        self.assertEqual(bad, {}, "topics whose bucket has no homepage button")
+
+    def test_templates_read_topics_from_the_single_source(self):
+        # One include looks the category up in site.data.categories (falling
+        # back to hyphen-stripping for old names); both templates use it and
+        # neither carries its own copy of the lookup.
+        inc = (REPO / "_includes" / "category-label.html").read_text(encoding="utf-8")
+        self.assertRegex(
+            inc, r"site\.data\.categories\.topics \| where: ['\"]slug['\"], include\.category")
+        for rel in ("_includes/post-card.html", "_layouts/post.html"):
+            text = (REPO / rel).read_text(encoding="utf-8")
+            self.assertIn("include category-label.html category=category", text, rel)
+            self.assertNotIn("site.data.categories", text, rel)
+            self.assertNotIn("assign category_label", text, rel)
+        self.assertIn("topic.use", (REPO / "_includes" / "post-card.html").read_text(encoding="utf-8"))
+
     def test_every_fired_pin_still_resolves(self):
         # A pin was fired to Pinterest at /{old-category}/{slug}/. Re-categorizing
         # a post changes its permalink; unless the post carries a redirect_from
@@ -3686,6 +3746,194 @@ class TestCategoryPillMapping(unittest.TestCase):
                 unresolved.append(f"{jf.stem}: pinned {pinned}, post now {current}, no redirect")
         self.assertEqual(
             unresolved, [], "fired pins that would 404: " + "; ".join(unresolved))
+
+
+class TestTopicCategoriesSingleSource(unittest.TestCase):
+    """Category restructure, phase 1 (2026-10-05). _data/categories.json is the
+    one definition of the species-neutral topics; every consumer derives from
+    it, and every old species-prefixed name keeps behaving exactly as before."""
+
+    def test_the_json_is_the_topic_list(self):
+        import categories
+        data = json.loads((REPO / "_data" / "categories.json").read_text(encoding="utf-8"))
+        self.assertEqual(categories.TOPICS, tuple(t["slug"] for t in data["topics"]))
+        self.assertEqual(len(set(categories.TOPICS)), 22)
+        # No topic may collide with an old name, or the two sets would blur.
+        import refill_products as rp
+        self.assertEqual(set(categories.TOPICS) & set(rp.LEGACY_CATEGORIES), set())
+
+    def test_pin_labels_cover_every_topic_and_keep_the_old_ones(self):
+        import generate_pin_images as g
+        self.assertEqual(g.CAT_LABELS["flea-tick"], "Flea & tick")
+        self.assertEqual(g.CTA_LABELS["toys"], "See Our Picks")
+        # The ten old labels are unchanged, so existing pins re-render the same.
+        self.assertEqual(g.CAT_LABELS["dog-beds"], "Dog Beds")
+        self.assertEqual(g.CTA_LABELS["cat-carriers"], "See Our Pick")
+        import categories
+        self.assertEqual(set(categories.TOPICS) - set(g.CAT_LABELS), set())
+
+    def test_chewy_classification_keeps_old_names(self):
+        # is_consumable() has no callers; its sets stay exactly as on main.
+        import chewy_lookup as cl
+        for name in ("dog-food", "dog-health", "cat-health", "cat-litter"):
+            self.assertTrue(cl.is_consumable(name), name)
+        for name in ("pet-health", "pet-grooming", "dog-toys", "pet-tech"):
+            self.assertFalse(cl.is_consumable(name), name)
+        self.assertEqual(cl.CONSUMABLE_CATEGORIES & cl.HARD_GOOD_CATEGORIES, set())
+
+
+class TestRelatedLinkScoringOnTopics(unittest.TestCase):
+    """find_related_published_slug's prefix tier meant 'same species' for the
+    old dog-/cat-/pet- names. Bare topics have no species prefix, so for them
+    only an exact match may rank above 'any published post'."""
+
+    def _pick(self, current, cats):
+        # Candidates come back in dict order, first one first, so a tie at the
+        # same score always resolves to the first slug listed.
+        # The category comes from each post's own front matter.
+        import generate_posts as gp
+        posts = MagicMock()
+        with tempfile.TemporaryDirectory() as tmp:
+            files = []
+            for slug, cat in cats.items():
+                f = Path(tmp) / f"2026-01-01-{slug}.md"
+                f.write_text(f"---\ncategories: [{cat}]\n---\nbody\n", encoding="utf-8")
+                files.append(f)
+            posts.glob.return_value = files
+            with patch.object(gp, "POSTS_DIR", posts), \
+                 patch.dict(gp.SLUG_CATEGORIES, {}, clear=True), \
+                 patch.object(gp, "build_url", side_effect=lambda s: s):
+                return gp.find_related_published_slug("best-current", current)[0]
+
+    def test_old_names_still_rank_same_species_above_unrelated(self):
+        cats = {"best-a": "cat-toys", "best-b": "dog-health"}
+        self.assertEqual(self._pick("dog-beds", cats), "best-b")
+
+    def test_exact_topic_match_wins(self):
+        cats = {"best-a": "toys", "best-b": "beds"}
+        self.assertEqual(self._pick("beds", cats), "best-b")
+
+    def test_bare_topics_sharing_a_first_word_are_not_related(self):
+        # "flea-tick".split("-")[0] == "flea": the old prefix rule ranked any
+        # "flea-*" name as related (score 2). Only dog-/cat-/pet- form that
+        # tier, so both candidates tie at 1 and the first listed wins.
+        cats = {"best-b": "toys", "best-a": "flea-collars-x"}
+        self.assertEqual(self._pick("flea-tick", cats), "best-b")
+
+
+class TestPostsAreOnTopics(unittest.TestCase):
+    """Category restructure, phase 2 (2026-10-05): every published post moved to
+    one topic, its old URL kept as a redirect_from stub."""
+
+    def test_every_published_post_has_exactly_one_known_category(self):
+        # Topics, or an old name the pipeline still accepts: an old-name post
+        # generated from a queue entry made before this phase merged must not
+        # turn the pytest check (and so refill auto-merge) red. A typo is what
+        # this catches -- it would silently fall through post-card's keyword
+        # chain. Tighten to TOPICS when LEGACY_CATEGORIES is removed.
+        import refill_products as rp
+        bad = []
+        for md in sorted((REPO / "_posts").glob("*.md")):
+            if md.stem.startswith("DRAFT-"):
+                continue
+            m = re.search(r"^categories: \[([^\]]*)\]", md.read_text(encoding="utf-8"), re.M)
+            if not m or m.group(1) not in rp.VALID_CATEGORIES:
+                bad.append(f"{md.name}: {m.group(1) if m else None}")
+        self.assertEqual(bad, [])
+
+    def test_related_link_candidates_use_their_published_category(self):
+        # Candidates outside SLUG_CATEGORIES used to score as category-less,
+        # so a new topic post tied with every post and took the first one --
+        # a dog travel review linked the automatic cat feeder.
+        import generate_posts as gp
+        with patch.dict(gp.SLUG_CATEGORIES, {}, clear=True):
+            url, _ = gp.find_related_published_slug("best-new-thing", "tech")
+        self.assertIn(url, (f"{gp.SITE_BASE}/tech/best-pet-cameras/",
+                            f"{gp.SITE_BASE}/tech/best-gps-dog-trackers/"))
+
+    def test_no_post_body_links_a_published_post_off_its_live_url(self):
+        # A body link to /old-category/slug/ still resolves through the stub,
+        # but it is a redirect hop on every click and hides the next move.
+        live = {}
+        for md in (REPO / "_posts").glob("*.md"):
+            parts = md.stem.split("-", 3)
+            if not md.stem.startswith("DRAFT-") and len(parts) == 4:
+                live[parts[3]] = _post_first_category(md)
+        stale = []
+        for md in (REPO / "_posts").glob("*.md"):
+            body = md.read_text(encoding="utf-8").split("---", 2)[2]
+            for seg, slug in re.findall(
+                    r"(?:happypetproductreviews\.com|\]\()/([a-z0-9-]+)/(best-[a-z0-9-]+)/", body):
+                if slug in live and seg != live[slug]:
+                    stale.append(f"{md.name}: /{seg}/{slug}/")
+        self.assertEqual(stale, [])
+
+    def test_build_url_reads_a_published_posts_category(self):
+        # SLUG_CATEGORIES only knows ten hardcoded slugs plus the queued
+        # products, so a related link to any other post used to get a made-up
+        # /pet-accessories/ path that 404'd.
+        # Front matter wins over a stale SLUG_CATEGORIES entry: the post's own
+        # category is what Jekyll builds its URL from.
+        import generate_posts as gp
+        with patch.dict(gp.SLUG_CATEGORIES, {"best-pet-cameras": "pet-tech"}, clear=True):
+            self.assertEqual(gp.build_url("best-dog-ramps"),
+                             f"{gp.SITE_BASE}/health/best-dog-ramps/")
+            self.assertEqual(gp.build_url("best-pet-cameras"),
+                             f"{gp.SITE_BASE}/tech/best-pet-cameras/")
+
+    def test_redirect_stubs_carry_the_query_string(self):
+        # Every sent pin's article_url carries ?utm_*; 41 of them now land on
+        # a redirect_from stub. The plugin's built-in stub drops the query.
+        text = (REPO / "_layouts" / "redirect.html").read_text(encoding="utf-8")
+        self.assertRegex(text, r"location\.replace\(\{\{ page\.redirect\.to \| jsonify \}\}"
+                               r" \+ location\.search \+ location\.hash\)")
+        for kept in ('http-equiv="refresh"', 'rel="canonical"', 'name="robots" content="noindex"'):
+            self.assertIn(kept, text)
+
+    def test_post_category_strips_quotes(self):
+        import generate_posts as gp
+        with tempfile.TemporaryDirectory() as tmp:
+            for raw in ('["toys"]', "['toys']", "[ toys, x ]"):
+                f = Path(tmp) / "2026-01-01-best-x.md"
+                f.write_text(f"---\ncategories: {raw}\n---\n", encoding="utf-8")
+                self.assertEqual(gp._post_category(f), "toys", raw)
+
+    # Species drives Pinterest board routing (post_pins.resolve_events). The
+    # restructure must not move a single post between species boards. Taken
+    # from main at e16aeb6; a post published later is simply not listed.
+    SPECIES_ON_MAIN = {
+        "both": "calming-diffusers-pets odor-eliminators-pet-stains pet-cameras "
+                "pet-hair-removers-laundry-furniture pet-water-fountain portable-pet-playpens",
+        "cat": "automatic-cat-feeder automatic-litter-box cat-beds cat-calming-products "
+               "cat-carrier-backpacks cat-carrier-travel cat-dental-treats cat-grass-growing-kits "
+               "cat-harness-leash cat-litter-boxes cat-litter-odor-control cat-puzzle-feeders "
+               "cat-scratching-posts cat-tree-large cat-tunnel-toys cat-window-hammocks "
+               "cat-window-perch catnip-toys grain-free-cat-food interactive-cat-toys "
+               "kitten-food wet-cat-food",
+        "dog": "calming-treats-dogs dog-anxiety-vest dog-backpack-carrier dog-beds-large-breeds "
+               "dog-boots-hot-pavement dog-car-seat-covers dog-collars-small-breeds "
+               "dog-cooling-mat dog-crates dog-dental-chews dog-dna-tests dog-grooming "
+               "dog-joint-supplements dog-life-jacket dog-nail-grinder dog-pools "
+               "dog-probiotic-supplements dog-puzzle-toys dog-ramps dog-sun-protection "
+               "dog-toys-aggressive-chewers dog-training-treats dog-travel-water-bottles "
+               "elevated-dog-beds flea-prevention-dogs gps-dog-trackers interactive-dog-toys "
+               "no-pull-dog-harness outdoor-dog-tie-outs puppy-food puppy-training-pads "
+               "senior-dog-food slow-feeder-dog-bowls snuffle-mats-dogs",
+    }
+
+    def test_no_post_changed_species(self):
+        expected = {f"best-{n}": sp for sp, names in self.SPECIES_ON_MAIN.items()
+                    for n in names.split()}
+        self.assertEqual(len(expected), 62)
+        changed = []
+        for slug, sp in expected.items():
+            md = _post_file_for_slug(slug)
+            if md is None:
+                continue
+            m = re.search(r"^species:\s*(\S+)", md.read_text(encoding="utf-8"), re.M)
+            if not m or m.group(1) != sp:
+                changed.append(f"{slug}: {sp} -> {m.group(1) if m else None}")
+        self.assertEqual(changed, [])
 
 
 # ---------------------------------------------------------------------------

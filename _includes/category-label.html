@@ -1,0 +1,12 @@
+{%- comment -%}
+  A post's category -> `topic` (its entry in _data/categories.json, or nil for
+  an old species-prefixed name) and `category_label` (display text). Shared by
+  post-card.html and post.html. Pass category=<the post's first category>.
+  Assigns leak to the caller on purpose: that is how the values come back.
+{%- endcomment -%}
+{%- assign topic = site.data.categories.topics | where: "slug", include.category | first -%}
+{%- if topic -%}
+  {%- assign category_label = topic.label | escape -%}
+{%- else -%}
+  {%- assign category_label = include.category | replace: "-", " " -%}
+{%- endif -%}

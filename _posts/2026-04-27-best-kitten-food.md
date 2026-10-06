@@ -2,7 +2,9 @@
 layout: post
 title: "Best Kitten Food for Healthy Growth and Strong Immunity"
 date: 2026-04-27
-categories: [cat-food]
+categories: [food]
+redirect_from:
+  - /cat-food/best-kitten-food/
 species: cat
 tags: [best kitten food]
 description: "Find the kitten food that fuels growth, protects immunity, and fits a tight budget."
@@ -54,7 +56,7 @@ Protein comes next. Kittens build tissue faster than they ever will again, and a
 
 Decide about moisture deliberately. Cats evolved to take most of their water from prey and many never drink enough from a bowl, so a diet of only dry kibble leaves that gap for the owner to close. Mixing wet and dry is the common answer, and it also keeps a kitten used to both textures.
 
-Feed on a schedule rather than by refilling. A kitten needs several small meals a day, and a bowl that is always full teaches a habit that costs money and body condition later. An [automatic cat feeder](https://happypetproductreviews.com/cat-feeders/best-automatic-cat-feeder/) handles the timing if the household leaves for work before the second meal.
+Feed on a schedule rather than by refilling. A kitten needs several small meals a day, and a bowl that is always full teaches a habit that costs money and body condition later. An [automatic cat feeder](https://happypetproductreviews.com/feeding/best-automatic-cat-feeder/) handles the timing if the household leaves for work before the second meal.
 
 Change food slowly. A week of mixing the new food into the old keeps the transition off your floor, and it tells you which food caused a problem if one appears.
 

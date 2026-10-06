@@ -2,9 +2,10 @@
 layout: post
 title: "Best Cat Tunnel Toys for Active Indoor Cats Who Love to Pounce"
 date: 2026-05-14
-categories: [cat-toys]
+categories: [toys]
 redirect_from:
   - /cat-gear/best-cat-tunnel-toys/
+  - /cat-toys/best-cat-tunnel-toys/
 species: cat
 tags: [best cat tunnel toys]
 description: "Give your indoor cat a high-speed hide‑and‑seek playground with the best cat tunnel toys."

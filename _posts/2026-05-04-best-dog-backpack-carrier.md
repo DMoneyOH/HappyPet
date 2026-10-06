@@ -2,9 +2,10 @@
 layout: post
 title: "Best Dog Backpack Carrier for Hiking and Travel Adventures"
 date: 2026-05-04
-categories: [dog-carriers]
+categories: [carriers]
 redirect_from:
   - /dog-gear/best-dog-backpack-carrier/
+  - /dog-carriers/best-dog-backpack-carrier/
 species: dog
 tags: [best dog backpack carrier]
 description: "Discover the perfect dog backpack carrier for trail‑blazing hikes and hassle‑free travel adventures."

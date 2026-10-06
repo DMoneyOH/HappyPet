@@ -2,9 +2,10 @@
 layout: post
 title: "Best Cat Window Perch for Birds-Eye Views and Sunny Naps"
 date: 2026-05-01
-categories: [cat-beds]
+categories: [beds]
 redirect_from:
   - /cat-gear/best-cat-window-perch/
+  - /cat-beds/best-cat-window-perch/
 species: cat
 tags: [best cat window perch]
 description: "Give your cat the sky‑high window lounge they’ll love for sunny naps and bird‑watching."
@@ -55,7 +56,7 @@ Weight rating matters more than published capacity suggests. A cat does not sett
 
 Washability decides whether the perch still looks good in a year. Sun bleaches fabric and bakes in dander, and a cover that does not come off will not survive that. Check for a zip or a slipcover before checking the color.
 
-Cord safety belongs on this list, because the best cat window perch is worthless in a window with a dangling blind cord beside it. Cordless perches remove one hazard; the blinds are still yours to deal with. Place the perch where a cat cannot use it as a step onto something you would rather it left alone. A cat that eats on a schedule will also nap on one, so pairing a sunny perch with an [automatic cat feeder](https://happypetproductreviews.com/cat-feeders/best-automatic-cat-feeder/) keeps both halves of the routine in the same room.
+Cord safety belongs on this list, because the best cat window perch is worthless in a window with a dangling blind cord beside it. Cordless perches remove one hazard; the blinds are still yours to deal with. Place the perch where a cat cannot use it as a step onto something you would rather it left alone. A cat that eats on a schedule will also nap on one, so pairing a sunny perch with an [automatic cat feeder](https://happypetproductreviews.com/feeding/best-automatic-cat-feeder/) keeps both halves of the routine in the same room.
 
 ## Comparison table
 
