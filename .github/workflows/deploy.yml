@@ -8,6 +8,7 @@ on:
       - 'assets/**'
       - '_layouts/**'
       - '_includes/**'
+      - '_data/**'
       - '_config.yml'
       - 'Gemfile'
   workflow_dispatch:

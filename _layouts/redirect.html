@@ -1,0 +1,18 @@
+{%- comment -%}
+  jekyll-redirect-from uses this layout for every redirect_from stub in place
+  of its built-in page. The only change from that page is the script: it
+  carries the visitor's query string and fragment to the target, so a pin's
+  ?utm_* tags survive the hop from an old URL. Without JS the meta refresh
+  still lands on the right page, just without the query.
+{%- endcomment -%}
+<!DOCTYPE html>
+<html lang="en-US">
+  <meta charset="utf-8">
+  <title>Redirecting&hellip;</title>
+  <link rel="canonical" href="{{ page.redirect.to }}">
+  <script>location.replace({{ page.redirect.to | jsonify }} + location.search + location.hash)</script>
+  <meta http-equiv="refresh" content="0; url={{ page.redirect.to }}">
+  <meta name="robots" content="noindex">
+  <h1>Redirecting&hellip;</h1>
+  <a href="{{ page.redirect.to }}">Click here if you are not redirected.</a>
+</html>

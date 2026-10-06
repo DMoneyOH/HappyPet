@@ -42,8 +42,6 @@ import urllib.error
 import urllib.parse
 from pathlib import Path
 
-import categories
-
 try:
     from dotenv import load_dotenv
     # Repo root (this file's own directory) -- .env is gitignored there.
@@ -112,15 +110,12 @@ STOP_WORDS = {
 # Stripping "kitten" causes puppy products to score equally, producing false positives.
 SPECIES_TERMS = {"dog", "dogs", "cat", "cats", "puppy", "kitten", "adult", "senior"}
 
-# Full category taxonomy — consumables get Chewy as primary link.
-# Nothing calls is_consumable() today (checked 2026-10-05), so these sets are
-# metadata. The old species-prefixed names are kept exactly as they were, so
-# every existing post classifies the same until phase 2 renames it.
+# Full category taxonomy — consumables get Chewy as primary link
 CONSUMABLE_CATEGORIES = {
     "dog-food", "dog-health", "dog-treats",
     "cat-food", "cat-health", "cat-treats",
     "cat-litter",
-} | categories.CONSUMABLE   # topic flags from _data/categories.json
+}
 
 # Hard goods — Amazon primary, Chewy secondary button only
 HARD_GOOD_CATEGORIES = {
@@ -128,7 +123,7 @@ HARD_GOOD_CATEGORIES = {
     "dog-grooming", "dog-training", "dog-toys",
     "cat-gear", "cat-toys", "cat-carriers", "cat-scratching", "cat-feeders",
     "pet-tech", "pet-feeding",
-} | categories.HARD_GOODS
+}
 
 
 def _first_brand_token(text: str) -> str:
