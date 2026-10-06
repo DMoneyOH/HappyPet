@@ -21,6 +21,24 @@ name: Build check (site diff, no deploy)
 
 on:
   pull_request:
+    # Site-source changes only. automerge_gate.py holds a PR while ANY check on
+    # its head SHA is pending or red (_check_problems), and automerge fires once,
+    # when "CI — Tests" completes. A slower build-check on every refill
+    # (products.json) or Stage-1 content PR (_posts/DRAFT-*, _pin_queue,
+    # assets/images) would stall unattended merging. A path-filtered-out
+    # workflow creates no check run, so those PRs never see this one.
+    paths:
+      - '_layouts/**'
+      - '_includes/**'
+      - '_data/**'
+      - '_config.yml'
+      - 'Gemfile'
+      - 'Gemfile.lock'
+      - 'assets/css/**'
+      - '*.md'
+      - '*.html'
+      - 'search.json'
+      - '.github/workflows/build-check.yml'
   workflow_dispatch:
 
 permissions:
