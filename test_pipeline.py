@@ -8619,6 +8619,12 @@ class TestRefillCli(unittest.TestCase):
             self.assertEqual(self.cli.main(pre + ["seed", "--plan", plan_p]), 1)
             self.assertEqual(head.read_text(encoding="utf-8"), before)
 
+    def test_a_plan_with_a_bom_still_loads(self):
+        with tempfile.TemporaryDirectory() as d:
+            p = Path(d) / "plan.json"
+            p.write_bytes(b"\xef\xbb\xbf" + json.dumps({"topics": []}).encode())
+            self.assertEqual(self.cli.load_plan(p), {"topics": []})
+
     def test_context_lists_topics_and_taken_slugs(self):
         with tempfile.TemporaryDirectory() as d:
             out = Path(d) / "ctx.json"
