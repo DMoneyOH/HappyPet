@@ -63,7 +63,8 @@ jobs:
           bundler-cache: true
 
       - name: Pin site.time for both builds
-        run: echo "time: $(date -u '+%Y-%m-%d %H:%M:%S +0000')" > "$RUNNER_TEMP/build-time.yml"
+        run: |
+          echo "time: $(date -u '+%Y-%m-%d %H:%M:%S +0000')" > "$RUNNER_TEMP/build-time.yml"
 
       - name: Build head
         run: bundle exec jekyll build --baseurl "" --config "_config.yml,$RUNNER_TEMP/build-time.yml" --destination "$RUNNER_TEMP/site_head"
