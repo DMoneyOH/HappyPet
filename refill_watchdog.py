@@ -3,89 +3,65 @@
 
 Keyed on queue DEPTH, not on whether a refill job ran, so it catches every cause
 at once: the PC was off, Chrome was dead, the wrapper never started, a refill PR
-is sitting held, or nobody merged it.
+is sitting held, or nobody merged it. Depth is queue_alert.publishable_unpublished,
+the same count push_pins_to_sheets' queue-low email uses.
 
-Counts only PUBLISHABLE unpublished entries (validate_product passes): a queue of
-held NEEDS_* placeholders is not a healthy queue.
+  ALERT when fewer than MIN_DEPTH publishable topics are queued (an open refill PR
+        is named in the email, but does not silence it: it is not merged yet), or
+        when the open-PR list could not be read (fail closed).
 
-  ALERT when 0 publishable entries remain (the next Mon/Thu run posts nothing,
-        whatever PR is open), or
-        when fewer than MIN_DEPTH remain and no refill/* PR is open, or
-        when the open-PR count could not be read (fail closed).
-
-Env: OPEN_REFILL_PRS (the count the workflow read with gh; anything that is not a
-non-negative integer is "unreadable"), and for the email GMAIL_SMTP_USER,
-GMAIL_ACCOUNT, GMAIL_APP_PASSWORD. Exit 0 healthy; exit 1 after alerting, so the
-run goes red and GitHub's own failed-run notice is a second channel even when the
-email cannot be sent.
+Env: OPEN_REFILL_PRS, the JSON list of open refill/* PR numbers the workflow read
+with gh (anything else is "unreadable"), and the GMAIL_* secrets queue_alert uses.
+Exit 0 healthy; exit 1 after alerting, so the run goes red and GitHub's own
+failed-run notice is a second channel even when the email cannot be sent.
 """
+import json
 import os
-import smtplib
 import sys
-from email.mime.text import MIMEText
 
-import generate_posts as gp
+import queue_alert
 
 MIN_DEPTH = 2
-ALERT_TO = "hello@happypetproductreviews.com"
-RUN_URL = "https://github.com/{repo}/actions/runs/{run}"
 
 
-def publishable_unpublished(products: dict, used: set) -> list:
-    return [slug for slug, p in products.items()
-            if slug not in used and not gp.validate_product(slug, p)]
+def parse_open_prs(raw) -> list | None:
+    """[PR numbers] from the workflow's JSON list, or None when unreadable."""
+    try:
+        prs = json.loads(raw or "")
+    except ValueError:
+        return None
+    if not isinstance(prs, list) or not all(
+            type(n) is int and n > 0 for n in prs):   # type(): bool is an int
+        return None
+    return prs
 
 
-def parse_open_count(raw) -> int | None:
-    raw = (raw or "").strip()
-    return int(raw) if raw.isdigit() else None
-
-
-def verdict(depth: int, open_prs: int | None) -> str | None:
+def verdict(depth: int, open_prs: list | None) -> str | None:
     """The alert reason, or None when the queue is healthy."""
     if open_prs is None:
         return f"open refill PRs could not be read; {depth} publishable topic(s) queued"
-    if depth == 0:
-        return f"no publishable topic is queued ({open_prs} refill PR(s) open, none merged)"
-    if depth < MIN_DEPTH and open_prs == 0:
-        return f"only {depth} publishable topic(s) queued and no refill PR is open"
+    if depth < MIN_DEPTH:
+        held = (f"refill PR(s) open but not merged: "
+                + ", ".join(f"#{n}" for n in open_prs)) if open_prs else "no refill PR is open"
+        return f"only {depth} publishable topic(s) queued; {held}"
     return None
 
 
-def send_alert(reason: str, run_url: str) -> bool:
-    user = os.environ.get("GMAIL_SMTP_USER", "")
-    login = os.environ.get("GMAIL_ACCOUNT", "")
-    password = os.environ.get("GMAIL_APP_PASSWORD", "")
-    if not password:
-        print("GMAIL_APP_PASSWORD not set -- alert email NOT sent")
-        return False
-    msg = MIMEText(f"Refill watchdog: {reason}.\n\nThe Mon/Thu publish runs out when the "
-                   f"queue does. Run a refill (or merge the open refill PR).\n\nRun: {run_url}")
-    msg["Subject"] = f"[HappyPet] Refill watchdog: {reason}"
-    msg["From"] = user
-    msg["To"] = ALERT_TO
-    try:
-        with smtplib.SMTP("smtp.gmail.com", 587, timeout=30) as s:
-            s.starttls()
-            s.login(login, password)
-            s.sendmail(user, [ALERT_TO], msg.as_string())
-    except Exception as exc:  # report, never mask: the run still exits red
-        print(f"Alert email failed: {type(exc).__name__}: {exc}")
-        return False
-    print("Alert email sent")
-    return True
-
-
 def main() -> int:
-    products = gp.load_products()
-    depth = len(publishable_unpublished(products, gp.build_used_slugs()))
-    reason = verdict(depth, parse_open_count(os.environ.get("OPEN_REFILL_PRS")))
+    depth = len(queue_alert.publishable_unpublished())
+    prs = parse_open_prs(os.environ.get("OPEN_REFILL_PRS"))
+    reason = verdict(depth, prs)
     if reason is None:
         print(f"healthy: {depth} publishable topic(s) queued")
         return 0
     print(f"ALERT: {reason}")
-    send_alert(reason, RUN_URL.format(repo=os.environ.get("GITHUB_REPOSITORY", "DMoneyOH/HappyPet"),
-                                      run=os.environ.get("GITHUB_RUN_ID", "?")))
+    repo = os.environ.get("GITHUB_REPOSITORY", "DMoneyOH/HappyPet")
+    links = "".join(f"\nOpen refill PR: https://github.com/{repo}/pull/{n}" for n in prs or [])
+    body = (f"Refill watchdog: {reason}.\n\nThe Mon/Thu publish runs out when the queue "
+            f"does. Run a refill, or merge the open refill PR.{links}\n\n"
+            f"Run: https://github.com/{repo}/actions/runs/{os.environ.get('GITHUB_RUN_ID', '?')}")
+    _, what = queue_alert.send_alert(f"[HappyPet] Refill watchdog: {reason}", body)
+    print(what)
     return 1
 
 

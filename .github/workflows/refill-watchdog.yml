@@ -42,9 +42,11 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
         run: |
-          # Fail closed: a failed read becomes "unreadable", which the checker alerts on.
+          # One line of JSON, e.g. [] or [12,13] (tojson keeps it on one line for
+          # GITHUB_OUTPUT). Fail closed: a failed read becomes "unreadable", which
+          # the checker alerts on.
           if OPEN=$(gh pr list --repo "$REPO" --state open --search "head:refill/" \
-                      --json number --jq length); then
+                      --json number --jq 'map(.number) | tojson'); then
             echo "open=${OPEN}" >> "$GITHUB_OUTPUT"
           else
             echo "open=unreadable" >> "$GITHUB_OUTPUT"

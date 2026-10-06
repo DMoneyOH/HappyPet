@@ -131,10 +131,14 @@ def _label_key(name) -> str:
     return re.sub(r"[\s_-]+", "-", text.strip().casefold())
 
 
-def _text_problem(key: str, value) -> str | None:
+def text_problem(key: str, value, max_len: int | None = None) -> str | None:
+    """The free-text rule: a non-empty printable string of at most max_len (default:
+    the pin field's own cap), no quote/backtick/backslash/angle bracket, no edge
+    whitespace, no leading spreadsheet-formula character. None = acceptable. Also
+    used by refill_cli for products.json text before it is pushed."""
     if not isinstance(value, str) or not value:
         return f"{key} must be a non-empty string"
-    if len(value) > _TEXT_MAX[key]:
+    if len(value) > (_TEXT_MAX[key] if max_len is None else max_len):
         return f"{key} is too long"
     if not value.isprintable():
         return f"{key} has control or non-printable characters"
@@ -165,7 +169,7 @@ def pin_problems(path: str, text) -> list:
     if missing:
         bad.append("missing key(s) " + ", ".join(missing))
     for key in ("title", "description"):
-        if key in data and (p := _text_problem(key, data[key])):
+        if key in data and (p := text_problem(key, data[key])):
             bad.append(p)
     for key, rx in (("article_url", _ARTICLE_URL), ("image_url", _IMAGE_URL)):
         if key in data and not (isinstance(data[key], str) and rx.fullmatch(data[key])):
@@ -397,7 +401,7 @@ _ASIN = re.compile(r"B0[A-Z0-9]{8}")
 # own check, refill_products.IMAGE_HOST_RE, which is case-insensitive and whose [^\s"']
 # class admits `?` (so a query string). The gate is case-sensitive, uses fullmatch over a
 # closed character set, and admits no query.
-_AMAZON_IMAGE = re.compile(
+AMAZON_IMAGE = re.compile(
     r"https://m\.media-amazon\.com/images/I/[A-Za-z0-9._+-]+\.(?:jpg|jpeg|png|webp)")
 # Impact tracking link to Chewy. 32975 is CHEWY_CAMPAIGN_ID and APIG_24727 carries
 # CHEWY_CATALOG_ID 24727 (both chewy_lookup.py defaults). 7160344 and 3054490 are not named
@@ -418,7 +422,7 @@ def is_refill_branch(ref) -> bool:
     return isinstance(ref, str) and REFILL_BRANCH.fullmatch(ref) is not None
 
 
-def _is_placeholder(entry: dict) -> bool:
+def is_placeholder(entry: dict) -> bool:
     return entry.get("asin") == "NEEDS_ASIN" or entry.get("image") == "NEEDS_IMAGE"
 
 
@@ -473,7 +477,7 @@ def refill_entry_problems(entry: dict) -> list:
     elif entry.get("affiliate_url") != f"https://www.amazon.com/dp/{asin}?tag={AFFILIATE_TAG}":
         bad.append("affiliate_url is not the canonical link for its ASIN")
     image = entry.get("image")
-    if not (isinstance(image, str) and _AMAZON_IMAGE.fullmatch(image)):
+    if not (isinstance(image, str) and AMAZON_IMAGE.fullmatch(image)):
         bad.append("image is not an m.media-amazon.com product photo")
     if "chewy_url" not in entry:
         bad.append("chewy_url is missing")
@@ -502,7 +506,7 @@ def refill_products_problems(head_text, merge_base_text) -> list:
         if head[i]["topic"] != old["topic"]:
             bad.append(f"existing entry {old['topic']!r} is not at position {i} "
                        "(moved, removed or displaced by an insert)")
-        elif _is_placeholder(old):
+        elif is_placeholder(old):
             fresh.append(head[i])
         elif _canonical(head[i]) != _canonical(old):
             bad.append(f"existing entry {old['topic']!r} was changed")

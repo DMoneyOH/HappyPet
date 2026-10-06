@@ -13,14 +13,21 @@ decision about what may enter products.json lives here, offline:
                                        fill each placeholder this run seeded (not
                                        in b.json) from the plan's product, Chewy
                                        enrichment OFF; drop the ones left unfilled
-  check   --base base.json             the auto-merge gate's own refill rule run
-                                       locally against the branch point, plus
-                                       validate_product on every new entry
+  check   --base base.json             every seed and resolve rule again, on every
+                                       entry not in base.json, plus the auto-merge
+                                       gate's refill rule run locally
 
 Plan file: {"abort": null | "<reason>", "topics": [{topic, title, keyword, species,
 category, topical_sheet, amazon_search_query, product: null | {name, asin, image,
-price, stars, runners_up?, upc?}}]}. Plan content is untrusted: every field is
-checked here, and the gate checks the result again on GitHub.
+price, stars, runners_up?, upc?}}]}. Plan content is untrusted.
+
+What the gate re-checks on GitHub (automerge_gate.evaluate_refill) is narrower than
+`check`: the PR shape and CI, products.json the only file, no NEEDS_/REVIEW marker,
+existing entries unchanged and in order, and for each new entry its ASIN shape and
+uniqueness, the canonical affiliate link, the m.media-amazon.com image and a null or
+chewy.sjv.io chewy_url. It does NOT re-check slug collisions, category, species,
+topical_sheet, the text fields, price, stars or upc, and it allows a chewy.sjv.io
+link. Those rules live only here, so `check` must pass before any push.
 
 No network, no git: the wrapper (run-refill.ps1) owns branches, pushes and the PR.
 Every command takes --products to work on a scratch copy instead of the repo file.
@@ -33,7 +40,7 @@ import re
 import sys
 from pathlib import Path
 
-from json_io import atomic_write_json, read_json
+from json_io import CorruptJSONError, atomic_write_json, read_json
 import automerge_gate
 import categories
 import generate_posts as gp
@@ -42,13 +49,14 @@ import refill_products as rp
 SLUG_RE = re.compile(r"best-[a-z0-9]+(?:-[a-z0-9]+)*")
 SLUG_MAX = 60
 TEXT_MAX = 200
-# Titles reach pin JSON, Sheets and IFTTT; automerge_gate.pin_problems refuses these.
-TEXT_FORBIDDEN = frozenset('"`\\<>')
 SPECIES = ("dog", "cat", "both")
 PRICE_RE = re.compile(r"[0-9]{1,5}(?:\.[0-9]{2})?")
 UPC_RE = re.compile(r"[0-9]{12,14}")
 TOPIC_FIELDS = ("topic", "title", "keyword", "species", "category",
                 "topical_sheet", "amazon_search_query")
+# Every field build_entry writes: a new entry missing one did not come through seed.
+ENTRY_FIELDS = tuple(rp.build_entry({k: "x" for k in TOPIC_FIELDS}))
+CHEWY_FIELDS = ("chewy_url", "chewy_price", "chewy_stock", "chewy_rating")
 REPO_DIR = Path(__file__).parent.resolve()
 
 
@@ -70,14 +78,8 @@ def taken_slugs(products: list) -> set:
     return slugs | {_bare(s) for s in slugs}
 
 
-def _text_problem(name: str, value) -> str | None:
-    if not isinstance(value, str) or not value.strip():
-        return f"{name} is empty"
-    if len(value) > TEXT_MAX or not value.isprintable() or value != value.strip():
-        return f"{name} is too long, has control characters or edge whitespace"
-    if TEXT_FORBIDDEN & set(value):
-        return f"{name} has a quote, backtick, backslash or angle bracket"
-    return None
+def _text(name: str, value) -> str | None:
+    return automerge_gate.text_problem(name, value, TEXT_MAX)
 
 
 def topic_problems(t, taken: set) -> list:
@@ -91,7 +93,7 @@ def topic_problems(t, taken: set) -> list:
     elif slug in taken or _bare(slug) in taken:
         bad.append("topic collides with a published, drafted, queued or pinned slug")
     for f in ("title", "keyword", "amazon_search_query"):
-        if p := _text_problem(f, t.get(f)):
+        if p := _text(f, t.get(f)):
             bad.append(p)
     if t.get("species") not in SPECIES:
         bad.append("species is not dog/cat/both")
@@ -111,20 +113,53 @@ def product_problems(p) -> list:
     bad = []
     if not rp.validate_candidate(p):
         bad.append("failed validate_candidate (ASIN shape, image host, sponsored name)")
-    elif not automerge_gate._AMAZON_IMAGE.fullmatch(p["image"]):
+    elif not automerge_gate.AMAZON_IMAGE.fullmatch(p["image"]):
         bad.append("image URL is not the gate's exact m.media-amazon.com form")
-    if why := _text_problem("name", p.get("name")):
+    if why := _text("name", p.get("name")):
         bad.append(why)
     if not (isinstance(p.get("price"), str) and PRICE_RE.fullmatch(p["price"])):
         bad.append("price is not a plain decimal string")
     stars = p.get("stars")
     if isinstance(stars, bool) or not isinstance(stars, (int, float)) or not 0 <= stars <= 5:
         bad.append("stars is not a number from 0 to 5")
-    if p.get("runners_up") is not None and (why := _text_problem("runners_up", p["runners_up"])):
+    if p.get("runners_up") is not None and (why := _text("runners_up", p["runners_up"])):
         bad.append(why)
     if p.get("upc") is not None and not (isinstance(p["upc"], str) and UPC_RE.fullmatch(p["upc"])):
         bad.append("upc is not 12-14 digits")
     return bad
+
+
+def new_entry_problems(e: dict, taken: set) -> list:
+    """Every seed and resolve rule, applied to one entry as it sits in products.json.
+    `taken` must not contain the entry's own slug."""
+    bad = []
+    missing = [k for k in ENTRY_FIELDS if k not in e]
+    if missing:
+        bad.append("missing field(s) " + ", ".join(missing))
+    bad += topic_problems({k: e.get(k) for k in TOPIC_FIELDS}, taken)
+    if e.get("format") != "roundup":
+        bad.append("format is not roundup")
+    product = {k: e.get(k) for k in ("name", "asin", "image", "price", "stars")}
+    if e.get("runners_up"):          # build_entry writes "" when there are none
+        product["runners_up"] = e["runners_up"]
+    if "upc" in e:
+        product["upc"] = e["upc"]
+    bad += product_problems(product)
+    # Locally, Chewy data comes only from the GTIN path, never from refill.
+    bad += [f"{k} is set; refill never adds Chewy data" for k in CHEWY_FIELDS
+            if e.get(k) is not None]
+    return bad
+
+
+def load_products(path, label: str) -> list:
+    """products.json as a list, or a clean SystemExit naming the file."""
+    try:
+        data = read_json(path)
+    except (OSError, CorruptJSONError) as exc:
+        raise SystemExit(f"{label} unreadable: {exc}") from None
+    if not isinstance(data, list):
+        raise SystemExit(f"{label} {path} is missing or not a JSON list")
+    return data
 
 
 def load_plan(path: Path) -> dict:
@@ -139,7 +174,7 @@ def load_plan(path: Path) -> dict:
 
 
 def cmd_context(args) -> int:
-    products = read_json(args.products, default=[])
+    products = load_products(args.products, "products")
     ctx = {
         "batch": args.batch,
         "categories": list(categories.TOPICS),
@@ -159,7 +194,7 @@ def cmd_seed(args) -> int:
     if plan.get("abort"):
         print(f"ABORTED by the session: {str(plan['abort'])[:300]!r}")
         return 1
-    products = read_json(args.products, default=[])
+    products = load_products(args.products, "products")
     taken = taken_slugs(products)
     seeded = []
     for t in plan["topics"][:args.max]:
@@ -182,16 +217,17 @@ def cmd_seed(args) -> int:
 def cmd_resolve(args) -> int:
     plan = load_plan(Path(args.plan))
     path = Path(args.products)
-    products = read_json(path, default=[])
+    products = load_products(path, "products")
     planned = {t.get("topic"): t.get("product") for t in plan["topics"] if isinstance(t, dict)}
     # Only entries this run seeded: anything already on the branch point is never
     # filled or dropped here, so a plan naming a queued topic cannot touch it.
-    base_topics = {e.get("topic") for e in read_json(args.base, default=[]) if isinstance(e, dict)}
+    base_topics = {e.get("topic") for e in load_products(args.base, "base")
+                   if isinstance(e, dict)}
     filled, dropped = [], []
     for entry in products:
         topic = entry.get("topic")
         if topic in base_topics or topic not in planned \
-                or not automerge_gate._is_placeholder(entry):
+                or not automerge_gate.is_placeholder(entry):
             continue
         product = planned[topic]
         bad = product_problems(product) if product is not None else ["no product in the plan"]
@@ -217,16 +253,18 @@ def cmd_resolve(args) -> int:
 
 
 def cmd_check(args) -> int:
-    head_text = Path(args.products).read_text(encoding="utf-8")
-    base_text = Path(args.base).read_text(encoding="utf-8")
-    problems = automerge_gate.refill_products_problems(head_text, base_text)
-    base_topics = {e.get("topic") for e in json.loads(base_text) if isinstance(e, dict)}
-    for e in json.loads(head_text):
-        if isinstance(e, dict) and e.get("topic") not in base_topics:
-            problems += [f"entry {e.get('topic')!r}: {m}"
-                         for m in gp.validate_product(e.get("topic"), e)]
-            if e.get("category") not in categories.TOPICS:
-                problems.append(f"entry {e.get('topic')!r}: category is not a bare topic")
+    head = load_products(args.products, "products")
+    base = load_products(args.base, "base")
+    problems = automerge_gate.refill_products_problems(json.dumps(head), json.dumps(base))
+    base_topics = {e.get("topic") for e in base if isinstance(e, dict)}
+    taken = taken_slugs(base)
+    for e in head:
+        if not isinstance(e, dict) or e.get("topic") in base_topics:
+            continue
+        name = e.get("topic")
+        problems += [f"entry {name!r}: {m}" for m in new_entry_problems(e, taken)]
+        if isinstance(name, str):
+            taken |= {name, _bare(name)}   # a second entry with this slug collides
     for p in problems:
         print(f"PROBLEM {p}")
     print("check: PASS" if not problems else f"check: HOLD ({len(problems)} problem(s))")
@@ -239,16 +277,22 @@ def build_parser() -> argparse.ArgumentParser:
     ap.add_argument("--products", default=str(rp.PRODUCTS_PATH),
                     help="products.json to read/write (default: the repo's)")
     sub = ap.add_subparsers(dest="cmd", required=True)
-    c = sub.add_parser("context"); c.add_argument("--out", required=True)
-    c.add_argument("--batch", type=int, default=6); c.set_defaults(func=cmd_context)
-    s = sub.add_parser("seed"); s.add_argument("--plan", required=True)
-    s.add_argument("--max", type=int, default=10); s.set_defaults(func=cmd_seed)
-    r = sub.add_parser("resolve"); r.add_argument("--plan", required=True)
-    r.add_argument("--base", required=True)
-    r.add_argument("--result", help="write {filled, dropped} JSON here (outside the repo)")
-    r.set_defaults(func=cmd_resolve)
-    k = sub.add_parser("check"); k.add_argument("--base", required=True)
-    k.set_defaults(func=cmd_check)
+    p_context = sub.add_parser("context")
+    p_context.add_argument("--out", required=True)
+    p_context.add_argument("--batch", type=int, default=6)
+    p_context.set_defaults(func=cmd_context)
+    p_seed = sub.add_parser("seed")
+    p_seed.add_argument("--plan", required=True)
+    p_seed.add_argument("--max", type=int, default=10)
+    p_seed.set_defaults(func=cmd_seed)
+    p_resolve = sub.add_parser("resolve")
+    p_resolve.add_argument("--plan", required=True)
+    p_resolve.add_argument("--base", required=True)
+    p_resolve.add_argument("--result", help="write {filled, dropped} JSON here (outside the repo)")
+    p_resolve.set_defaults(func=cmd_resolve)
+    p_check = sub.add_parser("check")
+    p_check.add_argument("--base", required=True)
+    p_check.set_defaults(func=cmd_check)
     return ap
 
 

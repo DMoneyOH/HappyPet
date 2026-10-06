@@ -35,12 +35,6 @@ try:
 except ImportError:
     PIN_GEN_AVAILABLE = False
 
-try:
-    from chewy_lookup import lookup as chewy_lookup
-    CHEWY_LOOKUP_AVAILABLE = True
-except ImportError:
-    CHEWY_LOOKUP_AVAILABLE = False
-
 REPO_DIR  = Path(__file__).parent.resolve()
 POSTS_DIR = REPO_DIR / "_posts"
 LOG_PATH  = Path(__file__).parent / "LOGS" / f"HappyPet_{datetime.date.today().isoformat()}.log"
@@ -1060,7 +1054,12 @@ def enrich_with_chewy(slug: str, product: dict) -> bool:
       "REVIEW"         -> logged as warning, chewy_url left null, no button
       None              -> credentials missing or error, chewy_url left null
     """
-    if not CHEWY_LOOKUP_AVAILABLE:
+    # Imported here, not at module load: importing chewy_lookup reads Impact
+    # credentials from the local vault, and most importers of this module
+    # (refill_cli, manual_resolve, refill_watchdog...) never look Chewy up.
+    try:
+        from chewy_lookup import lookup as chewy_lookup
+    except ImportError:
         return False
 
     existing = product.get("chewy_url")
