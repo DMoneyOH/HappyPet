@@ -2,7 +2,9 @@
 layout: post
 title: "Best Pet Cameras for Checking on Your Dog"
 date: 2026-04-07
-categories: [pet-tech]
+categories: [tech]
+redirect_from:
+  - /pet-tech/best-pet-cameras/
 species: both
 tags: [pet camera treat dispenser]
 description: "Keep an eye on your best friend and even toss them a treat with these top-rated pet cameras!"

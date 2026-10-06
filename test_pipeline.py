@@ -3814,6 +3814,50 @@ class TestRelatedLinkScoringOnTopics(unittest.TestCase):
         self.assertEqual(self._pick("flea-tick", cats), "best-b")
 
 
+class TestPostsAreOnTopics(unittest.TestCase):
+    """Category restructure, phase 2 (2026-10-05): every published post moved to
+    one topic, its old URL kept as a redirect_from stub."""
+
+    def test_every_published_post_has_exactly_one_topic(self):
+        import categories
+        bad = []
+        for md in sorted((REPO / "_posts").glob("*.md")):
+            if md.stem.startswith("DRAFT-"):
+                continue
+            m = re.search(r"^categories: \[([^\]]*)\]", md.read_text(encoding="utf-8"), re.M)
+            if not m or m.group(1) not in categories.TOPICS:
+                bad.append(f"{md.name}: {m.group(1) if m else None}")
+        self.assertEqual(bad, [])
+
+    def test_no_post_body_links_a_published_post_off_its_live_url(self):
+        # A body link to /old-category/slug/ still resolves through the stub,
+        # but it is a redirect hop on every click and hides the next move.
+        live = {}
+        for md in (REPO / "_posts").glob("*.md"):
+            parts = md.stem.split("-", 3)
+            if not md.stem.startswith("DRAFT-") and len(parts) == 4:
+                live[parts[3]] = _post_first_category(md)
+        stale = []
+        for md in (REPO / "_posts").glob("*.md"):
+            body = md.read_text(encoding="utf-8").split("---", 2)[2]
+            for seg, slug in re.findall(
+                    r"(?:happypetproductreviews\.com|\]\()/([a-z0-9-]+)/(best-[a-z0-9-]+)/", body):
+                if slug in live and seg != live[slug]:
+                    stale.append(f"{md.name}: /{seg}/{slug}/")
+        self.assertEqual(stale, [])
+
+    def test_build_url_reads_a_published_posts_category(self):
+        # SLUG_CATEGORIES only knows ten hardcoded slugs plus the queued
+        # products, so a related link to any other post used to get a made-up
+        # /pet-accessories/ path that 404'd.
+        import generate_posts as gp
+        with patch.dict(gp.SLUG_CATEGORIES, {}, clear=True):
+            self.assertEqual(gp.build_url("best-dog-ramps"),
+                             f"{gp.SITE_BASE}/health/best-dog-ramps/")
+            self.assertEqual(gp.build_url("best-pet-cameras"),
+                             f"{gp.SITE_BASE}/tech/best-pet-cameras/")
+
+
 # ---------------------------------------------------------------------------
 # Homepage control-wiring guard
 #

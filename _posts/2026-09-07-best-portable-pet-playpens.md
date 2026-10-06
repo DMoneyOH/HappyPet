@@ -2,9 +2,10 @@
 layout: post
 title: "Adventure Ready: Top Portable Pet Playpens for Safe Outdoor Fun"
 date: 2026-09-07
-categories: [pet-crates]
+categories: [crates]
 redirect_from:
   - /dog-crates/best-portable-pet-playpens/
+  - /pet-crates/best-portable-pet-playpens/
 species: both
 tags: [portable pet playpen]
 description: "Keep your dog or cat safe outdoors with a foldable, grab-and-go pet playpen that sets up in seconds."
@@ -61,7 +62,7 @@ Check the top. An open enclosure works for a dog that stays put, but a removable
 
 Look at the floor and the fabric. A sewn-in base keeps a digger from tunneling out and blocks damp grass from soaking through. Mesh should feel tight and stitched twice at the seams, since that is where a chewer starts to work.
 
-Match the pen to the pet, not the marketing photo. A calm senior cat and a nippy puppy ask for different things. While you gear up for trips, a well-fitted collar helps too, and this guide to [dog collars small breeds](https://happypetproductreviews.com/dog-collars/best-dog-collars-small-breeds/) pairs well with a travel setup.
+Match the pen to the pet, not the marketing photo. A calm senior cat and a nippy puppy ask for different things. While you gear up for trips, a well-fitted collar helps too, and this guide to [dog collars small breeds](https://happypetproductreviews.com/collars/best-dog-collars-small-breeds/) pairs well with a travel setup.
 
 ## How the picks compare
 

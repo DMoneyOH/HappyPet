@@ -2,7 +2,9 @@
 layout: post
 title: "Best Dog DNA Tests Reviewed"
 date: 2026-04-07
-categories: [dog-health]
+categories: [health]
+redirect_from:
+  - /dog-health/best-dog-dna-tests/
 species: dog
 tags: [dog dna test kit]
 description: "Uncover your dog's true heritage and health risks with our top-rated dog DNA test kits!"

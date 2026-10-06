@@ -2,7 +2,9 @@
 layout: post
 title: "Feline Fun: The Best Catnip Toys to Delight Your Kitty"
 date: 2026-09-10
-categories: [cat-toys]
+categories: [toys]
+redirect_from:
+  - /cat-toys/best-catnip-toys/
 species: cat
 tags: [catnip toys]
 description: "Catnip toys that hold your cat's attention past the first sniff, plus honest picks for every play style and budget."
@@ -50,7 +52,7 @@ The ETEKYER Catnip Cat Toys 5 Pack leans plush rather than mouse-shaped, which s
 
 A few things separate catnip toys that last from ones headed for the trash by Sunday. Filling matters most. Dried catnip loses potency with air exposure, so toys with a tight seam or a resealable pouch hold their scent longer than open-weave designs. Fabric comes next. A cat's back claws shred thin felt fast, while tighter-woven plush or canvas survives repeated rabbit-kicking. Size and shape steer how a cat plays. Small mice invite chasing and batting, while a palm-sized pillow invites gripping and kicking with the hind legs.
 
-Weight counts too, since a toy light enough to skid across hardwood keeps a cat chasing rather than sitting and staring. Households with more than one cat do better with a multipack, because toys disappear under couches and a spare keeps the game alive. Sensitive noses may need a fresh dose of loose catnip worked into the toy every couple of weeks to reset the appeal. A calm home helps the mood as well, and owners fighting box smells can pair playtime with a guide to [cat litter odor control](https://happypetproductreviews.com/cat-litter/best-cat-litter-odor-control/). For a low-risk starting point, the [Potaroma Cat Toys Pillows, 3 Pack, Soft and Durable Crinkle Sound with Catnip Inside, Interactive Indoor Kitten Kicker, Promotes Kitty Exercise](https://www.amazon.com/dp/B09WHBG4DV?tag=happypetdc-20) covers most cats without straining a budget.
+Weight counts too, since a toy light enough to skid across hardwood keeps a cat chasing rather than sitting and staring. Households with more than one cat do better with a multipack, because toys disappear under couches and a spare keeps the game alive. Sensitive noses may need a fresh dose of loose catnip worked into the toy every couple of weeks to reset the appeal. A calm home helps the mood as well, and owners fighting box smells can pair playtime with a guide to [cat litter odor control](https://happypetproductreviews.com/litter/best-cat-litter-odor-control/). For a low-risk starting point, the [Potaroma Cat Toys Pillows, 3 Pack, Soft and Durable Crinkle Sound with Catnip Inside, Interactive Indoor Kitten Kicker, Promotes Kitty Exercise](https://www.amazon.com/dp/B09WHBG4DV?tag=happypetdc-20) covers most cats without straining a budget.
 
 ## Comparison table
 

@@ -2,7 +2,9 @@
 layout: post
 title: "Best Elevated Dog Beds to Keep Your Dog Cool and Comfortable"
 date: 2026-07-30
-categories: [dog-beds]
+categories: [beds]
+redirect_from:
+  - /dog-beds/best-elevated-dog-beds/
 species: dog
 tags: [best elevated dog bed]
 description: "Raised dog beds that keep your dog off the hot floor and cool all summer, starting under $30."
@@ -48,7 +50,7 @@ Picking the best elevated dog bed comes down to the frame and the surface, with 
 
 The surface matters just as much. A tight woven or mesh top lets air flow through and dries fast, which is the whole point of going raised in summer. Loose fabric sags and traps heat, so look for a top that pulls drum-tight across the frame.
 
-Measure your dog nose to tail and add a few inches before you settle on a size. A cramped bed pushes a dog to sleep half on the floor, which defeats the purpose. Think about where the bed lives, too. An outdoor cot needs UV-stable fabric and rustproof legs, while an indoor bed can trade weatherproofing for a softer feel. For dogs that run hot inside, pairing a raised bed with a [dog cooling mat](https://happypetproductreviews.com/dog-beds/best-dog-cooling-mat/) gives them two ways to shed heat.
+Measure your dog nose to tail and add a few inches before you settle on a size. A cramped bed pushes a dog to sleep half on the floor, which defeats the purpose. Think about where the bed lives, too. An outdoor cot needs UV-stable fabric and rustproof legs, while an indoor bed can trade weatherproofing for a softer feel. For dogs that run hot inside, pairing a raised bed with a [dog cooling mat](https://happypetproductreviews.com/beds/best-dog-cooling-mat/) gives them two ways to shed heat.
 
 Cleaning deserves a thought before you buy. A woven or mesh top rinses off with a garden hose and dries in the sun, so hair and mud never really build up. Fabric that snaps back onto the frame with clips makes the job faster, since you can pop the top off, spray it down, and clip it back on. Skip beds with padded covers that need a washing machine if your dog spends most of the day outdoors, because those covers hold odor and take hours to dry. A bed that stays clean with little effort is a bed your dog actually keeps using.
 

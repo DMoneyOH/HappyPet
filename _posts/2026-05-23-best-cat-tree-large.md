@@ -2,9 +2,10 @@
 layout: post
 title: "Best Large Cat Trees for Climbing, Scratching, and Lounging"
 date: 2026-05-23
-categories: [cat-scratching]
+categories: [scratching]
 redirect_from:
   - /cat-gear/best-cat-tree-large/
+  - /cat-scratching/best-cat-tree-large/
 species: cat
 tags: [best large cat tree]
 description: "The ultimate cat tree that lets your kitty climb, scratch, and snooze in style, without breaking the bank."
@@ -64,4 +65,4 @@ Finally, think about maintenance. Removable, washable covers make cleaning easie
 
 Investing in a high‑quality, tall cat tree transforms a restless household into a calm, contented one. The **Globlazer Heavy Duty Cat Tree, 74in, 7 Sisal Posts, 2 Padded Condos, Dark Grey** delivers the perfect blend of durability, height, and cozy hideaways, making it the top choice for anyone seeking the **best large cat tree**. Ready to give your cat the kingdom it deserves? Grab yours today and watch the climbing, scratching, and lounging adventures begin.  
 
-For more ideas on keeping your kitty entertained, check out our roundup of [cat tunnel toys](https://happypetproductreviews.com/cat-gear/best-cat-tunnel-toys/).
+For more ideas on keeping your kitty entertained, check out our roundup of [cat tunnel toys](https://happypetproductreviews.com/toys/best-cat-tunnel-toys/).

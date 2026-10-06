@@ -2,7 +2,9 @@
 layout: post
 title: "Best Cat Calming Products for Anxious and Stressed Cats"
 date: 2026-05-04
-categories: [cat-health]
+categories: [calming]
+redirect_from:
+  - /cat-health/best-cat-calming-products/
 species: cat
 tags: [best cat calming products]
 description: "The budget-friendly calming products cat owners rate highest for storms, noise and stress."

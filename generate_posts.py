@@ -717,16 +717,16 @@ _BANNED_INTENSIFIERS_STR = ", ".join(f'"{w}"' for w in BANNED_INTENSIFIERS)
 # Articles 1-10 category map (predate products.json; remain hardcoded)
 # Articles 11+ categories registered at runtime from products.json
 SLUG_CATEGORIES = {
-    "best-dog-collars-small-breeds":    "dog-collars",
-    "best-cat-scratching-posts":        "cat-scratching",
-    "best-no-pull-dog-harness":         "dog-harnesses",
-    "best-automatic-cat-feeder":        "cat-feeders",
-    "best-dog-toys-aggressive-chewers": "dog-toys",
-    "best-cat-litter-odor-control":     "cat-litter",
-    "best-dog-beds-large-breeds":       "dog-beds",
-    "best-pet-water-fountain":          "pet-feeding",
-    "best-puppy-training-pads":         "dog-training",
-    "best-cat-carrier-travel":          "cat-carriers",
+    "best-dog-collars-small-breeds":    "collars",
+    "best-cat-scratching-posts":        "scratching",
+    "best-no-pull-dog-harness":         "harnesses",
+    "best-automatic-cat-feeder":        "feeding",
+    "best-dog-toys-aggressive-chewers": "toys",
+    "best-cat-litter-odor-control":     "litter",
+    "best-dog-beds-large-breeds":       "beds",
+    "best-pet-water-fountain":          "feeding",
+    "best-puppy-training-pads":         "training",
+    "best-cat-carrier-travel":          "carriers",
 }
 
 # Permanent -- covers articles 1-10 which predate products.json. Do not delete.
@@ -894,8 +894,27 @@ def slugify(s: str) -> str:
     return re.sub(r"[^a-z0-9\-]", "", s.lower().replace(" ", "-"))
 
 
+def _published_category(slug: str):
+    """The `categories:` value of the published post for `slug`, or None.
+    SLUG_CATEGORIES only knows the hardcoded ten and the queued products.json
+    entries, so every other published post used to get a made-up path."""
+    for md in POSTS_DIR.glob("*.md"):
+        parts = md.stem.split("-", 3)
+        if md.stem.startswith("DRAFT-") or len(parts) != 4 or parts[3] != slug:
+            continue
+        m = re.search(r"^categories:\s*\[\s*([^\],\s]+)", md.read_text(encoding="utf-8"), re.M)
+        if m:
+            return m.group(1)
+    return None
+
+
 def build_url(slug: str, utm: bool = False) -> str:
-    category = SLUG_CATEGORIES.get(slug, "pet-accessories")
+    category = SLUG_CATEGORIES.get(slug) or _published_category(slug)
+    if not category:
+        # Unreachable for a validated product (category is required) or a
+        # published post; a guessed path would 404, so say so in the log.
+        log(f"build_url: no category known for {slug} -- using 'health'", "WARN")
+        category = "health"
     base = f"{SITE_BASE}/{category}/{slug}/"
     if utm:
         return base + "?utm_source=pinterest&utm_medium=social&utm_campaign=pin"

@@ -2,7 +2,9 @@
 layout: post
 title: "Best Dog Joint Supplements for Mobility and Hip Health"
 date: 2026-04-23
-categories: [dog-health]
+categories: [supplements]
+redirect_from:
+  - /dog-health/best-dog-joint-supplements/
 species: dog
 tags: [best dog joint supplements]
 description: "The joint supplements owners rate highest for mobility and hip support, compared side by side."

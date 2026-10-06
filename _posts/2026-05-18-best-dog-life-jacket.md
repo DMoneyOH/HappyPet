@@ -2,9 +2,10 @@
 layout: post
 title: "Best Dog Life Jacket for Safe Swimming and Water Adventures"
 date: 2026-05-18
-categories: [dog-travel]
+categories: [outdoor]
 redirect_from:
   - /dog-gear/best-dog-life-jacket/
+  - /dog-travel/best-dog-life-jacket/
 species: dog
 tags: [best dog life jacket]
 description: "Keep your pup afloat and adventurous with the most reliable life jacket on the water."

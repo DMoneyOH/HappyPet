@@ -2,9 +2,10 @@
 layout: post
 title: "Best Dog Anxiety Vest to Calm Nervous and Stressed Dogs"
 date: 2026-04-27
-categories: [dog-health]
+categories: [calming]
 redirect_from:
   - /dog-gear/best-dog-anxiety-vest/
+  - /dog-health/best-dog-anxiety-vest/
 species: dog
 tags: [best dog anxiety vest]
 description: "Calm your nervous pup in minutes with the top-rated anxiety vest for dogs."
@@ -68,4 +69,4 @@ Ready to give your dog the calm they deserve? Grab the **[ThunderShirt for Dogs,
 
 ---  
 
-If you’re also hunting for other essential gear, check out the guide to the **[best puppy training pads](https://happypetproductreviews.com/dog-gear/best-puppy-training-pads/)** for a tidy home while your pup learns the ropes.
+If you’re also hunting for other essential gear, check out the guide to the **[best puppy training pads](https://happypetproductreviews.com/training/best-puppy-training-pads/)** for a tidy home while your pup learns the ropes.

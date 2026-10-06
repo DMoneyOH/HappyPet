@@ -2,7 +2,9 @@
 layout: post
 title: "Best Cat Puzzle Feeders to Slow Down Mealtime and Beat Boredom"
 date: 2026-08-13
-categories: [cat-feeders]
+categories: [feeding]
+redirect_from:
+  - /cat-feeders/best-cat-puzzle-feeders/
 species: cat
 tags: [best cat puzzle feeder]
 description: "Slow down a gulping cat and beat boredom with a puzzle feeder that turns mealtime into a hunt"
@@ -47,7 +49,7 @@ Think about the food you plan to use. Dry kibble rolls and drops cleanly through
 
 Cleaning decides whether a feeder stays in the rotation or ends up in a cupboard. Units with deep narrow channels trap crumbs and oils, so look for one you can rinse quickly or drop in the dishwasher when daily washing sounds like too much. The best cat puzzle feeder is the one your cat actually uses, and a grimy feeder you dread cleaning gets used less.
 
-Consider the floor and the cat's habits. A light feeder slides when a strong cat paws at it, so a non-slip base or a placemat underneath keeps the game in one spot. A puzzle feeder handles the boredom and the speed, not the schedule, so pair it with an [automatic cat feeder](https://happypetproductreviews.com/cat-feeders/best-automatic-cat-feeder/) if you also need timed meals while you are out of the house.
+Consider the floor and the cat's habits. A light feeder slides when a strong cat paws at it, so a non-slip base or a placemat underneath keeps the game in one spot. A puzzle feeder handles the boredom and the speed, not the schedule, so pair it with an [automatic cat feeder](https://happypetproductreviews.com/feeding/best-automatic-cat-feeder/) if you also need timed meals while you are out of the house.
 
 ## Comparison table
 

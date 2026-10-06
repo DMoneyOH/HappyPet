@@ -2,7 +2,9 @@
 layout: post
 title: "The Best Snuffle Mats for Dogs to Satisfy Their Instincts and Keep Them Engaged"
 date: 2026-10-05
-categories: [dog-training]
+categories: [toys]
+redirect_from:
+  - /dog-training/best-snuffle-mats-dogs/
 species: dog
 tags: [best dog snuffle mats]
 description: "Fast eater or bored dog? A cheap snuffle mat turns a gulped meal into a nose-powered search that tires them out."
@@ -53,7 +55,7 @@ Think about chewing honestly. The best dog snuffle mats still fail with a dog th
 
 Check how it cleans. Fabric mats collect crumbs and drool, and a mat that sits dirty starts to smell within days. Look for a design you can shake out after each use and wash regularly. Many owners keep two mats in rotation so one can dry while the other gets used.
 
-Match the size to the dog. A small mat under a large breed turns into a two-bite exercise, while an oversized mat can overwhelm a toy breed or a nervous puppy. Puppies in particular do well with short, easy sessions, and pairing the mat with a solid house-training setup, like a stack of [puppy training pads](https://happypetproductreviews.com/dog-training/best-puppy-training-pads/) near the play area, keeps cleanup simple while your puppy learns the game.
+Match the size to the dog. A small mat under a large breed turns into a two-bite exercise, while an oversized mat can overwhelm a toy breed or a nervous puppy. Puppies in particular do well with short, easy sessions, and pairing the mat with a solid house-training setup, like a stack of [puppy training pads](https://happypetproductreviews.com/training/best-puppy-training-pads/) near the play area, keeps cleanup simple while your puppy learns the game.
 
 Watch the floor underneath. On hardwood or tile, a light mat can slide around as your dog pushes into it. A non-slip backing helps, or you can set the mat on a rug or yoga mat.
 

@@ -2,7 +2,9 @@
 layout: post
 title: "Best Calming Treats for Dogs to Ease Anxiety and Stress"
 date: 2026-04-16
-categories: [dog-health]
+categories: [calming]
+redirect_from:
+  - /dog-health/best-calming-treats-dogs/
 species: dog
 tags: [best calming treats for dogs]
 description: "The calming treats owners rate highest for storms, fireworks and vet visits, without breaking the bank."

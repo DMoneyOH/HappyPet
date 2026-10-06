@@ -2,7 +2,9 @@
 layout: post
 title: "Green Goodness: The Best Cat Grass Growing Kits for Happy Felines"
 date: 2026-09-17
-categories: [cat-health]
+categories: [health]
+redirect_from:
+  - /cat-health/best-cat-grass-growing-kits/
 species: cat
 tags: [cat grass growing kit]
 description: "Give your indoor cat a safe green snack: easy cat grass growing kits that sprout in days."
@@ -49,7 +51,7 @@ A self-watering cat grass kit suits owners who forget the daily splash of water.
 
 Not every kit earns its counter space. A good cat grass growing kit starts with the seed. Oat and wheat both sprout into soft blades cats will chew, and many kits blend the two for a mix of textures. Container material matters more than it looks. Bargain plastic can leach odd smells into the soil, so BPA-free or ceramic trays hold up better across repeat plantings. Check how much grass one round produces. A lone tray suits a single cat, while a multi-pack keeps a rotation going for a house full of grazers.
 
-Drainage decides whether the grass thrives or rots. Trays with nowhere for runoff to go drown the roots the moment you overwater, and no cat will touch a soggy, moldy mat. Placement counts too. Grass needs light, so a kit you can set on a sill beats one banished to a dark shelf. Cleanliness ties into the rest of your setup; the same tidy habits that help with [cat litter odor control](https://happypetproductreviews.com/cat-litter/best-cat-litter-odor-control/) keep a grass tray from turning into a smelly science project. Match the kit to your cat's appetite and your own attention span, and the grass mostly takes care of itself.
+Drainage decides whether the grass thrives or rots. Trays with nowhere for runoff to go drown the roots the moment you overwater, and no cat will touch a soggy, moldy mat. Placement counts too. Grass needs light, so a kit you can set on a sill beats one banished to a dark shelf. Cleanliness ties into the rest of your setup; the same tidy habits that help with [cat litter odor control](https://happypetproductreviews.com/litter/best-cat-litter-odor-control/) keep a grass tray from turning into a smelly science project. Match the kit to your cat's appetite and your own attention span, and the grass mostly takes care of itself.
 
 ## How the kits compare
 

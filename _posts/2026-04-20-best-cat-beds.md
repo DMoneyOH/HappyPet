@@ -2,9 +2,10 @@
 layout: post
 title: "Best Cat Beds for Indoor Cats Who Love to Lounge"
 date: 2026-04-20
-categories: [cat-beds]
+categories: [beds]
 redirect_from:
   - /cat-gear/best-cat-beds/
+  - /cat-beds/best-cat-beds/
 species: cat
 tags: [best cat beds]
 description: "Cozy indoor cats swear by these lounge-worthy beds. Find the perfect spot for your whiskered napper!"

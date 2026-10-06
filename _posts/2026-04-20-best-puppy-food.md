@@ -2,7 +2,9 @@
 layout: post
 title: "Best Puppy Food for Healthy Growth and Development"
 date: 2026-04-20
-categories: [dog-food]
+categories: [food]
+redirect_from:
+  - /dog-food/best-puppy-food/
 species: dog
 tags: [best puppy food]
 description: "Discover the top puppy food that fuels growth without breaking the bank."
