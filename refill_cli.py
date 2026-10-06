@@ -129,7 +129,8 @@ def product_problems(p) -> list:
 
 def load_plan(path: Path) -> dict:
     try:
-        plan = json.loads(path.read_text(encoding="utf-8"))
+        # utf-8-sig: Windows PowerShell 5.1 writes a BOM with -Encoding utf8.
+        plan = json.loads(path.read_text(encoding="utf-8-sig"))
     except (OSError, ValueError) as exc:
         raise SystemExit(f"plan unreadable: {exc}") from None
     if not isinstance(plan, dict) or not isinstance(plan.get("topics"), list):
