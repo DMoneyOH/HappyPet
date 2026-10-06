@@ -1,0 +1,103 @@
+name: Build check (site diff, no deploy)
+
+# Builds the site twice -- the PR's merge result and its base -- and reports how
+# the generated _site differs. It never deploys, never triggers pins and uses no
+# secrets: read-only checkout, two Jekyll builds, a diff, two artifacts.
+# A non-empty diff does not fail the job. It reports; a human judges.
+#
+# Setup mirrors deploy.yml's build job (deploy.yml:35-51) with two deliberate
+# differences:
+#   * no actions/configure-pages -- it needs Pages permissions this job does
+#     not take. _config.yml's baseurl is '' (custom domain), so both builds pass
+#     --baseurl "" explicitly instead of the Pages base_path.
+#   * site.time is pinned to ONE value for both builds (an extra config file
+#     setting `time:`), so the build-time values the site renders -- feed.xml's
+#     <updated> stamp and the footer copyright year (default.html:200,
+#     site.time) -- cannot show up as a difference. Nothing is
+#     excluded from the diff. The value is the run's start time, not a fixed
+#     date, so future-dated post handling matches a real build.
+# Both builds use the head's Gemfile; a PR that changes gems builds its base
+# with the new gems too.
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  site-diff:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      # pull_request checks out the merge commit (base tip + this PR), so the
+      # diff against the base SHA is exactly what merging would change.
+      - name: Checkout head
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Setup Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.2'
+          bundler-cache: true
+
+      - name: Pin site.time for both builds
+        run: echo "time: $(date -u '+%Y-%m-%d %H:%M:%S +0000')" > "$RUNNER_TEMP/build-time.yml"
+
+      - name: Build head
+        run: bundle exec jekyll build --baseurl "" --config "_config.yml,$RUNNER_TEMP/build-time.yml" --destination "$RUNNER_TEMP/site_head"
+        env:
+          JEKYLL_ENV: production
+
+      - name: Checkout base
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.base.sha || 'main' }}
+          path: base-src
+          persist-credentials: false
+
+      - name: Build base
+        run: bundle exec jekyll build --baseurl "" --source base-src --config "base-src/_config.yml,$RUNNER_TEMP/build-time.yml" --destination "$RUNNER_TEMP/site_base"
+        env:
+          JEKYLL_ENV: production
+
+      - name: Diff the two sites
+        run: |
+          cd "$RUNNER_TEMP"
+          mkdir -p report
+          diff -rq site_base site_head > report/files.txt || true
+          diff -ru site_base site_head > report/full.diff || true
+          added=$(grep -c '^Only in site_head' report/files.txt || true)
+          removed=$(grep -c '^Only in site_base' report/files.txt || true)
+          changed=$(grep -c '^Files .* differ$' report/files.txt || true)
+          {
+            echo "## Site diff: base vs head"
+            echo ""
+            echo "Added: $added · Removed: $removed · Changed: $changed"
+            echo ""
+            echo '```'
+            cat report/files.txt
+            echo '```'
+            echo ""
+            echo "### Full diff (first 200 KB; complete copy in the site-diff artifact)"
+            echo '```diff'
+            head -c 200000 report/full.diff
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload diff report
+        uses: actions/upload-artifact@v4
+        with:
+          name: site-diff
+          path: ${{ runner.temp }}/report
+          retention-days: 7
+
+      - name: Upload head site
+        uses: actions/upload-artifact@v4
+        with:
+          name: site-head
+          path: ${{ runner.temp }}/site_head
+          retention-days: 7
