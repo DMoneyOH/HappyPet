@@ -1,0 +1,27 @@
+{
+  "_note": "The site's topic categories -- the ONE place they are defined. Species is never part of a topic: it lives in each post's `species:` front matter. Read by Jekyll as site.data.categories and by Python through categories.py (refill_products, generate_pin_images, chewy_lookup, tests). Fields: slug = the `categories:` value and the permalink segment; label = display text (cards, breadcrumbs, pin chip); cta = pin button text; use = the homepage 'what for' filter bucket (play/rest/feed/travel/walk/tech/care); consumable = Chewy-primary hint for chewy_lookup.is_consumable, which nothing calls today. The old species-prefixed names (dog-health, cat-food...) are still accepted until phase 2 moves every post.",
+  "topics": [
+    {"slug": "health",      "label": "Health",      "cta": "Read the Review", "use": "care",   "consumable": false},
+    {"slug": "supplements", "label": "Supplements", "cta": "Read the Review", "use": "care",   "consumable": true},
+    {"slug": "calming",     "label": "Calming",     "cta": "Read the Review", "use": "care",   "consumable": true},
+    {"slug": "dental",      "label": "Dental",      "cta": "Read the Review", "use": "care",   "consumable": true},
+    {"slug": "flea-tick",   "label": "Flea & tick", "cta": "Read the Review", "use": "care",   "consumable": true},
+    {"slug": "grooming",    "label": "Grooming",    "cta": "Read the Review", "use": "care",   "consumable": false},
+    {"slug": "outdoor",     "label": "Outdoor",     "cta": "See Our Picks",   "use": "walk",   "consumable": false},
+    {"slug": "food",        "label": "Food",        "cta": "Read the Review", "use": "feed",   "consumable": true},
+    {"slug": "treats",      "label": "Treats",      "cta": "See Our Picks",   "use": "feed",   "consumable": true},
+    {"slug": "feeding",     "label": "Feeding",     "cta": "Read the Review", "use": "feed",   "consumable": false},
+    {"slug": "toys",        "label": "Toys",        "cta": "See Our Picks",   "use": "play",   "consumable": false},
+    {"slug": "collars",     "label": "Collars",     "cta": "See Our Picks",   "use": "walk",   "consumable": false},
+    {"slug": "harnesses",   "label": "Harnesses",   "cta": "Read the Review", "use": "walk",   "consumable": false},
+    {"slug": "training",    "label": "Training",    "cta": "See Our Picks",   "use": "care",   "consumable": false},
+    {"slug": "litter",      "label": "Litter",      "cta": "Read the Review", "use": "care",   "consumable": false},
+    {"slug": "scratching",  "label": "Scratching",  "cta": "See Our Picks",   "use": "play",   "consumable": false},
+    {"slug": "beds",        "label": "Beds",        "cta": "Read the Review", "use": "rest",   "consumable": false},
+    {"slug": "crates",      "label": "Crates",      "cta": "Read the Review", "use": "rest",   "consumable": false},
+    {"slug": "carriers",    "label": "Carriers",    "cta": "Read the Review", "use": "travel", "consumable": false},
+    {"slug": "travel",      "label": "Travel",      "cta": "Read the Review", "use": "travel", "consumable": false},
+    {"slug": "cleaning",    "label": "Cleaning",    "cta": "Read the Review", "use": "care",   "consumable": false},
+    {"slug": "tech",        "label": "Tech",        "cta": "Read the Review", "use": "tech",   "consumable": false}
+  ]
+}

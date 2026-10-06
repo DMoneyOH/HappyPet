@@ -1702,10 +1702,41 @@ class TestRefillAgent(unittest.TestCase):
         import refill_products as rp
         specific = {"dog-toys", "cat-toys", "cat-litter", "dog-training", "pet-tech"}
         self.assertTrue(specific.issubset(set(rp.VALID_CATEGORIES)))
-        # TOPIC_SCHEMA's enum is built from VALID_CATEGORIES -- keep them in sync
+
+    def test_the_llm_is_offered_only_the_species_neutral_topics(self):
+        # Category restructure, phase 1 (2026-10-05): the ideation enum is the
+        # topic list from _data/categories.json and nothing else -- no old
+        # species-prefixed name, no "-gear" catch-all.
+        import refill_products as rp
+        enum = rp.TOPIC_SCHEMA["properties"]["topics"]["items"]["properties"]["category"]["enum"]
+        self.assertIn("flea-tick", enum)
+        self.assertIn("collars", enum)
         self.assertEqual(
-            rp.TOPIC_SCHEMA["properties"]["topics"]["items"]["properties"]["category"]["enum"],
-            list(rp.VALID_CATEGORIES))
+            [c for c in enum if c.split("-")[0] in ("dog", "cat", "pet")], [])
+        self.assertEqual(len(enum), 22)
+
+    def test_old_and_new_category_names_both_validate(self):
+        # Phase 1 accepts both sets: the three queued products.json entries
+        # still carry old names and must stay valid until phase 2.
+        import refill_products as rp
+        for name in ("dog-health", "cat-beds", "pet-grooming", "dog-travel",
+                     "health", "flea-tick", "cleaning", "tech"):
+            self.assertIn(name, rp.VALID_CATEGORIES)
+        data = json.loads((REPO / "products.json").read_text(encoding="utf-8"))
+        for e in data:
+            self.assertIn(e["category"], rp.VALID_CATEGORIES, e["topic"])
+
+    def test_the_prompt_names_every_topic_and_no_gear_fallback(self):
+        import refill_products as rp
+        captured = {}
+        def fake_call(model, prompt, **kw):
+            captured["prompt"] = prompt
+            return json.dumps({"topics": []})
+        with patch.object(rp.gp, "_call_gemini", side_effect=fake_call):
+            rp.ideate_topics(set(), set(), 3)
+        for topic in ("health", "flea-tick", "collars", "harnesses", "cleaning"):
+            self.assertIn(topic, captured["prompt"])
+        self.assertNotIn("gear", captured["prompt"])
 
     def test_image_validation_rejects_svg_placeholder(self):
         # run #2 shipped an .svg sprite as a "product image" -- never again
@@ -3553,7 +3584,10 @@ KNOWN_UNMAPPED_QUEUE = set()
 
 
 def _category_maps_to_pill(category: str) -> bool:
+    import categories
     cat = (category or "").lower()
+    if cat in categories.USES:
+        return True   # a topic carries its own bucket (post-card.html looks it up)
     return any(kw in cat for kw in PILL_KEYWORDS)
 
 
@@ -3665,6 +3699,27 @@ class TestCategoryPillMapping(unittest.TestCase):
                 f'contains "{kw}"', card,
                 f'"{kw}" in PILL_KEYWORDS but not referenced in post-card.html')
 
+    def test_every_topic_maps_to_a_real_filter_button(self):
+        # The single source (_data/categories.json) gives every topic a "use"
+        # bucket; post-card.html emits it as data-use. A bucket the homepage has
+        # no button for is a topic no filter can reach.
+        import categories
+        home = (REPO / "_layouts" / "home.html").read_text(encoding="utf-8")
+        buttons = set(re.findall(r'data-axis="use" data-value="([a-z]+)"', home)) - {"all"}
+        self.assertEqual(len(buttons), 7, "home.html filter markup changed shape")
+        bad = {t: u for t, u in categories.USES.items() if u not in buttons}
+        self.assertEqual(bad, {}, "topics whose bucket has no homepage button")
+
+    def test_templates_read_topics_from_the_single_source(self):
+        # Both templates must look the category up in site.data.categories
+        # before falling back to the old keyword chain / hyphen-stripping.
+        for rel in ("_includes/post-card.html", "_layouts/post.html"):
+            text = (REPO / rel).read_text(encoding="utf-8")
+            self.assertRegex(
+                text, r"site\.data\.categories\.topics \| where: ['\"]slug['\"], category",
+                rel)
+        self.assertIn("topic.use", (REPO / "_includes" / "post-card.html").read_text(encoding="utf-8"))
+
     def test_every_fired_pin_still_resolves(self):
         # A pin was fired to Pinterest at /{old-category}/{slug}/. Re-categorizing
         # a post changes its permalink; unless the post carries a redirect_from
@@ -3686,6 +3741,77 @@ class TestCategoryPillMapping(unittest.TestCase):
                 unresolved.append(f"{jf.stem}: pinned {pinned}, post now {current}, no redirect")
         self.assertEqual(
             unresolved, [], "fired pins that would 404: " + "; ".join(unresolved))
+
+
+class TestTopicCategoriesSingleSource(unittest.TestCase):
+    """Category restructure, phase 1 (2026-10-05). _data/categories.json is the
+    one definition of the species-neutral topics; every consumer derives from
+    it, and every old species-prefixed name keeps behaving exactly as before."""
+
+    def test_the_json_is_the_topic_list(self):
+        import categories
+        data = json.loads((REPO / "_data" / "categories.json").read_text(encoding="utf-8"))
+        self.assertEqual(categories.TOPICS, tuple(t["slug"] for t in data["topics"]))
+        self.assertEqual(len(set(categories.TOPICS)), 22)
+        # No topic may collide with an old name, or the two sets would blur.
+        import refill_products as rp
+        self.assertEqual(set(categories.TOPICS) & set(rp.LEGACY_CATEGORIES), set())
+
+    def test_pin_labels_cover_every_topic_and_keep_the_old_ones(self):
+        import generate_pin_images as g
+        self.assertEqual(g.CAT_LABELS["flea-tick"], "Flea & tick")
+        self.assertEqual(g.CTA_LABELS["toys"], "See Our Picks")
+        # The ten old labels are unchanged, so existing pins re-render the same.
+        self.assertEqual(g.CAT_LABELS["dog-beds"], "Dog Beds")
+        self.assertEqual(g.CTA_LABELS["cat-carriers"], "See Our Pick")
+        import categories
+        self.assertEqual(set(categories.TOPICS) - set(g.CAT_LABELS), set())
+
+    def test_chewy_classification_keeps_old_names_and_flags_topics(self):
+        import chewy_lookup as cl
+        # Old names, exactly as before the restructure.
+        for name in ("dog-food", "dog-health", "cat-health", "cat-litter"):
+            self.assertTrue(cl.is_consumable(name), name)
+        for name in ("pet-health", "pet-grooming", "dog-toys", "pet-tech"):
+            self.assertFalse(cl.is_consumable(name), name)
+        # Topics, from their consumable flag.
+        for name in ("food", "treats", "supplements", "dental", "flea-tick", "calming"):
+            self.assertTrue(cl.is_consumable(name), name)
+        for name in ("health", "litter", "toys", "beds", "outdoor"):
+            self.assertFalse(cl.is_consumable(name), name)
+        self.assertEqual(cl.CONSUMABLE_CATEGORIES & cl.HARD_GOOD_CATEGORIES, set())
+
+
+class TestRelatedLinkScoringOnTopics(unittest.TestCase):
+    """find_related_published_slug's prefix tier meant 'same species' for the
+    old dog-/cat-/pet- names. Bare topics have no species prefix, so for them
+    only an exact match may rank above 'any published post'."""
+
+    def _pick(self, current, cats):
+        # Candidates come back in dict order, first one first, so a tie at the
+        # same score always resolves to the first slug listed.
+        import generate_posts as gp
+        posts = MagicMock()
+        posts.glob.return_value = [Path(f"2026-01-01-{slug}.md") for slug in cats]
+        with patch.object(gp, "POSTS_DIR", posts), \
+             patch.dict(gp.SLUG_CATEGORIES, cats, clear=True), \
+             patch.object(gp, "build_url", side_effect=lambda s: s):
+            return gp.find_related_published_slug("best-current", current)[0]
+
+    def test_old_names_still_rank_same_species_above_unrelated(self):
+        cats = {"best-a": "cat-toys", "best-b": "dog-health"}
+        self.assertEqual(self._pick("dog-beds", cats), "best-b")
+
+    def test_exact_topic_match_wins(self):
+        cats = {"best-a": "toys", "best-b": "beds"}
+        self.assertEqual(self._pick("beds", cats), "best-b")
+
+    def test_bare_topics_sharing_a_first_word_are_not_related(self):
+        # "flea-tick".split("-")[0] == "flea": the old prefix rule ranked any
+        # "flea-*" name as related (score 2). Only dog-/cat-/pet- form that
+        # tier, so both candidates tie at 1 and the first listed wins.
+        cats = {"best-b": "toys", "best-a": "flea-collars-x"}
+        self.assertEqual(self._pick("flea-tick", cats), "best-b")
 
 
 # ---------------------------------------------------------------------------

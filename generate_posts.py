@@ -1207,7 +1207,10 @@ def select_next_topic(products: dict, used_slugs: set, recent_species: list = No
 def find_related_published_slug(current_slug: str, current_category: str) -> tuple:
     """
     Find best internal link target at runtime from published _posts/.
-    Scoring: same category = 3, same category prefix = 2, any published = 1.
+    Scoring: same category = 3, same species prefix = 2, any published = 1.
+    The prefix tier only exists for the old species-prefixed names (dog-/cat-/
+    pet-); bare topic names (health, collars...) carry no species, so for them
+    only an exact match ranks above 1.
     Returns (url, anchor_text) or (None, None) if _posts/ is empty.
     """
     candidates = []
@@ -1224,7 +1227,8 @@ def find_related_published_slug(current_slug: str, current_category: str) -> tup
         score = 1
         if cat == current_category:
             score = 3
-        elif cat.split("-")[0] == current_category.split("-")[0]:
+        elif cat.split("-")[0] in ("dog", "cat", "pet") and \
+                cat.split("-")[0] == current_category.split("-")[0]:
             score = 2
         candidates.append((score, slug))
     if not candidates:
