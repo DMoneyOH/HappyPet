@@ -8976,5 +8976,57 @@ class TestRefillWatchdog(unittest.TestCase):
                 self.assertRegex(line, r"^\s+[A-Z_]+:\s+\$\{\{ [A-Za-z._]+ \}\}$", line)
 
 
+class TestPublishedRootIsAllowlisted(unittest.TestCase):
+    """Jekyll publishes every root file and folder that is not underscore- or
+    dot-prefixed and not in _config.yml's `exclude:`. The github-pages gem also
+    renders a front-matter-less .md as a page. That is how HANDOFF*.md,
+    CLAUDE.md, docs/ (plans, specs, old handoffs) and pytest.ini ended up live
+    on the site and in sitemap.xml.
+
+    So the check is an allowlist, not a list of known leaks: anything new at
+    the root fails here until it is either excluded or added to PUBLIC on
+    purpose. Matching mirrors Jekyll's EntryFilter for root names: an fnmatch
+    glob or a plain prefix."""
+
+    PUBLIC = {
+        "index.md", "about.md", "cats.md", "dogs.md", "contact.md",
+        "privacy-policy.md", "search.md", "search.json", "robots.txt",
+        "favicon.ico", "favicon-16x16.png", "favicon-32x32.png",
+        "apple-touch-icon.png", "assets",
+    }
+
+    @classmethod
+    def setUpClass(cls):
+        config = (REPO / "_config.yml").read_text(encoding="utf-8")
+        # The indented block under `exclude:`; YAML comment lines inside it are skipped.
+        block = re.search(r"^exclude:[ \t]*\r?\n((?:[ \t]+.*\r?\n)+)", config, re.M)
+        assert block, "_config.yml has no exclude: list"
+        cls.exclude = [m.strip().strip('"\'')
+                       for m in re.findall(r"^[ \t]+- (.*)$", block.group(1), re.M)]
+        assert "README.md" in cls.exclude and "vendor" in cls.exclude, cls.exclude
+
+    def _excluded(self, name):
+        from fnmatch import fnmatchcase
+        return any(fnmatchcase(name, pat) or name.startswith(pat) for pat in self.exclude)
+
+    def test_every_published_root_entry_is_on_the_allowlist(self):
+        published = sorted(p.name for p in REPO.iterdir()
+                           if not p.name.startswith(("_", ".")) and not self._excluded(p.name))
+        self.assertEqual([n for n in published if n not in self.PUBLIC], [],
+                         "publishes to the live site: exclude it in _config.yml or add it to PUBLIC")
+
+    def test_the_known_internal_files_are_excluded(self):
+        for name in ("HANDOFF.md", "HANDOFF-archive-2026-07-20-1606.md", "CLAUDE.md",
+                     "docs", "pytest.ini"):
+            with self.subTest(name=name):
+                self.assertTrue(self._excluded(name), f"{name} would be published")
+
+    def test_no_real_page_is_excluded(self):
+        for name in sorted(self.PUBLIC):
+            with self.subTest(name=name):
+                self.assertTrue((REPO / name).exists(), f"{name} listed in PUBLIC but missing")
+                self.assertFalse(self._excluded(name), f"{name} is a site page and must publish")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
