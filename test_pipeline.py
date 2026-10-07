@@ -1774,12 +1774,10 @@ class TestRefillAgent(unittest.TestCase):
         finally:
             rp.PAAPI_ACCESS_KEY, rp.PAAPI_SECRET_KEY = old
 
-    def test_refill_workflow_never_pushes_main(self):
-        workflow = (REPO / ".github/workflows/refill.yml").read_text(encoding="utf-8")
-        self.assertNotIn("git push origin main", workflow)
-        self.assertIn("gh pr create", workflow)
-        self.assertIn("workflow_dispatch", workflow)
-        self.assertIn("concurrency", workflow)
+    def test_refill_ci_workflow_stays_retired(self):
+        """refill.yml name-matched Chewy products, which the GTIN-only rule forbids;
+        the local launcher superseded it. Re-adding it must be a deliberate act."""
+        self.assertFalse((REPO / ".github/workflows/refill.yml").exists())
 
 
 class TestRefillPlaceholdersOnlyMode(unittest.TestCase):
@@ -1849,11 +1847,6 @@ class TestRefillPlaceholdersOnlyMode(unittest.TestCase):
         code, _, _, calls = self._run(placeholders_only=False, candidates=[self.CANDIDATE])
         self.assertEqual(code, 1)
         self.assertEqual(len(calls), 1, "default mode still attempts the resolve")
-
-    def test_workflow_exposes_the_input_and_passes_it_to_the_script(self):
-        wf = (REPO / ".github/workflows/refill.yml").read_text(encoding="utf-8")
-        self.assertIn("placeholders_only:", wf)
-        self.assertIn("REFILL_PLACEHOLDERS_ONLY: ${{ github.event.inputs.placeholders_only == 'true'", wf)
 
 
 class TestManualResolve(unittest.TestCase):

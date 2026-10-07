@@ -367,8 +367,8 @@ def evaluate(pr: dict, issue: dict, files: list, check_runs: list | None,
 # ------------------------------------------------------------------ refill rule
 # A separate rule for `refill/*` PRs: build step 2 of the refill automation design spec
 # (docs/superpowers/specs/2026-09-25-refill-automation-design.md). A refill PR may come
-# from the local refill session under the Director's own gh login, or from refill.yml
-# (dispatch-only, held) under GITHUB_TOKEN; neither carries the Claude App attribution the
+# from the local refill session under the Director's own gh login (the old CI workflow,
+# refill.yml, is retired); that carries no Claude App attribution, which the
 # routine rule above requires. So this rule does not judge who opened the PR. It judges
 # what the PR changes: products.json only, and only by appending canonical entries or
 # filling placeholders in place.
