@@ -1256,6 +1256,38 @@ a.creed-num:focus-visible span { text-decoration: underline; }
 .share-btn:hover { border-color: var(--rule-hard); }
 .share-btn svg { width: 14px; height: 14px; }
 
+/* "More reviews" under each post (_includes/related-reviews.html). Product
+   shots sit on the same white tile as the index entries and take the same
+   dark-mode dim. */
+.related { margin-top: 2.6rem; padding-top: 1.2rem; border-top: 1px solid var(--rule-hard); }
+.related-heading { margin: 0 0 1rem; font-size: 1.15rem; letter-spacing: -.02em; }
+.related-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.2rem 1rem;
+}
+@media (min-width: 640px) {
+  .related-list { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+.related-card a { display: flex; flex-direction: column; gap: .45rem; text-decoration: none; }
+.related-card img {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: contain;
+  padding: 6px;
+  background: var(--tile);
+  border: 1px solid var(--rule);
+  filter: brightness(var(--img-dim));
+  transition: filter var(--ease);
+}
+.related-card a:hover img,
+.related-card a:focus-visible img { filter: brightness(1); }
+.related-title { font-size: .86rem; font-weight: 700; line-height: 1.3; }
+.related-card a:hover .related-title { text-decoration: underline; text-underline-offset: 3px; }
+
 .disclosure {
   margin-top: 1.8rem;
   padding-top: 1rem;
