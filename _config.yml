@@ -36,6 +36,13 @@ exclude:
   - PENDING_DRAFTS.json
   - GENERATION_RESULT.json
   - "events:"
+  # Internal agent and pipeline docs. Without these the github-pages build
+  # published them as pages and listed them in sitemap.xml.
+  # test_pipeline.py::TestPublishedRootIsAllowlisted fails on any new root entry.
+  - CLAUDE.md
+  - "HANDOFF*.md"
+  - docs
+  - pytest.ini
 
 plugins:
   - jekyll-feed
