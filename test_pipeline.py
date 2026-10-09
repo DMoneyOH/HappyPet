@@ -5772,6 +5772,196 @@ class TestPinJsonPayload(unittest.TestCase):
         self.assertIn("happypet_pinjson_", doc)
 
 
+class TestPinSenderKeyMasking(unittest.TestCase):
+    """The IFTTT Maker key rides in the request URL, and exception text often
+    repeats the URL. Whatever failed, the key must not reach stdout, stderr or the
+    log file. Each case raises the way the real stack does, from the URL the code
+    actually built, so the key is genuinely present in the exception to be caught."""
+
+    KEYS = ("FAKEKEY-9f3c1d7a2b", "ab cd/ef+gh&ij")   # plain, and one needing URL-quoting
+
+    def setUp(self):
+        import post_pins as pp
+        self.pp = pp
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.log_path = Path(self.tmp.name) / "t.log"
+        for p in (patch.object(pp, "LOG_PATH", self.log_path),
+                  patch.object(pp, "_SECRETS", set()),
+                  patch.object(pp.time, "sleep", lambda *_: None)):
+            p.start()
+            self.addCleanup(p.stop)
+
+    def _fire(self, key, make_exc):
+        """fire_webhook with urlopen raising make_exc(req) on every call.
+        Returns (ok, stdout, stderr, log file text)."""
+        import io
+        payload = self.pp.build_payload("https://x/a.jpg", "T", "D", "https://x/a/")
+        out, err = io.StringIO(), io.StringIO()
+
+        def boom(req, timeout=None):
+            raise make_exc(req)
+        self.log_path.write_text("", encoding="utf-8")
+        with patch("urllib.request.urlopen", side_effect=boom), \
+             contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+            ok = self.pp.fire_webhook("happypet_pin_food", payload, key)
+        logged = self.log_path.read_text(encoding="utf-8")
+        return ok, out.getvalue(), err.getvalue(), logged
+
+    def _assert_clean(self, key, ok, out, err, logged):
+        import urllib.parse
+        self.assertFalse(ok)
+        self.assertIn("FAIL", logged, "no failure was logged - the test proved nothing")
+        for form in (key, urllib.parse.quote(key), urllib.parse.quote(key, safe="")):
+            for name, text in (("stdout", out), ("stderr", err), ("log file", logged)):
+                self.assertNotIn(form, text, f"key leaked into {name}")
+
+    def test_http_4xx_whose_body_echoes_the_url(self):
+        import io, urllib.error
+        for key in self.KEYS:
+            with self.subTest(key=key):
+                ok, out, err, logged = self._fire(key, lambda req: urllib.error.HTTPError(
+                    req.full_url, 401, "Unauthorized", {},
+                    io.BytesIO(f"invalid key in {req.full_url}".encode())))
+                self._assert_clean(key, ok, out, err, logged)
+                self.assertIn("HTTP 401", logged)
+
+    def test_http_5xx_retried_then_exhausted(self):
+        import io, urllib.error
+        for key in self.KEYS:
+            with self.subTest(key=key):
+                ok, out, err, logged = self._fire(key, lambda req: urllib.error.HTTPError(
+                    req.full_url, 503, "Unavailable", {},
+                    io.BytesIO(f"upstream said {req.full_url}".encode())))
+                self._assert_clean(key, ok, out, err, logged)
+                self.assertIn("HTTP 503 attempt 1/", logged)
+                self.assertIn("exhausted", logged)
+
+    def test_connection_error_whose_reason_repeats_the_url(self):
+        import urllib.error
+        reasons = (lambda u: OSError(f"cannot reach {u}"), lambda u: f"cannot reach {u}")
+        for key in self.KEYS:
+            for reason in reasons:
+                with self.subTest(key=key):
+                    ok, out, err, logged = self._fire(
+                        key, lambda req: urllib.error.URLError(reason(req.full_url)))
+                    self._assert_clean(key, ok, out, err, logged)
+                    self.assertIn("network error attempt 1", logged)
+
+    def test_timeout_raised_mid_read(self):
+        for key in self.KEYS:
+            with self.subTest(key=key):
+                ok, out, err, logged = self._fire(
+                    key, lambda req: TimeoutError(f"timed out reading {req.full_url}"))
+                self._assert_clean(key, ok, out, err, logged)
+                self.assertIn("TimeoutError", logged)
+
+    def test_invalid_url_error_quotes_the_whole_path(self):
+        import http.client
+        for key in self.KEYS:
+            with self.subTest(key=key):
+                ok, out, err, logged = self._fire(key, lambda req: http.client.InvalidURL(
+                    f"URL can't contain control characters. {req.selector!r} (found at least ' ')"))
+                self._assert_clean(key, ok, out, err, logged)
+                self.assertIn("InvalidURL", logged)
+
+    def test_any_other_exception_is_logged_by_type_only(self):
+        ok, out, err, logged = self._fire(
+            self.KEYS[0], lambda req: ValueError(f"unknown url type: {req.full_url}"))
+        self._assert_clean(self.KEYS[0], ok, out, err, logged)
+        self.assertIn("ValueError", logged)
+
+    def test_log_redacts_the_key_url_shape_even_if_the_key_was_never_registered(self):
+        self.pp.log("boom https://maker.ifttt.com/trigger/e/json/with/key/NEVERREGISTERED123 end")
+        logged = self.log_path.read_text(encoding="utf-8")
+        self.assertNotIn("NEVERREGISTERED123", logged)
+        self.assertIn("/key/<redacted> end", logged)
+
+    def test_log_redacts_a_registered_key_wherever_it_appears(self):
+        import urllib.parse
+        key = self.KEYS[1]
+        self.pp.register_secret(key)
+        self.pp.log("FAIL: x.json -- " + str(ValueError("bad " + key)) + " / "
+                    + urllib.parse.quote(key) + " / " + urllib.parse.quote(key, safe=""))
+        logged = self.log_path.read_text(encoding="utf-8")
+        for form in (key, urllib.parse.quote(key), urllib.parse.quote(key, safe="")):
+            self.assertNotIn(form, logged)
+        self.assertEqual(logged.count("<redacted>"), 3)
+
+    def test_ordinary_log_lines_are_untouched(self):
+        """The inverse: nothing registered, so a normal line must pass through
+        byte for byte, including words that merely contain 'key'."""
+        line = "PIN [best-dog-keys] -> ['happypet_pin_dogs'] url: https://x/posts/keyboard-cat/"
+        self.pp.log(line)
+        self.assertIn(line, self.log_path.read_text(encoding="utf-8"))
+
+    def test_main_registers_the_key_so_an_unexpected_failure_line_is_scrubbed(self):
+        """main() logs `FAIL: <file> -- <exc>` for anything unforeseen. Here a stubbed
+        step raises with the real key in its message; the line must come out clean."""
+        key = self.KEYS[0]
+        queue = {"title": "T", "article_url": "https://x/a/", "description": "d",
+                 "image_url": "https://x/a.jpg", "species": "dog", "slug": "s1",
+                 "topical_sheet": "HAPPYPET_SHEET_ID_FOOD"}
+        qdir = Path(self.tmp.name) / "_pin_queue"
+        qdir.mkdir()
+        (qdir / "s1.json").write_text(json.dumps(queue), encoding="utf-8")
+        with patch.object(self.pp, "REPO_DIR", Path(self.tmp.name)),              patch.object(self.pp, "brain_get_secret", return_value=key),              patch.object(self.pp, "load_pin_captions", return_value={"s1": "cap"}),              patch.object(self.pp, "check_url_live",
+                          side_effect=RuntimeError("proxy rewrote " + key)),              patch.object(sys, "argv", ["post_pins.py"]):
+            with self.assertRaises(SystemExit):
+                self.pp.main()
+        logged = self.log_path.read_text(encoding="utf-8")
+        self.assertIn("FAIL: s1.json", logged)
+        self.assertNotIn(key, logged)
+
+    def test_an_empty_key_is_not_registered(self):
+        """str.replace('', ...) would insert a marker between every character."""
+        self.pp.register_secret("")
+        self.pp.log("hello")
+        self.assertIn("  hello", self.log_path.read_text(encoding="utf-8"))
+        self.assertEqual(self.pp._SECRETS, set())
+
+
+class TestPinSenderLogEncoding(unittest.TestCase):
+    """A title with an em dash or emoji crashed the pin sender's logging under a
+    Windows cp1252 console (print() raised UnicodeEncodeError; the log file was
+    opened in the locale encoding). Both senders share the shape."""
+
+    TITLE = "Best Pet Beds — Cozy \U0001f43e Naps ☃"
+
+    def _modules(self):
+        import post_pins, push_pins_to_sheets
+        return (("post_pins", post_pins), ("push_pins_to_sheets", push_pins_to_sheets))
+
+    def _log_to(self, module, console):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "t.log"
+            with patch.object(module, "LOG_PATH", path), patch.object(sys, "stdout", console):
+                module.log(f"title: {self.TITLE}")
+            return path.read_text(encoding="utf-8")
+
+    def test_cp1252_console_does_not_crash_and_the_file_keeps_the_text(self):
+        import io
+        for name, module in self._modules():
+            with self.subTest(module=name):
+                raw = io.BytesIO()
+                console = io.TextIOWrapper(raw, encoding="cp1252", errors="strict",
+                                           write_through=True)
+                logged = self._log_to(module, console)       # must not raise
+                self.assertIn(self.TITLE, logged)            # file is lossless utf-8
+                shown = raw.getvalue().decode("cp1252")
+                self.assertIn("Best Pet Beds — Cozy ? Naps ?", shown)   # replaced, not dropped
+
+    def test_utf8_console_output_is_unchanged(self):
+        """Linux CI: the line goes out exactly as before, no replacement."""
+        import io
+        for name, module in self._modules():
+            with self.subTest(module=name):
+                raw = io.BytesIO()
+                console = io.TextIOWrapper(raw, encoding="utf-8", write_through=True)
+                self._log_to(module, console)
+                self.assertIn(self.TITLE, raw.getvalue().decode("utf-8"))
+
+
 class TestProductReviewStructuredData(unittest.TestCase):
     """post.html emits Product/Review JSON-LD so review rich results (the star
     rating under a search listing) can show. These check the block against the
