@@ -9059,6 +9059,309 @@ class TestRefillWatchdog(unittest.TestCase):
                 self.assertRegex(line, r"^\s+[A-Z_]+:\s+\$\{\{ [A-Za-z._]+ \}\}$", line)
 
 
+# ---------------------------------------------------------------------------
+# Related-reviews block (_includes/related-reviews.html, traffic plan move 1)
+# ---------------------------------------------------------------------------
+class _MiniLiquid:
+    """Renders the related-reviews include, and only that, without Ruby.
+
+    HONEST LIMIT: there is no Ruby or Jekyll on the build box, so this is not
+    Jekyll. It is a small Liquid subset -- the tags and filters the include
+    uses, with Liquid's own truthiness (only nil and false are falsy) and its
+    flat assign scope. Anything outside the subset raises instead of guessing,
+    so the include cannot quietly grow past what this checks. The real render
+    is build-check.yml's `jekyll build` on the PR; these tests guard the
+    selection logic against the real _posts on every CI run.
+    """
+
+    TOKEN = re.compile(r"(\{%-?.*?-?%\}|\{\{-?.*?-?\}\})", re.S)
+
+    class _Break(Exception):
+        pass
+
+    def __init__(self, source):
+        source = re.sub(r"\{%-?\s*comment\s*-?%\}.*?\{%-?\s*endcomment\s*-?%\}", "", source, flags=re.S)
+        parts = self.TOKEN.split(source)
+        # Whitespace control: {%- strips the text before it, -%} the text after.
+        for i in range(1, len(parts), 2):
+            if parts[i][2] == "-":
+                parts[i - 1] = parts[i - 1].rstrip()
+            if parts[i][-3] == "-":
+                parts[i + 1] = parts[i + 1].lstrip()
+        self.tokens = parts
+        self.pos = 0
+        self.tree = self._parse(())
+
+    # -- parsing --------------------------------------------------------------
+    def _parse(self, stop):
+        nodes = []
+        while self.pos < len(self.tokens):
+            tok = self.tokens[self.pos]
+            self.pos += 1
+            if not tok.startswith(("{%", "{{")):
+                if tok:
+                    nodes.append(("text", tok))
+                continue
+            inner = tok[2:-2].strip("-").strip()
+            if tok.startswith("{{"):
+                nodes.append(("out", inner))
+                continue
+            word, _, rest = inner.partition(" ")
+            if word in stop:
+                self.pos -= 1
+                return nodes
+            if word == "assign":
+                name, _, expr = rest.partition("=")
+                nodes.append(("assign", name.strip(), expr.strip()))
+            elif word == "capture":
+                body = self._parse(("endcapture",))
+                self._expect("endcapture")
+                nodes.append(("capture", rest.strip(), body))
+            elif word == "for":
+                m = re.fullmatch(r"(\w+) in (.+)", rest.strip())
+                body = self._parse(("endfor",))
+                self._expect("endfor")
+                nodes.append(("for", m.group(1), m.group(2).strip(), body))
+            elif word in ("if", "unless"):
+                branches, cond = [], rest
+                while True:
+                    body = self._parse(("elsif", "else", "endif", "endunless"))
+                    branches.append((cond, body))
+                    end = self.tokens[self.pos][2:-2].strip("-").strip()
+                    self.pos += 1
+                    kw, _, cond = end.partition(" ")
+                    if kw == "else":
+                        cond = None
+                    elif kw in ("endif", "endunless"):
+                        break
+                nodes.append((word, branches))
+            elif word == "break":
+                nodes.append(("break",))
+            else:
+                raise AssertionError(f"unhandled Liquid tag {word!r}")
+        if stop:
+            raise AssertionError(f"unclosed block, expected {stop}")
+        return nodes
+
+    def _expect(self, word):
+        tok = self.tokens[self.pos][2:-2].strip("-").strip()
+        assert tok == word, f"expected {word}, got {tok}"
+        self.pos += 1
+
+    # -- evaluation -----------------------------------------------------------
+    def render(self, ctx):
+        self.ctx = dict(ctx)
+        return self._run(self.tree)
+
+    def _run(self, nodes):
+        out = []
+        for node in nodes:
+            kind = node[0]
+            if kind == "text":
+                out.append(node[1])
+            elif kind == "out":
+                val = self._expr(node[1])
+                out.append("" if val is None else str(val))
+            elif kind == "assign":
+                self.ctx[node[1]] = self._expr(node[2])
+            elif kind == "capture":
+                self.ctx[node[1]] = self._run(node[2])
+            elif kind == "for":
+                for item in self._expr(node[2]) or []:
+                    self.ctx[node[1]] = item
+                    try:
+                        out.append(self._run(node[3]))
+                    except self._Break as stop:
+                        out.append(stop.args[0])
+                        break
+            elif kind in ("if", "unless"):
+                for cond, body in node[1]:
+                    hit = cond is None or self._cond(cond)
+                    if kind == "unless" and cond is not None:
+                        hit = not hit
+                    if hit:
+                        out.append(self._run(body))
+                        break
+            elif kind == "break":
+                raise self._Break("".join(out))
+        return "".join(out)
+
+    def _cond(self, text):
+        # Liquid has no parentheses and evaluates or/and right to left; the
+        # include only ever chains one kind, where the order cannot matter.
+        if " or " in text:
+            assert " and " not in text, "mixed and/or is outside the subset"
+            return any(self._cond(t) for t in text.split(" or "))
+        if " and " in text:
+            return all(self._cond(t) for t in text.split(" and "))
+        m = re.fullmatch(r"(.+?)\s*(==|!=|>=|<=|>|<|\scontains\s)\s*(.+)", text.strip())
+        if not m:
+            val = self._value(text.strip())
+            return val is not None and val is not False
+        a, op, b = self._value(m.group(1)), m.group(2).strip(), self._value(m.group(3))
+        if op == "contains":
+            return a is not None and b is not None and str(b) in a
+        return {"==": a == b, "!=": a != b, ">=": a >= b, "<=": a <= b,
+                ">": a > b, "<": a < b}[op]
+
+    def _value(self, token):
+        token = token.strip()
+        if token[:1] in ("'", '"'):
+            return token[1:-1]
+        if re.fullmatch(r"-?\d+", token):
+            return int(token)
+        m = re.fullmatch(r"\((\d+)\.\.(\d+)\)", token)
+        if m:
+            return list(range(int(m.group(1)), int(m.group(2)) + 1))
+        if token in ("true", "false", "nil"):
+            return {"true": True, "false": False, "nil": None}[token]
+        val = self.ctx
+        for key in token.split("."):
+            if isinstance(val, dict):
+                val = val.get(key)
+            elif isinstance(val, (list, str)) and key == "size":
+                val = len(val)
+            elif isinstance(val, list) and key == "first":
+                val = val[0] if val else None
+            else:
+                return None
+        return val
+
+    def _expr(self, text):
+        parts = [p.strip() for p in re.split(r"\|(?=(?:[^\"']|[\"'][^\"']*[\"'])*$)", text)]
+        val = self._value(parts[0])
+        for filt in parts[1:]:
+            name, _, argtext = filt.partition(":")
+            args = [self._value(a) for a in argtext.split(",")] if argtext.strip() else []
+            name = name.strip()
+            if name == "first":
+                val = val[0] if val else None
+            elif name == "append":
+                val = ("" if val is None else str(val)) + str(args[0])
+            elif name == "prepend":
+                val = str(args[0]) + ("" if val is None else str(val))
+            elif name == "plus":
+                val = int(val) + int(args[0])
+            elif name == "where":
+                val = [x for x in (val or []) if x.get(args[0]) == args[1]]
+            elif name == "default":
+                val = val if val not in (None, False, "") else args[0]
+            elif name == "escape":
+                val = ("" if val is None else str(val)).replace("&", "&amp;").replace(
+                    "<", "&lt;").replace(">", "&gt;").replace('"', "&quot;").replace("'", "&#39;")
+            else:
+                raise AssertionError(f"unhandled Liquid filter {name!r}")
+        return val
+
+
+class TestRelatedReviews(unittest.TestCase):
+    """Every post page links 3-4 other reviews: same topic first, then the same
+    animal, then the newest. Rendered from the include's real text against the
+    real _posts front matter, in the order Jekyll hands site.posts to Liquid
+    (Document#<=> sorts by date then path; site.posts is that, reversed)."""
+
+    INCLUDE = REPO / "_includes" / "related-reviews.html"
+    MAX_LINKS = 4
+
+    @classmethod
+    def setUpClass(cls):
+        cls.source = cls.INCLUDE.read_text(encoding="utf-8")
+        posts = []
+        for p in sorted((REPO / "_posts").glob("[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]-*.md")):
+            fm = {}
+            for line in p.read_text(encoding="utf-8").split("---", 2)[1].splitlines():
+                m = re.match(r"^([a-z_]+):\s*(.+)$", line)
+                if m:
+                    fm[m.group(1)] = m.group(2).strip().strip('"')
+            cats = [c.strip() for c in fm["categories"].strip("[]").split(",")]
+            slug = p.stem[11:]
+            posts.append({"title": fm["title"], "species": fm.get("species"),
+                          "image": fm.get("image"), "categories": cats,
+                          "date": p.stem[:10], "path": f"_posts/{p.name}", "slug": slug,
+                          "url": "/" + "/".join(cats) + "/" + slug + "/"})
+        posts.sort(key=lambda d: (d["date"], d["path"]))
+        cls.posts = list(reversed(posts))
+        cls.by_url = {d["url"]: d for d in cls.posts}
+        thumbs = sorted((REPO / "assets" / "images" / "thumbs").glob("*.jpg"))
+        topics = json.loads((REPO / "_data" / "categories.json").read_text(encoding="utf-8"))
+        cls.site = {"posts": cls.posts, "baseurl": "",
+                    "static_files": [{"path": "/assets/images/thumbs/" + t.name} for t in thumbs],
+                    "data": {"categories": topics}}
+        cls.rendered = {d["url"]: _MiniLiquid(cls.source).render({"site": cls.site, "page": d})
+                        for d in cls.posts}
+
+    def _links(self, url):
+        html = self.rendered[url]
+        return re.findall(r'<a [^>]*href="([^"]+)"', html)
+
+    def test_every_post_gets_three_or_four_related_links(self):
+        self.assertGreater(len(self.posts), self.MAX_LINKS)
+        for url in self.by_url:
+            with self.subTest(post=url):
+                links = self._links(url)
+                self.assertGreaterEqual(len(links), 3)
+                self.assertLessEqual(len(links), self.MAX_LINKS)
+
+    def test_no_post_links_to_itself(self):
+        for url in self.by_url:
+            with self.subTest(post=url):
+                self.assertNotIn(url, self._links(url))
+
+    def test_every_target_is_a_real_post_and_none_repeats(self):
+        for url in self.by_url:
+            links = self._links(url)
+            with self.subTest(post=url):
+                self.assertEqual(len(links), len(set(links)), "a review is linked twice")
+                for href in links:
+                    self.assertIn(href, self.by_url, f"{href} is not a post URL")
+                    self.assertTrue((REPO / self.by_url[href]["path"]).is_file())
+
+    def test_the_topics_with_a_single_post_still_get_links(self):
+        """collars, training, flea-tick and treats have one post each, so the
+        same-topic tier is empty for them and the fallback carries the block."""
+        counts = {}
+        for d in self.posts:
+            counts[d["categories"][0]] = counts.get(d["categories"][0], 0) + 1
+        lonely = [d["url"] for d in self.posts if counts[d["categories"][0]] == 1]
+        self.assertTrue(lonely, "fixture drift: no single-post topic left to exercise the fallback")
+        for url in lonely:
+            with self.subTest(post=url):
+                self.assertEqual(len(self._links(url)), self.MAX_LINKS)
+
+    def test_tiers_fill_in_order_topic_then_animal_then_newest(self):
+        """Expected picks come from the plan's rule applied by hand here, not
+        from the include's own logic."""
+        def animal(page, other):
+            return "both" in (page["species"], other["species"]) or page["species"] == other["species"]
+        for page in self.posts:
+            others = [d for d in self.posts if d["url"] != page["url"]]
+            want = [d for d in others if d["categories"][0] == page["categories"][0]]
+            want += [d for d in others if d not in want and animal(page, d)]
+            want += [d for d in others if d not in want]
+            with self.subTest(post=page["url"]):
+                self.assertEqual(self._links(page["url"]),
+                                 [d["url"] for d in want[:self.MAX_LINKS]])
+
+    def test_output_is_deterministic(self):
+        for name in ("sample", "shuffle", "site.time", "now", "random"):
+            self.assertNotIn(name, self.source)
+        page = self.posts[0]
+        again = _MiniLiquid(self.source).render({"site": self.site, "page": page})
+        self.assertEqual(again, self.rendered[page["url"]])
+
+    def test_block_has_the_placeholder_heading(self):
+        for url, html in self.rendered.items():
+            with self.subTest(post=url):
+                self.assertIn("More reviews you might like", html)
+
+    def test_post_layout_includes_it_between_the_review_and_the_buy_bar(self):
+        layout = (REPO / "_layouts" / "post.html").read_text(encoding="utf-8")
+        tag = layout.find("{%- include related-reviews.html -%}")
+        self.assertNotEqual(tag, -1, "post.html does not include related-reviews.html")
+        self.assertGreater(tag, layout.find("{{ content }}"))
+        self.assertLess(tag, layout.find('<div class="buybar">'))
+
+
 class TestPublishedRootIsAllowlisted(unittest.TestCase):
     """Jekyll publishes every root file and folder that is not underscore- or
     dot-prefixed and not in _config.yml's `exclude:`. The github-pages gem also
