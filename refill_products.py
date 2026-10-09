@@ -85,19 +85,12 @@ VALID_SHEETS     = ("HAPPYPET_SHEET_ID_HOME", "HAPPYPET_SHEET_ID_FOOD",
 # _layouts/home.html); recovery #45 added carriers/travel/harnesses/beds/
 # grooming so re-categorized live posts (and future topics) stay reachable.
 #
-# 2026-10-05 restructure: categories are now species-neutral topics defined in
+# 2026-10-05 restructure: categories are species-neutral topics defined in
 # _data/categories.json (species lives in `species`). The ideation LLM is
-# offered ONLY those topics (TOPIC_SCHEMA below); the old species-prefixed
-# names stay valid until LEGACY_CATEGORIES is removed (a safety net for queue
-# entries and branches made before phase 2 moved every post to a topic).
-LEGACY_CATEGORIES = ("dog-gear", "dog-food", "dog-health", "dog-toys",
-                     "dog-training", "dog-grooming", "dog-beds", "dog-collars",
-                     "dog-crates", "dog-harnesses", "dog-carriers", "dog-travel",
-                     "cat-gear", "cat-food", "cat-health", "cat-toys",
-                     "cat-litter", "cat-scratching", "cat-carriers", "cat-feeders",
-                     "cat-harnesses", "cat-beds",
-                     "pet-tech", "pet-feeding", "pet-grooming")
-VALID_CATEGORIES = categories.TOPICS + LEGACY_CATEGORIES
+# offered ONLY those topics (TOPIC_SCHEMA below). The old species-prefixed
+# names (dog-health, cat-food, ...) were removed once no queue entry, post or
+# pin file used one.
+VALID_CATEGORIES = categories.TOPICS
 
 DESKTOP_UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
               "(KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36")
