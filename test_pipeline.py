@@ -3546,6 +3546,90 @@ class TestFbMessage(unittest.TestCase):
         self.assertNotIn("?utm=1", msg)
 
 
+class TestFacebookLinkTracking(unittest.TestCase):
+    """The link in the Facebook message carries a facebook UTM tag, so GA4 can
+    tell Facebook visits from direct and referral ones (traffic plan move 7).
+    It mirrors the Pinterest tag generate_posts.build_url puts on article_url:
+    utm_source=pinterest&utm_medium=social&utm_campaign=pin.
+
+    Only the message (col C) changes. Col B stays the raw article_url because
+    it is the dedup key: main() re-reads every sent/ file on each run, and a
+    col B that no longer matches the rows already in the sheet would re-append
+    the whole back catalogue to the Facebook queue."""
+
+    PIN_URL = ("https://happypetproductreviews.com/toys/best-snuffle-mats-dogs/"
+               "?utm_source=pinterest&utm_medium=social&utm_campaign=pin")
+    FB_URL = ("https://happypetproductreviews.com/toys/best-snuffle-mats-dogs/"
+              "?utm_source=facebook&utm_medium=social&utm_campaign=post")
+
+    def setUp(self):
+        import push_pins_to_sheets as pk
+        self.pk = pk
+
+    def _url_in(self, msg):
+        return msg.splitlines()[-1]
+
+    def test_message_link_carries_exactly_the_facebook_tag(self):
+        for slug in ("best-snuffle-mats-dogs", "best-dog-probiotic-supplements"):
+            with self.subTest(slug=slug):   # fallback hook, then a curated one
+                url = self._url_in(self.pk._build_fb_message(slug, "Best Snuffle Mats", self.PIN_URL))
+                self.assertEqual(url, self.FB_URL)
+
+    def test_the_pinterest_tag_never_reaches_facebook(self):
+        msg = self.pk._build_fb_message("best-snuffle-mats-dogs", "Best Snuffle Mats", self.PIN_URL)
+        self.assertNotIn("pinterest", msg)
+        self.assertEqual(msg.count("?"), 1)
+
+    def test_url_shapes_all_normalise_to_one_tagged_link(self):
+        base = "https://happypetproductreviews.com/toys/best-snuffle-mats-dogs"
+        for raw in (base, base + "/", base + "/?a=1&b=2", base + "?a=1", base + "/#top"):
+            with self.subTest(raw=raw):
+                url = self._url_in(self.pk._build_fb_message("best-snuffle-mats-dogs", "Best Mats", raw))
+                self.assertEqual(url, self.FB_URL)
+
+    # -- main(): the sheet row --------------------------------------------------
+    def _run_main(self, existing_urls):
+        import shutil
+        import tempfile
+        tmp = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
+        (tmp / "_pin_queue").mkdir()
+        (tmp / "_pin_queue" / "best-snuffle-mats-dogs.json").write_text(json.dumps({
+            "title": "Best Snuffle Mats", "article_url": self.PIN_URL,
+            "image_url": "https://happypetproductreviews.com/assets/images/pins/x.jpg?v=20261005",
+            "species": "dog", "slug": "best-snuffle-mats-dogs"}), encoding="utf-8")
+        ws = MagicMock()
+        ws.get_all_values.return_value = [["Title", "URL"]] + [["t", u] for u in existing_urls]
+        gspread = types.ModuleType("gspread")
+        gspread.Client = MagicMock(return_value=MagicMock(
+            open_by_key=MagicMock(return_value=MagicMock(
+                get_worksheet=MagicMock(return_value=ws)))))
+        with patch.dict(sys.modules, {"gspread": gspread}), \
+             patch.object(self.pk, "REPO_DIR", tmp), \
+             patch.object(self.pk, "log", lambda *a, **k: None), \
+             patch.object(self.pk, "load_env", lambda: None), \
+             patch.object(self.pk, "brain_get_secret", lambda *a, **k: "sheet-id"), \
+             patch.object(self.pk, "get_sheets_creds", lambda: "creds"), \
+             patch.object(self.pk, "retire_from_products", lambda slug: 9), \
+             patch.object(self.pk, "count_unpublished", lambda: 9), \
+             patch.object(sys, "argv", ["push_pins_to_sheets.py"]):
+            self.pk.main()
+        return ws
+
+    def test_row_keeps_raw_article_url_and_tags_only_the_message(self):
+        ws = self._run_main(existing_urls=[])
+        ws.append_row.assert_called_once()
+        row = ws.append_row.call_args.args[0]
+        self.assertEqual(row[1], self.PIN_URL, "col B is the dedup key and must not change")
+        self.assertEqual(self._url_in(row[2]), self.FB_URL)
+
+    def test_an_already_queued_article_is_still_skipped(self):
+        """Rows written before this change hold the Pinterest-tagged URL in col B;
+        those must still match, or every sent/ file posts a second time."""
+        ws = self._run_main(existing_urls=[self.PIN_URL])
+        ws.append_row.assert_not_called()
+
+
 # ---------------------------------------------------------------------------
 # Category -> homepage topic-button mapping guard (recovery #45)
 #
@@ -9277,6 +9361,58 @@ class TestRelatedReviews(unittest.TestCase):
         self.assertNotEqual(tag, -1, "post.html does not include related-reviews.html")
         self.assertGreater(tag, layout.find("{{ content }}"))
         self.assertLess(tag, layout.find('<div class="buybar">'))
+
+
+class TestPublishedRootIsAllowlisted(unittest.TestCase):
+    """Jekyll publishes every root file and folder that is not underscore- or
+    dot-prefixed and not in _config.yml's `exclude:`. The github-pages gem also
+    renders a front-matter-less .md as a page. That is how HANDOFF*.md,
+    CLAUDE.md, docs/ (plans, specs, old handoffs) and pytest.ini ended up live
+    on the site and in sitemap.xml.
+
+    So the check is an allowlist, not a list of known leaks: anything new at
+    the root fails here until it is either excluded or added to PUBLIC on
+    purpose. Matching mirrors Jekyll's EntryFilter for root names: an fnmatch
+    glob or a plain prefix."""
+
+    PUBLIC = {
+        "index.md", "about.md", "cats.md", "dogs.md", "contact.md",
+        "privacy-policy.md", "search.md", "search.json", "robots.txt",
+        "favicon.ico", "favicon-16x16.png", "favicon-32x32.png",
+        "apple-touch-icon.png", "assets",
+    }
+
+    @classmethod
+    def setUpClass(cls):
+        config = (REPO / "_config.yml").read_text(encoding="utf-8")
+        # The indented block under `exclude:`; YAML comment lines inside it are skipped.
+        block = re.search(r"^exclude:[ \t]*\r?\n((?:[ \t]+.*\r?\n)+)", config, re.M)
+        assert block, "_config.yml has no exclude: list"
+        cls.exclude = [m.strip().strip('"\'')
+                       for m in re.findall(r"^[ \t]+- (.*)$", block.group(1), re.M)]
+        assert "README.md" in cls.exclude and "vendor" in cls.exclude, cls.exclude
+
+    def _excluded(self, name):
+        from fnmatch import fnmatchcase
+        return any(fnmatchcase(name, pat) or name.startswith(pat) for pat in self.exclude)
+
+    def test_every_published_root_entry_is_on_the_allowlist(self):
+        published = sorted(p.name for p in REPO.iterdir()
+                           if not p.name.startswith(("_", ".")) and not self._excluded(p.name))
+        self.assertEqual([n for n in published if n not in self.PUBLIC], [],
+                         "publishes to the live site: exclude it in _config.yml or add it to PUBLIC")
+
+    def test_the_known_internal_files_are_excluded(self):
+        for name in ("HANDOFF.md", "HANDOFF-archive-2026-07-20-1606.md", "CLAUDE.md",
+                     "docs", "pytest.ini"):
+            with self.subTest(name=name):
+                self.assertTrue(self._excluded(name), f"{name} would be published")
+
+    def test_no_real_page_is_excluded(self):
+        for name in sorted(self.PUBLIC):
+            with self.subTest(name=name):
+                self.assertTrue((REPO / name).exists(), f"{name} listed in PUBLIC but missing")
+                self.assertFalse(self._excluded(name), f"{name} is a site page and must publish")
 
 
 if __name__ == "__main__":

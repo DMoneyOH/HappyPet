@@ -53,9 +53,16 @@ _FB_FALLBACK_TEMPLATES: list[str] = [
     "Less guesswork, better {topic}. Here's what we'd get.",
 ]
 
+# GA4 campaign tag for the link in the Facebook message, so Facebook visits are
+# attributable. Mirrors the Pinterest tag generate_posts.build_url puts on
+# article_url (utm_source=pinterest&utm_medium=social&utm_campaign=pin). Only the
+# message carries it: the row's URL column stays the raw article_url, because
+# that column is the dedup key read_fb_queue_state() matches against.
+FB_UTM = 'utm_source=facebook&utm_medium=social&utm_campaign=post'
+
 def _build_fb_message(slug: str, title: str, article_url: str) -> str:
     """Return a personable Facebook post message keyed to slug, fallback to title-derived hook."""
-    clean_url = article_url.split('?')[0].rstrip('/') + '/'
+    clean_url = article_url.split('?')[0].split('#')[0].rstrip('/') + '/?' + FB_UTM
     # Try each hook key as a substring of the slug
     for key, hook in _FB_HOOKS.items():
         if key in slug:
