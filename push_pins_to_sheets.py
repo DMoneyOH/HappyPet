@@ -157,8 +157,12 @@ SHEETS_TRANSIENT_CODES = (429, 500, 502, 503, 504)
 
 def log(msg: str, level: str = 'INFO') -> None:
     line = f"{_dt.datetime.now().strftime('%Y-%m-%d %H:%M:%S')} [SHEETS] [{level}]  {msg}"
-    print(line, flush=True)
-    with LOG_PATH.open('a') as f: f.write(line + chr(10))
+    with LOG_PATH.open('a', encoding='utf-8') as f: f.write(line + chr(10))
+    try:
+        print(line, flush=True)
+    except UnicodeEncodeError:   # cp1252 console on Windows: '?' beats a crash
+        enc = getattr(sys.stdout, 'encoding', None) or 'ascii'
+        print(line.encode(enc, 'replace').decode(enc), flush=True)
 
 
 def _api_status(exc) -> int | None:

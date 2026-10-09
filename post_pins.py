@@ -55,8 +55,8 @@ Usage:
   python3 post_pins.py --dry-run
 """
 
-import argparse, datetime as _dt, json, os, sys, time
-import urllib.error, urllib.request
+import argparse, datetime as _dt, json, os, re, sys, time
+import urllib.error, urllib.parse, urllib.request
 from pathlib import Path
 
 REPO_DIR  = Path(__file__).parent.resolve()
@@ -135,11 +135,45 @@ BACKOFF_BASE = 15
 RPM_SLEEP    = 2
 
 
+# The IFTTT Maker key travels inside the request URL, so any exception text that
+# repeats the URL (InvalidURL, a proxy error, an HTTPError body) carries it. GitHub
+# masks registered secrets in Actions output; a local run does not. log() is the
+# one funnel every message passes through, so it scrubs there: the key itself
+# (raw and URL-quoted) once registered, and the `/key/<anything>` URL shape always.
+_SECRETS = set()
+_KEY_IN_URL = re.compile(r"(/key/)[^\s'\"<>]+")
+
+
+def register_secret(value):
+    """Make log() redact `value` (and its URL-quoted forms) from now on."""
+    if value:
+        _SECRETS.add(value)
+
+
+def redact(text):
+    text = str(text)
+    for secret in sorted(_SECRETS, key=len, reverse=True):
+        for form in (secret, urllib.parse.quote(secret), urllib.parse.quote(secret, safe="")):
+            text = text.replace(form, "<redacted>")
+    return _KEY_IN_URL.sub(r"\1<redacted>", text)
+
+
 def log(msg, level="INFO"):
-    line = f"{_dt.datetime.now().strftime('%Y-%m-%d %H:%M:%S')} [POSTPINS] [{level}]  {msg}"
-    print(line, flush=True)
-    with LOG_PATH.open("a") as f:
+    line = f"{_dt.datetime.now().strftime('%Y-%m-%d %H:%M:%S')} [POSTPINS] [{level}]  {redact(msg)}"
+    # utf-8 file regardless of the platform locale; a console that cannot encode
+    # the line (cp1252 on Windows) gets '?' for those characters rather than a crash.
+    with LOG_PATH.open("a", encoding="utf-8") as f:
         f.write(line + "\n")
+    try:
+        print(line, flush=True)
+    except UnicodeEncodeError:
+        enc = getattr(sys.stdout, "encoding", None) or "ascii"
+        print(line.encode(enc, "replace").decode(enc), flush=True)
+
+
+class WebhookError(RuntimeError):
+    """Raised by http_post. Its message is built from the label and the status
+    code only, so it is safe to log; any other exception is logged by type."""
 
 
 def http_post(url, payload, headers, *, label):
@@ -149,10 +183,10 @@ def http_post(url, payload, headers, *, label):
             with urllib.request.urlopen(req, timeout=30) as resp:
                 return resp.read().decode()
         except urllib.error.HTTPError as exc:
-            body = exc.read().decode(errors="replace")
+            # The response body is never logged: a Maker error page can echo the URL.
             # 429 and 5xx are transient (IFTTT blips) -- retry; 4xx is a real error
             if exc.code != 429 and exc.code < 500:
-                raise RuntimeError(f"{label} HTTP {exc.code}: {body[:200]}")
+                raise WebhookError(f"{label} HTTP {exc.code}") from None
             if attempt == MAX_RETRIES:
                 break  # no point sleeping before the terminal raise
             wait = BACKOFF_BASE * (2 ** attempt)
@@ -161,9 +195,9 @@ def http_post(url, payload, headers, *, label):
         except urllib.error.URLError as exc:
             if attempt == MAX_RETRIES:
                 break
-            log(f"  {label} network error attempt {attempt}: {exc.reason}", "WARN")
+            log(f"  {label} network error attempt {attempt}: {type(exc.reason).__name__}", "WARN")
             time.sleep(RPM_SLEEP * 3)
-    raise RuntimeError(f"{label} exhausted after {MAX_RETRIES} attempts")
+    raise WebhookError(f"{label} exhausted after {MAX_RETRIES} attempts")
 
 
 def cap_text(text, limit):
@@ -205,7 +239,8 @@ def fire_webhook(event, payload, maker_key):
         log(f"  FIRED {json_event} -- {result.strip()[:80]}")
         return True
     except Exception as exc:
-        log(f"  FAIL {json_event} -- {exc}", "ERROR")
+        why = str(exc) if isinstance(exc, WebhookError) else type(exc).__name__
+        log(f"  FAIL {json_event} -- {why}", "ERROR")
         return False
 
 
@@ -292,6 +327,7 @@ def main():
     args = parser.parse_args()
 
     maker_key = (brain_get_secret("IFTTT_MAKER_KEY", "global") or "").strip()
+    register_secret(maker_key)
     if not maker_key:
         log("IFTTT_MAKER_KEY not set in Brain vault_secrets", "ERROR")
         sys.exit(1)
