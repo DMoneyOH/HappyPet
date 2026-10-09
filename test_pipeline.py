@@ -3546,6 +3546,90 @@ class TestFbMessage(unittest.TestCase):
         self.assertNotIn("?utm=1", msg)
 
 
+class TestFacebookLinkTracking(unittest.TestCase):
+    """The link in the Facebook message carries a facebook UTM tag, so GA4 can
+    tell Facebook visits from direct and referral ones (traffic plan move 7).
+    It mirrors the Pinterest tag generate_posts.build_url puts on article_url:
+    utm_source=pinterest&utm_medium=social&utm_campaign=pin.
+
+    Only the message (col C) changes. Col B stays the raw article_url because
+    it is the dedup key: main() re-reads every sent/ file on each run, and a
+    col B that no longer matches the rows already in the sheet would re-append
+    the whole back catalogue to the Facebook queue."""
+
+    PIN_URL = ("https://happypetproductreviews.com/toys/best-snuffle-mats-dogs/"
+               "?utm_source=pinterest&utm_medium=social&utm_campaign=pin")
+    FB_URL = ("https://happypetproductreviews.com/toys/best-snuffle-mats-dogs/"
+              "?utm_source=facebook&utm_medium=social&utm_campaign=post")
+
+    def setUp(self):
+        import push_pins_to_sheets as pk
+        self.pk = pk
+
+    def _url_in(self, msg):
+        return msg.splitlines()[-1]
+
+    def test_message_link_carries_exactly_the_facebook_tag(self):
+        for slug in ("best-snuffle-mats-dogs", "best-dog-probiotic-supplements"):
+            with self.subTest(slug=slug):   # fallback hook, then a curated one
+                url = self._url_in(self.pk._build_fb_message(slug, "Best Snuffle Mats", self.PIN_URL))
+                self.assertEqual(url, self.FB_URL)
+
+    def test_the_pinterest_tag_never_reaches_facebook(self):
+        msg = self.pk._build_fb_message("best-snuffle-mats-dogs", "Best Snuffle Mats", self.PIN_URL)
+        self.assertNotIn("pinterest", msg)
+        self.assertEqual(msg.count("?"), 1)
+
+    def test_url_shapes_all_normalise_to_one_tagged_link(self):
+        base = "https://happypetproductreviews.com/toys/best-snuffle-mats-dogs"
+        for raw in (base, base + "/", base + "/?a=1&b=2", base + "?a=1", base + "/#top"):
+            with self.subTest(raw=raw):
+                url = self._url_in(self.pk._build_fb_message("best-snuffle-mats-dogs", "Best Mats", raw))
+                self.assertEqual(url, self.FB_URL)
+
+    # -- main(): the sheet row --------------------------------------------------
+    def _run_main(self, existing_urls):
+        import shutil
+        import tempfile
+        tmp = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
+        (tmp / "_pin_queue").mkdir()
+        (tmp / "_pin_queue" / "best-snuffle-mats-dogs.json").write_text(json.dumps({
+            "title": "Best Snuffle Mats", "article_url": self.PIN_URL,
+            "image_url": "https://happypetproductreviews.com/assets/images/pins/x.jpg?v=20261005",
+            "species": "dog", "slug": "best-snuffle-mats-dogs"}), encoding="utf-8")
+        ws = MagicMock()
+        ws.get_all_values.return_value = [["Title", "URL"]] + [["t", u] for u in existing_urls]
+        gspread = types.ModuleType("gspread")
+        gspread.Client = MagicMock(return_value=MagicMock(
+            open_by_key=MagicMock(return_value=MagicMock(
+                get_worksheet=MagicMock(return_value=ws)))))
+        with patch.dict(sys.modules, {"gspread": gspread}), \
+             patch.object(self.pk, "REPO_DIR", tmp), \
+             patch.object(self.pk, "log", lambda *a, **k: None), \
+             patch.object(self.pk, "load_env", lambda: None), \
+             patch.object(self.pk, "brain_get_secret", lambda *a, **k: "sheet-id"), \
+             patch.object(self.pk, "get_sheets_creds", lambda: "creds"), \
+             patch.object(self.pk, "retire_from_products", lambda slug: 9), \
+             patch.object(self.pk, "count_unpublished", lambda: 9), \
+             patch.object(sys, "argv", ["push_pins_to_sheets.py"]):
+            self.pk.main()
+        return ws
+
+    def test_row_keeps_raw_article_url_and_tags_only_the_message(self):
+        ws = self._run_main(existing_urls=[])
+        ws.append_row.assert_called_once()
+        row = ws.append_row.call_args.args[0]
+        self.assertEqual(row[1], self.PIN_URL, "col B is the dedup key and must not change")
+        self.assertEqual(self._url_in(row[2]), self.FB_URL)
+
+    def test_an_already_queued_article_is_still_skipped(self):
+        """Rows written before this change hold the Pinterest-tagged URL in col B;
+        those must still match, or every sent/ file posts a second time."""
+        ws = self._run_main(existing_urls=[self.PIN_URL])
+        ws.append_row.assert_not_called()
+
+
 # ---------------------------------------------------------------------------
 # Category -> homepage topic-button mapping guard (recovery #45)
 #
