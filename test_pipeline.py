@@ -1700,7 +1700,7 @@ class TestRefillAgent(unittest.TestCase):
         # offered gear/food/health -- every toy, bed, litter, tech topic had
         # nowhere else to go. Guard against regressing to that 6-bucket set.
         import refill_products as rp
-        specific = {"dog-toys", "cat-toys", "cat-litter", "dog-training", "pet-tech"}
+        specific = {"toys", "litter", "training", "tech", "beds", "grooming"}
         self.assertTrue(specific.issubset(set(rp.VALID_CATEGORIES)))
 
     def test_the_llm_is_offered_only_the_species_neutral_topics(self):
@@ -1715,12 +1715,17 @@ class TestRefillAgent(unittest.TestCase):
             [c for c in enum if c.split("-")[0] in ("dog", "cat", "pet")], [])
         self.assertEqual(len(enum), 22)
 
-    def test_old_and_new_category_names_both_validate(self):
-        # Both sets validate until LEGACY_CATEGORIES is removed: an entry queued
-        # on another branch before phase 2 may still carry an old name.
+    def test_only_the_topics_validate_and_old_names_are_rejected(self):
+        # The species-prefixed names (LEGACY_CATEGORIES) are gone: only the
+        # topics in _data/categories.json validate.
+        import categories
         import refill_products as rp
+        self.assertEqual(rp.VALID_CATEGORIES, categories.TOPICS)
+        self.assertFalse(hasattr(rp, "LEGACY_CATEGORIES"))
         for name in ("dog-health", "cat-beds", "pet-grooming", "dog-travel",
-                     "health", "flea-tick", "cleaning", "tech"):
+                     "dog-gear", "cat-litter", "pet-tech"):
+            self.assertNotIn(name, rp.VALID_CATEGORIES)
+        for name in ("health", "flea-tick", "cleaning", "tech"):
             self.assertIn(name, rp.VALID_CATEGORIES)
         data = json.loads((REPO / "products.json").read_text(encoding="utf-8"))
         for e in data:
@@ -3835,9 +3840,6 @@ class TestTopicCategoriesSingleSource(unittest.TestCase):
         data = json.loads((REPO / "_data" / "categories.json").read_text(encoding="utf-8"))
         self.assertEqual(categories.TOPICS, tuple(t["slug"] for t in data["topics"]))
         self.assertEqual(len(set(categories.TOPICS)), 22)
-        # No topic may collide with an old name, or the two sets would blur.
-        import refill_products as rp
-        self.assertEqual(set(categories.TOPICS) & set(rp.LEGACY_CATEGORIES), set())
 
     def test_pin_labels_cover_every_topic_and_keep_the_old_ones(self):
         import generate_pin_images as g
@@ -3903,18 +3905,15 @@ class TestPostsAreOnTopics(unittest.TestCase):
     one topic, its old URL kept as a redirect_from stub."""
 
     def test_every_published_post_has_exactly_one_known_category(self):
-        # Topics, or an old name the pipeline still accepts: an old-name post
-        # generated from a queue entry made before this phase merged must not
-        # turn the pytest check (and so refill auto-merge) red. A typo is what
-        # this catches -- it would silently fall through post-card's keyword
-        # chain. Tighten to TOPICS when LEGACY_CATEGORIES is removed.
-        import refill_products as rp
+        # A typo is what this catches -- it would silently fall through
+        # post-card's keyword chain.
+        import categories
         bad = []
         for md in sorted((REPO / "_posts").glob("*.md")):
             if md.stem.startswith("DRAFT-"):
                 continue
             m = re.search(r"^categories: \[([^\]]*)\]", md.read_text(encoding="utf-8"), re.M)
-            if not m or m.group(1) not in rp.VALID_CATEGORIES:
+            if not m or m.group(1) not in categories.TOPICS:
                 bad.append(f"{md.name}: {m.group(1) if m else None}")
         self.assertEqual(bad, [])
 

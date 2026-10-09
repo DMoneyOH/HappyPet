@@ -97,8 +97,7 @@ def topic_problems(t, taken: set) -> list:
             bad.append(p)
     if t.get("species") not in SPECIES:
         bad.append("species is not dog/cat/both")
-    # The 22 bare topics only. rp.VALID_CATEGORIES still accepts the legacy names
-    # for old branches; a new entry must never use one.
+    # The 22 bare topics only; a species-prefixed legacy name is never valid.
     if t.get("category") not in categories.TOPICS:
         bad.append("category is not one of the topics in _data/categories.json")
     if t.get("topical_sheet") not in rp.VALID_SHEETS:
