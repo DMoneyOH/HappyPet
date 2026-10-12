@@ -182,3 +182,72 @@ layout: default
     </div>
   </div>
 </article>
+
+{%- comment -%}
+  GA4 `affiliate_click` on every Amazon/Chewy outbound click, so conversion
+  changes can be judged by page and position. One delegated listener, no
+  per-link markup: link_position is read from where the link sits (.verdict
+  panel, .buybar, or the .prose heading/table/list/last block/paragraph it is
+  in; a trailing "Rating: x/5" line does not count as the last block). It only
+  reports; it never cancels or delays the click. Retailer is matched on the
+  link's hostname; Chewy links were confirmed to stay on chewy.sjv.io on the
+  live site, 2026-10-12. Chewy product_id is Impact's prodsku= when present
+  (the id Impact order reports use), else the /dp/ id.
+  test_pipeline.py::TestAffiliateClickTracking runs this script.
+{%- endcomment %}
+<script>
+  (function () {
+    var SLUG = {{ page.slug | jsonify }};
+    function retailer(host) {
+      if (host === 'amzn.to' || /(^|\.)amazon\.com$/.test(host)) return 'amazon';
+      if (host === 'chewy.sjv.io' || /(^|\.)chewy\.com$/.test(host)) return 'chewy';
+      return null;
+    }
+    function productId(url, shop) {
+      if (shop === 'amazon') {
+        var asin = url.pathname.match(/\/dp\/([A-Z0-9]{10})(?:\/|$)/i);
+        return asin ? asin[1].toUpperCase() : null;
+      }
+      var sku = url.searchParams.get('prodsku');
+      if (sku && /^\d+$/.test(sku)) return sku;
+      try {
+        var deep = url.searchParams.get('u');  // Impact links carry the Chewy URL in u=
+        var item = (deep ? new URL(deep) : url).pathname.match(/\/dp\/(\d+)/);
+        return item ? item[1] : null;
+      } catch (err) { return null; }
+    }
+    function position(a) {
+      if (a.closest('.verdict')) return 'panel';
+      if (a.closest('.buybar')) return 'buybar';
+      var prose = a.closest('.prose');
+      if (!prose) return 'other';
+      if (a.closest('h1, h2, h3, h4, h5, h6')) return 'heading';
+      if (a.closest('table')) return 'table';
+      if (a.closest('li')) return 'list';
+      var last = prose.lastElementChild;
+      if (last && /^\s*Rating:/i.test(last.textContent)) last = last.previousElementSibling;
+      if (last && last.contains(a)) return 'closing';
+      return 'inline';
+    }
+    function track(e) {
+      if (e.type === 'auxclick' && e.button !== 1) return;
+      try {
+        var a = e.target && e.target.closest && e.target.closest('a[href]');
+        if (!a || typeof gtag !== 'function') return;
+        var url = new URL(a.href, location.href);
+        var shop = retailer(url.hostname.toLowerCase());
+        if (!shop) return;
+        var params = {
+          link_position: position(a),
+          retailer: shop,
+          post_slug: SLUG
+        };
+        var id = productId(url, shop);
+        if (id) params.product_id = id;
+        gtag('event', 'affiliate_click', params);
+      } catch (err) {}
+    }
+    document.addEventListener('click', track);
+    document.addEventListener('auxclick', track);
+  })();
+</script>

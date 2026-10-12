@@ -4116,6 +4116,20 @@ def _css_tokens(block):
             for k, v in re.findall(r"(--[\w-]+|color-scheme)\s*:\s*([^;]+);", block)}
 
 
+def _run_node(harness, cfg, script):
+    """Run `harness` under node with argv[1] = JSON cfg and argv[2] = the page
+    script; return the JSON the harness prints. Skips the test without node."""
+    import shutil
+    import subprocess
+    node = shutil.which("node")
+    if not node:
+        raise unittest.SkipTest("node not installed")
+    proc = subprocess.run([node, "-e", harness, json.dumps(cfg), script],
+                          capture_output=True, text=True, timeout=30)
+    assert proc.returncode == 0, proc.stderr
+    return json.loads(proc.stdout)
+
+
 class TestThemeToggle(unittest.TestCase):
     MEDIA = '@media (prefers-color-scheme: dark)'
     EXPLICIT = ':root[data-theme="dark"]'
@@ -4222,8 +4236,6 @@ class TestThemeToggle(unittest.TestCase):
     @staticmethod
     def _run(script, storage, throws=False, click=False, system_dark=False):
         """Run the head script in node against a stub DOM; return final state."""
-        import shutil
-        import subprocess
         harness = r"""
 const vm = require('vm');
 const cfg = JSON.parse(process.argv[1]);
@@ -4257,13 +4269,8 @@ if (cfg.click) btn.handlers.click();
 console.log(JSON.stringify({ before, theme: attrs['data-theme'] || null,
   metas: metas.map(m => m.c), hidden: btn.hidden, pressed: btn.pressed, store }));
 """
-        proc = subprocess.run(
-            [shutil.which("node"), "-e", harness,
-             json.dumps({"storage": storage, "throws": throws,
-                         "systemDark": system_dark, "click": click}), script],
-            capture_output=True, text=True, timeout=30)
-        assert proc.returncode == 0, proc.stderr
-        return json.loads(proc.stdout)
+        return _run_node(harness, {"storage": storage, "throws": throws,
+                                   "systemDark": system_dark, "click": click}, script)
 
     def _skip_without_node(self):
         import shutil
@@ -4298,6 +4305,256 @@ console.log(JSON.stringify({ before, theme: attrs['data-theme'] || null,
         r = self._run(script, {}, click=True, system_dark=True)
         self.assertEqual((r["theme"], r["pressed"]), ("light", "false"))
         self.assertEqual(r["store"]["happypet-theme"], "light")
+
+
+# ---------------------------------------------------------------------------
+# Affiliate click tracking (GA4 `affiliate_click`)
+#
+# One delegated listener at the foot of post.html reports every outbound
+# Amazon/Chewy click with WHERE on the page it was (link_position), so a
+# conversion change can be judged per position. The position comes from the
+# link's place in the DOM, not from per-link markup -- so the tests run the real
+# script under node against a stub DOM built from the same wrappers the layout
+# and kramdown produce, and separately guard that the layout still wraps its
+# buy buttons in the classes the script keys on.
+#
+# HONEST LIMIT: this is not a browser and not Jekyll. Whether gtag.js actually
+# ships the event is GA4's side and is not checked here.
+# ---------------------------------------------------------------------------
+
+AMAZON_DP = "https://www.amazon.com/dp/B07N1JYYCW?tag=happypetdc-20"
+CHEWY_IMPACT = ("https://chewy.sjv.io/c/7160344/3054490/32975?u=https%3A%2F%2Fwww.chewy.com"
+                "%2Fkong-extreme-dog-toy%2Fdp%2F38493&intsrc=APIG_24727")
+
+
+class TestAffiliateClickTracking(unittest.TestCase):
+
+    SLUG_EXPR = "{{ page.slug | jsonify }}"
+
+    @classmethod
+    def setUpClass(cls):
+        cls.layout = (REPO / "_layouts" / "post.html").read_text(encoding="utf-8")
+        found = [s for s in re.findall(r"<script>(.*?)</script>", cls.layout, re.S)
+                 if "affiliate_click" in s]
+        assert len(found) == 1, "expected exactly one affiliate_click script in post.html"
+        cls.source = found[0]
+        # The one Liquid expression in the script, rendered the way Jekyll's
+        # jsonify renders a slug: a JSON string literal.
+        cls.script = cls.source.replace(cls.SLUG_EXPR, json.dumps("best-snuffle-mats-dogs"))
+
+    # ------------------------------------------------------ the script, run
+
+    HARNESS = r"""
+const vm = require('vm');
+const cfg = JSON.parse(process.argv[1]);
+function el(spec, parent) {
+  const m = spec.match(/^([a-z0-9]*)((?:\.[\w-]+)*)$/);
+  const node = { tagName: (m[1] || 'div').toUpperCase(),
+    cls: m[2].split('.').filter(Boolean), parentElement: parent, textContent: '' };
+  node.matches = sel => sel.split(',').some(one => {
+    const s = one.trim().match(/^([a-z0-9]*)((?:\.[\w-]+)*)(\[href\])?$/);
+    if (!s) throw new Error('selector outside the stub: ' + one);
+    return (!s[1] || node.tagName === s[1].toUpperCase())
+      && s[2].split('.').filter(Boolean).every(c => node.cls.includes(c))
+      && (!s[3] || 'href' in node);
+  });
+  node.closest = sel => { for (let n = node; n; n = n.parentElement) if (n.matches(sel)) return n; return null; };
+  node.contains = other => { for (let n = other; n; n = n.parentElement) if (n === node) return true; return false; };
+  return node;
+}
+let parent = null;
+const chain = cfg.path.map(spec => (parent = el(spec, parent)));
+const prose = chain.find(n => n.cls.includes('prose'));
+if (prose) {
+  const child = chain[chain.indexOf(prose) + 1];
+  prose.lastElementChild = cfg.last && child ? child : el('p', prose);
+  if (cfg.trailer !== null) {  // a block after the closing one, e.g. "Rating: 4.5/5"
+    const after = el('p', prose);
+    after.textContent = cfg.trailer;
+    after.previousElementSibling = prose.lastElementChild;
+    prose.lastElementChild = after;
+  }
+}
+const a = el('a', parent);
+if (cfg.href !== null) a.href = cfg.href;
+const target = cfg.onImage ? el('img', a) : a;
+const calls = [];
+const handlers = {};
+const ctx = {
+  URL,
+  location: { href: 'https://happypetproductreviews.com/toys/best-snuffle-mats-dogs/' },
+  document: { addEventListener(t, f) { (handlers[t] = handlers[t] || []).push(f); } },
+};
+if (cfg.gtag === 'throws') ctx.gtag = () => { throw new Error('gtag broke'); };
+else if (cfg.gtag) ctx.gtag = (...args) => calls.push(args);
+vm.createContext(ctx);
+vm.runInContext(process.argv[2], ctx);
+const ev = { type: cfg.type, button: cfg.button, target, defaultPrevented: false,
+  preventDefault() { this.defaultPrevented = true; } };
+(handlers[cfg.type] || []).forEach(f => f(ev));
+console.log(JSON.stringify({ calls, prevented: ev.defaultPrevented,
+  types: Object.keys(handlers).sort() }));
+"""
+
+    def _click(self, path, href=AMAZON_DP, last=False, type="click", button=0,
+               gtag=True, on_image=False, trailer=None):
+        cfg = {"path": path, "href": href, "last": last, "type": type, "button": button,
+               "gtag": gtag, "onImage": on_image, "trailer": trailer}
+        return _run_node(self.HARNESS, cfg, self.script)
+
+    ARTICLE = "article.piece"
+
+    def _params(self, path, **kw):
+        r = self._click(path, **kw)
+        self.assertFalse(r["prevented"], "the listener must never block navigation")
+        self.assertEqual(len(r["calls"]), 1, r)
+        name, event, params = r["calls"][0]
+        self.assertEqual((name, event), ("event", "affiliate_click"))
+        return params
+
+    def test_every_position_on_the_page_is_named(self):
+        # Expected values are the position names this spec defines, written out
+        # by hand -- not recomputed from the script.
+        cases = {
+            "panel": ([self.ARTICLE, "div.verdict", "div.verdict-body", "div.buy-row"], False),
+            "buybar": ([self.ARTICLE, "div.reading", "div.buybar"], False),
+            "heading": ([self.ARTICLE, "div.prose", "h3"], False),
+            "table": ([self.ARTICLE, "div.prose", "table", "tbody", "tr", "td"], False),
+            "list": ([self.ARTICLE, "div.prose", "ul", "li"], False),
+            "closing": ([self.ARTICLE, "div.reading", "div.prose", "p"], True),
+            "inline": ([self.ARTICLE, "div.reading", "div.prose", "p"], False),
+            "other": ([self.ARTICLE, "div.share"], False),
+        }
+        for want, (path, last) in cases.items():
+            with self.subTest(position=want):
+                self.assertEqual(self._params(path, last=last)["link_position"], want)
+
+    def test_a_structural_position_wins_over_closing(self):
+        # A table or list that happens to be the last block is still a table/list.
+        for want, path in (("table", ["table", "tr", "td"]), ("list", ["ul", "li"])):
+            with self.subTest(position=want):
+                p = self._params([self.ARTICLE, "div.prose"] + path, last=True)
+                self.assertEqual(p["link_position"], want)
+
+    def test_closing_skips_a_trailing_rating_line(self):
+        # Six single-product reviews end with "**Rating: 4.5/5**" after the
+        # verdict paragraph; the verdict's link is still the closing one.
+        prose_p = [self.ARTICLE, "div.prose", "p"]
+        p = self._params(prose_p, last=True, trailer="Rating: 4.5/5")
+        self.assertEqual(p["link_position"], "closing")
+        # Not the verdict paragraph -> still inline, rating line or not.
+        p = self._params(prose_p, last=False, trailer="Rating: 4.5/5")
+        self.assertEqual(p["link_position"], "inline")
+        # Only a rating line is skipped: any other trailing block IS the close.
+        p = self._params(prose_p, last=True, trailer="Happy shopping, and see you soon.")
+        self.assertEqual(p["link_position"], "inline")
+
+    def test_amazon_product_link_reports_retailer_slug_and_asin(self):
+        p = self._params([self.ARTICLE, "div.prose", "p"], href=AMAZON_DP)
+        self.assertEqual(p, {"link_position": "inline", "retailer": "amazon",
+                             "post_slug": "best-snuffle-mats-dogs",
+                             "product_id": "B07N1JYYCW"})
+
+    def test_amazon_search_link_has_no_product_id(self):
+        p = self._params([self.ARTICLE, "div.prose", "p"],
+                         href="https://www.amazon.com/s?k=wet+cat+food&tag=happypetdc-20")
+        self.assertEqual(p["retailer"], "amazon")
+        self.assertNotIn("product_id", p)
+
+    def test_chewy_impact_link_reports_the_chewy_item_id(self):
+        p = self._params([self.ARTICLE, "div.verdict", "div.buy-row"], href=CHEWY_IMPACT)
+        self.assertEqual((p["retailer"], p["product_id"], p["link_position"]),
+                         ("chewy", "38493", "panel"))
+        direct = self._params([self.ARTICLE, "div.prose", "p"],
+                              href="https://www.chewy.com/kong-extreme-dog-toy/dp/38493")
+        self.assertEqual((direct["retailer"], direct["product_id"]), ("chewy", "38493"))
+
+    def test_chewy_prodsku_wins_over_the_dp_id(self):
+        # prodsku is the id Impact's order reports use, and it can differ from
+        # the /dp/ id (best-dog-puzzle-toys: prodsku 86003, /dp/113786).
+        href = ("https://chewy.sjv.io/c/7160344/3054490/32975?prodsku=86003&u=https%3A%2F%2F"
+                "www.chewy.com%2Foutward-hound-hide-squirrel-squeaky%2Fdp%2F113786")
+        p = self._params([self.ARTICLE, "div.verdict"], href=href)
+        self.assertEqual((p["retailer"], p["product_id"]), ("chewy", "86003"))
+        empty = self._params([self.ARTICLE, "div.verdict"], href=href.replace("86003", ""))
+        self.assertEqual(empty["product_id"], "113786", "an empty prodsku falls back to /dp/")
+
+    def test_click_on_an_image_inside_the_link_still_counts(self):
+        p = self._params([self.ARTICLE, "div.buybar"], on_image=True)
+        self.assertEqual(p["link_position"], "buybar")
+
+    def test_non_affiliate_links_are_ignored(self):
+        # Including retailer image CDNs and look-alike hosts: the match is on the
+        # whole hostname, so "evilamazon.com" or "amazon.com.evil.io" is not Amazon.
+        for href in ("https://happypetproductreviews.com/training/best-puppy-training-pads/",
+                     "https://pinterest.com/pin/create/button/?url=x",
+                     "https://m.media-amazon.com/images/I/71Wmu0n5rtL._AC_SX679_.jpg",
+                     "https://evilamazon.com/dp/B07N1JYYCW",
+                     "https://www.amazon.com.evil.io/dp/B07N1JYYCW",
+                     "https://chewy.sjv.io.evil.io/c/1?u=x",
+                     "mailto:?subject=x"):
+            with self.subTest(href=href):
+                r = self._click([self.ARTICLE, "div.prose", "p"], href=href)
+                self.assertEqual(r["calls"], [])
+                self.assertFalse(r["prevented"])
+
+    def test_host_match_is_case_insensitive(self):
+        # URL() lowercases the host in a browser; the stub passes it through the
+        # same URL(), so this pins that the script does not compare raw href text.
+        p = self._params([self.ARTICLE, "div.prose", "p"],
+                         href="https://WWW.Amazon.COM/dp/B07N1JYYCW?tag=happypetdc-20")
+        self.assertEqual(p["retailer"], "amazon")
+
+    def test_missing_gtag_is_a_silent_no_op(self):
+        # If the inline gtag stub is absent, a click must still navigate untouched.
+        r = self._click([self.ARTICLE, "div.verdict"], gtag=False)
+        self.assertEqual(r["calls"], [])
+        self.assertFalse(r["prevented"])
+
+    def test_a_throwing_gtag_never_escapes_the_listener(self):
+        # The harness dispatches without a guard, so an escaping error fails
+        # the node run itself.
+        r = self._click([self.ARTICLE, "div.verdict"], gtag="throws")
+        self.assertFalse(r["prevented"])
+
+    def test_a_malformed_impact_link_still_reports_the_click(self):
+        p = self._params([self.ARTICLE, "div.verdict"],
+                         href="https://chewy.sjv.io/c/7160344/3054490/32975?u=%%%")
+        self.assertEqual(p["retailer"], "chewy")
+        self.assertNotIn("product_id", p)
+
+    def test_middle_click_counts_and_right_click_does_not(self):
+        self.assertIn("auxclick", self._click([self.ARTICLE], type="click")["types"])
+        middle = self._click([self.ARTICLE, "div.buybar"], type="auxclick", button=1)
+        self.assertEqual(len(middle["calls"]), 1)
+        right = self._click([self.ARTICLE, "div.buybar"], type="auxclick", button=2)
+        self.assertEqual(right["calls"], [])
+
+    def test_the_script_never_holds_navigation(self):
+        # Structural: nothing that can delay or cancel the click is in the script.
+        for banned in ("preventDefault", "event_callback", "setTimeout", "location.href ="):
+            self.assertNotIn(banned, self.script)
+
+    # ------------------------------------------------------- layout guards
+
+    def test_the_layout_wraps_its_buy_links_where_the_script_looks(self):
+        # Every retailer anchor post.html renders sits inside .verdict or
+        # .buybar; a new template button outside both would report "other".
+        anchors = re.findall(r"<a\b[^>]*\bclass=\"buy\b[^\"]*\"[^>]*>", self.layout)
+        self.assertGreaterEqual(len(anchors), 3, "the guard is scanning no buy buttons")
+        verdict = self.layout[self.layout.index('<div class="verdict">'):
+                              self.layout.index('<div class="reading">')]
+        buybar = self.layout[self.layout.index('<div class="buybar">'):]
+        for tag in anchors:
+            self.assertTrue(tag in verdict or tag in buybar, tag)
+
+    def test_post_content_renders_inside_prose(self):
+        self.assertRegex(self.layout, r'<div class="prose">\s*\{\{ content \}\}\s*</div>')
+
+    def test_post_slug_comes_from_the_page_as_a_json_string(self):
+        # jsonify, not a bare {{ page.slug }}: the value lands in JavaScript.
+        self.assertEqual(self.source.count(self.SLUG_EXPR), 1)
+        self.assertEqual(self.source.count("{{"), 1, "unexpected Liquid in the script")
 
 
 class TestAutoMergePublishWiring(unittest.TestCase):
