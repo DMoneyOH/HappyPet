@@ -4116,6 +4116,20 @@ def _css_tokens(block):
             for k, v in re.findall(r"(--[\w-]+|color-scheme)\s*:\s*([^;]+);", block)}
 
 
+def _run_node(harness, cfg, script):
+    """Run `harness` under node with argv[1] = JSON cfg and argv[2] = the page
+    script; return the JSON the harness prints. Skips the test without node."""
+    import shutil
+    import subprocess
+    node = shutil.which("node")
+    if not node:
+        raise unittest.SkipTest("node not installed")
+    proc = subprocess.run([node, "-e", harness, json.dumps(cfg), script],
+                          capture_output=True, text=True, timeout=30)
+    assert proc.returncode == 0, proc.stderr
+    return json.loads(proc.stdout)
+
+
 class TestThemeToggle(unittest.TestCase):
     MEDIA = '@media (prefers-color-scheme: dark)'
     EXPLICIT = ':root[data-theme="dark"]'
@@ -4222,8 +4236,6 @@ class TestThemeToggle(unittest.TestCase):
     @staticmethod
     def _run(script, storage, throws=False, click=False, system_dark=False):
         """Run the head script in node against a stub DOM; return final state."""
-        import shutil
-        import subprocess
         harness = r"""
 const vm = require('vm');
 const cfg = JSON.parse(process.argv[1]);
@@ -4257,13 +4269,8 @@ if (cfg.click) btn.handlers.click();
 console.log(JSON.stringify({ before, theme: attrs['data-theme'] || null,
   metas: metas.map(m => m.c), hidden: btn.hidden, pressed: btn.pressed, store }));
 """
-        proc = subprocess.run(
-            [shutil.which("node"), "-e", harness,
-             json.dumps({"storage": storage, "throws": throws,
-                         "systemDark": system_dark, "click": click}), script],
-            capture_output=True, text=True, timeout=30)
-        assert proc.returncode == 0, proc.stderr
-        return json.loads(proc.stdout)
+        return _run_node(harness, {"storage": storage, "throws": throws,
+                                   "systemDark": system_dark, "click": click}, script)
 
     def _skip_without_node(self):
         import shutil
@@ -4322,6 +4329,8 @@ CHEWY_IMPACT = ("https://chewy.sjv.io/c/7160344/3054490/32975?u=https%3A%2F%2Fww
 
 class TestAffiliateClickTracking(unittest.TestCase):
 
+    SLUG_EXPR = "{{ page.slug | jsonify }}"
+
     @classmethod
     def setUpClass(cls):
         cls.layout = (REPO / "_layouts" / "post.html").read_text(encoding="utf-8")
@@ -4333,8 +4342,6 @@ class TestAffiliateClickTracking(unittest.TestCase):
         # jsonify renders a slug: a JSON string literal.
         cls.script = cls.source.replace(cls.SLUG_EXPR, json.dumps("best-snuffle-mats-dogs"))
 
-    SLUG_EXPR = "{{ page.slug | jsonify }}"
-
     # ------------------------------------------------------ the script, run
 
     HARNESS = r"""
@@ -4343,7 +4350,7 @@ const cfg = JSON.parse(process.argv[1]);
 function el(spec, parent) {
   const m = spec.match(/^([a-z0-9]*)((?:\.[\w-]+)*)$/);
   const node = { tagName: (m[1] || 'div').toUpperCase(),
-    cls: m[2].split('.').filter(Boolean), parentElement: parent };
+    cls: m[2].split('.').filter(Boolean), parentElement: parent, textContent: '' };
   node.matches = sel => sel.split(',').some(one => {
     const s = one.trim().match(/^([a-z0-9]*)((?:\.[\w-]+)*)(\[href\])?$/);
     if (!s) throw new Error('selector outside the stub: ' + one);
@@ -4361,6 +4368,12 @@ const prose = chain.find(n => n.cls.includes('prose'));
 if (prose) {
   const child = chain[chain.indexOf(prose) + 1];
   prose.lastElementChild = cfg.last && child ? child : el('p', prose);
+  if (cfg.trailer !== null) {  // a block after the closing one, e.g. "Rating: 4.5/5"
+    const after = el('p', prose);
+    after.textContent = cfg.trailer;
+    after.previousElementSibling = prose.lastElementChild;
+    prose.lastElementChild = after;
+  }
 }
 const a = el('a', parent);
 if (cfg.href !== null) a.href = cfg.href;
@@ -4372,7 +4385,8 @@ const ctx = {
   location: { href: 'https://happypetproductreviews.com/toys/best-snuffle-mats-dogs/' },
   document: { addEventListener(t, f) { (handlers[t] = handlers[t] || []).push(f); } },
 };
-if (cfg.gtag) ctx.gtag = (...args) => calls.push(args);
+if (cfg.gtag === 'throws') ctx.gtag = () => { throw new Error('gtag broke'); };
+else if (cfg.gtag) ctx.gtag = (...args) => calls.push(args);
 vm.createContext(ctx);
 vm.runInContext(process.argv[2], ctx);
 const ev = { type: cfg.type, button: cfg.button, target, defaultPrevented: false,
@@ -4383,18 +4397,10 @@ console.log(JSON.stringify({ calls, prevented: ev.defaultPrevented,
 """
 
     def _click(self, path, href=AMAZON_DP, last=False, type="click", button=0,
-               gtag=True, on_image=False):
-        import shutil
-        import subprocess
-        node = shutil.which("node")
-        if not node:
-            self.skipTest("node not installed")
-        cfg = {"path": path, "href": href, "last": last, "type": type,
-               "button": button, "gtag": gtag, "onImage": on_image}
-        proc = subprocess.run([node, "-e", self.HARNESS, json.dumps(cfg), self.script],
-                              capture_output=True, text=True, timeout=30)
-        self.assertEqual(proc.returncode, 0, proc.stderr)
-        return json.loads(proc.stdout)
+               gtag=True, on_image=False, trailer=None):
+        cfg = {"path": path, "href": href, "last": last, "type": type, "button": button,
+               "gtag": gtag, "onImage": on_image, "trailer": trailer}
+        return _run_node(self.HARNESS, cfg, self.script)
 
     ARTICLE = "article.piece"
 
@@ -4425,14 +4431,29 @@ console.log(JSON.stringify({ calls, prevented: ev.defaultPrevented,
 
     def test_a_structural_position_wins_over_closing(self):
         # A table or list that happens to be the last block is still a table/list.
-        p = self._params([self.ARTICLE, "div.prose", "table", "tr", "td"], last=True)
-        self.assertEqual(p["link_position"], "table")
+        for want, path in (("table", ["table", "tr", "td"]), ("list", ["ul", "li"])):
+            with self.subTest(position=want):
+                p = self._params([self.ARTICLE, "div.prose"] + path, last=True)
+                self.assertEqual(p["link_position"], want)
+
+    def test_closing_skips_a_trailing_rating_line(self):
+        # Six single-product reviews end with "**Rating: 4.5/5**" after the
+        # verdict paragraph; the verdict's link is still the closing one.
+        prose_p = [self.ARTICLE, "div.prose", "p"]
+        p = self._params(prose_p, last=True, trailer="Rating: 4.5/5")
+        self.assertEqual(p["link_position"], "closing")
+        # Not the verdict paragraph -> still inline, rating line or not.
+        p = self._params(prose_p, last=False, trailer="Rating: 4.5/5")
+        self.assertEqual(p["link_position"], "inline")
+        # Only a rating line is skipped: any other trailing block IS the close.
+        p = self._params(prose_p, last=True, trailer="Happy shopping, and see you soon.")
+        self.assertEqual(p["link_position"], "inline")
 
     def test_amazon_product_link_reports_retailer_slug_and_asin(self):
         p = self._params([self.ARTICLE, "div.prose", "p"], href=AMAZON_DP)
         self.assertEqual(p, {"link_position": "inline", "retailer": "amazon",
                              "post_slug": "best-snuffle-mats-dogs",
-                             "product_id": "B07N1JYYCW", "transport_type": "beacon"})
+                             "product_id": "B07N1JYYCW"})
 
     def test_amazon_search_link_has_no_product_id(self):
         p = self._params([self.ARTICLE, "div.prose", "p"],
@@ -4447,6 +4468,16 @@ console.log(JSON.stringify({ calls, prevented: ev.defaultPrevented,
         direct = self._params([self.ARTICLE, "div.prose", "p"],
                               href="https://www.chewy.com/kong-extreme-dog-toy/dp/38493")
         self.assertEqual((direct["retailer"], direct["product_id"]), ("chewy", "38493"))
+
+    def test_chewy_prodsku_wins_over_the_dp_id(self):
+        # prodsku is the id Impact's order reports use, and it can differ from
+        # the /dp/ id (best-dog-puzzle-toys: prodsku 86003, /dp/113786).
+        href = ("https://chewy.sjv.io/c/7160344/3054490/32975?prodsku=86003&u=https%3A%2F%2F"
+                "www.chewy.com%2Foutward-hound-hide-squirrel-squeaky%2Fdp%2F113786")
+        p = self._params([self.ARTICLE, "div.verdict"], href=href)
+        self.assertEqual((p["retailer"], p["product_id"]), ("chewy", "86003"))
+        empty = self._params([self.ARTICLE, "div.verdict"], href=href.replace("86003", ""))
+        self.assertEqual(empty["product_id"], "113786", "an empty prodsku falls back to /dp/")
 
     def test_click_on_an_image_inside_the_link_still_counts(self):
         p = self._params([self.ARTICLE, "div.buybar"], on_image=True)
@@ -4475,9 +4506,15 @@ console.log(JSON.stringify({ calls, prevented: ev.defaultPrevented,
         self.assertEqual(p["retailer"], "amazon")
 
     def test_missing_gtag_is_a_silent_no_op(self):
-        # Ad blockers remove gtag; a click must still navigate untouched.
+        # If the inline gtag stub is absent, a click must still navigate untouched.
         r = self._click([self.ARTICLE, "div.verdict"], gtag=False)
         self.assertEqual(r["calls"], [])
+        self.assertFalse(r["prevented"])
+
+    def test_a_throwing_gtag_never_escapes_the_listener(self):
+        # The harness dispatches without a guard, so an escaping error fails
+        # the node run itself.
+        r = self._click([self.ARTICLE, "div.verdict"], gtag="throws")
         self.assertFalse(r["prevented"])
 
     def test_a_malformed_impact_link_still_reports_the_click(self):
