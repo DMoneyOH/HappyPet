@@ -30,7 +30,7 @@ If you’ve ever watched a border collie stare at a squeaky ball, then toss it a
 ---
 
 ### Featured Pick: Outward Hound Hide‑A‑Squirrel Dog Toy, 2‑in‑1 Plush Puzzle, 6 Squeaky Squirrels, XL  
-The Hide‑A‑Squirrel line has become a staple for dog owners who want a toy that feels soft enough for cuddling yet challenging enough to keep a clever mind occupied. This XL version comes with six squeaky squirrels that tuck into a plush tree trunk, turning playtime into a rewarding “find‑the‑squirrel” hunt. Amazon reviewers have given it a solid **4.6/5** (as of Apr 16, 2026) rating, and many owners note that the toy holds up well to repeated pulling and shaking. At **$29.69** (as of Apr 16, 2026), it sits comfortably in the mid‑price range, offering both durability and a satisfying scent‑and‑sound combo.
+The Hide‑A‑Squirrel line has become a staple for dog owners who want a toy that feels soft enough for cuddling yet challenging enough to keep a clever mind occupied. This XL version comes with six squeaky squirrels that tuck into a plush tree trunk, turning playtime into a rewarding “find‑the‑squirrel” hunt. Amazon reviewers have given it a solid **4.6/5** rating (as of Apr 16, 2026), and many owners note that the toy holds up well to repeated pulling and shaking. At **$29.69** (as of Apr 16, 2026), it sits comfortably in the mid‑price range, offering both durability and a satisfying scent‑and‑sound combo.
 
 **Pros**  
 - Soft plush material is gentle on teeth and gums.  

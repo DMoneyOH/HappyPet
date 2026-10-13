@@ -111,9 +111,7 @@ layout: default
       {%- endif %}
       <div class="verdict-body">
         <span class="verdict-label">Our pick</span>
-        {%- if pick_name %}
-        <p class="verdict-name">{{ pick_name | escape }}</p>
-        {%- endif %}
+        <p class="verdict-name">{{ pick_name | default: page.title | escape }}</p>
         {%- if page.affiliate_url or page.chewy_url %}
         <p class="verdict-disclosure">We may earn a commission if you buy through these links, at no extra cost to you.</p>
         <div class="buy-row">

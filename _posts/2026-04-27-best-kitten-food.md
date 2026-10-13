@@ -23,7 +23,7 @@ One pick below carries a verified rating and price. The three alternatives are l
 
 ### Featured pick: [Purina ONE High Protein Kitten Food](https://www.amazon.com/dp/B0000AH3RP?th=1&tag=happypetdc-20)
 
-At $17.97 for a 7 lb bag and a 4.8/5 (as of Apr 16, 2026) rating on Amazon, this is the least complicated answer to the best kitten food question. A high-protein dry formula suits the way most kittens actually eat, which is often and in small amounts, and the 7 lb bag lasts long enough to be worth buying without going stale before a single kitten finishes it. A 4.8 average is unusual for any pet food at this price, and it comes from a formula that has been on shelves long enough for complaints to surface if there were many. Dry food also stays put in a bowl for hours, which matters if the kitten grazes while the house is empty. What it will not do is add water to a kitten's diet, and that gap is the reason the wet alternatives below are on this page at all.
+At $17.97 for a 7 lb bag and a 4.8/5 rating (as of Apr 16, 2026) on Amazon, this is the least complicated answer to the best kitten food question. A high-protein dry formula suits the way most kittens actually eat, which is often and in small amounts, and the 7 lb bag lasts long enough to be worth buying without going stale before a single kitten finishes it. A 4.8 average (as of Apr 16, 2026) is unusual for any pet food at this price, and it comes from a formula that has been on shelves long enough for complaints to surface if there were many. Dry food also stays put in a bowl for hours, which matters if the kitten grazes while the house is empty. What it will not do is add water to a kitten's diet, and that gap is the reason the wet alternatives below are on this page at all.
 
 Pros
 

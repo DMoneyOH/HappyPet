@@ -30,7 +30,7 @@ One thing to settle before you shop. Pheromone diffusers target a single species
 
 The [FELIWAY Optimum Cat Diffuser Kit](https://www.amazon.com/dp/B097W651NJ?tag=happypetdc-20) carries a 4.0 out of 5 star rating on Amazon and sells for $29.99 (as of Jul 7, 2026). The listing names the stress behaviors that drive cat owners up the wall, from urine spraying to fighting with a housemate. The listing sells it as an all-in-one kit, so setup amounts to opening the box and finding a free outlet.
 
-Owner reviews split in a predictable way. Many owners who try a calming diffuser for pets on a stressed cat report calmer behavior after a few weeks, especially in homes with a recent move or a new cat. Others see no change at all, which tends to happen when the root cause is medical or territorial in a way a scent can't touch. That split shows up in the 4.0 rating.
+Owner reviews split in a predictable way. Many owners who try a calming diffuser for pets on a stressed cat report calmer behavior after a few weeks, especially in homes with a recent move or a new cat. Others see no change at all, which tends to happen when the root cause is medical or territorial in a way a scent can't touch. That split shows up in the 4.0 rating (as of Jul 7, 2026).
 
 Pros:
 - Plugs in and runs without daily effort from you

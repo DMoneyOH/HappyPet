@@ -34,7 +34,7 @@ Pros:
 
 Cons:
 
-- The $199.95 (as of Jul 7, 2026) price sits well above a manual pan
+- The $199.95 price (as of Jul 7, 2026) sits well above a manual pan
 - Larger footprint needs dedicated floor space
 
 ### PETKIT PuraMax 2 automatic self-cleaning litter box

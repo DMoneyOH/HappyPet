@@ -314,6 +314,18 @@ class TestProductsJsonAffiliateContract(unittest.TestCase):
                 offenders.append((e.get("topic"), url))
         self.assertEqual(offenders, [], f"affiliate_url(s) not recognized by publish gate: {offenders}")
 
+    def test_every_entry_carries_a_valid_pull_date(self):
+        """stage_article holds an entry without a valid pulled_on, so the queue
+        must not carry one (backfilled from products.json history 2026-10-13)."""
+        products = json.loads((REPO / "products.json").read_text(encoding="utf-8"))
+        bad = []
+        for e in products:
+            try:
+                self.gp.assert_pull_date("products.json", e.get("pulled_on"), e.get("topic"))
+            except self.gp.GenerationStageError as err:
+                bad.append(str(err))
+        self.assertEqual(bad, [])
+
 
 class TestAmazonAssociatesTag(unittest.TestCase):
     """Every Amazon link in products.json and _posts/ is a full amazon.com link
@@ -613,7 +625,7 @@ class TestStagedDescriptionIsScrubbed(unittest.TestCase):
         gp = self.gp
         product = {"topic": "best-x", "title": "Best X", "keyword": "best x",
                    "format": "single_review", "name": "The X", "category": "dog-beds",
-                   "species": "dog", "affiliate_url": "https://amzn.to/abc"}
+                   "species": "dog", "affiliate_url": "https://amzn.to/abc", "pulled_on": "2026-10-01"}
         body = "## Heading\n\n" + ("word " * 800)
         fake_pin = MagicMock(return_value="https://example.invalid/pin.jpg")
         with tempfile.TemporaryDirectory() as td:
@@ -2378,6 +2390,16 @@ class TestGenerationPromptHygiene(unittest.TestCase):
         self.assertIn("https://amzn.to/testXYZ", p)
         self.assertNotIn("google.com/search", p)
 
+    def test_anchor_text_is_the_short_name_not_the_listing_title(self):
+        # Refill posts must not bring back 30-word listing-title anchors
+        # (Scarlett's 2026-10-13 anchor rewrite; gate round 1, Spec F5).
+        self.prod["name"] = "AWOOF Pet Snuffle Mat for Dogs, Interactive Feed Game, Large"
+        for fmt in ("roundup", "single_review"):
+            with self.subTest(fmt=fmt):
+                p = self._full(fmt)
+                self.assertIn("[AWOOF Pet Snuffle Mat for Dogs](https://amzn.to/testXYZ)", p)
+                self.assertNotIn("[AWOOF Pet Snuffle Mat for Dogs, Interactive", p)
+
 
 class TestGeneratorSystemPrompt(unittest.TestCase):
     """Generator uses a system prompt (rules) + user task, XML-structured, for adherence."""
@@ -2560,7 +2582,7 @@ class TestFirsthandClaimGuard(unittest.TestCase):
         pin-queue entry. This is the path that published the litter claim."""
         product = {"topic": "best-x", "title": "Best X", "keyword": "best x",
                    "format": "single_review", "name": "The X", "category": "cat-litter",
-                   "species": "cat", "affiliate_url": "https://amzn.to/abc"}
+                   "species": "cat", "affiliate_url": "https://amzn.to/abc", "pulled_on": "2026-10-01"}
         body = "## Heading\n\n" + ("word " * 800)
         with tempfile.TemporaryDirectory() as td:
             posts = Path(td) / "_posts"; posts.mkdir()
@@ -2819,7 +2841,7 @@ class TestNamedTestimonialGuard(unittest.TestCase):
         push a body through, which is why the backstop lives there."""
         product = {"topic": "best-x", "title": "Best X", "keyword": "best x",
                    "format": "single_review", "name": "The X", "category": "dog-vests",
-                   "species": "dog", "affiliate_url": "https://amzn.to/abc"}
+                   "species": "dog", "affiliate_url": "https://amzn.to/abc", "pulled_on": "2026-10-01"}
         body = ('## Real Owner Experiences\n\n- **Samantha, 38, Portland, OR:** "My '
                 'Labrador loves the lake but gets nervous around other dogs."\n\n'
                 + ("word " * 800))
@@ -3022,7 +3044,7 @@ class TestUnbackedAffiliateLinkGuard(unittest.TestCase):
         pin-queue entry."""
         product = {"topic": "best-x", "title": "Best X", "keyword": "best x",
                    "format": "roundup", "name": "The X", "category": "dog-carriers",
-                   "species": "dog", "affiliate_url": self.own}
+                   "species": "dog", "affiliate_url": self.own, "pulled_on": "2026-10-01"}
         body = ("## Additional Picks\n\n[K&H Cool-Flow Backpack](https://amzn.to/5Zc3LmN)\n\n"
                 + ("word " * 800))
         with tempfile.TemporaryDirectory() as td:
@@ -3441,7 +3463,7 @@ class TestStageArticle(unittest.TestCase):
         gp = self.gp
         product = {"topic": "best-x", "title": "Best X", "keyword": "best x",
                    "format": "single_review", "name": "The X", "category": "dogs",
-                   "species": "dog", "affiliate_url": "https://amzn.to/abc"}
+                   "species": "dog", "affiliate_url": "https://amzn.to/abc", "pulled_on": "2026-10-01"}
         body = "## Heading\n\n" + ("word " * 800)  # >700 words, >2000 chars
         with tempfile.TemporaryDirectory() as td:
             posts = Path(td) / "_posts"; posts.mkdir()
@@ -3475,7 +3497,7 @@ class TestStageArticle(unittest.TestCase):
         product = {"topic": "best-x", "title": "Best X", "keyword": "best x",
                    "format": "roundup", "name": "The X", "category": "dog-gear",
                    "species": "dog", "affiliate_url": "https://amzn.to/abc",
-                   "asin": "B0GG8LR3RW", "image": curated}
+                   "asin": "B0GG8LR3RW", "image": curated, "pulled_on": "2026-10-01"}
         body = "## Heading\n\n" + ("word " * 800)
         fake_pin = MagicMock(return_value=curated)
         with tempfile.TemporaryDirectory() as td:
@@ -3502,7 +3524,7 @@ class TestStageArticle(unittest.TestCase):
         product = {"topic": "best-x", "title": "Best X", "keyword": "best x",
                    "format": "roundup", "name": "The X", "category": "dog-gear",
                    "species": "dog", "affiliate_url": "https://amzn.to/abc",
-                   "asin": "B0GG8LR3RW"}  # no curated image
+                   "asin": "B0GG8LR3RW", "pulled_on": "2026-10-01"}  # no curated image
         body = "## Heading\n\n" + ("word " * 800)
         fake_pin = MagicMock(return_value="x")
         with tempfile.TemporaryDirectory() as td:
@@ -3538,7 +3560,7 @@ class TestStageArticle(unittest.TestCase):
                "format": "roundup", "category": "dog-gear", "species": "dog",
                "name": "AWOOF Pet Snuffle Mat for Dogs, Interactive Feed Game",
                "affiliate_url": "https://www.amazon.com/dp/B07N1JYYCW?tag=happypetdc-20",
-               "price": "11.98", "stars": 4.2}
+               "price": "11.98", "stars": 4.2, "pulled_on": "2026-09-25"}
     PRICED_BODY = ("## Heading\n\nIt carries a 4.2 out of 5 star rating on Amazon and "
                    "sells for $11.98. " + ("word " * 800))
 
@@ -3548,16 +3570,49 @@ class TestStageArticle(unittest.TestCase):
         self.assertIn('product_short: "AWOOF Pet Snuffle Mat for Dogs"\n', fm)
 
     def test_staged_post_labels_price_and_rating_with_the_pull_date(self):
-        product = dict(self.SNUFFLE, pulled_on="2026-09-25")
-        text = self._stage(product, self.PRICED_BODY)
+        text = self._stage(dict(self.SNUFFLE), self.PRICED_BODY)
         self.assertIn("4.2 out of 5 star rating on Amazon and sells for "
                       "$11.98 (as of Sep 25, 2026). ", text)
 
-    def test_staged_post_without_a_pull_date_is_labelled_with_the_staging_date(self):
-        import datetime
-        text = self._stage(dict(self.SNUFFLE), self.PRICED_BODY)
-        self.assertIn("$11.98 (as of " + self.gp.as_of_text(datetime.date.today().isoformat())
-                      + ")", text)
+    def _assert_held(self, product, body, *needles):
+        """stage_article raises and writes nothing: no draft, no pin-queue entry."""
+        import tempfile
+        from pathlib import Path
+        from unittest.mock import patch
+        gp = self.gp
+        with tempfile.TemporaryDirectory() as td:
+            posts = Path(td) / "_posts"; posts.mkdir()
+            pinq = Path(td) / "_pin_queue"; pinq.mkdir()
+            with patch.object(gp, "POSTS_DIR", posts), \
+                 patch.object(gp, "REPO_DIR", Path(td)), \
+                 patch.object(gp, "PIN_GEN_AVAILABLE", False):
+                with self.assertRaises(gp.GenerationStageError) as cm:
+                    gp.stage_article(product["topic"], product, body,
+                                     pin_desc="Great mat for dogs.", index=0)
+            self.assertEqual(list(posts.iterdir()) + list(pinq.iterdir()), [])
+        for needle in ("stage_article", product["topic"]) + needles:
+            self.assertIn(needle, str(cm.exception))
+
+    def test_a_missing_pull_date_is_held_not_stamped_with_today(self):
+        # apply_resolution always writes pulled_on, so only hand-edited data
+        # reaches here; labelling it with the staging date would be a guess.
+        for missing in ({}, {"pulled_on": None}, {"pulled_on": ""}):
+            with self.subTest(missing=missing):
+                product = {k: v for k, v in self.SNUFFLE.items() if k != "pulled_on"}
+                product.update(missing)
+                self._assert_held(product, self.PRICED_BODY, "pulled_on")
+
+    def test_a_malformed_pull_date_is_held_naming_the_value(self):
+        for bad in ("yesterday", "2026-13-45", "Sep 25, 2026", "2026-09-25T10:00", 20260925):
+            with self.subTest(bad=bad):
+                self._assert_held(dict(self.SNUFFLE, pulled_on=bad), self.PRICED_BODY,
+                                  "pulled_on", repr(bad))
+
+    def test_a_pulled_figure_left_unlabelled_is_held(self):
+        # "rated 4.2 by owners" is a phrasing the labeller does not know; the
+        # post-label check catches it rather than publishing it undated.
+        body = "## Heading\n\nOwners rated it 4.2 by and large. " + ("word " * 800)
+        self._assert_held(dict(self.SNUFFLE), body, "4.2")
 
 
 class TestAsOfLabels(unittest.TestCase):
@@ -3648,6 +3703,98 @@ class TestAsOfLabels(unittest.TestCase):
         self.assertEqual(self.label("It holds a 4.0 star rating.", stars=4),
                          "It holds a 4.0 star rating" + self.L + ".")
 
+    def test_rating_and_average_phrasings(self):
+        cases = [
+            ("It holds a 4.8 rating on Amazon.", "It holds a 4.8 rating" + self.L + " on Amazon."),
+            ("A 4.8 average across 900 reviews.", "A 4.8 average" + self.L + " across 900 reviews."),
+            ("Its 4.8 average rating is high.", "Its 4.8 average rating" + self.L + " is high."),
+        ]
+        for before, after in cases:
+            with self.subTest(before=before):
+                self.assertEqual(self.label(before), after)
+        for body in ("A 4.7 rating.", "A 4.85 rating.", "A 14.8 average."):
+            with self.subTest(body=body):
+                self.assertEqual(self.label(body), body)
+
+    def test_the_label_follows_the_noun_phrase_not_the_bare_figure(self):
+        # Real published contexts (2026-10-13 gate round 1, Standards F6).
+        cases = [
+            ("with a low price and a 4.8 star owner rating behind it.",
+             "with a low price and a 4.8 star owner rating" + self.L + " behind it."),
+            ("with a 4.1 out of 5 rating and a $17.97 price that reads like cheap insurance.",
+             "with a 4.1 out of 5 rating and a $17.97 price" + self.L
+             + " that reads like cheap insurance."),
+            ("Owners have given it a **4.8/5** rating, praising its build.",
+             "Owners have given it a **4.8/5** rating" + self.L + ", praising its build."),
+            ("The $17.97 price sits well above a manual brush.",
+             "The $17.97 price" + self.L + " sits well above a manual brush."),
+            ("so the $17.97 hardware price only starts the cost.",
+             "so the $17.97 hardware price" + self.L + " only starts the cost."),
+            ("It has a $17.97 price tag.", "It has a $17.97 price tag" + self.L + "."),
+            ("The 4.8/5 rating suggests most cats approve.",
+             "The 4.8/5 rating" + self.L + " suggests most cats approve."),
+        ]
+        for before, after in cases:
+            with self.subTest(before=before):
+                self.assertEqual(self.label(before), after)
+                self.assertEqual(self.label(after), after)
+
+    def test_a_word_outside_the_noun_phrase_stops_the_label(self):
+        for before, after in (
+                ("At $17.97 the tub is cheap.", "At $17.97" + self.L + " the tub is cheap."),
+                ("Rated 4.8/5 from owners and a price of note.",
+                 "Rated 4.8/5" + self.L + " from owners and a price of note."),
+                ("At $17.97 it rates well.", "At $17.97" + self.L + " it rates well.")):
+            with self.subTest(before=before):
+                self.assertEqual(self.label(before), after)
+
+
+class TestAmazonFiguresLabelledCheck(unittest.TestCase):
+    """assert_amazon_figures_labelled: after labelling, a sentence that still
+    states the exact pulled price, or the exact star value next to a rating
+    word, without an "(as of" label holds the article. Independent of the
+    labeller's patterns, so it catches phrasings the labeller does not know."""
+
+    def check(self, body, price="17.97", stars=4.8):
+        import generate_posts as gp
+        gp.assert_amazon_figures_labelled("stage_article", body, "best-x", price, stars)
+
+    def assertHeld(self, body, **kw):
+        import generate_posts as gp
+        with self.assertRaises(gp.GenerationStageError) as cm:
+            self.check(body, **kw)
+        self.assertIn("stage_article", str(cm.exception))
+        self.assertIn("best-x", str(cm.exception))
+
+    def test_unlabelled_figures_are_held(self):
+        for body in ("Owners rated it 4.8 by and large.",
+                     "It sits at 4.8 with most reviewers, a strong score.",
+                     "You pay $17.97 and get two mats.",
+                     "Fine.\nIt costs $17.97\nMore."):
+            with self.subTest(body=body):
+                self.assertHeld(body)
+
+    def test_one_label_covers_its_sentence(self):
+        self.check("It holds a 4.8 star rating and sells for $17.97 (as of Oct 2, 2026). "
+                   "Next sentence.")
+
+    def test_a_label_in_another_sentence_does_not_cover(self):
+        self.assertHeld("It sells for $17.97 (as of Oct 2, 2026). Owners rated it 4.8 too.")
+
+    def test_legitimate_text_is_not_held(self):
+        for body in ("It is 4.8 inches wide.",
+                     "Most mats sit under $15, or $17.975 in bulk, or $117.97.",
+                     "| [Mat](https://www.amazon.com/dp/B0X) | $17.97 | 4.8/5 |",
+                     "**Our Rating: 4.8/5**",
+                     "[See it](https://example.com/p?$17.97=4.8-rating)",
+                     "Rated 4.7 stars by owners.",
+                     ""):
+            with self.subTest(body=body):
+                self.check(body)
+
+    def test_nothing_pulled_checks_nothing(self):
+        self.check("You pay $17.97, rated 4.8.", price=None, stars=None)
+
 
 class TestShortProductName(unittest.TestCase):
     """short_product_name: the generator's only source of a product name is the
@@ -3661,9 +3808,24 @@ class TestShortProductName(unittest.TestCase):
             "Cat Window Hammock - Mess-Free Waterproof Cats Window Perch": "Cat Window Hammock",
             "Tractive Smart Dog GPS Tracker – Live Pet Tracker": "Tractive Smart Dog GPS Tracker",
             "Catit Senses 2.0 Multi Feeder | Interactive": "Catit Senses 2.0 Multi Feeder",
-            "Blue Buffalo Bits Beef Soft & Chewy Dog Treats": "Blue Buffalo Bits Beef Soft & Chewy Dog Treats",
+            "Frisco Cat Tree: 52-in Multi-Level Condo": "Frisco Cat Tree",
+            "Ratio 2:1 Dog Food": "Ratio 2:1 Dog Food",
+            "Blue Buffalo Bits Dog Treats": "Blue Buffalo Bits Dog Treats",
             "Hide‑A‑Squirrel Dog Toy, 2‑in‑1": "Hide‑A‑Squirrel Dog Toy",
             "  K&H Heated Cat House, Outdoor  ": "K&H Heated Cat House",
+        }
+        for name, short in cases.items():
+            with self.subTest(name=name):
+                self.assertEqual(gp.short_product_name(name), short)
+
+    def test_a_separatorless_title_is_capped_at_six_words(self):
+        import generate_posts as gp
+        cases = {
+            "Pet Grooming Glove Gentle Deshedding Brush Efficient Pet Hair Remover":
+                "Pet Grooming Glove Gentle Deshedding Brush",
+            # the cap never leaves a dangling connector
+            "Blue Buffalo Bits Beef Soft & Chewy Dog Treats": "Blue Buffalo Bits Beef Soft",
+            "Hertzko Self Cleaning Slicker Brush for Dogs and Cats": "Hertzko Self Cleaning Slicker Brush",
         }
         for name, short in cases.items():
             with self.subTest(name=name):
@@ -4745,9 +4907,11 @@ class TestBuyPanelNamesThePick(unittest.TestCase):
         self.assertEqual(len(re.findall(r"assign pick_name\b", self.layout)), 1)
 
     def test_panel_names_the_pick_between_the_label_and_the_buttons(self):
-        m = re.search(r'\{%-? if pick_name %\}\s*<p class="verdict-name">'
-                      r'\{\{ pick_name \| escape \}\}</p>\s*\{%-? endif %\}', self.panel)
-        self.assertIsNotNone(m, "panel does not render the escaped pick name behind an if")
+        # Same fallback as the buybar: no name means the title, never a blank.
+        m = re.search(r'<p class="verdict-name">'
+                      r'\{\{ pick_name \| default: page\.title \| escape \}\}</p>', self.panel)
+        self.assertIsNotNone(m, "panel does not render the pick name with the title fallback")
+        self.assertNotRegex(self.panel, r"if pick_name")
         self.assertLess(self.panel.index('class="verdict-label"'), m.start())
         self.assertLess(m.end(), self.panel.index('class="buy-row"'))
 
@@ -4764,16 +4928,27 @@ class TestBuyPanelNamesThePick(unittest.TestCase):
 
 class TestPublishedPostsNameTheirPick(unittest.TestCase):
     """Every published post with a buy panel carries product_short, so the panel
-    and buybar never fall back to the article title on a live page."""
+    and buybar never fall back to the article title on a live page -- except a
+    post whose affiliate link is an Amazon search page, which must not name one
+    product over a page of results (gate round 1, Spec F8)."""
+
+    SEARCH = re.compile(r'^affiliate_url:\s*"?https?://(?:www\.)?amazon\.com/s[?/]', re.M)
+
+    def _posts(self):
+        for path in sorted((REPO / "_posts").glob("*.md")):
+            yield path.name, path.read_text(encoding="utf-8").split("---", 2)[1]
 
     def test_every_post_with_an_affiliate_link_has_a_short_product_name(self):
-        missing = []
-        for path in sorted((REPO / "_posts").glob("*.md")):
-            fm = path.read_text(encoding="utf-8").split("---", 2)[1]
-            if re.search(r"^affiliate_url:", fm, re.M) and \
-                    not re.search(r'^product_short: "[^"\s][^"]*"$', fm, re.M):
-                missing.append(path.name)
+        missing = [name for name, fm in self._posts()
+                   if re.search(r"^affiliate_url:", fm, re.M) and not self.SEARCH.search(fm)
+                   and not re.search(r'^product_short: "[^"\s][^"]*"$', fm, re.M)]
         self.assertEqual(missing, [])
+
+    def test_a_search_link_post_names_no_product(self):
+        search = [name for name, fm in self._posts() if self.SEARCH.search(fm)]
+        self.assertGreater(len(search), 0, "search-link detection matched no post")
+        self.assertEqual([n for n, fm in self._posts()
+                          if self.SEARCH.search(fm) and "product_short:" in fm], [])
 
 
 class TestAutoMergePublishWiring(unittest.TestCase):
@@ -7225,7 +7400,7 @@ class TestAlternativeGateRunsOnBothPaths(unittest.TestCase):
                 "title": "Best Mats", "keyword": "best mats", "format": "roundup",
                 "affiliate_url": "https://amzn.to/3TestABC",
                 "runners_up": "MatA Cooling Pad", "species": "dog",
-                "category": "dog-beds"}, self.body, "A pin description.")
+                "category": "dog-beds", "pulled_on": "2026-10-01"}, self.body, "A pin description.")
 
     def test_stage1_cli_gate_flags_it_rather_than_only_holding_at_staging(self):
         """Structural: the agent's rewrite loop reads `flags`, so a flag here is

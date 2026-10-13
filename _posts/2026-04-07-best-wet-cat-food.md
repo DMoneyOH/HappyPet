@@ -10,7 +10,6 @@ tags: [wet cat food]
 description: "Tired of picky eaters? Discover the best wet cat food your feline friend will actually devour, without breaking the bank!"
 image: "https://images-na.ssl-images-amazon.com/images/P/B072DTFZHL.01.LZZZZZZZ.jpg"
 affiliate_url: "https://www.amazon.com/s?k=Sheba+Perfect+Portions+Variety+Pack&tag=happypetdc-20"
-product_short: "Sheba Perfect Portions Variety Pack"
 ---
 
 If you're a cat parent, you know the struggle: you lovingly scoop out a fresh bowl of what you *think* is the perfect meal, only for your discerning feline overlord to take one sniff, give you a look of utter disdain, and stalk off. Most pet owners know the feeling, watching perfectly good, expensive cat food go to waste. But when it comes to cat health, especially for hydration and urinary tract support, wet cat food is often hailed as a superior choice over dry kibble. Many cats, particularly those who are not big water drinkers, rely heavily on their food for moisture intake.
