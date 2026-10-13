@@ -3640,6 +3640,10 @@ class TestAsOfLabels(unittest.TestCase):
         self.assertEqual(self.label("It costs $1,299.00 today.", price="1299.00"),
                          "It costs $1,299.00" + self.L + " today.")
 
+    def test_a_whole_dollar_price_also_matches_without_cents(self):
+        self.assertEqual(self.label("At around $47 it is fair. Not $47.50 or $470.", price="47.00"),
+                         "At around $47" + self.L + " it is fair. Not $47.50 or $470.")
+
     def test_a_whole_star_value_matches_its_one_decimal_form(self):
         self.assertEqual(self.label("It holds a 4.0 star rating.", stars=4),
                          "It holds a 4.0 star rating" + self.L + ".")

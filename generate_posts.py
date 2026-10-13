@@ -2376,7 +2376,10 @@ def _figure_patterns(price, stars) -> list:
     except ValueError:
         value = None
     if value is not None:
-        forms = sorted({f"{value:.2f}", f"{value:,.2f}"}, key=len, reverse=True)
+        forms = {f"{value:.2f}", f"{value:,.2f}"}
+        if value == int(value):  # "47.00" is also written "$47"
+            forms |= {f"{int(value)}", f"{int(value):,}"}
+        forms = sorted(forms, key=len, reverse=True)
         pats.append(r"\$(?:" + "|".join(map(re.escape, forms)) + r")(?![\d]|[.,]\d)")
     if stars not in (None, "") and not isinstance(stars, bool):
         try:
