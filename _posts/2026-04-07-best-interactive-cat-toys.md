@@ -10,6 +10,7 @@ tags: [interactive cat toys]
 description: "Bored cat? Destructive behavior? Discover the best interactive cat toys to keep your feline friend happy and engaged!"
 image: "https://images-na.ssl-images-amazon.com/images/P/B00DT2WL26.01.LZZZZZZZ.jpg"
 affiliate_url: "https://www.amazon.com/dp/B00DT2WL26?th=1&tag=happypetdc-20"
+product_short: "Catstages Tower of Tracks"
 chewy_url: "https://chewy.sjv.io/c/7160344/3054490/32975?u=https%3A%2F%2Fwww.chewy.com%2Fcatstages-tower-tracks-cat-toy-3%2Fdp%2F126531&intsrc=APIG_24727"
 ---
 
@@ -36,7 +37,7 @@ This multi-level ball track toy is a consistent winner in real homes, captivatin
 * Some very determined cats might manage to pop a ball out (rare).
 * Can be a bit noisy on hard floors during intense play.
 
-[Catstages Tower of Tracks Interactive Cat Toy](https://www.amazon.com/dp/B00DT2WL26?th=1&tag=happypetdc-20)
+[Catstages Tower of Tracks](https://www.amazon.com/dp/B00DT2WL26?th=1&tag=happypetdc-20)
 
 ### PetSafe Bolt Automatic Laser Cat Toy
 
@@ -128,4 +129,4 @@ Finding the perfect **interactive cat toys** for your feline friend can feel lik
 
 Bringing a variety of **interactive cat toys** into your home is one of the best investments you can make for your cat's happiness and your own peace of mind. Not only do these toys provide essential physical exercise, but they also offer crucial mental stimulation, helping to satisfy your cat's natural instincts and prevent boredom-related behavioral issues. The transformation in cats who have access to engaging play is real. From the simple yet captivating Catstages Tower of Tracks to the brain-teasing Trixie Activity Fun Board, there's an interactive toy out there for every feline personality and every budget. So go ahead, treat your cat to some exciting new playtime adventures – your furniture (and your sanity) will thank you!
 
-[Find the top pick, the Catstages Tower of Tracks, on Amazon today!](https://www.amazon.com/dp/B00DT2WL26?th=1&tag=happypetdc-20)
+[Catstages Tower of Tracks](https://www.amazon.com/dp/B00DT2WL26?th=1&tag=happypetdc-20)

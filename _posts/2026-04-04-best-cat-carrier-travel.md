@@ -9,6 +9,7 @@ species: cat
 tags: [cat carrier travel]
 description: "The right carrier makes vet trips and travel stress-free for both you and your cat."
 affiliate_url: "https://www.amazon.com/dp/B000FLETX8?th=1&tag=happypetdc-20"
+product_short: "Sherpa Original Deluxe Travel Pet Carrier"
 image: "https://images-na.ssl-images-amazon.com/images/P/B000FLETX8.01.LZZZZZZZ.jpg"
 ---
 

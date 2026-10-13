@@ -9,6 +9,7 @@ species: dog
 tags: [best calming treats for dogs]
 description: "The calming treats owners rate highest for storms, fireworks and vet visits, without breaking the bank."
 affiliate_url: "https://www.amazon.com/dp/B075SSR5CG?th=1&tag=happypetdc-20"
+product_short: "NaturVet Quiet Moments Calming Chews"
 chewy_url: "https://chewy.sjv.io/c/7160344/3054490/32975?u=https%3A%2F%2Fwww.chewy.com%2Fnaturvet-quiet-moments-soft-chews%2Fdp%2F128187&intsrc=APIG_24727"
 image: "https://m.media-amazon.com/images/I/71gSvAen4NL._AC_SX425_.jpg"
 ---
@@ -19,7 +20,7 @@ Thunder rolls in on a rainy Tuesday and a Labrador is glued to the window, whini
 
 | Product | Best For | Price Range | Chew Time |
 |---|---|---|---|
-| **[NaturVet Quiet Moments Calming Dog Supplement, Soft Chews, 180 Count](https://www.amazon.com/dp/B075SSR5CG?th=1&tag=happypetdc-20)** | Overall calm, daily stress | $$ | Quick |
+| **[NaturVet Quiet Moments Calming Chews](https://www.amazon.com/dp/B075SSR5CG?th=1&tag=happypetdc-20)** | Overall calm, daily stress | $$ | Quick |
 | Zylk Labs Stress Relief Chews | Sensitive stomachs | $ | Moderate |
 | VetriScience Composure® Chews | High-energy anxiety | $$ | Quick |
 | PetHonesty Calming Bites | First-time users | $ | Moderate |
@@ -27,7 +28,7 @@ Thunder rolls in on a rainy Tuesday and a Labrador is glued to the window, whini
 
 ### Featured Pick: NaturVet Quiet Moments Calming Dog Supplement, Soft Chews, 180 Count  
 
-NaturVet’s Quiet Moments soft chews have earned a solid 4.4/5 star rating on Amazon, reflecting consistent praise from dog owners who notice a subtle, steady calm after a few days of use. Each chew blends chamomile, passion flower and ginger with thiamine (vitamin B1), L‑tryptophan and melatonin to support a settled, natural calm. Melatonin is a sleep‑supporting ingredient rather than a neutral one, so some dogs get sleepy on these. The soft texture makes them easy to administer, and the 180‑count bottle lasts several weeks for a medium‑size dog.
+NaturVet’s Quiet Moments soft chews have earned a solid 4.4/5 star rating (as of Apr 16, 2026) on Amazon, reflecting consistent praise from dog owners who notice a subtle, steady calm after a few days of use. Each chew blends chamomile, passion flower and ginger with thiamine (vitamin B1), L‑tryptophan and melatonin to support a settled, natural calm. Melatonin is a sleep‑supporting ingredient rather than a neutral one, so some dogs get sleepy on these. The soft texture makes them easy to administer, and the 180‑count bottle lasts several weeks for a medium‑size dog.
 
 **Pros**  
 - Herb and amino acid blend aimed at everyday stressors like storms and vet trips  
@@ -57,10 +58,10 @@ Choosing the **best calming treats for dogs** involves more than just scanning a
 
 Second, look at your dog’s size and dietary sensitivities. Smaller breeds often need a lower dose, and a soft chew may be more palatable than a hard tablet. Larger dogs sometimes require two chews per serving, so check the recommended dosage on the packaging. If your dog has a sensitive stomach, choose a formula that includes digestive aids like ginger, as seen in the featured NaturVet product.
 
-Third, evaluate the ingredient transparency. Reputable brands list exact herb extracts and their concentrations, allowing you to compare potency. Avoid products that use vague terms like “proprietary blend” without further detail. Third‑party testing or a “verified rating” on a major retailer adds a layer of confidence—NaturVet’s 4.4/5 rating is a good example of community validation.
+Third, evaluate the ingredient transparency. Reputable brands list exact herb extracts and their concentrations, allowing you to compare potency. Avoid products that use vague terms like “proprietary blend” without further detail. Third‑party testing or a “verified rating” on a major retailer adds a layer of confidence—NaturVet’s 4.4/5 rating (as of Apr 16, 2026) is a good example of community validation.
 
 Finally, weigh cost against frequency of use. A treat that lasts a month may seem pricier upfront but can be more economical than buying a smaller bottle that runs out in two weeks. For budget‑conscious families, the $‑range options in the table still deliver reliable calming support without compromising quality.
 
 ## Closing  
 
-Calming your dog doesn’t have to involve a prescription or a major expense. The treats highlighted here—especially the **[NaturVet Quiet Moments Calming Dog Supplement, Soft Chews, 180 Count](https://www.amazon.com/dp/B075SSR5CG?th=1&tag=happypetdc-20)**—are the ones owners most often say help with everyday jitters and one‑off stressful events. They are worth a try for mild stress; if your dog's anxiety runs deeper than that, talk to your vet rather than reaching for a bigger bag of chews. Happy, stress‑free days are just a chew away!  
+Calming your dog doesn’t have to involve a prescription or a major expense. The treats highlighted here—especially the **[NaturVet Quiet Moments Calming Chews](https://www.amazon.com/dp/B075SSR5CG?th=1&tag=happypetdc-20)**—are the ones owners most often say help with everyday jitters and one‑off stressful events. They are worth a try for mild stress; if your dog's anxiety runs deeper than that, talk to your vet rather than reaching for a bigger bag of chews. Happy, stress‑free days are just a chew away!  

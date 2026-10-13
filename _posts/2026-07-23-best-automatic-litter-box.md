@@ -9,6 +9,7 @@ species: cat
 tags: [best automatic litter box]
 description: "Tired of scooping twice a day? These automatic litter boxes hand the dirty work to a motor."
 affiliate_url: "https://www.amazon.com/dp/B0DNYXKWRV?tag=happypetdc-20"
+product_short: "Fumoi Self-Cleaning Litter Box"
 chewy_url: "https://chewy.sjv.io/c/7160344/3054490/32975?prodsku=3790838&u=https%3A%2F%2Fwww.chewy.com%2Ffumoi-automatic-self-cleaning-cat%2Fdp%2F3790838%3Futm_source%3Dgoogle-product%26utm_medium%3Dorganic%26utm_content%3DFumoi&intsrc=APIG_24727"
 image: "https://m.media-amazon.com/images/I/711Kxd7g1aL._AC_SX679_.jpg"
 pin_image: "https://happypetproductreviews.com/assets/images/pins/best-automatic-litter-box.jpg?v=20260723"
@@ -18,11 +19,11 @@ You come home after a long shift, drop your keys, and the smell reaches you befo
 
 ## Quick picks
 
-For most single-cat homes, the [Fumoi Automatic Self-Cleaning Cat Litter Box, Large Capacity, App Control, Grey](https://www.amazon.com/dp/B0DNYXKWRV?tag=happypetdc-20) takes the top spot here thanks to its roomy drum and phone controls. The PETKIT PuraMax 2 suits multi-cat households that burn through capacity. The PETLIBRO Automatic Litter Box with AI-Camera fits owners who want to watch litter habits closely. Each pick below breaks down the trade-offs so you can match a box to your space.
+For most single-cat homes, the [Fumoi Self-Cleaning Litter Box](https://www.amazon.com/dp/B0DNYXKWRV?tag=happypetdc-20) takes the top spot here thanks to its roomy drum and phone controls. The PETKIT PuraMax 2 suits multi-cat households that burn through capacity. The PETLIBRO Automatic Litter Box with AI-Camera fits owners who want to watch litter habits closely. Each pick below breaks down the trade-offs so you can match a box to your space.
 
 ### Featured pick: Fumoi automatic self-cleaning cat litter box
 
-The Fumoi holds a 4.2 out of 5 star rating, which lands it in solid but not flawless territory for this category. It runs a cleaning cycle after your cat steps out, and the large drum means you empty the waste tray less often than you would with a compact model. App control lets you start a cycle and check status from your phone, and it pings you when the tray fills. The grey shell blends into most rooms better than the bright white boxes that beg for attention. Owners tend to praise the quiet motor and the plug-and-go setup, which makes the Fumoi a strong pick for the best automatic litter box in a single-cat home. At $199.95, it sits in the mid-to-upper range, so it asks for a real commitment.
+The Fumoi holds a 4.2 out of 5 star rating (as of Jul 7, 2026), which lands it in solid but not flawless territory for this category. It runs a cleaning cycle after your cat steps out, and the large drum means you empty the waste tray less often than you would with a compact model. App control lets you start a cycle and check status from your phone, and it pings you when the tray fills. The grey shell blends into most rooms better than the bright white boxes that beg for attention. Owners tend to praise the quiet motor and the plug-and-go setup, which makes the Fumoi a strong pick for the best automatic litter box in a single-cat home. At $199.95 (as of Jul 7, 2026), it sits in the mid-to-upper range, so it asks for a real commitment.
 
 Pros:
 
@@ -33,7 +34,7 @@ Pros:
 
 Cons:
 
-- The $199.95 price sits well above a manual pan
+- The $199.95 price (as of Jul 7, 2026) sits well above a manual pan
 - Larger footprint needs dedicated floor space
 
 ### PETKIT PuraMax 2 automatic self-cleaning litter box
@@ -58,4 +59,4 @@ Safety sensors deserve a close look. A good box pauses its cycle when it detects
 | PETKIT PuraMax 2 | Multi-cat households | $$$ | Sifting cycle, large bin |
 | PETLIBRO Automatic Litter Box | Owners tracking litter habits | $$$ | Sifting cycle, AI camera |
 
-A self-cleaning box will not drop litter duty to zero, but the right one shrinks it to emptying a tray every few days instead of chasing clumps twice a day. For most single-cat and small multi-cat homes, the [Fumoi Automatic Self-Cleaning Cat Litter Box, Large Capacity, App Control, Grey](https://www.amazon.com/dp/B0DNYXKWRV?tag=happypetdc-20) hits the balance of capacity and quiet operation at a price that stays reasonable for the category. Match it with clumping litter and a solid odor routine, and the corner you used to dread becomes one less thing on your list. Compare it against the PuraMax 2 and the PETLIBRO camera model, then pick the best automatic litter box that fits your space and your cat.
+A self-cleaning box will not drop litter duty to zero, but the right one shrinks it to emptying a tray every few days instead of chasing clumps twice a day. For most single-cat and small multi-cat homes, the [Fumoi Self-Cleaning Litter Box](https://www.amazon.com/dp/B0DNYXKWRV?tag=happypetdc-20) hits the balance of capacity and quiet operation at a price that stays reasonable for the category. Match it with clumping litter and a solid odor routine, and the corner you used to dread becomes one less thing on your list. Compare it against the PuraMax 2 and the PETLIBRO camera model, then pick the best automatic litter box that fits your space and your cat.

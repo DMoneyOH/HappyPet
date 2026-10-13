@@ -32,6 +32,7 @@ Env:
   GEMINI_API_KEY    topic ideation + product fit-check
   IMPACT_*          optional Chewy enrichment via chewy_lookup
 """
+import datetime
 import gzip
 import html
 import json
@@ -463,6 +464,9 @@ def apply_resolution(entry: dict, resolved: dict, enrich_chewy: bool = True) -> 
     entry["image"]         = resolved["image"]
     entry["price"]         = resolved["price"]
     entry["stars"]         = resolved["stars"]
+    # The date the price and rating were pulled: published posts label both
+    # "(as of <date>)" from this (generate_posts.label_amazon_figures).
+    entry["pulled_on"]     = datetime.date.today().isoformat()
     if resolved.get("runners_up"):
         entry["runners_up"] = resolved["runners_up"]
     if resolved.get("upc"):

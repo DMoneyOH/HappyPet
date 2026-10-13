@@ -9,6 +9,7 @@ species: dog
 tags: [interactive dog toys]
 description: "Keep your dog entertained and engaged! We found the best interactive dog toys for every pup and budget."
 affiliate_url: "https://www.amazon.com/dp/B000F4AVPA?th=1&tag=happypetdc-20"
+product_short: "Chuckit! Ultra Ball (2-pack)"
 image: "https://images-na.ssl-images-amazon.com/images/P/B000F4AVPA.01.LZZZZZZZ.jpg"
 ---
 
@@ -18,13 +19,13 @@ Interactive dog toys work best when they match how your dog actually plays. A pu
 
 ## Quick Picks
 
-- **Best for outdoor fetch:** [Chuckit! Ultra Ball, Medium, Pack of 2](https://www.amazon.com/dp/B000F4AVPA?th=1&tag=happypetdc-20)
+- **Best for outdoor fetch:** [Chuckit! Ultra Ball (2-pack)](https://www.amazon.com/dp/B000F4AVPA?th=1&tag=happypetdc-20)
 - **Best treat dispenser:** Kong Wobbler
 - **Best for tuggers:** PetSafe Busy Buddy Tug-A-Jug
 - **Best for gentle dogs:** Frisco Hide and Seek Plush Puzzle
 
 
-### Featured Pick: [Chuckit! Ultra Ball, Medium, Pack of 2](https://www.amazon.com/dp/B000F4AVPA?th=1&tag=happypetdc-20)
+### Featured Pick: [Chuckit! Ultra Ball (2-pack)](https://www.amazon.com/dp/B000F4AVPA?th=1&tag=happypetdc-20)
 
 The Chuckit! Ultra Ball is a rubber fetch ball, not a puzzle toy, let's be clear about that upfront. What makes it "interactive" is how it behaves: the bounce is unpredictable enough that dogs can't just sit and wait for it, and the high-visibility orange color means it works in tall grass and water. It's notably more durable than tennis balls, holding up to dogs who tend to puncture softer options.
 

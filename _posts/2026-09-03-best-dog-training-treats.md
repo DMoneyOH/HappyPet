@@ -9,6 +9,7 @@ species: dog
 tags: [best dog training treats]
 description: "Small, soft, and cheap enough to hand out all session, these treats keep your dog locked in and eager."
 affiliate_url: "https://www.amazon.com/dp/B08XY6CFFW?tag=happypetdc-20"
+product_short: "Blue Buffalo Bits Beef Training Treats"
 chewy_url: "https://chewy.sjv.io/c/7160344/3054490/32975?prodsku=294114&u=https%3A%2F%2Fwww.chewy.com%2Fblue-buffalo-blue-bits-tender-beef%2Fdp%2F320464%3Futm_source%3Dgoogle-product%26utm_medium%3Dorganic%26utm_content%3DBlue%2520Buffalo&intsrc=APIG_24727"
 image: "https://m.media-amazon.com/images/I/81U2E6K0nxL._AC_UL320_.jpg"
 pin_image: "https://happypetproductreviews.com/assets/images/pins/best-dog-training-treats.jpg?v=20260903"
@@ -22,7 +23,7 @@ Here are the best dog training treats that held up, ranked by how they perform o
 
 ### Blue Buffalo Bits beef soft and chewy dog treats
 
-The [Blue Buffalo Bits Beef Soft & Chewy Dog Treats](https://www.amazon.com/dp/B08XY6CFFW?tag=happypetdc-20) earn a 4.8/5 rating on Amazon, and the reason shows up fast once you open the bag. Each piece runs small and stays soft, so your dog chews once and looks back for the next cue instead of crunching away for ten seconds. Real beef sits first on the label, and the bites carry added DHA, which owners of puppies tend to value during the early training months. At $14.99 a bag, the price stays low enough that you can hand them out freely across a long session rather than doling out one at a time. Dogs that shrug off drier biscuits often perk up for these, which makes them a dependable choice for a stubborn or easily bored trainee.
+The [Blue Buffalo Bits Beef Training Treats](https://www.amazon.com/dp/B08XY6CFFW?tag=happypetdc-20) earn a 4.8/5 rating (as of Jul 3, 2026) on Amazon, and the reason shows up fast once you open the bag. Each piece runs small and stays soft, so your dog chews once and looks back for the next cue instead of crunching away for ten seconds. Real beef sits first on the label, and the bites carry added DHA, which owners of puppies tend to value during the early training months. At $14.99 (as of Jul 3, 2026) a bag, the price stays low enough that you can hand them out freely across a long session rather than doling out one at a time. Dogs that shrug off drier biscuits often perk up for these, which makes them a dependable choice for a stubborn or easily bored trainee.
 
 - Small, soft bites your dog can eat fast without breaking focus
 - Real beef listed as the first ingredient on the label
@@ -62,4 +63,4 @@ The table sums up where each of these best dog training treats earns its spot in
 | Buddy Biscuits Trainers Training Bites | Distracting outdoor spots | $ | Bacon |
 | Pupford Freeze Dried Training Treats | Sensitive stomachs and clean pockets | $ | Beef liver |
 
-Good training comes down to reps, and reps come easier when the reward is fast and easy on your dog's stomach. The [Blue Buffalo Bits Beef Soft & Chewy Dog Treats](https://www.amazon.com/dp/B08XY6CFFW?tag=happypetdc-20) cover both at a price that lets you train often, which is why they lead this list. Buddy Biscuits gives you a bacon option for tough outdoor sessions, and Pupford suits a sensitive stomach with its short ingredient list. Any of these best dog training treats can carry a full session, so pick the flavor and texture your dog works hardest for and keep the pouch stocked.
+Good training comes down to reps, and reps come easier when the reward is fast and easy on your dog's stomach. The [Blue Buffalo Bits](https://www.amazon.com/dp/B08XY6CFFW?tag=happypetdc-20) cover both at a price that lets you train often, which is why they lead this list. Buddy Biscuits gives you a bacon option for tough outdoor sessions, and Pupford suits a sensitive stomach with its short ingredient list. Any of these best dog training treats can carry a full session, so pick the flavor and texture your dog works hardest for and keep the pouch stocked.
