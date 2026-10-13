@@ -35,7 +35,7 @@ For premium nutrition that won't completely drain your savings, Blue Buffalo Wil
 * Can be a bit pricier than budget-level foods
 * Some cats may initially be picky about the LifeSource Bits
 
-[Blue Buffalo Wilderness Grain-Free Dry Cat Food, Chicken, 12 lb](https://www.amazon.com/dp/B002UT92EY?tag=happypetdc-20)
+[Blue Buffalo Wilderness Grain-Free Cat Food](https://www.amazon.com/dp/B002UT92EY?tag=happypetdc-20)
 
 ### Additional Pick – Merrick Purrfect Bistro Grain-Free Dry Cat Food
 
@@ -111,4 +111,4 @@ Choosing the best grain-free cat food for your furry companion is an important d
 
 Always consult your veterinarian before making significant changes to your cat's diet, especially if they have underlying health conditions. But with options like the **Blue Buffalo Wilderness Grain-Free Dry Cat Food**, you're well on your way to providing a diet that supports their natural instincts and keeps them purring happily. Give one of the recommended grain-free cat food options a try, and watch your feline friend flourish!
 
-[Find the purr-fect grain-free food for your cat today!](https://www.amazon.com/dp/B002UT92EY?tag=happypetdc-20)
+[Blue Buffalo Wilderness Grain-Free Cat Food](https://www.amazon.com/dp/B002UT92EY?tag=happypetdc-20)

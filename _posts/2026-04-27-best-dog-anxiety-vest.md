@@ -20,7 +20,7 @@ Picture a rainy Saturday: a golden retriever trembling by the front door as the 
 
 ## Product Overview  
 
-The **[ThunderShirt for Dogs, Large, Platinum Sport - Dog Anxiety Relief Calming Vest](https://www.amazon.com/dp/B01FN4GW2M?th=1&tag=happypetdc-20)** is a pressure‑wrap designed to apply gentle, constant pressure to a dog’s torso. This “swaddling” effect mimics the comforting hug a mother gives her pup, helping to calm nervous or overstimulated dogs.  
+The **[ThunderShirt Calming Vest for Dogs](https://www.amazon.com/dp/B01FN4GW2M?th=1&tag=happypetdc-20)** is a pressure‑wrap designed to apply gentle, constant pressure to a dog’s torso. This “swaddling” effect mimics the comforting hug a mother gives her pup, helping to calm nervous or overstimulated dogs.  
 
 - **Size & Fit**: The Large size fits dogs 45‑80 lb, with adjustable straps and a Velcro closure for a snug, custom fit.  
 - **Material**: Made from a breathable, water‑resistant polyester blend that holds up to indoor and outdoor use.  
@@ -65,7 +65,7 @@ Across the situations owners write about most often, stormy evenings, fireworks,
 
 **Rating: 4.3/5**  
 
-Ready to give your dog the calm they deserve? Grab the **[ThunderShirt for Dogs, Large, Platinum Sport - Dog Anxiety Relief Calming Vest](https://www.amazon.com/dp/B01FN4GW2M?th=1&tag=happypetdc-20)** today and see the difference a gentle hug can make.  
+Ready to give your dog the calm they deserve? Grab the **[ThunderShirt Calming Vest for Dogs](https://www.amazon.com/dp/B01FN4GW2M?th=1&tag=happypetdc-20)** today and see the difference a gentle hug can make.  
 
 ---  
 

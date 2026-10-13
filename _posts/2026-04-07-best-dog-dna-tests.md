@@ -33,7 +33,7 @@ The Embark Breed Identification Dog DNA Test Kit stands out as the top recommend
 * Higher price point compared to some competitors.
 * Results can take a few weeks to process.
 
-[Embark Breed Identification Dog DNA Test Kit](https://www.amazon.com/dp/B07HHF1VLH?th=1&tag=happypetdc-20)
+[Embark Dog DNA Test](https://www.amazon.com/dp/B07HHF1VLH?th=1&tag=happypetdc-20)
 
 ### Wisdom Panel Essential Dog DNA Test Kit
 
@@ -98,4 +98,4 @@ Dog DNA tests range significantly in price. While it might be tempting to opt fo
 
 Unlocking the genetic secrets of your canine companion is a truly rewarding experience, offering insights that can deepen your bond and improve their quality of life. Whether you're curious about their adorable quirks, want to understand their exercise needs, or proactively manage potential health risks, a reliable dog DNA test kit is an incredible tool. Across breed databases, health panels and owner reports, the top recommendation remains the **Embark Breed Identification Dog DNA Test Kit**. Its unparalleled accuracy, comprehensive health screening, and detailed ancestry reports make it the ultimate choice for any dog owner looking to truly understand their best friend. Invest in their future today!
 
-[Get the Embark Breed Identification Dog DNA Test Kit and discover your dog's story!](https://www.amazon.com/dp/B07HHF1VLH?th=1&tag=happypetdc-20)
+[Embark Dog DNA Test](https://www.amazon.com/dp/B07HHF1VLH?th=1&tag=happypetdc-20)

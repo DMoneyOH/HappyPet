@@ -20,7 +20,7 @@ It only takes one bad clip to turn nail time into a standoff. The quick nicked, 
 
 ### Product Overview
 
-The **[Casfuy Dog Nail Grinder with LED Light -- Upgraded 2-Speed Electric Pet Nail Trimmer](https://www.amazon.com/dp/B088FQ5QH7?tag=happypetdc-20)** is a cordless, rechargeable grinder built for dogs and cats of all sizes. At around $19 with 4.4 stars across 853 ratings, it sits in the sweet spot between budget tools that burn out quickly and professional-grade equipment that costs far more than most owners need. The white housing is compact and lightweight, with a rubberized grip that stays secure even during a squirmy session.
+The **[Casfuy Dog Nail Grinder](https://www.amazon.com/dp/B088FQ5QH7?tag=happypetdc-20)** is a cordless, rechargeable grinder built for dogs and cats of all sizes. At around $19 with 4.4 stars across 853 ratings, it sits in the sweet spot between budget tools that burn out quickly and professional-grade equipment that costs far more than most owners need. The white housing is compact and lightweight, with a rubberized grip that stays secure even during a squirmy session.
 
 Key specs:
 
@@ -76,6 +76,6 @@ Very small toy breeds may benefit from a grinder with a narrower port range. For
 
 ### Verdict
 
-The **[Casfuy Dog Nail Grinder with LED Light](https://www.amazon.com/dp/B088FQ5QH7?tag=happypetdc-20)** earns its place as the best dog nail grinder for home use through practical design rather than gimmicks. The LED light removes the guesswork, the quiet motor removes the anxiety, the diamond bit removes the frequent replacement cycle, and the $19 price removes any hesitation. Nail day does not have to be an event -- with the right tool it becomes a five-minute routine.
+The **[Casfuy Dog Nail Grinder](https://www.amazon.com/dp/B088FQ5QH7?tag=happypetdc-20)** earns its place as the best dog nail grinder for home use through practical design rather than gimmicks. The LED light removes the guesswork, the quiet motor removes the anxiety, the diamond bit removes the frequent replacement cycle, and the $19 price removes any hesitation. Nail day does not have to be an event -- with the right tool it becomes a five-minute routine.
 
 **Rating: 4.4/5**

@@ -33,7 +33,7 @@ The MidWest New World Dog Crate is consistently a top performer in owner reviews
 * Plastic pan can be noisy if not secured well
 * Heavier than fabric or plastic crates
 
-[MidWest Homes for Pets 42-Inch New World Dog Crate](https://www.amazon.com/dp/B01DLS2EX8?th=1&tag=happypetdc-20)
+[MidWest New World Dog Crate](https://www.amazon.com/dp/B01DLS2EX8?th=1&tag=happypetdc-20)
 
 ### Frisco Fold & Carry Double Door Collapsible Wire Dog Crate
 
@@ -106,4 +106,4 @@ Selecting the right dog crate is crucial for your pet's comfort, safety, and you
 
 Choosing the right dog crate is an investment in your dog's well-being and your home's harmony. After all the comparisons, if it came down to just one all-around winner, it would be the **MidWest Homes for Pets New World Dog Crate**. Its combination of durability, versatility, included divider panel, and incredible value makes it the top choice for most dog owners, from puppyhood through adulthood. It’s a reliable, safe, and comfortable space that will serve your dog well for years to come. Make the crate a positive experience, and you'll both reap the benefits!
 
-[Ready to give your pup their own special den? Grab the MidWest New World Dog Crate on Amazon today!](https://www.amazon.com/dp/B01DLS2EX8?th=1&tag=happypetdc-20)
+[MidWest New World Dog Crate](https://www.amazon.com/dp/B01DLS2EX8?th=1&tag=happypetdc-20)

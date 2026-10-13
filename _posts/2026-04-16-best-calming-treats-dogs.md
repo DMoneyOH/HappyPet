@@ -19,7 +19,7 @@ Thunder rolls in on a rainy Tuesday and a Labrador is glued to the window, whini
 
 | Product | Best For | Price Range | Chew Time |
 |---|---|---|---|
-| **[NaturVet Quiet Moments Calming Dog Supplement, Soft Chews, 180 Count](https://www.amazon.com/dp/B075SSR5CG?th=1&tag=happypetdc-20)** | Overall calm, daily stress | $$ | Quick |
+| **[NaturVet Quiet Moments Calming Chews](https://www.amazon.com/dp/B075SSR5CG?th=1&tag=happypetdc-20)** | Overall calm, daily stress | $$ | Quick |
 | Zylk Labs Stress Relief Chews | Sensitive stomachs | $ | Moderate |
 | VetriScience Composure® Chews | High-energy anxiety | $$ | Quick |
 | PetHonesty Calming Bites | First-time users | $ | Moderate |
@@ -63,4 +63,4 @@ Finally, weigh cost against frequency of use. A treat that lasts a month may see
 
 ## Closing  
 
-Calming your dog doesn’t have to involve a prescription or a major expense. The treats highlighted here—especially the **[NaturVet Quiet Moments Calming Dog Supplement, Soft Chews, 180 Count](https://www.amazon.com/dp/B075SSR5CG?th=1&tag=happypetdc-20)**—are the ones owners most often say help with everyday jitters and one‑off stressful events. They are worth a try for mild stress; if your dog's anxiety runs deeper than that, talk to your vet rather than reaching for a bigger bag of chews. Happy, stress‑free days are just a chew away!  
+Calming your dog doesn’t have to involve a prescription or a major expense. The treats highlighted here—especially the **[NaturVet Quiet Moments Calming Chews](https://www.amazon.com/dp/B075SSR5CG?th=1&tag=happypetdc-20)**—are the ones owners most often say help with everyday jitters and one‑off stressful events. They are worth a try for mild stress; if your dog's anxiety runs deeper than that, talk to your vet rather than reaching for a bigger bag of chews. Happy, stress‑free days are just a chew away!  

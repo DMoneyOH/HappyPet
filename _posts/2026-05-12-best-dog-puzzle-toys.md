@@ -21,7 +21,7 @@ If you’ve ever watched a border collie stare at a squeaky ball, then toss it a
 
 | Product | Best For | Price Range | Key Attribute |
 |---|---|---|---|
-| **[Outward Hound Hide‑A‑Squirrel Dog Toy, 2‑in‑1 Plush Puzzle, 6 Squeaky Squirrels, XL](https://www.amazon.com/dp/B005VS9WO6?th=1&tag=happypetdc-20)** | Dogs who love plush toys & scent work | $$ | Interactive plush design |
+| **[Outward Hound Hide-A-Squirrel](https://www.amazon.com/dp/B005VS9WO6?th=1&tag=happypetdc-20)** | Dogs who love plush toys & scent work | $$ | Interactive plush design |
 | Nina Ottosson Dog Tornado | Puzzle‑solvers who enjoy rotating challenges | $$$ | Tiered rotating compartments |
 | Trixie Activity Flip Board | Beginners who need simple flip‑over tasks | $ | Multi‑step flip & slide |
 | KONG Classic (medium) | Chewers who also need mental stimulation | $ | Durable rubber, treat‑fillable |
@@ -73,7 +73,7 @@ By weighing these criteria against your dog’s personality, you can select a pu
 
 | Product | Best For | Price Range | Key Attribute |
 |---|---|---|---|
-| **[Outward Hound Hide‑A‑Squirrel Dog Toy, 2‑in‑1 Plush Puzzle, 6 Squeaky Squirrels, XL](https://www.amazon.com/dp/B005VS9WO6?th=1&tag=happypetdc-20)** | Plush‑loving seekers | $$ | Interactive plush design |
+| **[Outward Hound Hide-A-Squirrel](https://www.amazon.com/dp/B005VS9WO6?th=1&tag=happypetdc-20)** | Plush‑loving seekers | $$ | Interactive plush design |
 | Nina Ottosson Dog Tornado | Advanced rotators | $$$ | Tiered rotating compartments |
 | Trixie Activity Flip Board | Beginner problem‑solvers | $ | Multi‑step flip & slide |
 | KONG Classic (medium) | Durable chewers | $ | Treat‑fillable rubber |
