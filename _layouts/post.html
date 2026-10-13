@@ -10,6 +10,7 @@ layout: default
 {%- else -%}
   {%- assign hero_image = page.image -%}
 {%- endif -%}
+{%- assign pick_name = page.product_short | default: page.product_name -%}
 
 {%- comment -%}
   Product/Review structured data, for the review rich result (the star rating
@@ -110,6 +111,9 @@ layout: default
       {%- endif %}
       <div class="verdict-body">
         <span class="verdict-label">Our pick</span>
+        {%- if pick_name %}
+        <p class="verdict-name">{{ pick_name | escape }}</p>
+        {%- endif %}
         {%- if page.affiliate_url or page.chewy_url %}
         <p class="verdict-disclosure">We may earn a commission if you buy through these links, at no extra cost to you.</p>
         <div class="buy-row">
@@ -175,7 +179,7 @@ layout: default
     {%- if page.affiliate_url or page.chewy_url %}
     <div class="buybar">
       {%- if hero_image %}<img src="{{ hero_image }}" alt="" loading="lazy">{% endif %}
-      <b>{{ page.title }}</b>
+      <b>{{ pick_name | default: page.title | escape }}</b>
       <a class="buy buy--amazon" href="{{ page.affiliate_url | default: page.chewy_url }}" target="_blank" rel="sponsored nofollow noopener">Check price</a>
     </div>
     {%- endif %}

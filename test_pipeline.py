@@ -1926,6 +1926,17 @@ class TestManualResolve(unittest.TestCase):
         fake_enrich.assert_called_once_with("Some Product", "810189030893")
         self.assertEqual(entry["upc"], "810189030893")
 
+    def test_apply_resolution_records_the_pull_date(self):
+        # The "(as of <date>)" label on a published price comes from this field.
+        import datetime
+        import refill_products as rp
+        entry = {"topic": "best-x", "asin": "NEEDS_ASIN", "image": "NEEDS_IMAGE"}
+        resolved = {"name": "Some Product", "asin": "B0ABCD1234",
+                    "image": "https://m.media-amazon.com/images/I/x.jpg",
+                    "price": "9.99", "stars": 4.0}
+        rp.apply_resolution(entry, resolved, enrich_chewy=False)
+        self.assertEqual(entry["pulled_on"], datetime.date.today().isoformat())
+
     def test_rejects_bad_asin_shape_and_does_not_write(self):
         import tempfile
         import refill_products as rp
@@ -3508,6 +3519,157 @@ class TestStageArticle(unittest.TestCase):
                 pin_source,
                 "https://images-na.ssl-images-amazon.com/images/P/B0GG8LR3RW.01.LZZZZZZZ.jpg")
 
+    def _stage(self, product, body):
+        import tempfile
+        from pathlib import Path
+        from unittest.mock import patch
+        gp = self.gp
+        with tempfile.TemporaryDirectory() as td:
+            posts = Path(td) / "_posts"; posts.mkdir()
+            (Path(td) / "_pin_queue").mkdir()
+            with patch.object(gp, "POSTS_DIR", posts), \
+                 patch.object(gp, "REPO_DIR", Path(td)), \
+                 patch.object(gp, "PIN_GEN_AVAILABLE", False):
+                out = gp.stage_article(product["topic"], product, body,
+                                       pin_desc="Great mat for dogs.", index=0)
+            return out["draft_path"].read_text(encoding="utf-8")
+
+    SNUFFLE = {"topic": "best-x", "title": "Best X", "keyword": "best x",
+               "format": "roundup", "category": "dog-gear", "species": "dog",
+               "name": "AWOOF Pet Snuffle Mat for Dogs, Interactive Feed Game",
+               "affiliate_url": "https://www.amazon.com/dp/B07N1JYYCW?tag=happypetdc-20",
+               "price": "11.98", "stars": 4.2}
+    PRICED_BODY = ("## Heading\n\nIt carries a 4.2 out of 5 star rating on Amazon and "
+                   "sells for $11.98. " + ("word " * 800))
+
+    def test_staged_post_names_its_pick_in_front_matter(self):
+        text = self._stage(dict(self.SNUFFLE), "## Heading\n\n" + ("word " * 800))
+        fm = text.split("---", 2)[1]
+        self.assertIn('product_short: "AWOOF Pet Snuffle Mat for Dogs"\n', fm)
+
+    def test_staged_post_labels_price_and_rating_with_the_pull_date(self):
+        product = dict(self.SNUFFLE, pulled_on="2026-09-25")
+        text = self._stage(product, self.PRICED_BODY)
+        self.assertIn("4.2 out of 5 star rating on Amazon and sells for "
+                      "$11.98 (as of Sep 25, 2026). ", text)
+
+    def test_staged_post_without_a_pull_date_is_labelled_with_the_staging_date(self):
+        import datetime
+        text = self._stage(dict(self.SNUFFLE), self.PRICED_BODY)
+        self.assertIn("$11.98 (as of " + self.gp.as_of_text(datetime.date.today().isoformat())
+                      + ")", text)
+
+
+class TestAsOfLabels(unittest.TestCase):
+    """label_amazon_figures: every Amazon price and star rating a post shows
+    carries "(as of <date>)" -- Director's decision 2026-10-12, keep pull-time
+    figures, label them. Only the pulled values are labelled, so a price band
+    ("under $15") or a different product's figure is never stamped."""
+
+    DATE = "2026-10-02"
+    L = " (as of Oct 2, 2026)"
+
+    def label(self, body, price="17.97", stars=4.8):
+        import generate_posts as gp
+        return gp.label_amazon_figures(body, price, stars, self.DATE)
+
+    def test_date_format_has_no_zero_pad(self):
+        import generate_posts as gp
+        self.assertEqual(gp.as_of_text("2026-10-02"), "Oct 2, 2026")
+        self.assertEqual(gp.as_of_text("2026-09-25"), "Sep 25, 2026")
+
+    def test_real_phrasings_from_published_posts(self):
+        cases = [
+            ("At $17.97 for a 7 lb bag, it is cheap.",
+             "At $17.97" + self.L + " for a 7 lb bag, it is cheap."),
+            ("It is rated 4.8/5 on Amazon.", "It is rated 4.8/5" + self.L + " on Amazon."),
+            ("It holds a 4.8 out of 5 star rating on Amazon.",
+             "It holds a 4.8 out of 5 star rating" + self.L + " on Amazon."),
+            ("It carries a 4.8-star rating.", "It carries a 4.8-star rating" + self.L + "."),
+            ("It holds a 4.8 star rating, too.", "It holds a 4.8 star rating" + self.L + ", too."),
+            ("With 4.8 stars across 853 ratings.", "With 4.8 stars" + self.L + " across 853 ratings."),
+            ("a solid **4.8/5** rating and a price of **$17.97**, so",
+             "a solid **4.8/5** rating and a price of **$17.97**" + self.L + ", so"),
+        ]
+        for before, after in cases:
+            with self.subTest(before=before):
+                self.assertEqual(self.label(before), after)
+
+    def test_one_label_per_sentence_after_its_last_figure(self):
+        body = ("It carries a 4.8 out of 5 star rating on Amazon and sells for $17.97. "
+                "At $17.97 it is a bargain.")
+        self.assertEqual(self.label(body),
+                         "It carries a 4.8 out of 5 star rating on Amazon and sells for "
+                         "$17.97" + self.L + ". At $17.97" + self.L + " it is a bargain.")
+
+    def test_a_line_break_ends_the_sentence(self):
+        body = "- Priced at $17.97\n- Rated 4.8/5 by owners"
+        self.assertEqual(self.label(body),
+                         "- Priced at $17.97" + self.L + "\n- Rated 4.8/5" + self.L + " by owners")
+
+    def test_bands_and_other_figures_are_never_labelled(self):
+        for body in ("Most mats sit under $15 or $10-$20.",
+                     "*Price Range Key: \\$ = Under \\$50, \\$\\$ = \\$50-\\$100*",
+                     "It costs $117.97 or $17.975 or $17.9.",
+                     "Rated 4.85 stars, 14.8/5, 4.8/50 and 4.7/5.",
+                     "Most owners give it 4.8 out of 10.",
+                     "A $17 mat."):
+            with self.subTest(body=body):
+                self.assertEqual(self.label(body), body)
+
+    def test_table_rows_rating_lines_and_link_targets_are_left_alone(self):
+        body = ("| [Mat](https://www.amazon.com/dp/B0X) | $17.97 | 4.8/5 |\n"
+                "**Our Rating: 4.8/5**\n"
+                "Rating: 4.8/5\n"
+                "[See it](https://example.com/p?$17.97=4.8/5)")
+        self.assertEqual(self.label(body), body)
+
+    def test_labelling_twice_changes_nothing(self):
+        body = ("It carries a 4.8 out of 5 star rating and sells for $17.97. "
+                "At **$17.97** it is a bargain.\n- 4.8/5 stars")
+        once = self.label(body)
+        self.assertNotEqual(once, body)
+        self.assertEqual(self.label(once), once)
+
+    def test_missing_values_label_nothing(self):
+        body = "It sells for $17.97 with a 4.8/5 rating."
+        self.assertEqual(self.label(body, price=None, stars=None), body)
+        self.assertEqual(self.label(body, price="", stars=None), body)
+
+    def test_a_comma_formatted_price_matches_its_plain_value(self):
+        self.assertEqual(self.label("It costs $1,299.00 today.", price="1299.00"),
+                         "It costs $1,299.00" + self.L + " today.")
+
+    def test_a_whole_star_value_matches_its_one_decimal_form(self):
+        self.assertEqual(self.label("It holds a 4.0 star rating.", stars=4),
+                         "It holds a 4.0 star rating" + self.L + ".")
+
+
+class TestShortProductName(unittest.TestCase):
+    """short_product_name: the generator's only source of a product name is the
+    Amazon listing title. The panel and buybar show the part before the
+    listing's first separator. A copy heuristic: Scarlett may replace it."""
+
+    def test_cuts_at_the_first_listing_separator(self):
+        import generate_posts as gp
+        cases = {
+            "AWOOF Pet Snuffle Mat for Dogs, Interactive Feed Game": "AWOOF Pet Snuffle Mat for Dogs",
+            "Cat Window Hammock - Mess-Free Waterproof Cats Window Perch": "Cat Window Hammock",
+            "Tractive Smart Dog GPS Tracker – Live Pet Tracker": "Tractive Smart Dog GPS Tracker",
+            "Catit Senses 2.0 Multi Feeder | Interactive": "Catit Senses 2.0 Multi Feeder",
+            "Blue Buffalo Bits Beef Soft & Chewy Dog Treats": "Blue Buffalo Bits Beef Soft & Chewy Dog Treats",
+            "Hide‑A‑Squirrel Dog Toy, 2‑in‑1": "Hide‑A‑Squirrel Dog Toy",
+            "  K&H Heated Cat House, Outdoor  ": "K&H Heated Cat House",
+        }
+        for name, short in cases.items():
+            with self.subTest(name=name):
+                self.assertEqual(gp.short_product_name(name), short)
+
+    def test_empty_name_gives_empty(self):
+        import generate_posts as gp
+        self.assertEqual(gp.short_product_name(""), "")
+        self.assertEqual(gp.short_product_name(None), "")
+
 
 class TestFbMessage(unittest.TestCase):
     """The Facebook-queue message must not reuse one repetitive fallback for
@@ -4555,6 +4717,45 @@ console.log(JSON.stringify({ calls, prevented: ev.defaultPrevented,
         # jsonify, not a bare {{ page.slug }}: the value lands in JavaScript.
         self.assertEqual(self.source.count(self.SLUG_EXPR), 1)
         self.assertEqual(self.source.count("{{"), 1, "unexpected Liquid in the script")
+
+
+class TestBuyPanelNamesThePick(unittest.TestCase):
+    """The purchase panel and the sticky buybar name the product they link to
+    (2026-10-12 conversion diagnosis, 1.2): the panel showed only "Our pick" and
+    the buybar showed the article title. Text-level pins on post.html; the real
+    render is build-check.yml's Jekyll build."""
+
+    PICK = "{%- assign pick_name = page.product_short | default: page.product_name -%}"
+
+    @classmethod
+    def setUpClass(cls):
+        cls.layout = (REPO / "_layouts" / "post.html").read_text(encoding="utf-8")
+        cls.panel = cls.layout[cls.layout.index('<div class="verdict">'):
+                               cls.layout.index('<div class="reading">')]
+        start = cls.layout.index('<div class="buybar">')
+        cls.buybar = cls.layout[start:cls.layout.index("</div>", start)]
+
+    def test_pick_name_is_assigned_once_before_the_panel(self):
+        self.assertEqual(self.layout.count(self.PICK), 1)
+        self.assertLess(self.layout.index(self.PICK), self.layout.index('<div class="verdict">'))
+        self.assertEqual(len(re.findall(r"assign pick_name\b", self.layout)), 1)
+
+    def test_panel_names_the_pick_between_the_label_and_the_buttons(self):
+        m = re.search(r'\{%-? if pick_name %\}\s*<p class="verdict-name">'
+                      r'\{\{ pick_name \| escape \}\}</p>\s*\{%-? endif %\}', self.panel)
+        self.assertIsNotNone(m, "panel does not render the escaped pick name behind an if")
+        self.assertLess(self.panel.index('class="verdict-label"'), m.start())
+        self.assertLess(m.end(), self.panel.index('class="buy-row"'))
+
+    def test_buybar_names_the_pick_and_falls_back_to_the_title(self):
+        self.assertIn("<b>{{ pick_name | default: page.title | escape }}</b>", self.buybar)
+        self.assertNotIn("{{ page.title }}", self.buybar)
+
+    def test_verdict_name_style_clamps_long_listing_titles(self):
+        css = (REPO / "assets" / "css" / "style.css").read_text(encoding="utf-8")
+        m = re.search(r"\.verdict-name\s*\{([^}]*)\}", css)
+        self.assertIsNotNone(m, "no .verdict-name rule")
+        self.assertIn("-webkit-line-clamp: 2", m.group(1))
 
 
 class TestAutoMergePublishWiring(unittest.TestCase):

@@ -2340,9 +2340,99 @@ def yaml_quote(text: str) -> str:
     return str(text).replace("\\", "\\\\").replace('"', '\\"').replace("\n", " ").replace("\r", " ").strip()
 
 
+# The listing title's first separator: ", ", " - ", " – ", " — " or " | ".
+_LISTING_SEPARATOR = re.compile(r",\s|\s[-\u2013\u2014|]\s")
+
+
+def short_product_name(name) -> str:
+    """The product name the purchase panel and sticky buybar show. The only name
+    the generator has is the Amazon listing title ("AWOOF Pet Snuffle Mat for
+    Dogs, Interactive Feed Game"), so keep the part before its first separator.
+    A copy heuristic, not a rule: product_short in a post can be edited by hand."""
+    name = " ".join(str(name or "").split())
+    return _LISTING_SEPARATOR.split(name, 1)[0].strip()
+
+
+_MONTHS = ("Jan", "Feb", "Mar", "Apr", "May", "Jun",
+           "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
+_AS_OF = " (as of "
+_SENTENCE_END = re.compile(r"[.!?](?=\s|$)")
+_LINK_TARGET = re.compile(r"\]\([^)\n]*\)")
+
+
+def as_of_text(iso_date: str) -> str:
+    """'2026-10-02' -> 'Oct 2, 2026'."""
+    d = datetime.date.fromisoformat(iso_date)
+    return f"{_MONTHS[d.month - 1]} {d.day}, {d.year}"
+
+
+def _figure_patterns(price, stars) -> list:
+    """Regexes for the pulled price and star rating as a post writes them. Only
+    these exact values match, so a band ("under $15") or another product's
+    figure is never labelled."""
+    pats = []
+    try:
+        value = float(str(price).replace(",", "")) if price not in (None, "") else None
+    except ValueError:
+        value = None
+    if value is not None:
+        forms = sorted({f"{value:.2f}", f"{value:,.2f}"}, key=len, reverse=True)
+        pats.append(r"\$(?:" + "|".join(map(re.escape, forms)) + r")(?![\d]|[.,]\d)")
+    if stars not in (None, "") and not isinstance(stars, bool):
+        try:
+            s = re.escape(f"{float(stars):.1f}")
+        except (TypeError, ValueError):
+            s = None
+        if s:
+            five = r"5(?![\d]|\.\d)"
+            pats.append(r"(?<![\d.])" + s + r"(?:"
+                        r"\s*/\s*" + five + r"(?:\s+stars?\b(?:\s+rating\b)?)?"
+                        r"|\s+out\s+of\s+" + five + r"(?:\s+stars?\b)?(?:\s+rating\b)?"
+                        r"|[- ]stars?\b(?:\s+rating\b)?)")
+    return [re.compile(p) for p in pats]
+
+
+def _label_line(line: str, patterns: list, label: str) -> str:
+    # Table rows and the site's own "Rating: x/5" verdict are not Amazon figures.
+    if line.lstrip().startswith("|") or "Rating:" in line:
+        return line
+    links = [m.span() for m in _LINK_TARGET.finditer(line)]
+    spans = sorted(
+        (m.start(), m.end()) for p in patterns for m in p.finditer(line)
+        if not any(a <= m.start() < b for a, b in links))
+    out, cut = [], len(line)
+    for i in range(len(spans) - 1, -1, -1):
+        start, end = spans[i]
+        if line[start - 2:start] == "**" and line[end:end + 2] == "**":
+            end += 2
+        if line.startswith(_AS_OF, end):
+            continue
+        nxt = spans[i + 1][0] if i + 1 < len(spans) else None
+        if nxt is not None and not _SENTENCE_END.search(line, end, nxt):
+            continue  # a later figure in the same sentence carries the label
+        out.append(line[end:cut])
+        out.append(label)
+        cut = end
+    out.append(line[:cut])
+    return "".join(reversed(out))
+
+
+def label_amazon_figures(body: str, price, stars, as_of: str) -> str:
+    """Put "(as of <date>)" after the pulled Amazon price and star rating
+    wherever the body states them: once per sentence, after its last figure.
+    Director's decision 2026-10-12: keep pull-time figures, label them with the
+    date they were pulled. Idempotent."""
+    patterns = _figure_patterns(price, stars)
+    if not patterns:
+        return body
+    label = f"{_AS_OF}{as_of_text(as_of)})"
+    return "\n".join(_label_line(line, patterns, label) for line in body.split("\n"))
+
+
 def front_matter(title: str, keyword: str, affiliate_url: str, slug: str,
                  species: str, category: str, description: str, image: str = "",
-                 pin_image: str = "", chewy_url: str = "") -> str:
+                 pin_image: str = "", chewy_url: str = "",
+                 product_short: str = "") -> str:
     # `description` is the pin description, and it is the field that published
     # "We tested the top litters so you can finally say goodbye to that smell"
     # on a live monetized page. Every path that writes a post goes through here,
@@ -2356,6 +2446,8 @@ def front_matter(title: str, keyword: str, affiliate_url: str, slug: str,
     )
     if affiliate_url:
         fm += f'affiliate_url: "{affiliate_url}"\n'
+    if product_short:
+        fm += f'product_short: "{yaml_quote(product_short)}"\n'
     if chewy_url and not chewy_url.startswith("REVIEW"):
         fm += f'chewy_url: "{chewy_url}"\n'
     if image:
@@ -2412,11 +2504,18 @@ def stage_article(slug: str, product: dict, body: str, pin_desc: str,
     fm = front_matter(title, keyword, product.get("affiliate_url", ""), slug,
                       species, category, pin_desc, product.get("image", ""),
                       build_pin_image_url_for_queue(slug),
-                      chewy_url=product.get("chewy_url") or "")
+                      chewy_url=product.get("chewy_url") or "",
+                      product_short=short_product_name(product.get("name", "")))
 
     content_clean = body.lstrip()
     while content_clean.startswith("---"):
         content_clean = content_clean[3:].lstrip()
+    # pulled_on is written when the price and rating are pulled
+    # (refill_products.apply_resolution); entries resolved before it existed
+    # fall back to the staging date.
+    content_clean = label_amazon_figures(
+        content_clean, product.get("price"), product.get("stars"),
+        product.get("pulled_on") or datetime.date.today().isoformat())
 
     article_url = build_url(slug, utm=True)
     # Pin image source: prefer the curated /images/I/ image -- fetch_image reaches
