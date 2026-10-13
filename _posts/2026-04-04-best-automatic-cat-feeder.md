@@ -11,6 +11,7 @@ description: "Never worry about overfeeding again. This programmable feeder keep
 product_name: "PETLIBRO Automatic Cat Feeder 5G WiFi 5L"
 rating: 4.5
 affiliate_url: "https://www.amazon.com/dp/B09S8WMJY9?th=1&tag=happypetdc-20"
+product_short: "PETLIBRO WiFi Cat Feeder"
 image: "https://images-na.ssl-images-amazon.com/images/P/B09S8WMJY9.01.LZZZZZZZ.jpg"
 ---
 

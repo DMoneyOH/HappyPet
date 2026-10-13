@@ -9,6 +9,7 @@ species: dog
 tags: [puppy training pads]
 description: "The right training pads make housebreaking faster and less messy. Here's what actually works for new puppy owners."
 affiliate_url: "https://www.amazon.com/dp/B00MW8G62E?th=1&tag=happypetdc-20"
+product_short: "Amazon Basics Puppy Training Pads"
 image: "https://images-na.ssl-images-amazon.com/images/P/B00MW8G62E.01.LZZZZZZZ.jpg"
 ---
 

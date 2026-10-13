@@ -11,6 +11,7 @@ description: "Big dogs need real support. This orthopedic bed is built to last a
 product_name: "Barker Beds Large Orthopedic Dog Bed 7in Memory Foam"
 rating: 4.5
 affiliate_url: "https://www.amazon.com/dp/B0GRBXBPXH?th=1&tag=happypetdc-20"
+product_short: "Barker Beds Orthopedic Dog Bed"
 image: "https://bigbarker.com/cdn/shop/files/HeadRest_7inch-Giant_CharcoalGrey_100_20_9ebbc3e7-d8a3-49bb-8db6-ea1d0d41a8bd.jpg"
 ---
 

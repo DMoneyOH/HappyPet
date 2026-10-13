@@ -9,6 +9,7 @@ species: dog
 tags: [best dog pool]
 description: "Beat the summer heat: the folding dog pool that stands up to claws, drains fast, and stores flat."
 affiliate_url: "https://www.amazon.com/dp/B01I3DTB2S?tag=happypetdc-20"
+product_short: "Jasonwell Foldable Dog Pool"
 image: "https://m.media-amazon.com/images/I/61-U8XMaW2L._AC_SX679_.jpg"
 pin_image: "https://happypetproductreviews.com/assets/images/pins/best-dog-pools.jpg?v=20260817"
 ---
@@ -19,13 +20,13 @@ Your dog spots the garden hose, freezes, then does the whole-body wiggle that me
 
 These three folding pools rank among the best dog pool options for different yards and budgets. Each one stands on its own once filled, and each folds flat for the off-season.
 
-- The Jasonwell foldable dog pet bath pool, a 63 inch tub at $39.99, for owners who want room for a big dog.
+- The Jasonwell foldable dog pet bath pool, a 63 inch tub at $39.99 (as of Jul 7, 2026), for owners who want room for a big dog.
 - The Niubya foldable dog pool, a folding design that suits a second pool or a backup.
 - The TRIXIE splash pool for dogs, sized for smaller yards and shallow wading.
 
 ### Featured pick: Jasonwell foldable dog pet bath pool
 
-The [Jasonwell Foldable Dog Pool](https://www.amazon.com/dp/B01I3DTB2S?tag=happypetdc-20) carries a 4.5 out of 5 star rating and sells for $39.99, which puts a full-size pool in reach of most budgets. The width does the heavy lifting here. A base that measures 63 inches across gives a Labrador or a golden room to lie down and roll, not just stand in the middle. The sides hold their shape through a stiff outer band, so the pool stays upright on its own once you add water, and it packs down flat when the weather cools. The coated material resists the claw scratches that split rigid plastic tubs. Many owners report that it empties fast through a side plug, which spares you from tipping fifty pounds of water across the lawn. Puppies and cats can use a lower fill level, and the same pool doubles as an indoor bath station on grooming day.
+The [Jasonwell Foldable Dog Pool](https://www.amazon.com/dp/B01I3DTB2S?tag=happypetdc-20) carries a 4.5 out of 5 star rating and sells for $39.99 (as of Jul 7, 2026), which puts a full-size pool in reach of most budgets. The width does the heavy lifting here. A base that measures 63 inches across gives a Labrador or a golden room to lie down and roll, not just stand in the middle. The sides hold their shape through a stiff outer band, so the pool stays upright on its own once you add water, and it packs down flat when the weather cools. The coated material resists the claw scratches that split rigid plastic tubs. Many owners report that it empties fast through a side plug, which spares you from tipping fifty pounds of water across the lawn. Puppies and cats can use a lower fill level, and the same pool doubles as an indoor bath station on grooming day.
 
 Pros:
 - Wide 63 inch base fits medium and large dogs

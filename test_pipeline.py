@@ -4762,6 +4762,20 @@ class TestBuyPanelNamesThePick(unittest.TestCase):
         self.assertIn("-webkit-line-clamp: 2", m.group(1))
 
 
+class TestPublishedPostsNameTheirPick(unittest.TestCase):
+    """Every published post with a buy panel carries product_short, so the panel
+    and buybar never fall back to the article title on a live page."""
+
+    def test_every_post_with_an_affiliate_link_has_a_short_product_name(self):
+        missing = []
+        for path in sorted((REPO / "_posts").glob("*.md")):
+            fm = path.read_text(encoding="utf-8").split("---", 2)[1]
+            if re.search(r"^affiliate_url:", fm, re.M) and \
+                    not re.search(r'^product_short: "[^"\s][^"]*"$', fm, re.M):
+                missing.append(path.name)
+        self.assertEqual(missing, [])
+
+
 class TestAutoMergePublishWiring(unittest.TestCase):
     """Preconditions the AUTO_MERGE=on routine path (SKILL Phase 2) bets on. If a
     workflow edit breaks one of these, the unattended publish would silently

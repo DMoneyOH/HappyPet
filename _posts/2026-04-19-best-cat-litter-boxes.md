@@ -10,6 +10,7 @@ species: cat
 tags: [best cat litter boxes]
 description: "The secret to a mess‑free litter room starts with the right box."
 affiliate_url: "https://www.amazon.com/dp/B0G1BRLQJK?th=1&tag=happypetdc-20"
+product_short: "XL Stainless Steel Litter Box with Lid"
 image: "https://m.media-amazon.com/images/I/61yepIfxn0L._AC_SX300_SY300_QL70_FMwebp_.jpg"
 ---
 
@@ -29,7 +30,7 @@ Ever walked into the bathroom to find a fresh‑scented cloud of cat litter dust
 
 ### Featured Pick: Stainless Steel Cat Litter Box with Lid, XL Metal, Extra Large  
 
-the top choice earns a solid 4.6/5 star rating on Amazon and costs $37.99. The extra‑large dimensions give even a big Maine Coon plenty of room, while the sleek metal construction resists scratches and odors better than most plastic models. Many owners report that the tight‑fitting lid traps smells, and the smooth interior wipes clean with a damp cloth—no scooping required beyond the usual litter removal.
+the top choice earns a solid 4.6/5 star rating on Amazon and costs $37.99 (as of Apr 16, 2026). The extra‑large dimensions give even a big Maine Coon plenty of room, while the sleek metal construction resists scratches and odors better than most plastic models. Many owners report that the tight‑fitting lid traps smells, and the smooth interior wipes clean with a damp cloth—no scooping required beyond the usual litter removal.
 
 **Pros**
 - Extremely durable; won’t crack or warp over time  

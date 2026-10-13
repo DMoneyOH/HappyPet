@@ -9,6 +9,7 @@ species: dog
 tags: [interactive dog toys]
 description: "Keep your dog entertained and engaged! We found the best interactive dog toys for every pup and budget."
 affiliate_url: "https://www.amazon.com/dp/B000F4AVPA?th=1&tag=happypetdc-20"
+product_short: "Chuckit! Ultra Ball (2-pack)"
 image: "https://images-na.ssl-images-amazon.com/images/P/B000F4AVPA.01.LZZZZZZZ.jpg"
 ---
 

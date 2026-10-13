@@ -9,6 +9,7 @@ species: dog
 tags: [best dog probiotic supplements]
 description: "The best dog probiotic supplements that actually support gut health -- ranked and reviewed."
 affiliate_url: "https://www.amazon.com/s?k=Purina+Pro+Plan+FortiFlora&tag=happypetdc-20"
+product_short: "Purina Pro Plan FortiFlora"
 chewy_url: "https://chewy.sjv.io/c/7160344/3054490/32975?u=https%3A%2F%2Fwww.chewy.com%2Fpurina-pro-plan-veterinary-diets%2Fdp%2F50029"
 image: "https://images-na.ssl-images-amazon.com/images/P/B001650NNW.01.LZZZZZZZ.jpg"
 pin_image: "https://happypetproductreviews.com/assets/images/pins/best-dog-probiotic-supplements.jpg?v=20260507"
@@ -22,7 +23,7 @@ Probiotics work by introducing beneficial bacteria into the gut, helping restore
 
 ### Featured Pick: Purina Pro Plan Veterinary Supplements FortiFlora Daily Probiotics for Dogs, 30 ct
 
-FortiFlora has held its position as one of the most recommended dog probiotics for years, and its 4.7-star rating on Amazon across thousands of reviews reflects consistent owner satisfaction. At $30.99 for a 30-count box, it sits in the mid-range price tier but delivers a veterinarian-backed formula that earns its reputation.
+FortiFlora has held its position as one of the most recommended dog probiotics for years, and its 4.7-star rating (as of Apr 16, 2026) on Amazon across thousands of reviews reflects consistent owner satisfaction. At $30.99 (as of Apr 16, 2026) for a 30-count box, it sits in the mid-range price tier but delivers a veterinarian-backed formula that earns its reputation.
 
 Each sachet contains a guaranteed concentration of *Enterococcus faecium* SF68, a strain with clinical research behind it for managing acute diarrhea and supporting immune health. The powder format mixes easily into wet or dry food, and most dogs accept it without issue given its palatability coating. Owners frequently report visible stool improvement within a few days of consistent use.
 

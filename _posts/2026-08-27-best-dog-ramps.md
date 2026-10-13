@@ -9,6 +9,7 @@ species: dog
 tags: [best dog ramp]
 description: "Senior dog struggling with the car? The right folding ramp saves her joints and your back."
 affiliate_url: "https://www.amazon.com/dp/B0016HNU12?tag=happypetdc-20"
+product_short: "PetSafe Happy Ride Folding Ramp"
 chewy_url: "https://chewy.sjv.io/c/7160344/3054490/32975?prodsku=68759&u=https%3A%2F%2Fwww.chewy.com%2Fpetsafe-happy-ride-foldable-dog-car%2Fdp%2F53683%3Futm_source%3Dgoogle-product%26utm_medium%3Dorganic%26utm_content%3DPetSafe&intsrc=APIG_24727"
 image: "https://m.media-amazon.com/images/I/61jJ0Mw2neL._AC_SX679_.jpg"
 pin_image: "https://happypetproductreviews.com/assets/images/pins/best-dog-ramps.jpg?v=20260827"
@@ -22,14 +23,14 @@ Three ramps earn a spot here, and each suits a different situation. The best dog
 
 ### Featured pick: PetSafe Happy Ride Folding Pet Ramp
 
-The [PetSafe Happy Ride Folding Ramp](https://www.amazon.com/dp/B0016HNU12?tag=happypetdc-20) folds flat like a suitcase and opens into one continuous surface, which suits dogs that freeze on stairs. It carries a 4.1 out of 5 rating, and at $59.99 it undercuts many padded orthopedic ramps that cost twice as much. The walking surface uses a high-traction texture that helps paws catch on the way up, and the folded panel travels with one hand. Many owners report that a nervous dog crosses it faster once it learns the ramp does not wobble underfoot.
+The [PetSafe Happy Ride Folding Ramp](https://www.amazon.com/dp/B0016HNU12?tag=happypetdc-20) folds flat like a suitcase and opens into one continuous surface, which suits dogs that freeze on stairs. It carries a 4.1 out of 5 rating, and at $59.99 (as of Jul 7, 2026) it undercuts many padded orthopedic ramps that cost twice as much. The walking surface uses a high-traction texture that helps paws catch on the way up, and the folded panel travels with one hand. Many owners report that a nervous dog crosses it faster once it learns the ramp does not wobble underfoot.
 
 The design has limits worth knowing. The single flat fold runs long when open, so you need clearance behind the vehicle to set it at a gentle angle. Smaller dogs adjust in a day, though a large breed may need a week of treat-based coaxing before it trusts the climb.
 
 Pros:
 - Folds to a slim panel that slides behind a seat or leans against a garage wall
 - High-traction surface that gives senior paws something to grip
-- Priced at $59.99, well under padded orthopedic ramps
+- Priced at $59.99 (as of Jul 7, 2026), well under padded orthopedic ramps
 - Light enough to carry and reposition one-handed
 
 Cons:

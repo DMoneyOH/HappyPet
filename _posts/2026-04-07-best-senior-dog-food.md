@@ -10,6 +10,7 @@ tags: [senior dog food]
 description: "Is your senior dog slowing down? Find the best senior dog food to keep them happy and healthy!"
 image: "https://images-na.ssl-images-amazon.com/images/P/B009B87TKG.01.LZZZZZZZ.jpg"
 affiliate_url: "https://www.amazon.com/dp/B009B87TKG?th=1&tag=happypetdc-20"
+product_short: "Hill's Science Diet Senior 7+ Dry Food"
 ---
 
 It feels like just yesterday your furry best friend was a mischievous puppy, full of boundless energy, tearing through the house, and keeping you on your toes. Now, you might notice a little more gray around their muzzle, a slower pace on walks, or perhaps a bit more stiffness when they get up from a nap. It’s a bittersweet reality of dog ownership: the beloved companions age, just like us. And as they enter their golden years, their nutritional needs change dramatically. The kibble that fueled their youthful antics might not be the best choice for their evolving senior bodies.

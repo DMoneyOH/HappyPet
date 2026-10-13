@@ -10,6 +10,7 @@ tags: [pet camera treat dispenser]
 description: "Keep an eye on your best friend and even toss them a treat with these top-rated pet cameras!"
 image: "https://images-na.ssl-images-amazon.com/images/P/B0866S3D82.01.LZZZZZZZ.jpg"
 affiliate_url: "https://www.amazon.com/dp/B0866S3D82?tag=happypetdc-20"
+product_short: "TP-Link Tapo C100 Pet Camera"
 ---
 
 Most pet owners know the feeling: you’re heading out the door, giving your beloved dog one last scratch behind the ears, and a tiny pang of guilt hits. What are they *really* doing when you're gone? Are they napping peacefully, staring out the window, or perhaps staging a one-dog rebellion against the couch cushions? For dog owners, peace of mind while away from home is invaluable, and that's exactly where a good pet camera steps in.

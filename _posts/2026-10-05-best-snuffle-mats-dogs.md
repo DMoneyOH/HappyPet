@@ -9,6 +9,7 @@ species: dog
 tags: [best dog snuffle mats]
 description: "Fast eater or bored dog? A cheap snuffle mat turns a gulped meal into a nose-powered search that tires them out."
 affiliate_url: "https://www.amazon.com/dp/B07N1JYYCW?tag=happypetdc-20"
+product_short: "AWOOF Snuffle Mat"
 image: "https://m.media-amazon.com/images/I/71Wmu0n5rtL._AC_SX679_.jpg"
 pin_image: "https://happypetproductreviews.com/assets/images/pins/best-snuffle-mats-dogs.jpg?v=20261005"
 ---
@@ -25,7 +26,7 @@ Here is how the best dog snuffle mats in this roundup line up at a glance.
 
 ### Featured pick: AWOOF Pet Snuffle Mat for Dogs, Interactive Feed Game
 
-The [AWOOF Snuffle Mat](https://www.amazon.com/dp/B07N1JYYCW?tag=happypetdc-20) holds a 4.2 out of 5 star rating on Amazon and sells for $11.98. That price puts it in impulse territory, cheaper than a bag of premium treats in some stores. The design follows the classic snuffle format: a base packed with fleece strips that hide kibble down near the bottom, so your dog has to work for each bite.
+The [AWOOF Snuffle Mat](https://www.amazon.com/dp/B07N1JYYCW?tag=happypetdc-20) holds a 4.2 out of 5 star rating on Amazon and sells for $11.98 (as of Sep 25, 2026). That price puts it in impulse territory, cheaper than a bag of premium treats in some stores. The design follows the classic snuffle format: a base packed with fleece strips that hide kibble down near the bottom, so your dog has to work for each bite.
 
 Owner reviews keep coming back to the same point. Dogs that inhale a bowl in seconds take noticeably longer on the mat, and many owners report a calmer, sleepier dog afterward. Sniffing tires dogs out in a way a short walk sometimes doesn't. The common complaint centers on durability with chewers. A dog that treats the strips as a chew toy instead of a search area can pull them loose, so supervision matters for the first few sessions.
 

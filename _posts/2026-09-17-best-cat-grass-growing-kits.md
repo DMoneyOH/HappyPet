@@ -9,6 +9,7 @@ species: cat
 tags: [cat grass growing kit]
 description: "Give your indoor cat a safe green snack: easy cat grass growing kits that sprout in days."
 affiliate_url: "https://www.amazon.com/dp/B074SZ17C7?tag=happypetdc-20"
+product_short: "The Cat Ladies Cat Grass Kit"
 image: "https://m.media-amazon.com/images/I/81p5hWvv3dL._AC_SX679_.jpg"
 pin_image: "https://happypetproductreviews.com/assets/images/pins/best-cat-grass-growing-kits.jpg?v=20260917"
 ---
@@ -25,14 +26,14 @@ For a fast read, here are the standouts:
 
 ### Featured pick: The Cat Ladies cat grass growing kit (3 pack)
 
-[The Cat Ladies Cat Grass Kit](https://www.amazon.com/dp/B074SZ17C7?tag=happypetdc-20) earns its spot with a simple, repeatable formula. Each box holds three separate grow containers, so you can stagger your planting and keep a fresh tray coming as your cat mows down the last one. It carries a 4.4 out of 5 star rating on Amazon and sells for around $14.90, which buys three rounds of grass rather than one lonely tray. The organic, non-GMO seeds sprout within a few days on a warm sill, and the BPA-free containers skip the plastic worries that come with the cheapest trays. Owners juggling more than one cat tend to reach for the three-pack, since a single tray rarely survives two determined grazers for long. The grass comes in fast and green when you water it lightly. Drown it or forget it, and it will yellow and flop like any other seedling.
+[The Cat Ladies Cat Grass Kit](https://www.amazon.com/dp/B074SZ17C7?tag=happypetdc-20) earns its spot with a simple, repeatable formula. Each box holds three separate grow containers, so you can stagger your planting and keep a fresh tray coming as your cat mows down the last one. It carries a 4.4 out of 5 star rating on Amazon and sells for around $14.90 (as of Jul 7, 2026), which buys three rounds of grass rather than one lonely tray. The organic, non-GMO seeds sprout within a few days on a warm sill, and the BPA-free containers skip the plastic worries that come with the cheapest trays. Owners juggling more than one cat tend to reach for the three-pack, since a single tray rarely survives two determined grazers for long. The grass comes in fast and green when you water it lightly. Drown it or forget it, and it will yellow and flop like any other seedling.
 
 Pros:
 
 - Three grow containers per box, enough to rotate fresh grass for weeks
 - Organic, non-GMO seeds paired with BPA-free containers
 - Sprouts quickly on a warm windowsill with light watering
-- Solid 4.4 out of 5 rating from cat owners
+- Solid 4.4 out of 5 rating (as of Jul 7, 2026) from cat owners
 
 Cons:
 

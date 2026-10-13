@@ -10,6 +10,7 @@ species: cat
 tags: [best cat tunnel toys]
 description: "Give your indoor cat a high-speed hide‑and‑seek playground with the best cat tunnel toys."
 affiliate_url: "https://www.amazon.com/dp/B0BY7S5L92?th=1&tag=happypetdc-20"
+product_short: "Depets 5-Way Cat Tunnel"
 image: "https://m.media-amazon.com/images/I/71ndCl0iQyL._AC_SX425_.jpg"
 pin_image: "https://happypetproductreviews.com/assets/images/pins/best-cat-tunnel-toys.jpg?v=20260514"
 ---
@@ -27,7 +28,7 @@ When Whiskers darts from the couch to the kitchen counter, then vanishes behind 
 
 ### Featured Pick: [Depets 5-Way Cat Tunnel](https://www.amazon.com/dp/B0BY7S5L92?th=1&tag=happypetdc-20)  
 
-The Depets tunnel is the standout of this roundup because it delivers space, surprise, and a built‑in play ball, all for under $20. With a verified 4.7/5 star rating on Amazon, owners consistently praise its generous dimensions that accommodate even the most enthusiastic leapers. The S‑shaped layout creates three intersecting paths, encouraging cats to change direction mid‑pounce, which mimics natural hunting behavior. A small, crinkly ball hangs from the tunnel’s ceiling, providing an extra stimulus without the need for batteries or extra toys.
+The Depets tunnel is the standout of this roundup because it delivers space, surprise, and a built‑in play ball, all for under $20. With a verified 4.7/5 star rating (as of Apr 16, 2026) on Amazon, owners consistently praise its generous dimensions that accommodate even the most enthusiastic leapers. The S‑shaped layout creates three intersecting paths, encouraging cats to change direction mid‑pounce, which mimics natural hunting behavior. A small, crinkly ball hangs from the tunnel’s ceiling, providing an extra stimulus without the need for batteries or extra toys.
 
 **Pros**  
 - Large, multi‑way layout keeps multiple cats engaged at once.  

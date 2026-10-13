@@ -10,6 +10,7 @@ species: dog
 tags: [best dog puzzle toys]
 description: "Keep your clever canine busy for hours with the ultimate puzzle toys that actually work."
 affiliate_url: "https://www.amazon.com/dp/B005VS9WO6?th=1&tag=happypetdc-20"
+product_short: "Outward Hound Hide-A-Squirrel"
 chewy_url: "https://chewy.sjv.io/c/7160344/3054490/32975?prodsku=86003&u=https%3A%2F%2Fwww.chewy.com%2Foutward-hound-hide-squirrel-squeaky%2Fdp%2F113786%3Futm_source%3Dgoogle-product%26utm_medium%3Dorganic%26utm_content%3DOutward%2520Hound&intsrc=APIG_24727"
 image: "https://images-na.ssl-images-amazon.com/images/P/B005VS9WO6.01.LZZZZZZZ.jpg"
 pin_image: "https://happypetproductreviews.com/assets/images/pins/best-dog-puzzle-toys.jpg?v=20260511"
@@ -29,7 +30,7 @@ If you’ve ever watched a border collie stare at a squeaky ball, then toss it a
 ---
 
 ### Featured Pick: Outward Hound Hide‑A‑Squirrel Dog Toy, 2‑in‑1 Plush Puzzle, 6 Squeaky Squirrels, XL  
-The Hide‑A‑Squirrel line has become a staple for dog owners who want a toy that feels soft enough for cuddling yet challenging enough to keep a clever mind occupied. This XL version comes with six squeaky squirrels that tuck into a plush tree trunk, turning playtime into a rewarding “find‑the‑squirrel” hunt. Amazon reviewers have given it a solid **4.6/5** rating, and many owners note that the toy holds up well to repeated pulling and shaking. At **$29.69**, it sits comfortably in the mid‑price range, offering both durability and a satisfying scent‑and‑sound combo.
+The Hide‑A‑Squirrel line has become a staple for dog owners who want a toy that feels soft enough for cuddling yet challenging enough to keep a clever mind occupied. This XL version comes with six squeaky squirrels that tuck into a plush tree trunk, turning playtime into a rewarding “find‑the‑squirrel” hunt. Amazon reviewers have given it a solid **4.6/5** (as of Apr 16, 2026) rating, and many owners note that the toy holds up well to repeated pulling and shaking. At **$29.69** (as of Apr 16, 2026), it sits comfortably in the mid‑price range, offering both durability and a satisfying scent‑and‑sound combo.
 
 **Pros**  
 - Soft plush material is gentle on teeth and gums.  

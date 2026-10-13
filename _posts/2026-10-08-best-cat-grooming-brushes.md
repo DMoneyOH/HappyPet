@@ -7,6 +7,7 @@ species: cat
 tags: [best cat grooming brushes]
 description: "Fur on the couch again? A cheap cat brush pulls loose fur out before it lands on your sweater."
 affiliate_url: "https://www.amazon.com/dp/B098P6164W?tag=happypetdc-20"
+product_short: "Aumuca Cat Shedding Brush"
 image: "https://m.media-amazon.com/images/I/71qfz1I1S+L._AC_SX679_.jpg"
 pin_image: "https://happypetproductreviews.com/assets/images/pins/best-cat-grooming-brushes.jpg?v=20261008"
 ---
@@ -23,7 +24,7 @@ Each pick suits a different coat and a different level of patience, from yours a
 
 ### Featured pick: Aumuca Cat Brush for Shedding, Cat Brushes for Indoor Cats
 
-The [Aumuca Cat Shedding Brush](https://www.amazon.com/dp/B098P6164W?tag=happypetdc-20) holds a 4.4 out of 5 star rating on Amazon and sells for $13.49. That price lands it firmly in budget territory, and the rating suggests most buyers feel they got their money's worth.
+The [Aumuca Cat Shedding Brush](https://www.amazon.com/dp/B098P6164W?tag=happypetdc-20) holds a 4.4 out of 5 star rating on Amazon and sells for $13.49 (as of Sep 25, 2026). That price lands it firmly in budget territory, and the rating suggests most buyers feel they got their money's worth.
 
 Owner reviews keep circling back to the amount of fur it pulls from indoor cats during shedding season. Many owners describe filling the brush head after a single short session, then watching the tumbleweeds under the bed shrink over the following weeks. Cats that tolerate grooming tend to settle into the routine, and some owners report their cat now walks up and asks for it.
 
@@ -66,4 +67,4 @@ Set up a spot for it. Keep the brush near the couch or wherever your cat naps, n
 | Swihauk Self Cleaning Slicker Brush | Medium and long coats prone to tangles | Self-cleaning slicker |
 | SleekEZ Cat Brush for Shedding | Short-haired cats and fur on furniture | De-shedding tool |
 
-No brush stops a cat from shedding. What a regular routine changes is how many hairballs show up and how much grooming your cat learns to accept. The featured pick makes the easiest starting point, with a low price and a 4.4 star owner rating behind it. Keep sessions short and use a light touch on sensitive spots. If you want an affordable way to cut down on loose fur around the house, begin with the [Aumuca Cat Shedding Brush](https://www.amazon.com/dp/B098P6164W?tag=happypetdc-20).
+No brush stops a cat from shedding. What a regular routine changes is how many hairballs show up and how much grooming your cat learns to accept. The featured pick makes the easiest starting point, with a low price and a 4.4 star (as of Sep 25, 2026) owner rating behind it. Keep sessions short and use a light touch on sensitive spots. If you want an affordable way to cut down on loose fur around the house, begin with the [Aumuca Cat Shedding Brush](https://www.amazon.com/dp/B098P6164W?tag=happypetdc-20).

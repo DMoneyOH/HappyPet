@@ -9,6 +9,7 @@ species: dog
 tags: [best puppy food]
 description: "Discover the top puppy food that fuels growth without breaking the bank."
 affiliate_url: "https://www.amazon.com/dp/B0DQYK8MP3?th=1&tag=happypetdc-20"
+product_short: "Royal Canin Small Puppy Dry Food"
 chewy_url: "https://chewy.sjv.io/c/7160344/3054490/32975?u=https%3A%2F%2Fwww.chewy.com%2Froyal-canin-size-health-nutrition%2Fdp%2F1590358&intsrc=APIG_24727"
 image: "https://images-na.ssl-images-amazon.com/images/P/B0DQYK8MP3.01.LZZZZZZZ.jpg"
 ---
@@ -28,7 +29,7 @@ In the next few minutes, this guide walks you through the top picks, compare key
 
 ### Featured Pick: Royal Canin Size Health Nutrition Small Puppy Dry Dog Food, 4 lb  
 
-The top spot goes to **[Royal Canin Small Puppy Dry Food](https://www.amazon.com/dp/B0DQYK8MP3?th=1&tag=happypetdc-20)** because it’s formulated specifically for puppies under 20 lb, a group that often gets overlooked in generic formulas. With a verified Amazon rating of 4.8/5, it consistently earns praise for its precise nutrient balance.  
+The top spot goes to **[Royal Canin Small Puppy Dry Food](https://www.amazon.com/dp/B0DQYK8MP3?th=1&tag=happypetdc-20)** because it’s formulated specifically for puppies under 20 lb, a group that often gets overlooked in generic formulas. With a verified Amazon rating of 4.8/5 (as of Apr 16, 2026), it consistently earns praise for its precise nutrient balance.  
 
 **Pros**  
 - Tailored kibble size makes chewing easy for tiny jaws.  

@@ -9,6 +9,7 @@ species: dog
 tags: [best dog joint supplements]
 description: "The joint supplements owners rate highest for mobility and hip support, compared side by side."
 affiliate_url: "https://www.amazon.com/dp/B003ULL1NQ?th=1&tag=happypetdc-20"
+product_short: "Cosequin Joint Chews for Dogs"
 chewy_url: "https://chewy.sjv.io/c/7160344/3054490/32975?u=https%3A%2F%2Fwww.chewy.com%2Fnutramax-cosequin-hip-joint-maximum%2Fdp%2F101451&intsrc=APIG_24727"
 image: "https://images-na.ssl-images-amazon.com/images/P/B003ULL1NQ.01.LZZZZZZZ.jpg"
 ---
@@ -27,7 +28,7 @@ Most owners have watched a senior labrador hesitate at the foot of the stairs, h
 
 ### Featured Pick: Nutramax Cosequin for Dogs, Glucosamine + Chondroitin + MSM, 132 Chewable Tablets  
 
-With a solid **4.7/5** rating on Amazon and a price of **$34.91**, Nutramax Cosequin stands out for its consistent formula and vet‑backed reputation. The chewable tablets combine glucosamine, chondroitin, and MSM in a balanced dose that many owners say keeps their dogs moving confidently.
+With a solid **4.7/5** rating on Amazon and a price of **$34.91** (as of Apr 16, 2026), Nutramax Cosequin stands out for its consistent formula and vet‑backed reputation. The chewable tablets combine glucosamine, chondroitin, and MSM in a balanced dose that many owners say keeps their dogs moving confidently.
 
 **Pros**  
 - The familiar three‑ingredient joint‑support blend, at a clearly labelled dose  

@@ -12,6 +12,7 @@ description: "Calm your nervous pup in minutes with the top-rated anxiety vest f
 product_name: "ThunderShirt for Dogs, Large, Platinum Sport - Dog Anxiety Relief Calming Vest"
 rating: 4.3
 affiliate_url: "https://www.amazon.com/dp/B01FN4GW2M?th=1&tag=happypetdc-20"
+product_short: "ThunderShirt Calming Vest for Dogs"
 image: "https://images-na.ssl-images-amazon.com/images/P/B01FN4GW2M.01.LZZZZZZZ.jpg"
 pin_image: "https://happypetproductreviews.com/assets/images/pins/best-dog-anxiety-vest.jpg?v=20260427"
 ---

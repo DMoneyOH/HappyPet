@@ -10,6 +10,7 @@ tags: [dog crate]
 description: "Find the perfect dog crate for your dog, no matter their size, with our budget-friendly top picks!"
 image: "https://images-na.ssl-images-amazon.com/images/P/B01DLS2EX8.01.LZZZZZZZ.jpg"
 affiliate_url: "https://www.amazon.com/dp/B01DLS2EX8?th=1&tag=happypetdc-20"
+product_short: "MidWest New World Dog Crate"
 ---
 
 Dog owners all want the best for their four-legged family members, and want them to feel safe, secure, and loved. But sometimes, despite the best intentions, real homes can feel a little... chaotic. Perhaps your energetic puppy loves to chew on everything when your back is turned, or maybe your anxious rescue dog needs a quiet den to retreat to during thunderstorms. That’s where a good dog crate comes in. Far from being a punishment, a properly sized and introduced dog crate can be a sanctuary, a training aid, and a vital safety tool. It helps with house-training, prevents destructive behaviors, and provides a secure space for travel or recovery. But with so many options out there – wire, plastic, fabric, different sizes, and features – how do you choose the right one without breaking the bank? Don't worry, this guide has done the legwork. Here are the best dog crates that offer excellent value and meet the needs of pups big and small.

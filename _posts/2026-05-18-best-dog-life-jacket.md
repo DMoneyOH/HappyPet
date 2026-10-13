@@ -12,6 +12,7 @@ description: "Keep your pup afloat and adventurous with the most reliable life j
 product_name: "VIVAGLORY Sports Style Dog Life Vest, with Handle, Medium, Blue"
 rating: 4.5
 affiliate_url: "https://www.amazon.com/dp/B01K4TUIBM?th=1&tag=happypetdc-20"
+product_short: "VIVAGLORY Dog Life Vest"
 image: "https://m.media-amazon.com/images/I/81U9aJGoUiL._AC_SY450_.jpg"
 pin_image: "https://happypetproductreviews.com/assets/images/pins/best-dog-life-jacket.jpg?v=20260518"
 ---
