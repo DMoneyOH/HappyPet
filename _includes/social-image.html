@@ -1,0 +1,19 @@
+{%- comment -%}
+  The URL for og:image: the PRODUCT picture, never the Pinterest pin.
+
+  Facebook (link previews and feed images) wants a landscape picture; the pin is
+  a 1000x1500 portrait made for Pinterest, which Facebook crops or distorts.
+  Same pick as the buy panel in _layouts/post.html: the self-hosted 4:3
+  thumbnail when the post has one, else the post's own `image` (the Amazon CDN
+  photo), else the site's 1200x630 brand card. Pinterest keeps the pin through
+  its own channels: the Pin it share button in post.html and the pin queue.
+
+  Whitespace control throughout: the output is spliced into a content="" attribute.
+{%- endcomment -%}
+{%- assign og_thumb_path = "/assets/images/thumbs/" | append: page.slug | append: ".jpg" -%}
+{%- assign og_thumb = site.static_files | where: "path", og_thumb_path | first -%}
+{%- if og_thumb -%}
+  {{- og_thumb_path | absolute_url -}}
+{%- else -%}
+  {{- page.image | default: "/assets/images/og-image.png" | absolute_url -}}
+{%- endif -%}

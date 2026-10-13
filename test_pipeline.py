@@ -3921,12 +3921,20 @@ class TestFacebookLinkTracking(unittest.TestCase):
                 self.assertEqual(url, self.FB_URL)
 
     # -- main(): the sheet row --------------------------------------------------
-    def _run_main(self, existing_urls):
+    def _run_main(self, existing_urls, posts=None, thumbs=()):
+        """posts: {file name under _posts/: full text}; thumbs: slugs that have a
+        self-hosted thumbnail in assets/images/thumbs/."""
         import shutil
         import tempfile
         tmp = Path(tempfile.mkdtemp())
         self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
         (tmp / "_pin_queue").mkdir()
+        for name, text in (posts or {}).items():
+            (tmp / "_posts").mkdir(exist_ok=True)
+            (tmp / "_posts" / name).write_bytes(text.encode("utf-8"))
+        for slug in thumbs:
+            (tmp / "assets" / "images" / "thumbs").mkdir(parents=True, exist_ok=True)
+            (tmp / "assets" / "images" / "thumbs" / f"{slug}.jpg").write_bytes(b"jpg")
         (tmp / "_pin_queue" / "best-snuffle-mats-dogs.json").write_text(json.dumps({
             "title": "Best Snuffle Mats", "article_url": self.PIN_URL,
             "image_url": "https://happypetproductreviews.com/assets/images/pins/x.jpg?v=20261005",
@@ -3961,6 +3969,85 @@ class TestFacebookLinkTracking(unittest.TestCase):
         those must still match, or every sent/ file posts a second time."""
         ws = self._run_main(existing_urls=[self.PIN_URL])
         ws.append_row.assert_not_called()
+
+    # -- main(): the sheet row's Image column (col D) ----------------------------
+    # The Facebook Queue row's Image column is what the external Apps Script
+    # posts. It used to be the queue JSON's image_url, which is the 1000x1500
+    # Pinterest pin -- Facebook crops or distorts a 2:3 image (Director,
+    # 2026-10-13). Col D is now the product image: the self-hosted thumbnail when
+    # the post has one (the buy panel's rule), else the post's own `image`.
+    # Pinterest is untouched: the pin JSON and post_pins.py still carry the pin.
+
+    SLUG = "best-snuffle-mats-dogs"
+    PIN_IMG = "https://happypetproductreviews.com/assets/images/pins/best-snuffle-mats-dogs.jpg"
+    AMAZON = "https://m.media-amazon.com/images/I/719auFEdkVL._AC_SX679_.jpg"
+    THUMB = "https://happypetproductreviews.com/assets/images/thumbs/best-snuffle-mats-dogs.jpg"
+    FALLBACK = "https://happypetproductreviews.com/assets/images/og-image.png"
+
+    def _post(self, image_line='image: "%s"' % AMAZON):
+        return ('---\nlayout: post\ntitle: "Best Snuffle Mats"\n' + image_line + '\n'
+                'pin_image: "' + self.PIN_IMG + '?v=20261005"\n---\n\nBody text.\n')
+
+    def _col_d(self, **kw):
+        ws = self._run_main(existing_urls=[], **kw)
+        ws.append_row.assert_called_once()
+        return ws.append_row.call_args.args[0][3]
+
+    def test_image_column_is_the_posts_product_image_not_the_pin(self):
+        img = self._col_d(posts={"2026-10-05-" + self.SLUG + ".md": self._post()})
+        self.assertEqual(img, self.AMAZON)
+
+    def test_a_self_hosted_thumbnail_wins_over_the_amazon_url(self):
+        img = self._col_d(posts={"2026-10-05-" + self.SLUG + ".md": self._post()},
+                          thumbs=[self.SLUG])
+        self.assertEqual(img, self.THUMB)
+
+    def test_a_thumbnail_alone_is_enough(self):
+        self.assertEqual(self._col_d(thumbs=[self.SLUG]), self.THUMB)
+
+    def test_front_matter_spellings_of_image_all_resolve(self):
+        for line in ("image: '%s'" % self.AMAZON, "image: %s" % self.AMAZON,
+                     'image:   "%s"   ' % self.AMAZON, 'image:\t"%s"' % self.AMAZON):
+            for eol in ("\n", "\r\n"):
+                with self.subTest(line=line, eol=eol):
+                    text = self._post(line).replace("\n", eol)
+                    self.assertEqual(
+                        self._col_d(posts={"2026-10-05-" + self.SLUG + ".md": text}), self.AMAZON)
+
+    def test_pin_image_is_never_mistaken_for_image(self):
+        """A post with pin_image but no image key must not leak the pin."""
+        text = '---\nlayout: post\ntitle: "x"\npin_image: "' + self.PIN_IMG + '"\n---\n'
+        img = self._col_d(posts={"2026-10-05-" + self.SLUG + ".md": text})
+        self.assertEqual(img, self.FALLBACK)
+
+    def test_a_post_whose_slug_merely_ends_with_ours_is_not_matched(self):
+        other = self._post('image: "https://m.media-amazon.com/images/I/OTHER.jpg"')
+        img = self._col_d(posts={"2026-10-05-extra-" + self.SLUG + ".md": other,
+                                 "2026-10-05-" + self.SLUG + ".md": self._post()})
+        self.assertEqual(img, self.AMAZON)
+
+    def test_nothing_resolvable_falls_back_to_the_landscape_site_image_never_the_pin(self):
+        self.assertEqual(self._col_d(), self.FALLBACK)
+
+    def test_the_pin_never_reaches_col_d_whatever_the_inputs(self):
+        for posts, thumbs in (({}, ()), ({"2026-10-05-" + self.SLUG + ".md": self._post()}, ()),
+                              ({}, [self.SLUG])):
+            with self.subTest(posts=bool(posts), thumbs=bool(thumbs)):
+                self.assertNotIn("/pins/", self._col_d(posts=posts, thumbs=thumbs))
+
+    def test_the_rest_of_the_row_is_unchanged(self):
+        ws = self._run_main(existing_urls=[],
+                            posts={"2026-10-05-" + self.SLUG + ".md": self._post()})
+        row = ws.append_row.call_args.args[0]
+        self.assertEqual(len(row), 9)
+        self.assertEqual((row[0], row[1], row[6], row[7], row[8]),
+                         ("Best Snuffle Mats", self.PIN_URL, "dog", "FALSE", ""))
+
+    def test_the_pinterest_side_still_carries_the_pin_image(self):
+        """post_pins.py reads image_url from the queue JSON; this change must not
+        have touched that path."""
+        src = (REPO / "post_pins.py").read_text(encoding="utf-8")
+        self.assertIn('data.get("image_url", "")', src)
 
 
 # ---------------------------------------------------------------------------
@@ -10087,6 +10174,10 @@ class _MiniLiquid:
                 val = [x for x in (val or []) if x.get(args[0]) == args[1]]
             elif name == "default":
                 val = val if val not in (None, False, "") else args[0]
+            elif name == "absolute_url":
+                # Jekyll leaves an absolute URL alone and prefixes site.url on a path.
+                val = val if re.match(r"[a-z][a-z0-9+.-]*://", str(val)) else (
+                    "https://happypetproductreviews.com" + str(val))
             elif name == "escape":
                 val = ("" if val is None else str(val)).replace("&", "&amp;").replace(
                     "<", "&lt;").replace(">", "&gt;").replace('"', "&quot;").replace("'", "&#39;")
@@ -10253,6 +10344,99 @@ class TestPublishedRootIsAllowlisted(unittest.TestCase):
             with self.subTest(name=name):
                 self.assertTrue((REPO / name).exists(), f"{name} listed in PUBLIC but missing")
                 self.assertFalse(self._excluded(name), f"{name} is a site page and must publish")
+
+
+class TestSocialImage(unittest.TestCase):
+    """og:image is the PRODUCT picture, never the Pinterest pin.
+
+    The pin is a 1000x1500 portrait; Facebook crops or distorts a 2:3 image in a
+    link preview (Director, 2026-10-13). _includes/social-image.html picks the
+    self-hosted thumbnail when the post has one, else the post's own `image`,
+    else the 1200x630 brand card -- the same pick as the buy panel in post.html.
+    Rendered through _MiniLiquid (a Liquid subset, not Jekyll; build-check.yml's
+    `jekyll build` is the real render) against every real post. Expected values
+    are computed from the filesystem and front matter, not from the include.
+    """
+
+    SITE = "https://happypetproductreviews.com"
+    INCLUDE = REPO / "_includes" / "social-image.html"
+
+    @classmethod
+    def setUpClass(cls):
+        cls.source = cls.INCLUDE.read_text(encoding="utf-8")
+        cls.thumbs = {t.stem for t in (REPO / "assets" / "images" / "thumbs").glob("*.jpg")}
+        cls.static_files = [{"path": f"/assets/images/thumbs/{s}.jpg"} for s in sorted(cls.thumbs)]
+        cls.posts = []
+        for p in sorted((REPO / "_posts").glob("[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]-*.md")):
+            fm = {}
+            for line in p.read_text(encoding="utf-8").split("---", 2)[1].splitlines():
+                m = re.match(r"^([a-z_]+):\s*(.+)$", line)
+                if m:
+                    fm[m.group(1)] = m.group(2).strip().strip('"')
+            cls.posts.append({"slug": p.stem[11:], "image": fm.get("image"),
+                              "pin_image": fm.get("pin_image")})
+
+    def _render(self, page):
+        return _MiniLiquid(self.source).render(
+            {"site": {"baseurl": "", "static_files": self.static_files}, "page": page})
+
+    def test_the_fixture_is_real(self):
+        self.assertGreaterEqual(len(self.posts), 60)
+        self.assertTrue(self.thumbs, "no thumbnails found")
+        self.assertTrue(any(p["pin_image"] for p in self.posts), "no post has a pin_image")
+        self.assertTrue(any(p["slug"] not in self.thumbs for p in self.posts),
+                        "every post has a thumbnail: the fallback branch is untested")
+
+    def test_every_post_gets_its_thumbnail_or_its_own_image(self):
+        for post in self.posts:
+            with self.subTest(slug=post["slug"]):
+                expected = (f"{self.SITE}/assets/images/thumbs/{post['slug']}.jpg"
+                            if post["slug"] in self.thumbs else post["image"])
+                self.assertEqual(self._render(post), expected)
+
+    def test_no_post_ever_gets_a_pin(self):
+        for post in self.posts:
+            with self.subTest(slug=post["slug"]):
+                out = self._render(post)
+                self.assertNotIn("/assets/images/pins/", out)
+                if post["pin_image"]:
+                    self.assertNotEqual(out, post["pin_image"])
+                    self.assertNotEqual(out, post["pin_image"].split("?")[0])
+
+    def test_a_post_with_a_pin_and_no_image_still_does_not_get_the_pin(self):
+        out = self._render({"slug": "no-such-post", "pin_image": self.SITE + "/assets/images/pins/x.jpg"})
+        self.assertEqual(out, self.SITE + "/assets/images/og-image.png")
+
+    def test_a_page_with_nothing_gets_the_landscape_brand_card(self):
+        for page in ({}, {"slug": None}, {"image": ""}):
+            with self.subTest(page=page):
+                self.assertEqual(self._render(page), self.SITE + "/assets/images/og-image.png")
+
+    def test_the_output_is_a_bare_url_with_no_whitespace(self):
+        for post in self.posts[:5] + [{}]:
+            out = self._render(post)
+            self.assertEqual(out, out.strip())
+            self.assertNotIn("\n", out)
+
+    def test_the_brand_card_and_thumbnails_are_not_portrait(self):
+        """The reason the pin is out: nothing the include can emit may be 2:3."""
+        from PIL import Image
+        self.assertEqual(Image.open(REPO / "assets" / "images" / "og-image.png").size, (1200, 630))
+        for stem in sorted(self.thumbs):
+            with self.subTest(thumb=stem):
+                w, h = Image.open(REPO / "assets" / "images" / "thumbs" / f"{stem}.jpg").size
+                self.assertGreaterEqual(w, h)
+
+    def test_default_layout_uses_the_include_and_never_pin_image(self):
+        layout = (REPO / "_layouts" / "default.html").read_text(encoding="utf-8")
+        tags = re.findall(r'<meta property="og:image"[^>]*>', layout)
+        self.assertEqual(len(tags), 1, tags)
+        self.assertIn("{% include social-image.html %}", tags[0])
+        self.assertNotIn("pin_image", tags[0])
+
+    def test_pinterest_keeps_its_own_pin_image(self):
+        post = (REPO / "_layouts" / "post.html").read_text(encoding="utf-8")
+        self.assertRegex(post, r"pinterest\.com/pin/create/button/\?[^\"]*media=\{\{ page\.pin_image")
 
 
 if __name__ == "__main__":

@@ -65,10 +65,12 @@
   <link rel="icon" type="image/png" sizes="32x32" href="{{ site.baseurl }}/favicon-32x32.png">
   <link rel="icon" type="image/png" sizes="16x16" href="{{ site.baseurl }}/favicon-16x16.png">
   <link rel="apple-touch-icon" sizes="180x180" href="{{ site.baseurl }}/apple-touch-icon.png">
-  <!-- og:image override BEFORE {% raw %}{% seo %}{% endraw %} — crawlers take the first og:image,
-       and ours prefers the self-hosted pin image over page.image (Amazon CDN).
+  <!-- og:image override BEFORE {% raw %}{% seo %}{% endraw %} — crawlers take the first og:image.
+       The PRODUCT picture, not the 2:3 Pinterest pin, which Facebook crops or
+       distorts: see _includes/social-image.html. Pinterest keeps the pin via
+       the Pin it button in post.html and the pin queue.
        Must be an absolute URL per the OG spec or Facebook/Pinterest ignore it. -->
-  <meta property="og:image" content="{{ page.pin_image | default: page.image | default: '/assets/images/og-image.png' | absolute_url }}">
+  <meta property="og:image" content="{% include social-image.html %}">
   {% seo title=false %}
   <title>{% if page.title %}{{ page.title }} | {{ site.title }}{% else %}{{ site.title }}{% endif %}</title>
   <meta property="fb:app_id" content="2351987968546164">

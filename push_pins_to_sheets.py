@@ -82,6 +82,7 @@ def _build_fb_message(slug: str, title: str, article_url: str) -> str:
 import argparse
 import json
 import os
+import re
 import sys
 import shutil
 import time
@@ -331,6 +332,40 @@ def read_fb_queue_state(ws) -> tuple[set, _dt.date]:
     return urls, next_date
 
 
+SITE_BASE = 'https://happypetproductreviews.com'
+# Landscape (1200x630) brand card: the last resort, so the Image column is never
+# empty and never the portrait pin.
+FB_FALLBACK_IMAGE = f'{SITE_BASE}/assets/images/og-image.png'
+
+
+def product_image_url(slug: str) -> str:
+    """The image the Facebook Queue row carries: the PRODUCT, never the pin.
+
+    The pin (queue JSON image_url) is a 1000x1500 portrait made for Pinterest;
+    Facebook crops or distorts it. Same rule as the post page's buy panel
+    (_layouts/post.html) and its og:image (_includes/social-image.html): the
+    self-hosted thumbnail when the post has one, else the post's own `image`
+    front matter (the Amazon CDN photo), else the site's landscape brand card.
+    """
+    if (REPO_DIR / 'assets' / 'images' / 'thumbs' / f'{slug}.jpg').is_file():
+        return f'{SITE_BASE}/assets/images/thumbs/{slug}.jpg'
+    # Exact-slug match: _posts/YYYY-MM-DD-<slug>.md, so 'x-<slug>' cannot match.
+    for post in sorted((REPO_DIR / '_posts').glob(
+            f'[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]-{slug}.md')):
+        lines = post.read_text(encoding='utf-8-sig').splitlines()
+        if not lines or lines[0].strip() != '---':
+            continue
+        for line in lines[1:]:
+            if line.strip() == '---':
+                break
+            m = re.match(r'image:[ \t]*(.*?)[ \t]*$', line)
+            if m:
+                url = m.group(1).strip('\'"').strip()
+                if url:
+                    return url
+    return FB_FALLBACK_IMAGE
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--slugs', default='', help='Comma-separated slugs to process')
@@ -403,9 +438,10 @@ def main():
             data        = json.loads(qf.read_text())
             title       = data['title']
             article_url = data['article_url']
-            image_url   = data.get('image_url', '')
             species     = data.get('species', 'both')
             slug        = data.get('slug', qf.stem)
+            # Product image, not data['image_url'] (the portrait Pinterest pin).
+            image_url   = product_image_url(slug)
 
             def _mark_processed(note=''):
                 """Move the queue file into sent/ (this script's marker). Handles
@@ -426,8 +462,6 @@ def main():
                 _mark_processed(' (backfilled marker)')
                 continue
 
-            # image_url is written by generate_posts.py via build_pin_image_url_for_queue()
-            # which guarantees ?v=YYYYMMDD is present. No late-append needed.
             # Build Facebook message -- personable hook derived from slug/title
             message = _build_fb_message(slug, title, article_url)
 
