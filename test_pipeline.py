@@ -1754,10 +1754,7 @@ class TestRefillAgent(unittest.TestCase):
         import categories
         listed = re.search(r"exactly one of: ([^\n.]+)", captured["prompt"]).group(1)
         self.assertEqual([t.strip() for t in listed.split(",")], list(categories.TOPICS))
-        # Scarlett's spring season line says "walking gear" in prose; the rule
-        # here is about a "gear" category, so the dated season block is set aside.
-        rest = captured["prompt"].replace(rp.season_rules(rp.eastern_date()), "")
-        self.assertNotIn("gear", rest)
+        self.assertNotIn("gear", captured["prompt"])
 
     def _prompt_on(self, iso_date):
         import refill_products as rp
@@ -1777,6 +1774,19 @@ class TestRefillAgent(unittest.TestCase):
                 self.assertIn("- Q4 mode (Oct 14 to Dec 31): every topic must target a long-tail", prompt)
                 self.assertIn("best-cat-advent-calendars, best-dog-advent-calendars,", prompt)
                 self.assertNotIn("February to April", prompt)
+
+    def test_the_q4_seed_bullet_names_exactly_the_plans_seeds(self):
+        import generate_posts as gp
+        seeds = [s["topic"] for s in gp.load_publish_plan()["seeds"]]
+        self.assertEqual(len(seeds), 10)
+        prompt = self._prompt_on("2026-10-25")
+        listed = prompt.split("propose these slugs first if they are not already covered or queued: ")[1]
+        self.assertEqual(listed.split(".\n")[0].split(", "), seeds)
+
+    def test_the_gear_guard_holds_on_every_dated_block(self):
+        for day in ("2026-10-25", "2027-02-01"):
+            with self.subTest(day=day):
+                self.assertNotIn("gear", self._prompt_on(day))
 
     def test_from_new_years_day_the_long_tail_rule_stays_and_spring_replaces_q4(self):
         for day in ("2027-01-01", "2027-03-15"):
@@ -3413,51 +3423,35 @@ class TestSelectNextTopicSpeciesBalance(unittest.TestCase):
 
 
 class TestQ4PublishOrder(unittest.TestCase):
-    """products.json holds Scarlett's Q4 order (Director-approved 2026-10-13,
-    80-workspace/scarlett/2026-10-13-q4-topic-seed-list.md): the current head for
-    Thu 10-15, her 12 queued topics in slot order, then the 11 off-season topics
-    in her January order. Her 10 new topics come through the refill and are not
-    in the queue yet, so this pins only the queued part."""
+    """Scarlett's Q4 order (Director-approved 2026-10-13,
+    80-workspace/scarlett/2026-10-13-q4-topic-seed-list.md). products.json holds
+    the queued part: the head for Thu 10-15, her 12 queued topics in slot order,
+    then the 11 off-season topics in her January order. _data/publish_plan.json
+    holds the whole order, including her 10 new topics, which come through the
+    refill and are appended to the end of products.json."""
 
-    PLAN = [
-        "best-heated-outdoor-cat-houses",
-        "best-self-warming-pet-pads", "best-dog-collars-night-walks", "best-lickable-cat-treats",
-        "best-dog-winter-coats", "best-pet-hair-vacuums", "best-freeze-dried-dog-treats",
-        "best-dog-paw-balms", "best-plush-dog-toys", "best-cardboard-cat-scratchers",
-        "best-pet-first-aid-kits", "best-puppy-teething-toys", "best-dog-training-clickers",
-        "best-cat-hairball-remedies", "best-cat-litter-mats", "best-pet-dental-water-additives",
-        "best-cat-flea-treatments", "best-fish-oil-for-dogs", "best-elevated-cat-bowls",
-        "best-dog-shampoo-sensitive-skin", "best-senior-cat-food", "best-dog-ear-cleaners",
-        "best-airtight-pet-food-containers", "best-cat-litter-scoops",
-    ]
-    # Species of each PLAN entry, read off products.json at this commit.
-    SPECIES = ["cat", "both", "dog", "cat", "dog", "both", "dog", "dog", "dog", "cat", "both", "dog",
-               "dog", "cat", "cat", "both", "cat", "dog", "cat", "dog", "cat", "dog", "both", "cat"]
-
-    def test_the_live_queue_keeps_the_planned_relative_order(self):
-        # Robust to publishing (entries retire) and to refills (entries append).
-        import generate_posts as gp
-        live = [t for t in gp.load_products() if t in self.PLAN]
-        self.assertEqual(live, [t for t in self.PLAN if t in live])
-
-    def test_the_real_picker_publishes_this_queue_in_plan_order(self):
-        """The queue as this commit leaves it, through the real select_next_topic,
-        starting from the published feed of 2026-10-13 (newest dog, then cat).
-        Expected picks were worked by hand from the species rule, not computed:
-        after freeze-dried treats and paw balms (two dogs), plush dog toys is
-        skipped once and cardboard cat scratchers publishes a slot early."""
-        import generate_posts as gp
-        species = dict(zip(self.PLAN, self.SPECIES))
-        products = {t: {"topic": t, "title": t, "keyword": t, "format": "roundup",
-                        "species": species[t]} for t in self.PLAN}
-        history, picks = ["dog", "cat"], []
-        while (res := gp.select_next_topic(products, set(picks), recent_species=history)):
-            picks.append(res[0])
-            history = [res[1]["species"]] + history
-        expected = list(self.PLAN)
-        expected[8], expected[9] = expected[9], expected[8]
-        self.assertEqual(picks, expected)
-
+    # The queue as this commit leaves it: slug -> species, read off products.json.
+    QUEUED = {
+        "best-heated-outdoor-cat-houses": "cat",
+        "best-self-warming-pet-pads": "both", "best-dog-collars-night-walks": "dog",
+        "best-lickable-cat-treats": "cat", "best-dog-winter-coats": "dog",
+        "best-pet-hair-vacuums": "both", "best-freeze-dried-dog-treats": "dog",
+        "best-dog-paw-balms": "dog", "best-plush-dog-toys": "dog",
+        "best-cardboard-cat-scratchers": "cat", "best-pet-first-aid-kits": "both",
+        "best-puppy-teething-toys": "dog", "best-dog-training-clickers": "dog",
+        "best-cat-hairball-remedies": "cat", "best-cat-litter-mats": "cat",
+        "best-pet-dental-water-additives": "both", "best-cat-flea-treatments": "cat",
+        "best-fish-oil-for-dogs": "dog", "best-elevated-cat-bowls": "cat",
+        "best-dog-shampoo-sensitive-skin": "dog", "best-senior-cat-food": "cat",
+        "best-dog-ear-cleaners": "dog", "best-airtight-pet-food-containers": "both",
+        "best-cat-litter-scoops": "cat",
+    }
+    # Her 10 new topics, in slot order: slug -> species.
+    NEW = {"best-cat-advent-calendars": "cat", "best-dog-advent-calendars": "dog",
+           "best-automatic-ball-launchers": "dog", "best-cat-christmas-tree-deterrents": "cat",
+           "best-dog-christmas-sweaters": "dog", "best-window-bird-feeders-cats": "cat",
+           "best-heated-water-bowls-outdoor-cats": "cat", "best-breakaway-cat-collars": "cat",
+           "best-cat-trees-small-apartments": "cat", "best-washable-crate-pads-puppies": "dog"}
     # Her table 1 (the 22 slots Mon 10-19 .. Thu 12-31), preceded by the 10-15
     # head and followed by her January list. Written out from her file, not
     # read from _data/publish_plan.json.
@@ -3478,44 +3472,53 @@ class TestQ4PublishOrder(unittest.TestCase):
         "best-dog-shampoo-sensitive-skin", "best-senior-cat-food", "best-dog-ear-cleaners",
         "best-airtight-pet-food-containers", "best-cat-litter-scoops",
     ]
-    NEW = {"best-cat-advent-calendars": "cat", "best-dog-advent-calendars": "dog",
-           "best-automatic-ball-launchers": "dog", "best-cat-christmas-tree-deterrents": "cat",
-           "best-dog-christmas-sweaters": "dog", "best-window-bird-feeders-cats": "cat",
-           "best-heated-water-bowls-outdoor-cats": "cat", "best-breakaway-cat-collars": "cat",
-           "best-cat-trees-small-apartments": "cat", "best-washable-crate-pads-puppies": "dog"}
 
-    def _walk(self, queue, history=("dog", "cat")):
-        """Every pick the real select_next_topic makes on `queue` (slug -> species),
-        in products.json file order, with the real publish plan."""
+    def _walk(self, queue, history=("dog", "cat"), order=None):
+        """Every pick the real select_next_topic makes on `queue` (slug -> species,
+        in products.json file order), from the 2026-10-13 feed (newest dog, then
+        cat), with the real publish plan unless `order` is given."""
         import generate_posts as gp
         products = {t: {"topic": t, "title": t, "keyword": t, "format": "roundup",
                         "species": sp} for t, sp in queue.items()}
         history, picks = list(history), []
-        while (res := gp.select_next_topic(products, set(picks), recent_species=history)):
+        while (res := gp.select_next_topic(products, set(picks), recent_species=history,
+                                           order=order)):
             picks.append(res[0])
             history = [res[1]["species"]] + history
         return picks
+
+    def test_the_live_queue_keeps_the_planned_relative_order(self):
+        # Robust to publishing (entries retire) and to refills (entries append).
+        import generate_posts as gp
+        live = [t for t in gp.load_products() if t in self.QUEUED]
+        self.assertEqual(live, [t for t in self.QUEUED if t in live])
+
+    def test_the_queue_alone_in_file_order_follows_the_plan(self):
+        """No plan (order=[]): file order through the species rule. Expected picks
+        were worked by hand: after freeze-dried treats and paw balms (two dogs),
+        plush dog toys waits one slot and cardboard cat scratchers goes early."""
+        expected = list(self.QUEUED)
+        expected[8], expected[9] = expected[9], expected[8]
+        self.assertEqual(self._walk(self.QUEUED, order=[]), expected)
 
     def test_the_22_slots_publish_in_her_order_with_the_new_topics_appended_last(self):
         """The acceptance test: today's queue, then her 10 new topics appended at
         the END of products.json (where a refill puts them), through the real
         picker and the real plan. Publishes exactly her table, then January."""
-        queue = dict(zip(self.PLAN, self.SPECIES))
-        queue.update(self.NEW)
+        queue = dict(self.QUEUED, **self.NEW)
         self.assertEqual(list(queue)[-10:], list(self.NEW))   # appended last
         self.assertEqual(self._walk(queue), self.SLOTS)
 
     def test_a_new_topic_that_never_resolved_hands_its_slot_to_the_next_planned_one(self):
-        queue = dict(zip(self.PLAN, self.SPECIES))
+        queue = dict(self.QUEUED)
         queue.update({t: sp for t, sp in self.NEW.items() if t != "best-cat-advent-calendars"})
-        picks = self._walk(queue)
-        self.assertEqual(picks[:5], ["best-heated-outdoor-cat-houses", "best-self-warming-pet-pads",
-                                     "best-dog-collars-night-walks", "best-dog-advent-calendars",
-                                     "best-lickable-cat-treats"])
+        self.assertEqual(self._walk(queue)[:5], [
+            "best-heated-outdoor-cat-houses", "best-self-warming-pet-pads",
+            "best-dog-collars-night-walks", "best-dog-advent-calendars",
+            "best-lickable-cat-treats"])
 
     def test_an_unplanned_topic_waits_behind_every_planned_one(self):
-        queue = {"best-unplanned-refill-topic": "both"}
-        queue.update(zip(self.PLAN, self.SPECIES))
+        queue = dict({"best-unplanned-refill-topic": "both"}, **self.QUEUED)
         self.assertEqual(self._walk(queue)[-1], "best-unplanned-refill-topic")
 
     def test_every_seed_is_planned_and_seedable_now(self):
@@ -3532,14 +3535,14 @@ class TestQ4PublishOrder(unittest.TestCase):
                 continue
             with self.subTest(seed=s["topic"]):
                 self.assertEqual(s["species"], self.NEW[s["topic"]])
+                self.assertNotIn("product", s)
                 self.assertEqual(refill_cli.topic_problems(dict(s, title="A Title"), taken), [])
 
     def test_the_species_fixture_matches_the_live_queue(self):
         import generate_posts as gp
         live = gp.load_products()
-        mismatched = [t for t, sp in zip(self.PLAN, self.SPECIES)
-                      if t in live and live[t].get("species") != sp]
-        self.assertEqual(mismatched, [])
+        self.assertEqual([t for t, sp in self.QUEUED.items()
+                          if t in live and live[t].get("species") != sp], [])
 
 
 class TestBuildWriterInputs(unittest.TestCase):
@@ -10425,6 +10428,51 @@ class TestRefillCli(unittest.TestCase):
         ctx = json.loads(out.read_text(encoding="utf-8"))
         self.assertEqual([s["topic"] for s in ctx["seeds"]], ["best-seed-one", "best-seed-two"])
         self.assertRegex(ctx["today"], r"^\d{4}-\d{2}-\d{2}$")
+
+    def test_context_lists_every_seed_slug_as_taken(self):
+        """Seeds arrive only through `seeds`: every seed slug, beyond this batch
+        too, is listed as taken so the session never plans one itself."""
+        d = self.base.parent
+        (d / "_data").mkdir()
+        seed = {"keyword": "k w", "species": "dog", "category": "toys",
+                "topical_sheet": "HAPPYPET_SHEET_ID_TOYS", "amazon_search_query": "q"}
+        (d / "_data" / "publish_plan.json").write_text(json.dumps({"seeds": [
+            dict(seed, topic="best-seed-one"), dict(seed, topic="best-seed-two")]}),
+            encoding="utf-8")
+        out = d / "ctx.json"
+        self.run_cli("context", "--out", str(out), "--batch", "1")
+        ctx = json.loads(out.read_text(encoding="utf-8"))
+        self.assertEqual([s["topic"] for s in ctx["seeds"]], ["best-seed-one"])
+        self.assertIn("best-seed-one", ctx["taken_slugs"])
+        self.assertIn("best-seed-two", ctx["taken_slugs"])
+
+    def test_an_unreadable_plan_stops_the_context_naming_the_file(self):
+        d = self.base.parent
+        (d / "_data").mkdir()
+        (d / "_data" / "publish_plan.json").write_text("{not json", encoding="utf-8")
+        with self.assertRaises(SystemExit) as cm:
+            self.run_cli("context", "--out", str(d / "ctx.json"))
+        self.assertIn("publish_plan.json", str(cm.exception))
+        (d / "_data" / "publish_plan.json").write_text('{"seeds": {}}', encoding="utf-8")
+        with self.assertRaises(SystemExit) as cm:
+            self.run_cli("context", "--out", str(d / "ctx.json"))
+        self.assertIn("publish_plan.json", str(cm.exception))
+
+    def test_the_real_first_batch_of_seeds_survives_seed_resolve_and_check(self):
+        """The 10-25 run's four seeds (two share `treats`), each with a title the
+        session writes and a product it reads, through the real seed, resolve and
+        check commands: all four land, nothing dropped, the check passes."""
+        real = json.loads((REPO / "_data" / "publish_plan.json").read_text(encoding="utf-8"))
+        topics = [dict(s, title=f"Seed Title {i}", product=self.product(asin=f"B0SEEDS00{i}"))
+                  for i, s in enumerate(real["seeds"][:4])]
+        self.assertEqual([t["category"] for t in topics][:2], ["treats", "treats"])
+        self.plan.write_text(json.dumps({"abort": None, "topics": topics}), encoding="utf-8")
+        self.assertEqual(self.run_cli("seed", "--plan", str(self.plan), "--max", "4")[0], 0)
+        rc, out = self.run_cli("resolve", "--plan", str(self.plan), "--base", str(self.base))
+        self.assertEqual(rc, 0, out)
+        self.assertIn("filled 4, dropped 0", out)
+        rc, out = self.run_cli("check", "--base", str(self.base))
+        self.assertEqual(rc, 0, out)
 
     def test_context_without_a_plan_has_no_seeds(self):
         out = self.base.parent / "ctx.json"

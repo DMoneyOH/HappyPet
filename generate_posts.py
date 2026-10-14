@@ -1199,10 +1199,15 @@ def recent_published_species(count: int = 2) -> list:
     return [_post_species(md) for _, _, md in dated[:count]]
 
 
+def load_publish_plan(repo: Path = None) -> dict:
+    """_data/publish_plan.json ({"order": [...], "seeds": [...]}), or {} when
+    there is none. Raises CorruptJSONError on an unreadable file."""
+    return read_json((repo or REPO_DIR) / "_data" / "publish_plan.json", default={})
+
+
 def load_publish_order() -> list:
-    """The `order` list of _data/publish_plan.json, or [] when there is none."""
-    p = REPO_DIR / "_data" / "publish_plan.json"
-    return read_json(p).get("order", []) if p.exists() else []
+    """The publish plan's `order` list, or [] when there is none."""
+    return load_publish_plan().get("order", [])
 
 
 def select_next_topic(products: dict, used_slugs: set, recent_species: list = None,

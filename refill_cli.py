@@ -174,27 +174,42 @@ def load_plan(path: Path) -> dict:
     return plan
 
 
-def planned_seeds(taken: set, batch: int) -> list:
-    """The publish plan's seed topics (_data/publish_plan.json) not yet taken, in
-    plan order, at most `batch`. Each carries every topic field but `title`."""
-    p = REPO_DIR / "_data" / "publish_plan.json"
-    seeds = read_json(p).get("seeds", []) if p.exists() else []
-    return [s for s in seeds if s["topic"] not in taken][:batch]
+def plan_seeds() -> list:
+    """The publish plan's seed topics (_data/publish_plan.json), in plan order.
+    Each carries every topic field but `title`, and no product. A plan that
+    cannot be read, or whose `seeds` is not a list, is a clean SystemExit naming
+    the file; an entry without a string `topic` is skipped with a warning."""
+    path = REPO_DIR / "_data" / "publish_plan.json"
+    try:
+        plan = gp.load_publish_plan(REPO_DIR)
+    except CorruptJSONError as exc:
+        raise SystemExit(f"publish plan unreadable: {exc}") from None
+    seeds = plan.get("seeds", []) if isinstance(plan, dict) else None
+    if not isinstance(seeds, list):
+        raise SystemExit(f"publish plan {path}: `seeds` is not a list")
+    good = [s for s in seeds if isinstance(s, dict) and isinstance(s.get("topic"), str)]
+    if len(good) != len(seeds):
+        print(f"WARNING: skipped {len(seeds) - len(good)} malformed seed(s) in {path}")
+    return good
 
 
 def cmd_context(args) -> int:
     products = load_products(args.products, "products")
     taken = taken_slugs(products)
+    seeds = plan_seeds()
     ctx = {
         "batch": args.batch,
         "today": rp.eastern_date(),
-        "seeds": planned_seeds(taken, args.batch),
+        # The next untaken seeds, at most a batch. Every seed slug is also listed
+        # as taken, so the session never plans one itself: seeds arrive only here.
+        "seeds": [s for s in seeds if s["topic"] not in taken][:args.batch],
         "categories": list(categories.TOPICS),
         "topical_sheets": list(rp.VALID_SHEETS),
         "species": list(SPECIES),
         "queued": [{"topic": e.get("topic"), "category": e.get("category"),
                     "species": e.get("species")} for e in products],
-        "taken_slugs": sorted(s for s in taken if s.startswith("best-")),
+        "taken_slugs": sorted(s for s in taken | {s["topic"] for s in seeds}
+                              if s.startswith("best-")),
     }
     Path(args.out).write_text(json.dumps(ctx, indent=2) + "\n", encoding="utf-8")
     print(f"context: {len(ctx['taken_slugs'])} taken slugs, {len(ctx['seeds'])} seed(s), "
