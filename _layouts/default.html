@@ -72,7 +72,8 @@
        Must be an absolute URL per the OG spec or Facebook/Pinterest ignore it. -->
   <meta property="og:image" content="{% include social-image.html %}">
   {% seo title=false %}
-  <title>{% if page.title %}{{ page.title }} | {{ site.title }}{% else %}{{ site.title }}{% endif %}</title>
+  {%- comment -%} A title that already names the site (the home page's does) takes no suffix: the brand once, never twice. {%- endcomment %}
+  <title>{% if page.title %}{{ page.title }}{% unless page.title contains "Happy Pet Product Reviews" or page.title contains "HappyPet" %} | HappyPet Reviews{% endunless %}{% else %}{{ site.title }}{% endif %}</title>
   <meta property="fb:app_id" content="2351987968546164">
   {% feed_meta %}
   <!-- Google tag (gtag.js) -->

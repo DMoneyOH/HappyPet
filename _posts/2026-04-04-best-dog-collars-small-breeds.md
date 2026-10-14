@@ -1,13 +1,13 @@
 ---
 layout: post
-title: "Best Dog Collars for Small Breeds"
+title: "Best Dog Collars for Small Breeds: 4 Picks"
 date: 2026-04-04
 categories: [collars]
 redirect_from:
   - /dog-collars/best-dog-collars-small-breeds/
 species: dog
 tags: [dog collars small breeds]
-description: "Finding a collar that fits a tiny neck without slipping or chafing is harder than it sounds. We found the ones that work."
+description: "Small neck, slippery collar? 4 picks for small breeds, from soft nylon to padded and break-away, plus the two-finger fit check that helps stop slip-outs."
 affiliate_url: "https://www.amazon.com/dp/B00HWQNFF2?th=1&tag=happypetdc-20"
 product_short: "Blueberry Florence Nylon Collar"
 chewy_url: "https://chewy.sjv.io/c/7160344/3054490/32975?u=https%3A%2F%2Fwww.chewy.com%2Fblueberry-pet-classic-solid-nylon-dog%2Fdp%2F135235&intsrc=APIG_24727"
