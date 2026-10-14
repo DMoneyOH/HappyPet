@@ -3381,6 +3381,60 @@ class TestSelectNextTopicSpeciesBalance(unittest.TestCase):
         self.assertFalse(any(runs), f"3+ same species in a row: {picked_species}")
 
 
+class TestQ4PublishOrder(unittest.TestCase):
+    """products.json holds Scarlett's Q4 order (Director-approved 2026-10-13,
+    80-workspace/scarlett/2026-10-13-q4-topic-seed-list.md): the current head for
+    Thu 10-15, her 12 queued topics in slot order, then the 11 off-season topics
+    in her January order. Her 10 new topics come through the refill and are not
+    in the queue yet, so this pins only the queued part."""
+
+    PLAN = [
+        "best-heated-outdoor-cat-houses",
+        "best-self-warming-pet-pads", "best-dog-collars-night-walks", "best-lickable-cat-treats",
+        "best-dog-winter-coats", "best-pet-hair-vacuums", "best-freeze-dried-dog-treats",
+        "best-dog-paw-balms", "best-plush-dog-toys", "best-cardboard-cat-scratchers",
+        "best-pet-first-aid-kits", "best-puppy-teething-toys", "best-dog-training-clickers",
+        "best-cat-hairball-remedies", "best-cat-litter-mats", "best-pet-dental-water-additives",
+        "best-cat-flea-treatments", "best-fish-oil-for-dogs", "best-elevated-cat-bowls",
+        "best-dog-shampoo-sensitive-skin", "best-senior-cat-food", "best-dog-ear-cleaners",
+        "best-airtight-pet-food-containers", "best-cat-litter-scoops",
+    ]
+    # Species of each PLAN entry, read off products.json at this commit.
+    SPECIES = ["cat", "both", "dog", "cat", "dog", "both", "dog", "dog", "dog", "cat", "both", "dog",
+               "dog", "cat", "cat", "both", "cat", "dog", "cat", "dog", "cat", "dog", "both", "cat"]
+
+    def test_the_live_queue_keeps_the_planned_relative_order(self):
+        # Robust to publishing (entries retire) and to refills (entries append).
+        import generate_posts as gp
+        live = [t for t in gp.load_products() if t in self.PLAN]
+        self.assertEqual(live, [t for t in self.PLAN if t in live])
+
+    def test_the_real_picker_publishes_this_queue_in_plan_order(self):
+        """The queue as this commit leaves it, through the real select_next_topic,
+        starting from the published feed of 2026-10-13 (newest dog, then cat).
+        Expected picks were worked by hand from the species rule, not computed:
+        after freeze-dried treats and paw balms (two dogs), plush dog toys is
+        skipped once and cardboard cat scratchers publishes a slot early."""
+        import generate_posts as gp
+        species = dict(zip(self.PLAN, self.SPECIES))
+        products = {t: {"topic": t, "title": t, "keyword": t, "format": "roundup",
+                        "species": species[t]} for t in self.PLAN}
+        history, picks = ["dog", "cat"], []
+        while (res := gp.select_next_topic(products, set(picks), recent_species=history)):
+            picks.append(res[0])
+            history = [res[1]["species"]] + history
+        expected = list(self.PLAN)
+        expected[8], expected[9] = expected[9], expected[8]
+        self.assertEqual(picks, expected)
+
+    def test_the_species_fixture_matches_the_live_queue(self):
+        import generate_posts as gp
+        live = gp.load_products()
+        mismatched = [t for t, sp in zip(self.PLAN, self.SPECIES)
+                      if t in live and live[t].get("species") != sp]
+        self.assertEqual(mismatched, [])
+
+
 class TestBuildWriterInputs(unittest.TestCase):
     def setUp(self):
         import generate_posts as gp
