@@ -10663,6 +10663,62 @@ class TestRefillCli(unittest.TestCase):
                 rc, out = self.check([entry])
                 self.assertEqual(rc, 0 if ok else 1, out)
 
+    def _check_on(self, entries, *flags, today="2026-11-01"):
+        import refill_products
+        base = json.loads(self.base.read_text(encoding="utf-8"))
+        self.head.write_text(json.dumps(base + entries), encoding="utf-8")
+        with patch.object(refill_products, "eastern_date", lambda: today):
+            return self.run_cli("check", "--base", str(self.base), *flags)
+
+    def _seed_entry(self, n):
+        words = ("one", "two")[n - 1]
+        return self.full_entry(topic=f"best-seed-{words}", keyword=f"seed {words} for small dogs",
+                               amazon_search_query=f"seed {words} for small dogs",
+                               asin=f"B0SEEDMAX{n}")
+
+    def test_check_holds_a_seed_beyond_the_batch_when_seed_was_bypassed(self):
+        """Defense in depth: a plan-seed entry that `seed --max 1` would refuse
+        ("not handed") is held by `check --max 1` too, even when the entry is a
+        complete one that never went through `seed`."""
+        self._plan_two_seeds()
+        second = self._seed_entry(2)
+        rc, out = self._check_on([second], "--max", "1")
+        self.assertEqual(rc, 1, out)
+        self.assertIn("publish-plan seed this run was not handed", out)
+        for flags in (("--max", "2"), ()):
+            with self.subTest(flags=flags):
+                rc, out = self._check_on([second], *flags)
+                self.assertEqual(rc, 0, out)
+
+    def test_check_holds_more_new_entries_than_the_batch(self):
+        """`seed` reads at most --max planned topics, so a branch with more new
+        entries than that did not come through it."""
+        self._plan_two_seeds()
+        both = [self._seed_entry(1), self._seed_entry(2)]
+        rc, out = self._check_on(both, "--max", "1")
+        self.assertEqual(rc, 1, out)
+        self.assertIn("2 new entries, more than --max 1", out)
+        self.assertEqual(self._check_on(both, "--max", "2")[0], 0)
+
+    def test_check_and_seed_agree_on_every_seed_at_every_batch(self):
+        """The rule is one rule: for each batch and each plan seed, `seed`
+        takes the topic exactly when `check` passes the finished entry."""
+        seeds = self._plan_two_seeds()
+        for batch in (1, 2):
+            for n, slug in ((1, "best-seed-one"), (2, "best-seed-two")):
+                with self.subTest(batch=batch, seed=slug):
+                    self.head.write_text(self.base.read_text(encoding="utf-8"), encoding="utf-8")
+                    seed_rc, _ = self._seed([seeds[slug]], batch)
+                    check_rc, out = self._check_on([self._seed_entry(n)], "--max", str(batch))
+                    self.assertEqual(check_rc == 0, seed_rc == 0, out)
+                    self.assertEqual(seed_rc == 0, n <= batch)
+
+    def test_check_takes_the_same_batch_flag_and_default_as_seed(self):
+        ap = self.cli.build_parser()
+        seed_default = ap.parse_args(["seed", "--plan", "p"]).max
+        self.assertEqual(ap.parse_args(["check", "--base", "b"]).max, seed_default)
+        self.assertEqual(ap.parse_args(["check", "--base", "b", "--max", "3"]).max, 3)
+
     def test_context_without_a_plan_has_no_seeds(self):
         out = self.base.parent / "ctx.json"
         self.run_cli("context", "--out", str(out), "--batch", "6")
