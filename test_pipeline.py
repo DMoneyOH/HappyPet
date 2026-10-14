@@ -11079,6 +11079,92 @@ class TestRelatedReviews(unittest.TestCase):
         self.assertLess(tag, layout.find('<div class="buybar">'))
 
 
+class TestTopicHubs(unittest.TestCase):
+    """Topic hubs (Director-approved 2026-10-13): hubs/<topic>.md, one layout
+    (_layouts/hub.html) that lists every post in the topic, the post breadcrumb
+    pointing at the topic's hub, and hub_pages.py for a topic that reaches 3
+    posts later. The listing itself is Liquid (where_exp, which _MiniLiquid does
+    not model); build-check.yml's jekyll build is its real render."""
+
+    HUBS = ("toys", "beds", "food", "outdoor", "feeding", "calming", "carriers",
+            "grooming", "health", "litter", "travel")
+
+    @classmethod
+    def setUpClass(cls):
+        from validate_published_chewy_links import parse_frontmatter
+        cls.parse = staticmethod(parse_frontmatter)
+        cls.hubs = {p.stem: parse_frontmatter(p) for p in (REPO / "hubs").glob("*.md")}
+
+    def test_the_eleven_approved_hubs_exist_with_their_copy(self):
+        self.assertEqual(sorted(self.hubs), sorted(self.HUBS))
+        for slug, fm in self.hubs.items():
+            with self.subTest(hub=slug):
+                self.assertEqual(fm["layout"], "hub")
+                self.assertEqual(fm["hub_topic"], slug)
+                self.assertEqual(fm["permalink"], f"/{slug}/")
+                for key in ("title", "description", "intro", "how_we_choose"):
+                    self.assertTrue(fm.get(key), key)
+                self.assertNotRegex(fm["title"], r"\|\s*Happy\s*Pet")
+                self.assertNotIn("sitemap", fm)   # jekyll-sitemap lists every hub
+
+    def test_every_hub_topic_has_three_or_more_posts(self):
+        import hub_pages
+        counts = hub_pages.topic_counts()
+        for slug in self.hubs:
+            with self.subTest(hub=slug):
+                self.assertGreaterEqual(counts[slug], 3)
+
+    def test_no_hub_url_collides_with_a_page_post_or_redirect(self):
+        taken = {}
+        for p in list(REPO.glob("*.md")) + list((REPO / "_posts").glob("2*.md")):
+            text = p.read_text(encoding="utf-8")
+            fm = text.split("---", 2)[1] if text.startswith("---") else ""
+            for m in re.finditer(r"^permalink: *(\S+)", fm, re.M):
+                taken[m.group(1)] = p.name
+            for m in re.finditer(r"^  - (/\S*)$", fm, re.M):   # redirect_from entries
+                taken[m.group(1)] = p.name
+        for slug in self.hubs:
+            with self.subTest(hub=slug):
+                self.assertNotIn(f"/{slug}/", taken)
+
+    def test_the_layout_lists_the_topics_posts(self):
+        layout = (REPO / "_layouts" / "hub.html").read_text(encoding="utf-8")
+        self.assertIn('site.posts | where_exp: "p", "p.categories contains page.hub_topic"', layout)
+        self.assertIn("{% include post-card.html post=post", layout)
+
+    def test_a_post_breadcrumb_points_at_its_topic_hub_when_one_exists(self):
+        post = (REPO / "_layouts" / "post.html").read_text(encoding="utf-8")
+        crumb = re.search(r'<nav class="crumb".*?</nav>', post, re.S).group(0)
+        pages = [{"hub_topic": s, "url": f"/{s}/"} for s in self.HUBS] + [{"url": "/cats/"}]
+        for category, href in (("toys", "/toys/"), ("litter", "/litter/"), ("tech", "/#reviews")):
+            with self.subTest(category=category):
+                html = _MiniLiquid(crumb).render({"site": {"baseurl": "", "pages": pages},
+                                                  "category": category, "category_label": "L"})
+                self.assertIn(f'<a href="{href}">L</a>', html)
+
+    def test_hub_pages_writes_a_hub_only_for_a_topic_that_reached_three(self):
+        import shutil
+        import tempfile
+        import hub_pages
+        tmp = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
+        (tmp / "_posts").mkdir()
+        (tmp / "hubs").mkdir()
+        (tmp / "hubs" / "toys.md").write_text("---\nlayout: hub\n---\n", encoding="utf-8")
+        for topic, n in (("toys", 3), ("dental", 3), ("tech", 2)):
+            for i in range(n):
+                (tmp / "_posts" / f"2026-01-0{i + 1}-best-{topic}-{i}.md").write_text(
+                    f"---\ncategories: [{topic}]\n---\n", encoding="utf-8")
+        (tmp / "_posts" / "DRAFT-best-tech-x.md").write_text(
+            "---\ncategories: [tech]\n---\n", encoding="utf-8")   # drafts do not count
+        self.assertEqual(hub_pages.missing_hubs(tmp), ["dental"])
+        path = hub_pages.write_hub("dental", tmp)
+        self.assertEqual(path.read_text(encoding="utf-8"),
+                         '---\nlayout: hub\nhub_topic: dental\npermalink: /dental/\n'
+                         'title: "Dental"\n---\n')
+        self.assertEqual(hub_pages.missing_hubs(tmp), [])
+
+
 class TestPublishedRootIsAllowlisted(unittest.TestCase):
     """Jekyll publishes every root file and folder that is not underscore- or
     dot-prefixed and not in _config.yml's `exclude:`. The github-pages gem also
@@ -11096,6 +11182,7 @@ class TestPublishedRootIsAllowlisted(unittest.TestCase):
         "privacy-policy.md", "search.md", "search.json", "robots.txt",
         "favicon.ico", "favicon-16x16.png", "favicon-32x32.png",
         "apple-touch-icon.png", "assets",
+        "hubs",  # topic hub pages; each sets its own /<topic>/ permalink
     }
 
     @classmethod

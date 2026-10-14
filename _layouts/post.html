@@ -78,7 +78,8 @@ layout: default
     <nav class="crumb" aria-label="Breadcrumb">
       <a href="{{ site.baseurl }}/">All reviews</a>
       &rsaquo;
-      <a href="{{ site.baseurl }}/#reviews">{{ category_label }}</a>
+      {%- assign hub = site.pages | where: "hub_topic", category | first %}
+      <a href="{% if hub %}{{ site.baseurl }}{{ hub.url }}{% else %}{{ site.baseurl }}/#reviews{% endif %}">{{ category_label }}</a>
     </nav>
 
     <header class="piece-head">
