@@ -905,8 +905,12 @@ def _published_category(slug: str):
     return None
 
 
-def build_url(slug: str, utm: bool = False) -> str:
-    category = _published_category(slug) or SLUG_CATEGORIES.get(slug)
+def build_url(slug: str, utm: bool = False, category: str | None = None) -> str:
+    # An explicit `category` is the one the caller is about to write into the
+    # post's front matter (stage_article), so the staged pin URL and the post's
+    # Jekyll permalink (/:categories/:title/) agree by construction instead of
+    # by SLUG_CATEGORIES having been populated first.
+    category = category or _published_category(slug) or SLUG_CATEGORIES.get(slug)
     if not category:
         # Unreachable for a validated product (category is required) or a
         # published post; a guessed path would 404, so say so in the log.
@@ -2608,7 +2612,7 @@ def stage_article(slug: str, product: dict, body: str, pin_desc: str,
     assert_amazon_figures_labelled("stage_article", content_clean, slug,
                                    product.get("price"), product.get("stars"))
 
-    article_url = build_url(slug, utm=True)
+    article_url = build_url(slug, utm=True, category=category or None)
     # Pin image source: prefer the curated /images/I/ image -- fetch_image reaches
     # it directly and, if that host is blocked, recovers the same image id on the
     # images-na host. Only derive from the ASIN's legacy /images/P/ scheme when no

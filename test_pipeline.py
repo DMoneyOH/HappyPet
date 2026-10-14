@@ -4427,6 +4427,222 @@ class TestPostsAreOnTopics(unittest.TestCase):
         self.assertEqual(changed, [])
 
 
+class TestAttributionSurvivesRedirectsAndNewPinUrls(unittest.TestCase):
+    """Pin and Facebook clicks arrive with ?utm_* on the URL. GA4 loses the
+    channel unless (1) every redirect_from stub forwards the query string and
+    fragment, and (2) every URL the pipeline stages for a NEW pin or Facebook
+    post is already the post's live permalink, so the click skips the stub.
+
+    Found 2026-10-13: ~133 fired pins link to pre-restructure paths such as
+    /cat-food/best-grain-free-cat-food/?utm_source=pinterest. The layout fix
+    (db78b76) was already on main; these tests measure it instead of reading it.
+    """
+
+    TARGET = "https://happypetproductreviews.com/food/best-grain-free-cat-food/"
+    PIN_QUERY = "?utm_source=pinterest&utm_medium=social&utm_campaign=pin"
+
+    # slug -> (category the pin was fired with, category the post has now)
+    RECATEGORIZED = {
+        "best-grain-free-cat-food":     ("cat-food", "food"),
+        "best-dog-training-treats":     ("dog-food", "treats"),
+        "best-dog-joint-supplements":   ("dog-health", "supplements"),
+        "best-cat-litter-odor-control": ("cat-litter", "litter"),
+    }
+
+    @staticmethod
+    def _render_layout(target):
+        """Fill _layouts/redirect.html as Jekyll would for page.redirect.to ==
+        target. Only the forms the layout uses are understood; any other Liquid
+        left in the output fails the caller's assertion, so a new tag cannot
+        pass unrendered."""
+        text = (REPO / "_layouts" / "redirect.html").read_text(encoding="utf-8")
+        text = re.sub(r"\{%-?\s*comment\s*-?%\}.*?\{%-?\s*endcomment\s*-?%\}\s*", "",
+                      text, flags=re.S)
+        text = text.replace("{{ page.redirect.to | jsonify }}", json.dumps(target))
+        return text.replace("{{ page.redirect.to }}", target)
+
+    @staticmethod
+    def _run_script(code, search, hash_):
+        """Execute the stub's inline script in Node against a fake `location`
+        and return the URL it passed to location.replace (None if it never did)."""
+        import shutil
+        import subprocess
+        node = shutil.which("node")
+        if not node:
+            raise unittest.SkipTest("node not on PATH")
+        harness = (
+            "let out = null;\n"
+            f"new Function('location', {json.dumps(code)})("
+            f"{{search: {json.dumps(search)}, hash: {json.dumps(hash_)}, "
+            "replace(u) { out = u; }});\n"
+            "process.stdout.write(JSON.stringify(out));\n")
+        done = subprocess.run([node, "-"], input=harness, capture_output=True,
+                              text=True, timeout=30)
+        assert done.returncode == 0, done.stderr
+        return json.loads(done.stdout)
+
+    def _script_of(self, html):
+        scripts = re.findall(r"<script>(.*?)</script>", html, re.S)
+        self.assertEqual(len(scripts), 1)
+        return scripts[0]
+
+    # --- the stub ----------------------------------------------------------
+
+    def test_layout_renders_target_script_and_noindex(self):
+        html = self._render_layout(self.TARGET)
+        self.assertNotIn("{{", html)
+        self.assertNotIn("{%", html)
+        self.assertIn(f'<link rel="canonical" href="{self.TARGET}">', html)
+        self.assertIn(f'<meta http-equiv="refresh" content="0; url={self.TARGET}">', html)
+        self.assertIn(f'<a href="{self.TARGET}">', html)           # visible fallback
+        self.assertIn('<meta name="robots" content="noindex">', html)
+        code = self._script_of(html)
+        self.assertIn(json.dumps(self.TARGET), code)
+        self.assertIn("location.search", code)
+        self.assertIn("location.hash", code)
+
+    def test_stub_script_forwards_query_and_fragment(self):
+        code = self._script_of(self._render_layout(self.TARGET))
+        for search, hash_ in (
+            (self.PIN_QUERY, ""),
+            ("?utm_source=facebook&utm_medium=social&utm_campaign=post", ""),
+            ("?a=1&b=%20x", "#frag"),
+            ("", "#only-a-fragment"),
+            ("", ""),
+        ):
+            with self.subTest(search=search, hash=hash_):
+                self.assertEqual(self._run_script(code, search, hash_),
+                                 self.TARGET + search + hash_)
+
+    def test_the_script_check_can_fail(self):
+        # Prove the measurement above goes red on the plugin's own stub, which
+        # drops the query: a harness that passed both ways would prove nothing.
+        plugin_script = f"location={json.dumps(self.TARGET)}"
+        self.assertNotEqual(self._run_script(plugin_script, self.PIN_QUERY, "#f"),
+                            self.TARGET + self.PIN_QUERY + "#f")
+        code = self._script_of(self._render_layout(self.TARGET))
+        no_search = code.replace(" + location.search", "")
+        self.assertNotEqual(no_search, code)
+        self.assertNotEqual(self._run_script(no_search, self.PIN_QUERY, ""),
+                            self.TARGET + self.PIN_QUERY)
+
+    def test_the_plugin_and_its_layout_are_both_wired(self):
+        cfg = (REPO / "_config.yml").read_text(encoding="utf-8")
+        self.assertRegex(cfg, r"(?m)^\s*-\s*jekyll-redirect-from\s*$")
+        self.assertRegex(cfg, r"(?m)^permalink:\s*/:categories/:title/\s*$")
+        # Excluded files never reach the build; the layout must not be one.
+        self.assertTrue((REPO / "_layouts" / "redirect.html").is_file())
+        self.assertNotRegex(cfg, r"(?m)^\s*-\s*_?layouts?\b")
+
+    # --- URLs staged for new pins and Facebook posts ----------------------
+
+    def test_build_url_gives_the_live_permalink_for_recategorized_posts(self):
+        import generate_posts as gp
+        for slug, (fired_with, now) in self.RECATEGORIZED.items():
+            post = _post_file_for_slug(slug)
+            with self.subTest(slug=slug):
+                self.assertIsNotNone(post)
+                self.assertEqual(_post_first_category(post), now)
+                self.assertIn(f"/{fired_with}/{slug}/", _post_redirect_paths(post))
+                live = f"https://happypetproductreviews.com/{now}/{slug}/"
+                # A stale registry entry (the category the pin used to carry)
+                # must lose to the published post's own front matter.
+                with patch.dict(gp.SLUG_CATEGORIES, {slug: fired_with}):
+                    self.assertEqual(gp.build_url(slug), live)
+                    self.assertEqual(gp.build_url(slug, utm=True), live + self.PIN_QUERY)
+
+    def test_every_fired_pin_whose_post_moved_now_builds_the_live_url(self):
+        # Same check driven by the real record of fired pins, not a hand list.
+        import generate_posts as gp
+        moved = 0
+        for jf in sorted((REPO / "_pin_queue" / "sent").glob("*.json")):
+            fired = _norm_path(json.loads(jf.read_text(encoding="utf-8"))["article_url"])
+            post = _post_file_for_slug(jf.stem)
+            if post is None:
+                continue
+            live = _norm_path(f"/{_post_first_category(post)}/{jf.stem}/")
+            if fired == live:
+                continue
+            moved += 1
+            fired_cat = fired.strip("/").split("/")[0]
+            with self.subTest(slug=jf.stem), \
+                 patch.dict(gp.SLUG_CATEGORIES, {jf.stem: fired_cat}):
+                self.assertEqual(_norm_path(gp.build_url(jf.stem, utm=True)), live)
+        self.assertGreater(moved, 0, "no moved post found: the check ran on nothing")
+
+    def test_staged_pin_url_matches_the_drafts_front_matter_permalink(self):
+        import generate_posts as gp
+        slug = "best-grain-free-cat-food-staged"
+        product = {"topic": slug, "title": "Best Grain Free Cat Food",
+                   "keyword": "grain free cat food", "format": "single_review",
+                   "name": "The Food", "category": "food", "species": "cat",
+                   "affiliate_url": "https://amzn.to/abc", "pulled_on": "2026-10-01"}
+        body = "## Heading\n\n" + ("word " * 800)
+        # The registry holds the OLD category for this slug: the URL must come
+        # from the same `category` that is written into the front matter.
+        with tempfile.TemporaryDirectory() as td, \
+             patch.dict(gp.SLUG_CATEGORIES, {slug: "cat-food"}):
+            posts = Path(td) / "_posts"; posts.mkdir()
+            (Path(td) / "_pin_queue").mkdir()
+            with patch.object(gp, "POSTS_DIR", posts), \
+                 patch.object(gp, "REPO_DIR", Path(td)), \
+                 patch.object(gp, "PIN_GEN_AVAILABLE", False):
+                out = gp.stage_article(slug, product, body, pin_desc="Great food.", index=0)
+            fm_cat = re.search(r"^categories: \[([^\]]*)\]",
+                               out["draft_path"].read_text(encoding="utf-8"), re.M).group(1)
+            queued = json.loads(out["pin_queue_path"].read_text(encoding="utf-8"))["article_url"]
+        self.assertEqual(fm_cat, "food")
+        # _config.yml permalink is /:categories/:title/ (pinned by the wiring test).
+        self.assertEqual(queued,
+                         f"https://happypetproductreviews.com/{fm_cat}/{slug}/{self.PIN_QUERY}")
+
+    def test_facebook_message_links_the_same_permalink_with_its_own_tag(self):
+        import push_pins_to_sheets as pps
+        msg = pps._build_fb_message(
+            "best-grain-free-cat-food", "Best Grain Free Cat Food",
+            self.TARGET + self.PIN_QUERY)
+        self.assertTrue(msg.endswith(
+            "\n" + self.TARGET + "?utm_source=facebook&utm_medium=social&utm_campaign=post"), msg)
+
+    @staticmethod
+    def _stale_queued_pins(queue_dir, posts_dir):
+        """Staged-but-unsent pins whose article path is not their post's live
+        permalink. A re-categorization PR that lands between Stage 1 and the
+        send would otherwise ship the old path to Pinterest and Facebook."""
+        stale = []
+        for jf in sorted(Path(queue_dir).glob("*.json")):
+            url = json.loads(jf.read_text(encoding="utf-8")).get("article_url", "")
+            hits = [h for h in sorted(Path(posts_dir).glob(f"*-{jf.stem}.md"))
+                    if h.stem == f"DRAFT-{jf.stem}"
+                    or re.fullmatch(r"\d{4}-\d{2}-\d{2}-" + re.escape(jf.stem), h.stem)]
+            if not hits:
+                continue
+            live = _norm_path(f"/{_post_first_category(hits[0])}/{jf.stem}/")
+            if _norm_path(url) != live:
+                stale.append(f"{jf.stem}: queued {_norm_path(url)}, post is at {live}")
+        return stale
+
+    def test_no_staged_pin_points_at_a_moved_post(self):
+        self.assertEqual(self._stale_queued_pins(REPO / "_pin_queue", REPO / "_posts"), [])
+
+    def test_the_staged_pin_check_can_fail_and_does_not_cry_wolf(self):
+        with tempfile.TemporaryDirectory() as td:
+            q = Path(td) / "q"; q.mkdir()
+            p = Path(td) / "p"; p.mkdir()
+            (p / "2026-10-01-best-a.md").write_text("---\ncategories: [food]\n---\n", encoding="utf-8")
+            (p / "DRAFT-best-b.md").write_text("---\ncategories: [treats]\n---\n", encoding="utf-8")
+            base = "https://happypetproductreviews.com"
+            (q / "best-a.json").write_text(json.dumps(
+                {"article_url": f"{base}/cat-food/best-a/{self.PIN_QUERY}"}), encoding="utf-8")
+            (q / "best-b.json").write_text(json.dumps(
+                {"article_url": f"{base}/treats/best-b/{self.PIN_QUERY}"}), encoding="utf-8")
+            (q / "best-c.json").write_text(json.dumps(
+                {"article_url": f"{base}/toys/best-c/"}), encoding="utf-8")  # no post yet
+            stale = self._stale_queued_pins(q, p)
+        self.assertEqual(len(stale), 1)
+        self.assertIn("best-a", stale[0])
+
+
 # ---------------------------------------------------------------------------
 # Homepage control-wiring guard
 #
