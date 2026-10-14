@@ -453,6 +453,23 @@ def chewy_enrich(name: str, upc: str | None = None) -> dict:
     return empty
 
 
+def eastern_date(now_utc: datetime.datetime | None = None) -> str:
+    """Today's date in America/New_York (YYYY-MM-DD), the Director's ruling for
+    pulled_on. Not zoneinfo: the Windows .venv run-refill-local.ps1 uses has no
+    tzdata, and ZoneInfo raises there. US rule since 2007: EDT (UTC-4) from the
+    second Sunday of March 07:00 UTC to the first Sunday of November 06:00 UTC
+    (02:00 local both times), EST (UTC-5) otherwise."""
+    now = now_utc or datetime.datetime.now(datetime.timezone.utc)
+
+    def sunday(month: int, nth: int) -> datetime.datetime:
+        first = datetime.datetime(now.year, month, 1, tzinfo=datetime.timezone.utc)
+        return first + datetime.timedelta(days=(6 - first.weekday()) % 7 + 7 * (nth - 1))
+
+    dst = (sunday(3, 2) + datetime.timedelta(hours=7)
+           <= now < sunday(11, 1) + datetime.timedelta(hours=6))
+    return (now - datetime.timedelta(hours=4 if dst else 5)).date().isoformat()
+
+
 def apply_resolution(entry: dict, resolved: dict, enrich_chewy: bool = True) -> None:
     """enrich_chewy=False skips chewy_enrich, so this call does not import
     chewy_lookup (whose import reads Impact credentials from the local vault when
@@ -466,7 +483,7 @@ def apply_resolution(entry: dict, resolved: dict, enrich_chewy: bool = True) -> 
     entry["stars"]         = resolved["stars"]
     # The date the price and rating were pulled: published posts label both
     # "(as of <date>)" from this (generate_posts.label_amazon_figures).
-    entry["pulled_on"]     = datetime.date.today().isoformat()
+    entry["pulled_on"]     = eastern_date()
     if resolved.get("runners_up"):
         entry["runners_up"] = resolved["runners_up"]
     if resolved.get("upc"):

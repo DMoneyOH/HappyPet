@@ -1938,16 +1938,73 @@ class TestManualResolve(unittest.TestCase):
         fake_enrich.assert_called_once_with("Some Product", "810189030893")
         self.assertEqual(entry["upc"], "810189030893")
 
-    def test_apply_resolution_records_the_pull_date(self):
-        # The "(as of <date>)" label on a published price comes from this field.
+    def test_apply_resolution_records_the_eastern_pull_date(self):
+        # The "(as of <date>)" label on a published price comes from this field,
+        # dated in America/New_York (Director, 2026-10-13), not the runner's UTC.
         import datetime
         import refill_products as rp
         entry = {"topic": "best-x", "asin": "NEEDS_ASIN", "image": "NEEDS_IMAGE"}
         resolved = {"name": "Some Product", "asin": "B0ABCD1234",
                     "image": "https://m.media-amazon.com/images/I/x.jpg",
                     "price": "9.99", "stars": 4.0}
-        rp.apply_resolution(entry, resolved, enrich_chewy=False)
-        self.assertEqual(entry["pulled_on"], datetime.date.today().isoformat())
+        # 2025-01-02 01:30 UTC is 20:30 on Jan 1 in New York. A past date, so a
+        # stamp from the machine's own clock cannot pass by coincidence.
+        fixed = datetime.datetime(2025, 1, 2, 1, 30, tzinfo=datetime.timezone.utc)
+
+        class FrozenDatetime(datetime.datetime):
+            @classmethod
+            def now(cls, tz=None):
+                return fixed.astimezone(tz) if tz else fixed.replace(tzinfo=None)
+
+        with patch.object(rp.datetime, "datetime", FrozenDatetime):
+            rp.apply_resolution(entry, resolved, enrich_chewy=False)
+        self.assertEqual(entry["pulled_on"], "2025-01-01")
+
+    def test_eastern_date_across_both_dst_switches(self):
+        """Expected dates are worked by hand from the US rule, never by the code
+        under test. The switch days (Sundays, checked below by calendar): 2026-03-08,
+        2026-11-01, 2027-03-14, 2027-11-07. Only the 23:00-00:00 ET hour can tell
+        EST from EDT in a date, so most cases sit in the 20:00-23:59 ET evening
+        window (UTC already the next day) or just past ET midnight, on both sides
+        of each switch."""
+        import calendar
+        import datetime
+        import refill_products as rp
+        for y, m, d in ((2026, 3, 8), (2026, 11, 1), (2027, 3, 14), (2027, 11, 7)):
+            self.assertEqual(calendar.weekday(y, m, d), calendar.SUNDAY)
+        cases = [
+            # spring 2026: EST until Sun 03-08 07:00Z (02:00 EST)
+            ("2026-03-08T01:00", "2026-03-07"),  # Sat 20:00 EST
+            ("2026-03-08T04:59", "2026-03-07"),  # Sat 23:59 EST (EDT would be Sun 00:59)
+            ("2026-03-08T06:59", "2026-03-08"),  # Sun 01:59 EST, a minute before the switch
+            ("2026-03-08T07:00", "2026-03-08"),  # Sun 03:00 EDT, the switch
+            ("2026-03-09T00:00", "2026-03-08"),  # Sun 20:00 EDT
+            ("2026-03-09T03:59", "2026-03-08"),  # Sun 23:59 EDT
+            ("2026-03-09T04:00", "2026-03-09"),  # Mon 00:00 EDT (EST would be Sun 23:00)
+            # fall 2026: EDT until Sun 11-01 06:00Z (02:00 EDT)
+            ("2026-11-01T00:00", "2026-10-31"),  # Sat 20:00 EDT
+            ("2026-11-01T03:59", "2026-10-31"),  # Sat 23:59 EDT
+            ("2026-11-01T04:30", "2026-11-01"),  # Sun 00:30 EDT (EST would be Sat 23:30)
+            ("2026-11-01T05:59", "2026-11-01"),  # Sun 01:59 EDT, a minute before the switch
+            ("2026-11-01T06:00", "2026-11-01"),  # Sun 01:00 EST, the switch
+            ("2026-11-02T01:00", "2026-11-01"),  # Sun 20:00 EST
+            ("2026-11-02T04:59", "2026-11-01"),  # Sun 23:59 EST (EDT would be Mon 00:59)
+            # 2027, so the Sundays are found per year rather than fixed
+            ("2027-03-14T04:30", "2027-03-13"),  # Sat 23:30 EST
+            ("2027-03-15T04:30", "2027-03-15"),  # Mon 00:30 EDT
+            ("2027-11-07T04:30", "2027-11-07"),  # Sun 00:30 EDT
+            ("2027-11-08T04:30", "2027-11-07"),  # Sun 23:30 EST
+            # mid-season and the year boundary
+            ("2026-07-15T03:30", "2026-07-14"),  # 23:30 EDT
+            ("2026-07-15T04:30", "2026-07-15"),  # 00:30 EDT
+            ("2026-01-15T04:30", "2026-01-14"),  # 23:30 EST
+            ("2026-01-15T05:30", "2026-01-15"),  # 00:30 EST
+            ("2027-01-01T04:59", "2026-12-31"),  # New Year's Eve 23:59 EST
+        ]
+        for utc, et in cases:
+            with self.subTest(utc=utc):
+                now = datetime.datetime.fromisoformat(utc).replace(tzinfo=datetime.timezone.utc)
+                self.assertEqual(rp.eastern_date(now), et)
 
     def test_rejects_bad_asin_shape_and_does_not_write(self):
         import tempfile
