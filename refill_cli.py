@@ -130,6 +130,44 @@ def product_problems(p) -> list:
     return bad
 
 
+# C-3: a keyword is a bare "best <product>" head term when its first word is
+# "best" and no later word is one of these qualifiers. "best dog toys" and
+# "best freeze dried dog treats" are bare; "best dog toys for small dogs" and
+# "cat advent calendar with treats" are not.
+HEAD_TERM_QUALIFIERS = frozenset({
+    "for", "with", "without", "under", "over", "in", "on", "to", "from", "by",
+    "near", "that", "who", "vs", "versus", "after", "before", "during"})
+
+
+def is_bare_head_term(keyword) -> bool:
+    words = str(keyword or "").lower().split()
+    return bool(words) and words[0] == "best" and not HEAD_TERM_QUALIFIERS.intersection(words[1:])
+
+
+SEED_MATCH_FIELDS = ("keyword", "species", "category")
+
+
+def offered_seeds(seeds: list, taken: set, today: str, batch: int) -> list:
+    """The seeds a run is handed: live on `today`, not taken, plan order, at
+    most `batch`. context writes these; seed recomputes them to check a plan."""
+    return [s for s in gp.live_seeds({"seeds": seeds}, today) if s["topic"] not in taken][:batch]
+
+
+def seed_rule_problems(t: dict, seeds: list, allowed: set) -> list:
+    """C-2/C-3 for one planned topic or new entry. A plan-seed slug must be one
+    of `allowed` and match the plan's keyword, species and category; any other
+    topic is self-planned and must not use a bare "best X" head term."""
+    by_slug = {s["topic"]: s for s in seeds}
+    slug = t.get("topic")
+    if slug not in by_slug:
+        return (["keyword is a bare \"best <product>\" head term"]
+                if is_bare_head_term(t.get("keyword")) else [])
+    if slug not in allowed:
+        return ["topic is a publish-plan seed this run was not handed"]
+    diff = [f for f in SEED_MATCH_FIELDS if t.get(f) != by_slug[slug].get(f)]
+    return [f"seed differs from the publish plan in: {', '.join(diff)}"] if diff else []
+
+
 def new_entry_problems(e: dict, taken: set) -> list:
     """Every seed and resolve rule, applied to one entry as it sits in products.json.
     `taken` must not contain the entry's own slug."""
@@ -198,14 +236,13 @@ def cmd_context(args) -> int:
     taken = taken_slugs(products)
     seeds = plan_seeds()
     today = rp.eastern_date()
-    live = gp.live_seeds({"seeds": seeds}, today)
     ctx = {
         "batch": args.batch,
         "today": today,
         # The next untaken seeds still inside their publish_by window, at most a
         # batch. Every seed slug is also listed as taken, so the session never
-        # plans one itself: seeds arrive only here.
-        "seeds": [s for s in live if s["topic"] not in taken][:args.batch],
+        # plans one itself: seeds arrive only here (seed and check enforce it).
+        "seeds": offered_seeds(seeds, taken, today, args.batch),
         "categories": list(categories.TOPICS),
         "topical_sheets": list(rp.VALID_SHEETS),
         "species": list(SPECIES),
@@ -227,9 +264,15 @@ def cmd_seed(args) -> int:
         return 1
     products = load_products(args.products, "products")
     taken = taken_slugs(products)
+    seeds = plan_seeds()
+    # The seeds context handed this run: same plan, same queue, same ET day,
+    # and --max is the run's batch (run-refill.ps1 passes the same number).
+    allowed = {s["topic"] for s in offered_seeds(seeds, taken, rp.eastern_date(), args.max)}
     seeded = []
     for t in plan["topics"][:args.max]:
         bad = topic_problems(t, taken)
+        if isinstance(t, dict):
+            bad += seed_rule_problems(t, seeds, allowed)
         name = t.get("topic") if isinstance(t, dict) else None
         if bad:
             print(f"REJECTED topic {name!r}: {'; '.join(bad)}")
@@ -289,11 +332,16 @@ def cmd_check(args) -> int:
     problems = automerge_gate.refill_products_problems(json.dumps(head), json.dumps(base))
     base_topics = {e.get("topic") for e in base if isinstance(e, dict)}
     taken = taken_slugs(base)
+    seeds = plan_seeds()
+    # check has no batch size, so a seed entry must be live and untaken at the
+    # branch point (any batch's offer is a prefix of these) and match the plan.
+    allowed = {s["topic"] for s in offered_seeds(seeds, taken, rp.eastern_date(), len(seeds))}
     for e in head:
         if not isinstance(e, dict) or e.get("topic") in base_topics:
             continue
         name = e.get("topic")
         problems += [f"entry {name!r}: {m}" for m in new_entry_problems(e, taken)]
+        problems += [f"entry {name!r}: {m}" for m in seed_rule_problems(e, seeds, allowed)]
         if isinstance(name, str):
             taken |= {name, _bare(name)}   # a second entry with this slug collides
     for p in problems:

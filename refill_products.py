@@ -508,25 +508,35 @@ LONG_TAIL_RULE = ('Every topic must target a long-tail keyword of 3 to 6 words t
                   'Never use a bare "best <product>" head term as the keyword.')
 AFTER_HOLIDAYS_SEASON = ("Every topic you plan yourself publishes after the holidays: prefer topics people shop for in January to April: winter cold-weather needs, new-pet care, spring shedding and grooming, flea and tick season starting, outdoor and walking accessories, new-puppy training.")
 SPRING_SEASON = ("Prefer topics people shop for in February to April: spring shedding and grooming, flea and tick season starting, outdoor and walking accessories, new-puppy training.")
+# Scarlett: spring topics live and pinned by late January. After that the
+# ordinary seasonal line returns.
+SPRING_LAST_DAY = "2027-01-31"
+
+
+def season_line(today: str) -> str:
+    """The one season instruction for topics the refill plans itself."""
+    if today <= Q4_LAST_DAY:
+        return AFTER_HOLIDAYS_SEASON
+    if today <= SPRING_LAST_DAY:
+        return SPRING_SEASON
+    month = datetime.date.fromisoformat(today).strftime("%B")
+    return f"Favor products relevant in {month} and the coming two months."
 
 
 def season_rules(today: str) -> str:
-    """The dated rule block for an ISO date (the refill's ET date). Through
-    Q4_LAST_DAY it first names the publish plan's live seeds (this Gemini path
-    has no other way to take them), then the after-the-holidays line."""
-    if today > Q4_LAST_DAY:
-        return f"- {LONG_TAIL_RULE}\n- {SPRING_SEASON}"
+    """The dated rule block for an ISO date (the refill's ET date): the
+    long-tail rule, the publish plan's live seeds (this Gemini path has no other
+    way to take them), then the one season line for that date."""
     rules = f"- {LONG_TAIL_RULE}"
     seeds = [s["topic"] for s in gp.live_seeds(gp.load_publish_plan(), today)]
     if seeds:
         rules += ("\n- Propose these planned slugs first, if they are not already covered "
                   f"or queued: {', '.join(seeds)}.")
-    return rules + f"\n- {AFTER_HOLIDAYS_SEASON}"
+    return rules + f"\n- {season_line(today)}"
 
 
 def ideate_topics(pub: set, queued: set, batch: int) -> list:
     today = eastern_date()
-    month = datetime.date.fromisoformat(today).strftime("%B")
     taken = ", ".join(sorted(pub | queued))
     prompt = f"""You plan content for a pet product review blog (dogs and cats, budget-conscious US owners).
 Propose exactly {batch} NEW product roundup topics we have not covered.
@@ -549,7 +559,7 @@ Rules:
   HAPPYPET_SHEET_ID_FOOD (Pet Food & Treats: food, treats, feeding),
   HAPPYPET_SHEET_ID_HEALTH (Pet Health & Wellness: supplements, dental care, calming, grooming)
 - amazon_search_query: what a shopper would type into Amazon to find the single best mainstream product for this topic
-- Favor products relevant in {month} and the coming two months (seasonality), mixed across species, category, and price points.
+- Mix species, categories and price points.
 {season_rules(today)}
 Answer strictly as JSON."""
     # 2.5-flash spends thinking tokens from the same budget; 4096 truncated

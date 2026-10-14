@@ -1803,14 +1803,29 @@ class TestRefillAgent(unittest.TestCase):
                 self.assertNotIn("gear", self._prompt_on(day))
 
     def test_from_new_years_day_the_long_tail_rule_stays_and_spring_replaces_q4(self):
-        for day in ("2027-01-01", "2027-03-15"):
+        for day in ("2027-01-01", "2027-01-31", "2027-03-15"):
             with self.subTest(day=day):
                 prompt = self._prompt_on(day)
                 self.assertNotIn("Q4 mode", prompt)
                 for word in ("advent", "christmas", "stocking", "gift"):
                     self.assertNotIn(word, prompt.lower())
                 self.assertIn("Never use a bare \"best <product>\" head term as the keyword.", prompt)
-                self.assertIn("- Prefer topics people shop for in February to April:", prompt)
+
+    SEASON_LINES = ("publishes after the holidays", "February to April", "Favor products relevant in")
+
+    def test_each_date_gets_exactly_one_season_line(self):
+        """One season instruction, right for the date: after-the-holidays through
+        12-31, spring through 2027-01-31, then this month and the next two."""
+        for day, line in (("2026-10-25", "publishes after the holidays"),
+                          ("2026-12-31", "publishes after the holidays"),
+                          ("2027-01-01", "February to April"),
+                          ("2027-01-31", "February to April"),
+                          ("2027-02-01", "Favor products relevant in February and the coming two months."),
+                          ("2027-03-15", "Favor products relevant in March and the coming two months.")):
+            with self.subTest(day=day):
+                prompt = self._prompt_on(day)
+                self.assertIn(line, prompt)
+                self.assertEqual(sum(s in prompt for s in self.SEASON_LINES), 1, prompt[-600:])
 
     def test_image_validation_rejects_svg_placeholder(self):
         # run #2 shipped an .svg sprite as a "product image" -- never again
@@ -10535,6 +10550,98 @@ class TestRefillCli(unittest.TestCase):
                 self.assertEqual([s["topic"] for s in ctx["seeds"]], offered)
                 self.assertEqual(ctx["today"], today)
                 self.assertIn("best-seed-early", ctx["taken_slugs"])   # still reserved
+
+    def _plan_two_seeds(self):
+        d = self.base.parent
+        (d / "_data").mkdir(exist_ok=True)
+        seed = {"species": "dog", "category": "toys", "topical_sheet": "HAPPYPET_SHEET_ID_TOYS",
+                "publish_by": "2026-11-30"}
+        (d / "_data" / "publish_plan.json").write_text(json.dumps({"seeds": [
+            dict(seed, topic="best-seed-one", keyword="seed one for small dogs",
+                 amazon_search_query="seed one for small dogs"),
+            dict(seed, topic="best-seed-two", keyword="seed two for small dogs",
+                 amazon_search_query="seed two for small dogs")]}), encoding="utf-8")
+        return {"best-seed-one": self.topic(topic="best-seed-one", keyword="seed one for small dogs",
+                                            amazon_search_query="seed one for small dogs"),
+                "best-seed-two": self.topic(topic="best-seed-two", keyword="seed two for small dogs",
+                                            amazon_search_query="seed two for small dogs")}
+
+    def _seed(self, topics, max_):
+        import refill_products
+        self.plan.write_text(json.dumps({"abort": None, "topics": topics}), encoding="utf-8")
+        with patch.object(refill_products, "eastern_date", lambda: "2026-11-01"):
+            return self.run_cli("seed", "--plan", str(self.plan), "--max", str(max_))
+
+    def test_seed_takes_a_handed_seed_and_rejects_one_it_was_not_handed(self):
+        seeds = self._plan_two_seeds()
+        # batch 1: context hands best-seed-one only.
+        rc, out = self._seed([seeds["best-seed-one"]], 1)
+        self.assertEqual(rc, 0, out)
+        self.assertIn("seeded 1: best-seed-one", out)
+        self.head.write_text(self.base.read_text(encoding="utf-8"), encoding="utf-8")
+        rc, out = self._seed([seeds["best-seed-two"]], 1)
+        self.assertEqual(rc, 1, out)
+        self.assertIn("publish-plan seed this run was not handed", out)
+
+    def test_seed_rejects_a_seed_that_differs_from_the_plan(self):
+        seeds = self._plan_two_seeds()
+        for field, value in (("keyword", "seed one toys"), ("species", "cat"), ("category", "beds")):
+            with self.subTest(field=field):
+                self.head.write_text(self.base.read_text(encoding="utf-8"), encoding="utf-8")
+                rc, out = self._seed([dict(seeds["best-seed-one"], **{field: value})], 2)
+                self.assertEqual(rc, 1, out)
+                self.assertIn(f"differs from the publish plan in: {field}", out)
+
+    def test_seed_rejects_an_expired_seed(self):
+        import refill_products
+        seeds = self._plan_two_seeds()
+        self.plan.write_text(json.dumps({"abort": None, "topics": [seeds["best-seed-one"]]}),
+                             encoding="utf-8")
+        with patch.object(refill_products, "eastern_date", lambda: "2026-12-01"):
+            rc, out = self.run_cli("seed", "--plan", str(self.plan), "--max", "2")
+        self.assertEqual(rc, 1, out)
+        self.assertIn("not handed", out)
+
+    def test_seed_rejects_a_bare_best_x_head_term_for_a_self_planned_topic(self):
+        self._plan_two_seeds()
+        for kw, ok in (("best dog toys", False), ("best freeze dried dog treats", False),
+                       ("best dog toys for small dogs", True), ("dog toys for small dogs", True)):
+            with self.subTest(keyword=kw):
+                self.head.write_text(self.base.read_text(encoding="utf-8"), encoding="utf-8")
+                rc, out = self._seed([self.topic(keyword=kw)], 4)
+                self.assertEqual(rc, 0 if ok else 1, out)
+                self.assertEqual("head term" in out, not ok, out)
+
+    def test_bare_head_term_definition(self):
+        cases = {"best dog toys": True, "Best  Cat Litter Mat": True, "best": True,
+                 "best freeze dried dog treats": True,
+                 "best dog toys for small dogs": False, "best cat tree under 100": False,
+                 "cat advent calendar with treats": False, "bestselling dog toys": False,
+                 "": False, None: False}
+        for kw, bare in cases.items():
+            with self.subTest(keyword=kw):
+                self.assertEqual(self.cli.is_bare_head_term(kw), bare)
+
+    def test_check_holds_a_seed_entry_that_differs_or_expired_and_a_bare_head_term(self):
+        import refill_products
+        self._plan_two_seeds()
+        good_seed = self.full_entry(topic="best-seed-one", keyword="seed one for small dogs",
+                                    amazon_search_query="seed one for small dogs",
+                                    asin="B0SEEDCHK1")
+        cases = [("good seed", "2026-11-01", good_seed, True),
+                 ("changed category", "2026-11-01", dict(good_seed, category="beds"), False),
+                 ("expired", "2026-12-01", good_seed, False),
+                 ("bare head term", "2026-11-01",
+                  self.full_entry(topic="best-dog-toy-thing", keyword="best dog toys",
+                                  asin="B0SEEDCHK2"), False),
+                 ("long tail", "2026-11-01",
+                  self.full_entry(topic="best-dog-toy-thing", keyword="best dog toys for small dogs",
+                                  asin="B0SEEDCHK3"), True)]
+        for label, today, entry, ok in cases:
+            with self.subTest(case=label), \
+                 patch.object(refill_products, "eastern_date", lambda: today):
+                rc, out = self.check([entry])
+                self.assertEqual(rc, 0 if ok else 1, out)
 
     def test_context_without_a_plan_has_no_seeds(self):
         out = self.base.parent / "ctx.json"
