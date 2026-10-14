@@ -5254,6 +5254,54 @@ class TestPublishedPostsNameTheirPick(unittest.TestCase):
                           if self.SEARCH.search(fm) and "product_short:" in fm], [])
 
 
+class TestBuildCheckPathFilter(unittest.TestCase):
+    """build-check.yml must run on a published-post edit and never on a routine
+    Stage-1 or refill PR: automerge fires once, when "CI — Tests" completes, and
+    automerge_gate holds a PR while any other check is still pending. The filter
+    is evaluated the way GitHub documents it: patterns in order, the last match
+    decides, `*` stops at `/`, `**` does not; a PR runs if any one file is in."""
+
+    def _patterns(self):
+        lines = (REPO / ".github" / "workflows" / "build-check.yml").read_text(
+            encoding="utf-8").splitlines()
+        start = lines.index("    paths:") + 1
+        pats = []
+        for line in lines[start:]:
+            m = re.fullmatch(r"\s+- '([^']+)'", line)
+            if not m:
+                break
+            pats.append(m.group(1))
+        self.assertGreater(len(pats), 5, "paths block not found")
+        return pats
+
+    def _runs(self, files):
+        def rx(p):
+            return re.compile("".join(".*" if t == "**" else "[^/]*" if t == "*" else re.escape(t)
+                                      for t in re.split(r"(\*\*|\*)", p)))
+        rules = [(p.startswith("!"), rx(p.lstrip("!"))) for p in self._patterns()]
+        def included(path):
+            state = False
+            for negated, r in rules:
+                if r.fullmatch(path):
+                    state = not negated
+            return state
+        return any(included(f) for f in files)
+
+    def test_a_published_post_edit_runs_the_check(self):
+        self.assertTrue(self._runs(["_posts/2026-04-16-best-cat-litter.md"]))
+
+    def test_a_stage1_draft_pr_does_not(self):
+        self.assertFalse(self._runs(["_posts/DRAFT-best-cat-litter.md",
+                                     "_pin_queue/best-cat-litter.json",
+                                     "assets/images/pins/best-cat-litter.jpg"]))
+
+    def test_a_refill_pr_does_not(self):
+        self.assertFalse(self._runs(["products.json"]))
+
+    def test_a_draft_alongside_a_layout_change_still_runs(self):
+        self.assertTrue(self._runs(["_posts/DRAFT-x.md", "_layouts/post.html"]))
+
+
 class TestAutoMergePublishWiring(unittest.TestCase):
     """Preconditions the AUTO_MERGE=on routine path (SKILL Phase 2) bets on. If a
     workflow edit breaks one of these, the unattended publish would silently

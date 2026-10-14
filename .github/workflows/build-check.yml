@@ -27,7 +27,12 @@ on:
     # (products.json) or Stage-1 content PR (_posts/DRAFT-*, _pin_queue,
     # assets/images) would stall unattended merging. A path-filtered-out
     # workflow creates no check run, so those PRs never see this one.
+    # Published posts (content, redirect_from) are in; Stage-1 drafts stay out
+    # through the '!' line, which must follow '_posts/**' (later patterns win).
+    # A DRAFT-* file lacks the YYYY-MM-DD- name Jekyll requires of a post.
     paths:
+      - '_posts/**'
+      - '!_posts/DRAFT-*.md'
       - '_layouts/**'
       - '_includes/**'
       - '_data/**'
