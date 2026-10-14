@@ -3,12 +3,12 @@ layout: default
 ---
 {%- assign category = page.categories | first -%}
 {%- include category-label.html category=category -%}
-{%- assign thumb_path = "/assets/images/thumbs/" | append: page.slug | append: ".jpg" -%}
-{%- assign thumb_file = site.static_files | where: "path", thumb_path | first -%}
-{%- if thumb_file -%}
-  {%- assign hero_image = thumb_path | prepend: site.baseurl -%}
+{%- comment -%} The image rule lives in social-image.html; its assigns come back here. {%- endcomment -%}
+{%- capture social_image -%}{%- include social-image.html -%}{%- endcapture -%}
+{%- if product_thumb -%}
+  {%- assign hero_image = product_pick | prepend: site.baseurl -%}
 {%- else -%}
-  {%- assign hero_image = page.image -%}
+  {%- assign hero_image = product_pick -%}
 {%- endif -%}
 {%- assign pick_name = page.product_short | default: page.product_name -%}
 

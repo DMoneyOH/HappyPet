@@ -1,0 +1,27 @@
+{%- comment -%}
+  The site's one product-image rule: the PRODUCT picture, never the Pinterest pin.
+
+  Facebook (link previews and feed images) wants a landscape picture; the pin is
+  a 1000x1500 portrait made for Pinterest, which Facebook crops or distorts.
+  The pick: the self-hosted 4:3 thumbnail when the post has one, else the post's
+  own `image` (the Amazon CDN photo). Pinterest keeps the pin through its own
+  channels: the Pin it share button in post.html and the pin queue.
+  push_pins_to_sheets.product_image_url mirrors this rule in Python for the
+  Facebook Queue sheet; a test pins the two together.
+
+  Output: the absolute og:image URL, falling back to the 1200x630 brand card.
+  Assigns leak to the caller on purpose (as in category-label.html):
+  `product_pick` is the pick with no fallback (nil when there is none), and
+  `product_thumb` is set when that pick is the thumbnail. post.html's buy panel
+  uses both.
+
+  Whitespace control throughout: the output is spliced into a content="" attribute.
+{%- endcomment -%}
+{%- assign product_pick_path = "/assets/images/thumbs/" | append: page.slug | append: ".jpg" -%}
+{%- assign product_thumb = site.static_files | where: "path", product_pick_path | first -%}
+{%- if product_thumb -%}
+  {%- assign product_pick = product_pick_path -%}
+{%- else -%}
+  {%- assign product_pick = page.image -%}
+{%- endif -%}
+{{- product_pick | default: "/assets/images/og-image.png" | absolute_url -}}

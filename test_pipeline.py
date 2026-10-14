@@ -1938,16 +1938,73 @@ class TestManualResolve(unittest.TestCase):
         fake_enrich.assert_called_once_with("Some Product", "810189030893")
         self.assertEqual(entry["upc"], "810189030893")
 
-    def test_apply_resolution_records_the_pull_date(self):
-        # The "(as of <date>)" label on a published price comes from this field.
+    def test_apply_resolution_records_the_eastern_pull_date(self):
+        # The "(as of <date>)" label on a published price comes from this field,
+        # dated in America/New_York (Director, 2026-10-13), not the runner's UTC.
         import datetime
         import refill_products as rp
         entry = {"topic": "best-x", "asin": "NEEDS_ASIN", "image": "NEEDS_IMAGE"}
         resolved = {"name": "Some Product", "asin": "B0ABCD1234",
                     "image": "https://m.media-amazon.com/images/I/x.jpg",
                     "price": "9.99", "stars": 4.0}
-        rp.apply_resolution(entry, resolved, enrich_chewy=False)
-        self.assertEqual(entry["pulled_on"], datetime.date.today().isoformat())
+        # 2025-01-02 01:30 UTC is 20:30 on Jan 1 in New York. A past date, so a
+        # stamp from the machine's own clock cannot pass by coincidence.
+        fixed = datetime.datetime(2025, 1, 2, 1, 30, tzinfo=datetime.timezone.utc)
+
+        class FrozenDatetime(datetime.datetime):
+            @classmethod
+            def now(cls, tz=None):
+                return fixed.astimezone(tz) if tz else fixed.replace(tzinfo=None)
+
+        with patch.object(rp.datetime, "datetime", FrozenDatetime):
+            rp.apply_resolution(entry, resolved, enrich_chewy=False)
+        self.assertEqual(entry["pulled_on"], "2025-01-01")
+
+    def test_eastern_date_across_both_dst_switches(self):
+        """Expected dates are worked by hand from the US rule, never by the code
+        under test. The switch days (Sundays, checked below by calendar): 2026-03-08,
+        2026-11-01, 2027-03-14, 2027-11-07. Only the 23:00-00:00 ET hour can tell
+        EST from EDT in a date, so most cases sit in the 20:00-23:59 ET evening
+        window (UTC already the next day) or just past ET midnight, on both sides
+        of each switch."""
+        import calendar
+        import datetime
+        import refill_products as rp
+        for y, m, d in ((2026, 3, 8), (2026, 11, 1), (2027, 3, 14), (2027, 11, 7)):
+            self.assertEqual(calendar.weekday(y, m, d), calendar.SUNDAY)
+        cases = [
+            # spring 2026: EST until Sun 03-08 07:00Z (02:00 EST)
+            ("2026-03-08T01:00", "2026-03-07"),  # Sat 20:00 EST
+            ("2026-03-08T04:59", "2026-03-07"),  # Sat 23:59 EST (EDT would be Sun 00:59)
+            ("2026-03-08T06:59", "2026-03-08"),  # Sun 01:59 EST, a minute before the switch
+            ("2026-03-08T07:00", "2026-03-08"),  # Sun 03:00 EDT, the switch
+            ("2026-03-09T00:00", "2026-03-08"),  # Sun 20:00 EDT
+            ("2026-03-09T03:59", "2026-03-08"),  # Sun 23:59 EDT
+            ("2026-03-09T04:00", "2026-03-09"),  # Mon 00:00 EDT (EST would be Sun 23:00)
+            # fall 2026: EDT until Sun 11-01 06:00Z (02:00 EDT)
+            ("2026-11-01T00:00", "2026-10-31"),  # Sat 20:00 EDT
+            ("2026-11-01T03:59", "2026-10-31"),  # Sat 23:59 EDT
+            ("2026-11-01T04:30", "2026-11-01"),  # Sun 00:30 EDT (EST would be Sat 23:30)
+            ("2026-11-01T05:59", "2026-11-01"),  # Sun 01:59 EDT, a minute before the switch
+            ("2026-11-01T06:00", "2026-11-01"),  # Sun 01:00 EST, the switch
+            ("2026-11-02T01:00", "2026-11-01"),  # Sun 20:00 EST
+            ("2026-11-02T04:59", "2026-11-01"),  # Sun 23:59 EST (EDT would be Mon 00:59)
+            # 2027, so the Sundays are found per year rather than fixed
+            ("2027-03-14T04:30", "2027-03-13"),  # Sat 23:30 EST
+            ("2027-03-15T04:30", "2027-03-15"),  # Mon 00:30 EDT
+            ("2027-11-07T04:30", "2027-11-07"),  # Sun 00:30 EDT
+            ("2027-11-08T04:30", "2027-11-07"),  # Sun 23:30 EST
+            # mid-season and the year boundary
+            ("2026-07-15T03:30", "2026-07-14"),  # 23:30 EDT
+            ("2026-07-15T04:30", "2026-07-15"),  # 00:30 EDT
+            ("2026-01-15T04:30", "2026-01-14"),  # 23:30 EST
+            ("2026-01-15T05:30", "2026-01-15"),  # 00:30 EST
+            ("2027-01-01T04:59", "2026-12-31"),  # New Year's Eve 23:59 EST
+        ]
+        for utc, et in cases:
+            with self.subTest(utc=utc):
+                now = datetime.datetime.fromisoformat(utc).replace(tzinfo=datetime.timezone.utc)
+                self.assertEqual(rp.eastern_date(now), et)
 
     def test_rejects_bad_asin_shape_and_does_not_write(self):
         import tempfile
@@ -3818,14 +3875,21 @@ class TestShortProductName(unittest.TestCase):
             with self.subTest(name=name):
                 self.assertEqual(gp.short_product_name(name), short)
 
-    def test_a_separatorless_title_is_capped_at_six_words(self):
+    def test_a_separatorless_title_is_capped_at_eight_words(self):
+        # Eight, not six: the Director's ruling of 2026-10-13.
         import generate_posts as gp
         cases = {
             "Pet Grooming Glove Gentle Deshedding Brush Efficient Pet Hair Remover":
-                "Pet Grooming Glove Gentle Deshedding Brush",
-            # the cap never leaves a dangling connector
-            "Blue Buffalo Bits Beef Soft & Chewy Dog Treats": "Blue Buffalo Bits Beef Soft",
-            "Hertzko Self Cleaning Slicker Brush for Dogs and Cats": "Hertzko Self Cleaning Slicker Brush",
+                "Pet Grooming Glove Gentle Deshedding Brush Efficient Pet",
+            "Blue Buffalo Bits Beef Soft & Chewy Dog Treats": "Blue Buffalo Bits Beef Soft & Chewy Dog",
+            # exactly eight words: kept whole
+            "KONG Classic Dog Toy Durable Natural Rubber Chew":
+                "KONG Classic Dog Toy Durable Natural Rubber Chew",
+            # the cap never leaves a dangling connector, however many in a row
+            "Hertzko Self Cleaning Slicker Brush for Dogs and Cats":
+                "Hertzko Self Cleaning Slicker Brush for Dogs",
+            "Calming Bed Donut Shape Cuddler Round for the Dogs and Cats":
+                "Calming Bed Donut Shape Cuddler Round",
         }
         for name, short in cases.items():
             with self.subTest(name=name):
@@ -3885,10 +3949,11 @@ class TestFacebookLinkTracking(unittest.TestCase):
     It mirrors the Pinterest tag generate_posts.build_url puts on article_url:
     utm_source=pinterest&utm_medium=social&utm_campaign=pin.
 
-    Only the message (col C) changes. Col B stays the raw article_url because
-    it is the dedup key: main() re-reads every sent/ file on each run, and a
-    col B that no longer matches the rows already in the sheet would re-append
-    the whole back catalogue to the Facebook queue."""
+    Col B (the link the Apps Script posts) carries the same facebook tag as the
+    message (col C); before 2026-10-13 it carried the Pinterest tag, so Facebook
+    clicks counted as Pinterest. Col B is also the dedup key: main() re-reads
+    every sent/ file on each run, so a row must match on its normalized form
+    whichever tag it was written with, or the back catalogue re-queues."""
 
     PIN_URL = ("https://happypetproductreviews.com/toys/best-snuffle-mats-dogs/"
                "?utm_source=pinterest&utm_medium=social&utm_campaign=pin")
@@ -3921,12 +3986,20 @@ class TestFacebookLinkTracking(unittest.TestCase):
                 self.assertEqual(url, self.FB_URL)
 
     # -- main(): the sheet row --------------------------------------------------
-    def _run_main(self, existing_urls):
+    def _run_main(self, existing_urls, posts=None, thumbs=()):
+        """posts: {file name under _posts/: full text}; thumbs: slugs that have a
+        self-hosted thumbnail in assets/images/thumbs/."""
         import shutil
         import tempfile
         tmp = Path(tempfile.mkdtemp())
         self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
         (tmp / "_pin_queue").mkdir()
+        for name, text in (posts or {}).items():
+            (tmp / "_posts").mkdir(exist_ok=True)
+            (tmp / "_posts" / name).write_bytes(text.encode("utf-8"))
+        for slug in thumbs:
+            (tmp / "assets" / "images" / "thumbs").mkdir(parents=True, exist_ok=True)
+            (tmp / "assets" / "images" / "thumbs" / f"{slug}.jpg").write_bytes(b"jpg")
         (tmp / "_pin_queue" / "best-snuffle-mats-dogs.json").write_text(json.dumps({
             "title": "Best Snuffle Mats", "article_url": self.PIN_URL,
             "image_url": "https://happypetproductreviews.com/assets/images/pins/x.jpg?v=20261005",
@@ -3949,18 +4022,135 @@ class TestFacebookLinkTracking(unittest.TestCase):
             self.pk.main()
         return ws
 
-    def test_row_keeps_raw_article_url_and_tags_only_the_message(self):
+    def test_a_new_rows_url_column_carries_the_facebook_tag(self):
         ws = self._run_main(existing_urls=[])
         ws.append_row.assert_called_once()
         row = ws.append_row.call_args.args[0]
-        self.assertEqual(row[1], self.PIN_URL, "col B is the dedup key and must not change")
-        self.assertEqual(self._url_in(row[2]), self.FB_URL)
+        self.assertEqual(row[1], self.FB_URL)
+        self.assertNotIn("pinterest", row[1])
 
-    def test_an_already_queued_article_is_still_skipped(self):
-        """Rows written before this change hold the Pinterest-tagged URL in col B;
-        those must still match, or every sent/ file posts a second time."""
-        ws = self._run_main(existing_urls=[self.PIN_URL])
-        ws.append_row.assert_not_called()
+    def test_the_url_column_and_the_message_link_agree(self):
+        row = self._run_main(existing_urls=[]).append_row.call_args.args[0]
+        self.assertEqual(self._url_in(row[2]), row[1])
+
+    CLEAN_URL = "https://happypetproductreviews.com/toys/best-snuffle-mats-dogs/"
+
+    def test_an_already_queued_article_is_skipped_whatever_its_col_b_form(self):
+        """Col B holds the clean URL on rows from Apr 4-16, the Pinterest-tagged URL
+        from Apr 19, the Facebook-tagged URL from this change on. Each must still
+        match, or every sent/ file posts a second time."""
+        forms = {"clean (Apr 4-16)": self.CLEAN_URL,
+                 "pinterest-tagged (Apr 19 on)": self.PIN_URL,
+                 "facebook-tagged (new)": self.FB_URL,
+                 "no trailing slash": self.CLEAN_URL.rstrip("/"),
+                 "upper-case host, padded": "  https://HappyPetProductReviews.com/toys/best-snuffle-mats-dogs/  ",
+                 "fragment": self.CLEAN_URL + "#top",
+                 "http": self.CLEAN_URL.replace("https://", "http://"),
+                 "www": self.CLEAN_URL.replace("https://", "https://www."),
+                 "http + www, pinterest-tagged": self.PIN_URL.replace("https://", "http://www.")}
+        for label, existing in forms.items():
+            with self.subTest(label):
+                self._run_main(existing_urls=[existing]).append_row.assert_not_called()
+
+    def test_a_different_article_never_counts_as_queued(self):
+        """Normalizing must not merge two articles: another slug, a slug that is a
+        prefix of ours, our slug under another category, and our path on another
+        host all still append."""
+        for existing in ("https://example.com/toys/best-snuffle-mats-dogs/",
+                         "https://wwwhappypetproductreviews.com/toys/best-snuffle-mats-dogs/",
+                         "https://happypetproductreviews.com/toys/best-snuffle-mats/",
+                         "https://happypetproductreviews.com/toys/best-snuffle-mats-dogs-2/",
+                         "https://happypetproductreviews.com/dog-toys/best-snuffle-mats-dogs/"
+                         "?utm_source=pinterest&utm_medium=social&utm_campaign=pin"):
+            with self.subTest(existing=existing):
+                self._run_main(existing_urls=[existing]).append_row.assert_called_once()
+
+    # -- main(): the sheet row's Image column (col D) ----------------------------
+    # The Facebook Queue row's Image column is what the external Apps Script
+    # posts. It used to be the queue JSON's image_url, which is the 1000x1500
+    # Pinterest pin -- Facebook crops or distorts a 2:3 image (Director,
+    # 2026-10-13). Col D is now the product image: the self-hosted thumbnail when
+    # the post has one (the buy panel's rule), else the post's own `image`.
+    # Pinterest is untouched: the pin JSON and post_pins.py still carry the pin.
+
+    SLUG = "best-snuffle-mats-dogs"
+    PIN_IMG = "https://happypetproductreviews.com/assets/images/pins/best-snuffle-mats-dogs.jpg"
+    AMAZON = "https://m.media-amazon.com/images/I/719auFEdkVL._AC_SX679_.jpg"
+    THUMB = "https://happypetproductreviews.com/assets/images/thumbs/best-snuffle-mats-dogs.jpg"
+    FALLBACK = "https://happypetproductreviews.com/assets/images/og-image.png"
+
+    def _post(self, image_line='image: "%s"' % AMAZON):
+        return ('---\nlayout: post\ntitle: "Best Snuffle Mats"\n' + image_line + '\n'
+                'pin_image: "' + self.PIN_IMG + '?v=20261005"\n---\n\nBody text.\n')
+
+    def _col_d(self, **kw):
+        ws = self._run_main(existing_urls=[], **kw)
+        ws.append_row.assert_called_once()
+        return ws.append_row.call_args.args[0][3]
+
+    def test_image_column_is_the_posts_product_image_not_the_pin(self):
+        img = self._col_d(posts={"2026-10-05-" + self.SLUG + ".md": self._post()})
+        self.assertEqual(img, self.AMAZON)
+
+    def test_a_self_hosted_thumbnail_wins_over_the_amazon_url(self):
+        img = self._col_d(posts={"2026-10-05-" + self.SLUG + ".md": self._post()},
+                          thumbs=[self.SLUG])
+        self.assertEqual(img, self.THUMB)
+
+    def test_a_thumbnail_alone_is_enough(self):
+        self.assertEqual(self._col_d(thumbs=[self.SLUG]), self.THUMB)
+
+    def test_front_matter_spellings_of_image_all_resolve(self):
+        for line in ("image: '%s'" % self.AMAZON, "image: %s" % self.AMAZON,
+                     'image:   "%s"   ' % self.AMAZON, 'image:\t"%s"' % self.AMAZON):
+            for eol in ("\n", "\r\n"):
+                with self.subTest(line=line, eol=eol):
+                    text = self._post(line).replace("\n", eol)
+                    self.assertEqual(
+                        self._col_d(posts={"2026-10-05-" + self.SLUG + ".md": text}), self.AMAZON)
+
+    def test_pin_image_is_never_mistaken_for_image(self):
+        """A post with pin_image but no image key must not leak the pin."""
+        text = '---\nlayout: post\ntitle: "x"\npin_image: "' + self.PIN_IMG + '"\n---\n'
+        img = self._col_d(posts={"2026-10-05-" + self.SLUG + ".md": text})
+        self.assertEqual(img, self.FALLBACK)
+
+    def test_a_post_whose_slug_merely_ends_with_ours_is_not_matched(self):
+        # The decoy sorts BEFORE the real post, so a suffix match would pick it.
+        other = self._post('image: "https://m.media-amazon.com/images/I/OTHER.jpg"')
+        img = self._col_d(posts={"2026-10-05-aaa-" + self.SLUG + ".md": other,
+                                 "2026-10-05-" + self.SLUG + ".md": self._post()})
+        self.assertEqual(img, self.AMAZON)
+
+    def test_nothing_resolvable_falls_back_to_the_landscape_site_image_never_the_pin(self):
+        self.assertEqual(self._col_d(), self.FALLBACK)
+
+    def test_the_pin_never_reaches_col_d_whatever_the_inputs(self):
+        for posts, thumbs in (({}, ()), ({"2026-10-05-" + self.SLUG + ".md": self._post()}, ()),
+                              ({}, [self.SLUG])):
+            with self.subTest(posts=bool(posts), thumbs=bool(thumbs)):
+                self.assertNotIn("/pins/", self._col_d(posts=posts, thumbs=thumbs))
+
+    def test_orig_date_is_the_eastern_date(self):
+        """OrigDate (col E) is stamped with eastern_date(), like pulled_on."""
+        import refill_products
+        with patch.object(refill_products, "eastern_date", lambda: "2025-01-01"):
+            row = self._run_main(existing_urls=[]).append_row.call_args.args[0]
+        self.assertEqual(row[4], "2025-01-01")
+
+    def test_the_rest_of_the_row_is_unchanged(self):
+        ws = self._run_main(existing_urls=[],
+                            posts={"2026-10-05-" + self.SLUG + ".md": self._post()})
+        row = ws.append_row.call_args.args[0]
+        self.assertEqual(len(row), 9)
+        self.assertEqual((row[0], row[1], row[6], row[7], row[8]),
+                         ("Best Snuffle Mats", self.FB_URL, "dog", "FALSE", ""))
+
+    def test_the_pinterest_side_still_carries_the_pin_image(self):
+        """post_pins.py reads image_url from the queue JSON; this change must not
+        have touched that path."""
+        src = (REPO / "post_pins.py").read_text(encoding="utf-8")
+        self.assertIn('data.get("image_url", "")', src)
 
 
 # ---------------------------------------------------------------------------
@@ -4338,6 +4528,222 @@ class TestPostsAreOnTopics(unittest.TestCase):
             if not m or m.group(1) != sp:
                 changed.append(f"{slug}: {sp} -> {m.group(1) if m else None}")
         self.assertEqual(changed, [])
+
+
+class TestAttributionSurvivesRedirectsAndNewPinUrls(unittest.TestCase):
+    """Pin and Facebook clicks arrive with ?utm_* on the URL. GA4 loses the
+    channel unless (1) every redirect_from stub forwards the query string and
+    fragment, and (2) every URL the pipeline stages for a NEW pin or Facebook
+    post is already the post's live permalink, so the click skips the stub.
+
+    Found 2026-10-13: ~133 fired pins link to pre-restructure paths such as
+    /cat-food/best-grain-free-cat-food/?utm_source=pinterest. The layout fix
+    (db78b76) was already on main; these tests measure it instead of reading it.
+    """
+
+    TARGET = "https://happypetproductreviews.com/food/best-grain-free-cat-food/"
+    PIN_QUERY = "?utm_source=pinterest&utm_medium=social&utm_campaign=pin"
+
+    # slug -> (category the pin was fired with, category the post has now)
+    RECATEGORIZED = {
+        "best-grain-free-cat-food":     ("cat-food", "food"),
+        "best-dog-training-treats":     ("dog-food", "treats"),
+        "best-dog-joint-supplements":   ("dog-health", "supplements"),
+        "best-cat-litter-odor-control": ("cat-litter", "litter"),
+    }
+
+    @staticmethod
+    def _render_layout(target):
+        """Fill _layouts/redirect.html as Jekyll would for page.redirect.to ==
+        target. Only the forms the layout uses are understood; any other Liquid
+        left in the output fails the caller's assertion, so a new tag cannot
+        pass unrendered."""
+        text = (REPO / "_layouts" / "redirect.html").read_text(encoding="utf-8")
+        text = re.sub(r"\{%-?\s*comment\s*-?%\}.*?\{%-?\s*endcomment\s*-?%\}\s*", "",
+                      text, flags=re.S)
+        text = text.replace("{{ page.redirect.to | jsonify }}", json.dumps(target))
+        return text.replace("{{ page.redirect.to }}", target)
+
+    @staticmethod
+    def _run_script(code, search, hash_):
+        """Execute the stub's inline script in Node against a fake `location`
+        and return the URL it passed to location.replace (None if it never did)."""
+        import shutil
+        import subprocess
+        node = shutil.which("node")
+        if not node:
+            raise unittest.SkipTest("node not on PATH")
+        harness = (
+            "let out = null;\n"
+            f"new Function('location', {json.dumps(code)})("
+            f"{{search: {json.dumps(search)}, hash: {json.dumps(hash_)}, "
+            "replace(u) { out = u; }});\n"
+            "process.stdout.write(JSON.stringify(out));\n")
+        done = subprocess.run([node, "-"], input=harness, capture_output=True,
+                              text=True, timeout=30)
+        assert done.returncode == 0, done.stderr
+        return json.loads(done.stdout)
+
+    def _script_of(self, html):
+        scripts = re.findall(r"<script>(.*?)</script>", html, re.S)
+        self.assertEqual(len(scripts), 1)
+        return scripts[0]
+
+    # --- the stub ----------------------------------------------------------
+
+    def test_layout_renders_target_script_and_noindex(self):
+        html = self._render_layout(self.TARGET)
+        self.assertNotIn("{{", html)
+        self.assertNotIn("{%", html)
+        self.assertIn(f'<link rel="canonical" href="{self.TARGET}">', html)
+        self.assertIn(f'<meta http-equiv="refresh" content="0; url={self.TARGET}">', html)
+        self.assertIn(f'<a href="{self.TARGET}">', html)           # visible fallback
+        self.assertIn('<meta name="robots" content="noindex">', html)
+        code = self._script_of(html)
+        self.assertIn(json.dumps(self.TARGET), code)
+        self.assertIn("location.search", code)
+        self.assertIn("location.hash", code)
+
+    def test_stub_script_forwards_query_and_fragment(self):
+        code = self._script_of(self._render_layout(self.TARGET))
+        for search, hash_ in (
+            (self.PIN_QUERY, ""),
+            ("?utm_source=facebook&utm_medium=social&utm_campaign=post", ""),
+            ("?a=1&b=%20x", "#frag"),
+            ("", "#only-a-fragment"),
+            ("", ""),
+        ):
+            with self.subTest(search=search, hash=hash_):
+                self.assertEqual(self._run_script(code, search, hash_),
+                                 self.TARGET + search + hash_)
+
+    def test_the_script_check_can_fail(self):
+        # Prove the measurement above goes red on the plugin's own stub, which
+        # drops the query: a harness that passed both ways would prove nothing.
+        plugin_script = f"location={json.dumps(self.TARGET)}"
+        self.assertNotEqual(self._run_script(plugin_script, self.PIN_QUERY, "#f"),
+                            self.TARGET + self.PIN_QUERY + "#f")
+        code = self._script_of(self._render_layout(self.TARGET))
+        no_search = code.replace(" + location.search", "")
+        self.assertNotEqual(no_search, code)
+        self.assertNotEqual(self._run_script(no_search, self.PIN_QUERY, ""),
+                            self.TARGET + self.PIN_QUERY)
+
+    def test_the_plugin_and_its_layout_are_both_wired(self):
+        cfg = (REPO / "_config.yml").read_text(encoding="utf-8")
+        self.assertRegex(cfg, r"(?m)^\s*-\s*jekyll-redirect-from\s*$")
+        self.assertRegex(cfg, r"(?m)^permalink:\s*/:categories/:title/\s*$")
+        # Excluded files never reach the build; the layout must not be one.
+        self.assertTrue((REPO / "_layouts" / "redirect.html").is_file())
+        self.assertNotRegex(cfg, r"(?m)^\s*-\s*_?layouts?\b")
+
+    # --- URLs staged for new pins and Facebook posts ----------------------
+
+    def test_build_url_gives_the_live_permalink_for_recategorized_posts(self):
+        import generate_posts as gp
+        for slug, (fired_with, now) in self.RECATEGORIZED.items():
+            post = _post_file_for_slug(slug)
+            with self.subTest(slug=slug):
+                self.assertIsNotNone(post)
+                self.assertEqual(_post_first_category(post), now)
+                self.assertIn(f"/{fired_with}/{slug}/", _post_redirect_paths(post))
+                live = f"https://happypetproductreviews.com/{now}/{slug}/"
+                # A stale registry entry (the category the pin used to carry)
+                # must lose to the published post's own front matter.
+                with patch.dict(gp.SLUG_CATEGORIES, {slug: fired_with}):
+                    self.assertEqual(gp.build_url(slug), live)
+                    self.assertEqual(gp.build_url(slug, utm=True), live + self.PIN_QUERY)
+
+    def test_every_fired_pin_whose_post_moved_now_builds_the_live_url(self):
+        # Same check driven by the real record of fired pins, not a hand list.
+        import generate_posts as gp
+        moved = 0
+        for jf in sorted((REPO / "_pin_queue" / "sent").glob("*.json")):
+            fired = _norm_path(json.loads(jf.read_text(encoding="utf-8"))["article_url"])
+            post = _post_file_for_slug(jf.stem)
+            if post is None:
+                continue
+            live = _norm_path(f"/{_post_first_category(post)}/{jf.stem}/")
+            if fired == live:
+                continue
+            moved += 1
+            fired_cat = fired.strip("/").split("/")[0]
+            with self.subTest(slug=jf.stem), \
+                 patch.dict(gp.SLUG_CATEGORIES, {jf.stem: fired_cat}):
+                self.assertEqual(_norm_path(gp.build_url(jf.stem, utm=True)), live)
+        self.assertGreater(moved, 0, "no moved post found: the check ran on nothing")
+
+    def test_staged_pin_url_matches_the_drafts_front_matter_permalink(self):
+        import generate_posts as gp
+        slug = "best-grain-free-cat-food-staged"
+        product = {"topic": slug, "title": "Best Grain Free Cat Food",
+                   "keyword": "grain free cat food", "format": "single_review",
+                   "name": "The Food", "category": "food", "species": "cat",
+                   "affiliate_url": "https://amzn.to/abc", "pulled_on": "2026-10-01"}
+        body = "## Heading\n\n" + ("word " * 800)
+        # The registry holds the OLD category for this slug: the URL must come
+        # from the same `category` that is written into the front matter.
+        with tempfile.TemporaryDirectory() as td, \
+             patch.dict(gp.SLUG_CATEGORIES, {slug: "cat-food"}):
+            posts = Path(td) / "_posts"; posts.mkdir()
+            (Path(td) / "_pin_queue").mkdir()
+            with patch.object(gp, "POSTS_DIR", posts), \
+                 patch.object(gp, "REPO_DIR", Path(td)), \
+                 patch.object(gp, "PIN_GEN_AVAILABLE", False):
+                out = gp.stage_article(slug, product, body, pin_desc="Great food.", index=0)
+            fm_cat = re.search(r"^categories: \[([^\]]*)\]",
+                               out["draft_path"].read_text(encoding="utf-8"), re.M).group(1)
+            queued = json.loads(out["pin_queue_path"].read_text(encoding="utf-8"))["article_url"]
+        self.assertEqual(fm_cat, "food")
+        # _config.yml permalink is /:categories/:title/ (pinned by the wiring test).
+        self.assertEqual(queued,
+                         f"https://happypetproductreviews.com/{fm_cat}/{slug}/{self.PIN_QUERY}")
+
+    def test_facebook_message_links_the_same_permalink_with_its_own_tag(self):
+        import push_pins_to_sheets as pps
+        msg = pps._build_fb_message(
+            "best-grain-free-cat-food", "Best Grain Free Cat Food",
+            self.TARGET + self.PIN_QUERY)
+        self.assertTrue(msg.endswith(
+            "\n" + self.TARGET + "?utm_source=facebook&utm_medium=social&utm_campaign=post"), msg)
+
+    @staticmethod
+    def _stale_queued_pins(queue_dir, posts_dir):
+        """Staged-but-unsent pins whose article path is not their post's live
+        permalink. A re-categorization PR that lands between Stage 1 and the
+        send would otherwise ship the old path to Pinterest and Facebook."""
+        stale = []
+        for jf in sorted(Path(queue_dir).glob("*.json")):
+            url = json.loads(jf.read_text(encoding="utf-8")).get("article_url", "")
+            hits = [h for h in sorted(Path(posts_dir).glob(f"*-{jf.stem}.md"))
+                    if h.stem == f"DRAFT-{jf.stem}"
+                    or re.fullmatch(r"\d{4}-\d{2}-\d{2}-" + re.escape(jf.stem), h.stem)]
+            if not hits:
+                continue
+            live = _norm_path(f"/{_post_first_category(hits[0])}/{jf.stem}/")
+            if _norm_path(url) != live:
+                stale.append(f"{jf.stem}: queued {_norm_path(url)}, post is at {live}")
+        return stale
+
+    def test_no_staged_pin_points_at_a_moved_post(self):
+        self.assertEqual(self._stale_queued_pins(REPO / "_pin_queue", REPO / "_posts"), [])
+
+    def test_the_staged_pin_check_can_fail_and_does_not_cry_wolf(self):
+        with tempfile.TemporaryDirectory() as td:
+            q = Path(td) / "q"; q.mkdir()
+            p = Path(td) / "p"; p.mkdir()
+            (p / "2026-10-01-best-a.md").write_text("---\ncategories: [food]\n---\n", encoding="utf-8")
+            (p / "DRAFT-best-b.md").write_text("---\ncategories: [treats]\n---\n", encoding="utf-8")
+            base = "https://happypetproductreviews.com"
+            (q / "best-a.json").write_text(json.dumps(
+                {"article_url": f"{base}/cat-food/best-a/{self.PIN_QUERY}"}), encoding="utf-8")
+            (q / "best-b.json").write_text(json.dumps(
+                {"article_url": f"{base}/treats/best-b/{self.PIN_QUERY}"}), encoding="utf-8")
+            (q / "best-c.json").write_text(json.dumps(
+                {"article_url": f"{base}/toys/best-c/"}), encoding="utf-8")  # no post yet
+            stale = self._stale_queued_pins(q, p)
+        self.assertEqual(len(stale), 1)
+        self.assertIn("best-a", stale[0])
 
 
 # ---------------------------------------------------------------------------
@@ -4949,6 +5355,67 @@ class TestPublishedPostsNameTheirPick(unittest.TestCase):
         self.assertGreater(len(search), 0, "search-link detection matched no post")
         self.assertEqual([n for n, fm in self._posts()
                           if self.SEARCH.search(fm) and "product_short:" in fm], [])
+
+
+class TestBuildCheckPathFilter(unittest.TestCase):
+    """build-check.yml must run on a published-post edit and never on a routine
+    Stage-1 or refill PR: automerge fires once, when "CI — Tests" completes, and
+    automerge_gate holds a PR while any other check is still pending. The filter
+    is evaluated the way GitHub documents it: patterns in order, the last match
+    decides, `*` stops at `/`, `**` does not; a PR runs if any one file is in."""
+
+    def _patterns(self):
+        lines = (REPO / ".github" / "workflows" / "build-check.yml").read_text(
+            encoding="utf-8").splitlines()
+        start = lines.index("    paths:") + 1
+        pats = []
+        for line in lines[start:]:
+            m = re.fullmatch(r"\s+- '([^']+)'", line)
+            if not m:
+                break
+            pats.append(m.group(1))
+        self.assertGreater(len(pats), 5, "paths block not found")
+        return pats
+
+    def _runs(self, files):
+        def rx(p):
+            return re.compile("".join(".*" if t == "**" else "[^/]*" if t == "*" else re.escape(t)
+                                      for t in re.split(r"(\*\*|\*)", p)))
+        rules = [(p.startswith("!"), rx(p.lstrip("!"))) for p in self._patterns()]
+        def included(path):
+            state = False
+            for negated, r in rules:
+                if r.fullmatch(path):
+                    state = not negated
+            return state
+        return any(included(f) for f in files)
+
+    def test_the_diff_and_summary_steps_cannot_fail_the_job(self):
+        """A non-empty diff reports and never fails: every diff and grep in the
+        "Diff the two sites" step ends in `|| true` (grep -c exits 1 on zero
+        matches, diff exits 1 on any difference). Only a build error is red."""
+        wf = (REPO / ".github" / "workflows" / "build-check.yml").read_text(encoding="utf-8")
+        step = wf.split("- name: Diff the two sites", 1)[1].split("- name:", 1)[0]
+        cmds = [l.strip() for l in step.splitlines()
+                if re.search(r"(^|\$\()\s*(diff|grep)\b", l.strip())]
+        self.assertEqual(len(cmds), 5, cmds)
+        for cmd in cmds:
+            with self.subTest(cmd=cmd):
+                self.assertRegex(cmd, r"\|\| true\)?$")
+
+    def test_a_published_post_edit_runs_the_check(self):
+        self.assertTrue(self._runs(["_posts/2026-04-16-best-cat-litter.md"]))
+
+    def test_a_stage1_draft_pr_does_not(self):
+        self.assertFalse(self._runs(["_posts/DRAFT-best-cat-litter.md",
+                                     "_pin_queue/best-cat-litter.json",
+                                     "assets/images/pins/best-cat-litter.jpg"]))
+
+    def test_a_refill_pr_does_not(self):
+        self.assertFalse(self._runs(["products.json"]))
+
+    def test_a_draft_alongside_a_layout_change_still_runs(self):
+        self.assertTrue(self._runs(["_posts/DRAFT-x.md", "_layouts/post.html"]))
 
 
 class TestAutoMergePublishWiring(unittest.TestCase):
@@ -6674,12 +7141,7 @@ class TestProductReviewStructuredData(unittest.TestCase):
                 if name == "default":
                     val = val if val else lookup(arg)
                 elif name == "absolute_url":
-                    # Jekyll's url_filters.rb: "return input if
-                    # Addressable::URI.parse(input.to_s).absolute?" -- an
-                    # already-absolute URL passes through untouched, only a
-                    # relative path gets site.url prepended.
-                    if not re.match(r"^[a-z][a-z0-9+.-]*://", str(val), re.I):
-                        val = "https://happypetproductreviews.com" + str(val)
+                    val = _jekyll_absolute_url(val)
                 elif name == "date":
                     val = str(val)          # already YYYY-MM-DD in front matter
                 elif name == "jsonify":
@@ -9903,6 +10365,16 @@ class TestRefillWatchdog(unittest.TestCase):
 # ---------------------------------------------------------------------------
 # Related-reviews block (_includes/related-reviews.html, traffic plan move 1)
 # ---------------------------------------------------------------------------
+def _jekyll_absolute_url(val):
+    """The test suite's one stand-in for Jekyll's absolute_url. Jekyll's
+    url_filters.rb: "return input if Addressable::URI.parse(input.to_s).absolute?"
+    -- an already-absolute URL passes through untouched, only a path (with its
+    leading slash) gets site.url prepended. baseurl is '' on this site."""
+    if re.match(r"[a-z][a-z0-9+.-]*://", str(val), re.I):
+        return val
+    return "https://happypetproductreviews.com" + str(val)
+
+
 class _MiniLiquid:
     """Renders the related-reviews include, and only that, without Ruby.
 
@@ -10087,6 +10559,8 @@ class _MiniLiquid:
                 val = [x for x in (val or []) if x.get(args[0]) == args[1]]
             elif name == "default":
                 val = val if val not in (None, False, "") else args[0]
+            elif name == "absolute_url":
+                val = _jekyll_absolute_url(val)
             elif name == "escape":
                 val = ("" if val is None else str(val)).replace("&", "&amp;").replace(
                     "<", "&lt;").replace(">", "&gt;").replace('"', "&quot;").replace("'", "&#39;")
@@ -10253,6 +10727,141 @@ class TestPublishedRootIsAllowlisted(unittest.TestCase):
             with self.subTest(name=name):
                 self.assertTrue((REPO / name).exists(), f"{name} listed in PUBLIC but missing")
                 self.assertFalse(self._excluded(name), f"{name} is a site page and must publish")
+
+
+class TestSocialImage(unittest.TestCase):
+    """og:image is the PRODUCT picture, never the Pinterest pin.
+
+    The pin is a 1000x1500 portrait; Facebook crops or distorts a 2:3 image in a
+    link preview (Director, 2026-10-13). _includes/social-image.html picks the
+    self-hosted thumbnail when the post has one, else the post's own `image`,
+    else the 1200x630 brand card -- the same pick as the buy panel in post.html.
+    Rendered through _MiniLiquid (a Liquid subset, not Jekyll; build-check.yml's
+    `jekyll build` is the real render) against every real post. Expected values
+    are computed from the filesystem and front matter, not from the include.
+    """
+
+    SITE = "https://happypetproductreviews.com"
+    INCLUDE = REPO / "_includes" / "social-image.html"
+
+    @classmethod
+    def setUpClass(cls):
+        cls.source = cls.INCLUDE.read_text(encoding="utf-8")
+        cls.thumbs = {t.stem for t in (REPO / "assets" / "images" / "thumbs").glob("*.jpg")}
+        cls.static_files = [{"path": f"/assets/images/thumbs/{s}.jpg"} for s in sorted(cls.thumbs)]
+        from validate_published_chewy_links import parse_frontmatter
+        cls.posts = []
+        for p in sorted((REPO / "_posts").glob("[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]-*.md")):
+            fm = parse_frontmatter(p)
+            cls.posts.append({"slug": p.stem[11:], "image": fm.get("image"),
+                              "pin_image": fm.get("pin_image")})
+
+    def _render(self, page):
+        return _MiniLiquid(self.source).render(
+            {"site": {"baseurl": "", "static_files": self.static_files}, "page": page})
+
+    def test_the_fixture_is_real(self):
+        self.assertGreaterEqual(len(self.posts), 60)
+        self.assertTrue(self.thumbs, "no thumbnails found")
+        self.assertTrue(any(p["pin_image"] for p in self.posts), "no post has a pin_image")
+        # Not required: a post without a thumbnail. A thumbnail backfill may cover
+        # every post; the no-thumbnail branch is held by the synthetic pages below.
+
+    def test_every_post_gets_its_thumbnail_or_its_own_image(self):
+        for post in self.posts:
+            with self.subTest(slug=post["slug"]):
+                expected = (f"{self.SITE}/assets/images/thumbs/{post['slug']}.jpg"
+                            if post["slug"] in self.thumbs else post["image"])
+                self.assertEqual(self._render(post), expected)
+
+    def test_no_post_ever_gets_a_pin(self):
+        for post in self.posts:
+            with self.subTest(slug=post["slug"]):
+                out = self._render(post)
+                self.assertNotIn("/assets/images/pins/", out)
+                if post["pin_image"]:
+                    self.assertNotEqual(out, post["pin_image"])
+                    self.assertNotEqual(out, post["pin_image"].split("?")[0])
+
+    def test_a_post_with_a_pin_and_no_image_still_does_not_get_the_pin(self):
+        out = self._render({"slug": "no-such-post", "pin_image": self.SITE + "/assets/images/pins/x.jpg"})
+        self.assertEqual(out, self.SITE + "/assets/images/og-image.png")
+
+    def test_a_page_with_nothing_gets_the_landscape_brand_card(self):
+        for page in ({}, {"slug": None}, {"image": ""}):
+            with self.subTest(page=page):
+                self.assertEqual(self._render(page), self.SITE + "/assets/images/og-image.png")
+
+    def test_the_output_is_a_bare_url_with_no_whitespace(self):
+        for post in self.posts[:5] + [{}]:
+            out = self._render(post)
+            self.assertEqual(out, out.strip())
+            self.assertNotIn("\n", out)
+
+    def test_the_brand_card_and_thumbnails_are_not_portrait(self):
+        """The reason the pin is out: nothing the include can emit may be 2:3."""
+        import generate_pin_images as g
+        if not g.PIL_AVAILABLE:
+            self.skipTest("Pillow not installed")
+        from PIL import Image
+        self.assertEqual(Image.open(REPO / "assets" / "images" / "og-image.png").size, (1200, 630))
+        for stem in sorted(self.thumbs):
+            with self.subTest(thumb=stem):
+                w, h = Image.open(REPO / "assets" / "images" / "thumbs" / f"{stem}.jpg").size
+                self.assertGreaterEqual(w, h)
+
+    def test_the_facebook_sheet_rule_is_the_include_rule(self):
+        """push_pins_to_sheets.product_image_url mirrors this include. Both run
+        on every real post, then on synthetic posts covering each branch: a
+        thumbnail, an absolute image, a relative image (absolute_url), single
+        quotes, and nothing at all."""
+        import shutil
+        import tempfile
+        import push_pins_to_sheets as pps
+        from validate_published_chewy_links import parse_frontmatter
+        for post in self.posts:
+            with self.subTest(slug=post["slug"]):
+                self.assertEqual(pps.product_image_url(post["slug"]), self._render(post))
+        tmp = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
+        (tmp / "_posts").mkdir()
+        (tmp / "assets" / "images" / "thumbs").mkdir(parents=True)
+        (tmp / "assets" / "images" / "thumbs" / "has-thumb.jpg").write_bytes(b"jpg")
+        cases = {"has-thumb": 'image: "https://m.media-amazon.com/images/I/a.jpg"',
+                 "absolute": 'image: "https://m.media-amazon.com/images/I/b.jpg"',
+                 "relative": 'image: "/assets/images/c.jpg"',
+                 "single-quoted": "image: '/assets/images/d.jpg'",
+                 "nothing": 'pin_image: "/assets/images/pins/e.jpg"'}
+        for slug, line in cases.items():
+            (tmp / "_posts" / f"2026-10-05-{slug}.md").write_text(
+                f"---\nlayout: post\n{line}\n---\nBody.\n", encoding="utf-8")
+        static = [{"path": "/assets/images/thumbs/has-thumb.jpg"}]
+        with patch.object(pps, "REPO_DIR", tmp):
+            for slug in cases:
+                with self.subTest(case=slug):
+                    fm = parse_frontmatter(tmp / "_posts" / f"2026-10-05-{slug}.md")
+                    liquid = _MiniLiquid(self.source).render(
+                        {"site": {"baseurl": "", "static_files": static},
+                         "page": {"slug": slug, "image": fm.get("image")}})
+                    self.assertEqual(pps.product_image_url(slug), liquid)
+                    self.assertTrue(liquid.startswith(self.SITE + "/") or
+                                    liquid.startswith("https://m.media-amazon.com/"), liquid)
+
+    def test_the_buy_panel_takes_its_image_from_the_include(self):
+        post = (REPO / "_layouts" / "post.html").read_text(encoding="utf-8")
+        self.assertIn("{%- include social-image.html -%}", post)
+        self.assertNotIn("static_files", post, "post.html has a second copy of the image rule")
+
+    def test_default_layout_uses_the_include_and_never_pin_image(self):
+        layout = (REPO / "_layouts" / "default.html").read_text(encoding="utf-8")
+        tags = re.findall(r'<meta property="og:image"[^>]*>', layout)
+        self.assertEqual(len(tags), 1, tags)
+        self.assertIn("{% include social-image.html %}", tags[0])
+        self.assertNotIn("pin_image", tags[0])
+
+    def test_pinterest_keeps_its_own_pin_image(self):
+        post = (REPO / "_layouts" / "post.html").read_text(encoding="utf-8")
+        self.assertRegex(post, r"pinterest\.com/pin/create/button/\?[^\"]*media=\{\{ page\.pin_image")
 
 
 if __name__ == "__main__":
