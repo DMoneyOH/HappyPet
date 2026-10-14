@@ -11457,10 +11457,15 @@ class TestPublishWritesTheHub(unittest.TestCase):
         perms = re.search(r"^permissions:\n((?:  .*\n)+)", self.workflow, re.M).group(1)
         self.assertIn("issues: write", perms)
 
-    def _publish(self, tmp, earlier_posts, hub_copy):
+    GH_CALL_END = "---END-OF-CALL---"
+
+    def _publish(self, tmp, earlier_posts, hub_copy, open_issues=(), list_fails=False):
         """Run the dating and hub steps; if they fail, run the issue step, as
-        its `if: failure()` would. Returns (steps run, issue run or None,
-        staged paths, the args gh was called with)."""
+        its `if: failure()` would. `gh` is a shell function that records every
+        call's args; `gh issue list` answers with `open_issues` (the open
+        issues' titles, one per line, as `--jq '.[].title'` prints them), or
+        fails when `list_fails`. Returns (steps run, issue run or None, staged
+        paths, the list of gh calls, each a list of args)."""
         import shlex
         import shutil
         import subprocess
@@ -11489,29 +11494,40 @@ class TestPublishWritesTheHub(unittest.TestCase):
         env = dict(os.environ, GITHUB_OUTPUT=(tmp / "github_output").as_posix(),
                    RUNNER_TEMP=(tmp / "runner_temp").as_posix(),
                    GH_ARGS=(tmp / "gh_args").as_posix(),
+                   OPEN_ISSUES="\n".join(open_issues), LIST_FAILS="1" if list_fails else "",
                    GIT_CONFIG_PARAMETERS="'core.autocrlf=false'")
 
         def run(script):
             return subprocess.run([bash, "--noprofile", "--norc", "-eo", "pipefail", "-c", script],
-                                  cwd=tmp, capture_output=True, text=True, env=env)
+                                  cwd=tmp, capture_output=True, text=True, encoding="utf-8",
+                                  env=env)
         steps = run(date_step.replace("${{ steps.cap.outputs.cap }}", "1")
                     + hub_step.replace("python3 ", python + " "))
         issue = None
         if steps.returncode != 0:
-            issue = run('gh() { printf "%s\\n" "$@" > "$GH_ARGS"; }\n' + issue_step)
-        gh_args = ((tmp / "gh_args").read_text(encoding="utf-8").splitlines()
-                   if (tmp / "gh_args").exists() else [])
+            stub = ('gh() {\n'
+                    '  printf "%s\\n" "$@" >> "$GH_ARGS"; echo "' + self.GH_CALL_END + '" >> "$GH_ARGS"\n'
+                    '  if [ "$1 $2" = "issue list" ]; then\n'
+                    '    [ -n "$LIST_FAILS" ] && return 1\n'
+                    '    [ -n "$OPEN_ISSUES" ] && printf "%s\\n" "$OPEN_ISSUES"\n'
+                    '  fi\n'
+                    '  return 0\n}\n')
+            issue = run(stub + issue_step)
+        raw = ((tmp / "gh_args").read_text(encoding="utf-8")
+               if (tmp / "gh_args").exists() else "")
+        calls = [chunk.split("\n")[:-1] if chunk.endswith("\n") else chunk.split("\n")
+                 for chunk in raw.split(self.GH_CALL_END + "\n") if chunk]
         self.assertEqual(hub_pages.HUB_MIN, 3, "the step names say 3")
-        return steps, issue, git("diff", "--cached", "--name-only").split(), gh_args
+        return steps, issue, git("diff", "--cached", "--name-only").split(), calls
 
     def test_the_publish_of_a_third_treats_post_commits_the_treats_hub(self):
         import hub_pages
         with tempfile.TemporaryDirectory() as d:
             tmp = Path(d)
-            steps, issue, staged, gh_args = self._publish(tmp, hub_pages.HUB_MIN - 1,
-                                                          hub_pages.load_copy())
+            steps, issue, staged, calls = self._publish(tmp, hub_pages.HUB_MIN - 1,
+                                                        hub_pages.load_copy())
             self.assertEqual(steps.returncode, 0, steps.stdout + steps.stderr)
-            self.assertEqual((issue, gh_args), (None, []))
+            self.assertEqual((issue, calls), (None, []))
             self.assertIn("hubs/treats.md", staged)
             self.assertTrue(any(s.startswith("_posts/2") and s.endswith("-best-treats-new.md")
                                 for s in staged), staged)
@@ -11541,18 +11557,88 @@ class TestPublishWritesTheHub(unittest.TestCase):
         missing = ", ".join(hub_pages.COPY_FIELDS[1:])
         with tempfile.TemporaryDirectory() as d:
             tmp = Path(d)
-            steps, issue, staged, gh_args = self._publish(tmp, hub_pages.HUB_MIN - 1, hub_copy)
+            steps, issue, staged, calls = self._publish(tmp, hub_pages.HUB_MIN - 1, hub_copy)
             self.assertNotEqual(steps.returncode, 0)
             self.assertIn(f"ERROR treats: no {missing} in {hub_pages.COPY_FILE}", steps.stderr)
             self.assertFalse((tmp / "hubs" / "treats.md").exists())
             self.assertFalse([s for s in staged if s.startswith("hubs/")], staged)
             self.assertEqual(issue.returncode, 0, issue.stdout + issue.stderr)
-            self.assertEqual(gh_args[:2], ["issue", "create"])
+            creates = self._creates(calls)
+            self.assertEqual(len(creates), 1, calls)
+            gh_args = creates[0]
             title = gh_args[gh_args.index("--title") + 1]
-            self.assertEqual(title, "⚠️ Publish blocked: no hub copy for treats")
+            self.assertEqual(title, self.BLOCKED_TITLE)
             body = "\n".join(gh_args[gh_args.index("--body") + 1:gh_args.index("--assignee")])
             self.assertIn(f"ERROR treats: no {missing} in {hub_pages.COPY_FILE}", body)
             self.assertIn("nothing was published", body)
+
+    BLOCKED_TITLE = "⚠️ Publish blocked: no hub copy for treats"
+
+    @staticmethod
+    def _creates(calls):
+        return [c for c in calls if c[:2] == ["issue", "create"]]
+
+    def _blocked_run(self, **kw):
+        """A blocked publish (treats at its third post, no copy) with the
+        given open issues; returns (issue step run, gh calls)."""
+        import hub_pages
+        hub_copy = hub_pages.load_copy()
+        hub_copy["treats"] = {"title": hub_copy["treats"]["title"]}
+        with tempfile.TemporaryDirectory() as d:
+            steps, issue, _, calls = self._publish(Path(d), hub_pages.HUB_MIN - 1, hub_copy, **kw)
+        self.assertNotEqual(steps.returncode, 0)
+        return issue, calls
+
+    def test_a_blocked_publish_finds_its_open_issue_before_opening_one(self):
+        """The same block, run after run, is one issue: the step lists the open
+        issues first, under the token it already has."""
+        issue, calls = self._blocked_run()
+        self.assertEqual(issue.returncode, 0, issue.stdout + issue.stderr)
+        self.assertEqual(calls[0][:2], ["issue", "list"], calls)
+        listing = calls[0]
+        self.assertEqual(listing[listing.index("--repo") + 1], "DMoneyOH/HappyPet")
+        self.assertEqual(listing[listing.index("--state") + 1], "open")
+        self.assertIn("--json", listing)
+        self.assertEqual(len(self._creates(calls)), 1, calls)
+
+    def test_a_blocked_publish_opens_no_second_issue_while_one_is_open(self):
+        issue, calls = self._blocked_run(open_issues=["Unrelated open issue", self.BLOCKED_TITLE])
+        self.assertEqual(issue.returncode, 0, issue.stdout + issue.stderr)
+        self.assertEqual(self._creates(calls), [], calls)
+        self.assertEqual([c[:2] for c in calls], [["issue", "list"]], calls)
+        self.assertIn("already open", issue.stdout)
+
+    def test_only_an_open_issue_for_the_same_topics_stops_a_new_one(self):
+        """Exact title, so a different topic set, a longer one that merely
+        contains this topic, and another alert all still get their own issue."""
+        for label, titles in (
+                ("different topic", ["⚠️ Publish blocked: no hub copy for tech"]),
+                ("superset of topics", ["⚠️ Publish blocked: no hub copy for treats,tech"]),
+                ("prefix of the title", ["⚠️ Publish blocked: no hub copy for"]),
+                ("same words, other alert", ["Queue low: no hub copy for treats"]),
+                ("case differs", [self.BLOCKED_TITLE.lower()]),
+                ("no open issues", [])):
+            with self.subTest(case=label):
+                issue, calls = self._blocked_run(open_issues=titles)
+                self.assertEqual(issue.returncode, 0, issue.stdout + issue.stderr)
+                self.assertEqual(len(self._creates(calls)), 1, calls)
+
+    def test_a_failed_issue_listing_still_opens_the_issue(self):
+        """An alert that could not check for a duplicate is worth a duplicate;
+        it is not worth silence."""
+        issue, calls = self._blocked_run(open_issues=[self.BLOCKED_TITLE], list_fails=True)
+        self.assertEqual(issue.returncode, 0, issue.stdout + issue.stderr)
+        self.assertEqual(len(self._creates(calls)), 1, calls)
+
+    def test_the_issue_step_stays_inside_the_publish_token(self):
+        """Dedup adds `gh issue list` to the step, which the token's
+        existing `issues: write` covers, so the permissions block is unchanged."""
+        head, script = self._step(self.ISSUE_STEP)
+        self.assertEqual(re.findall(r"secrets\.\w+", head + script), ["secrets.GITHUB_TOKEN"])
+        self.assertEqual(TestPublishWorkflowPins._permissions(self.workflow)[0],
+                         TestPublishWorkflowPins.PUBLISH_PERMISSIONS)
+        self.assertEqual(sorted(set(re.findall(r"\bgh (\w+ \w+)", script))),
+                         ["issue create", "issue list"])
 
 
 class TestPublishedRootIsAllowlisted(unittest.TestCase):
