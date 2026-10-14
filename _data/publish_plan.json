@@ -1,5 +1,5 @@
 {
-  "_about": "Publish plan, Director-approved 2026-10-13 (80-workspace/scarlett/2026-10-13-q4-topic-seed-list.md). generate_posts.select_next_topic publishes eligible products.json entries in `order` first, then everything else in file order. refill_cli context hands the refill session the `seeds` not yet taken, in this order; the refill resolves them the normal way and appends them to products.json, and `order` puts them in their slots.",
+  "_about": "Publish plan, Director-approved 2026-10-13 (80-workspace/scarlett/2026-10-13-q4-topic-seed-list.md). generate_posts.select_next_topic publishes eligible products.json entries in `order` first, then everything else in file order. refill_cli context hands the refill session the `seeds` not yet taken, in this order; the refill resolves them the normal way and appends them to products.json, and `order` puts them in their slots. A seed's `publish_by` is its slot date plus 7 days, capped at 2026-12-20 for Christmas-themed seeds and 2026-12-31 for the rest; after it the seed is no longer offered to the refill or ranked by `order`.",
   "order": [
     "best-heated-outdoor-cat-houses",
     "best-self-warming-pet-pads",
@@ -37,15 +37,15 @@
     "best-cat-litter-scoops"
   ],
   "seeds": [
-    {"topic": "best-cat-advent-calendars", "keyword": "cat advent calendar with treats", "species": "cat", "category": "treats", "topical_sheet": "HAPPYPET_SHEET_ID_FOOD", "amazon_search_query": "cat advent calendar with treats"},
-    {"topic": "best-dog-advent-calendars", "keyword": "dog advent calendar with treats", "species": "dog", "category": "treats", "topical_sheet": "HAPPYPET_SHEET_ID_FOOD", "amazon_search_query": "dog advent calendar with treats"},
-    {"topic": "best-automatic-ball-launchers", "keyword": "automatic ball launcher for small dogs", "species": "dog", "category": "toys", "topical_sheet": "HAPPYPET_SHEET_ID_TOYS", "amazon_search_query": "automatic ball launcher for small dogs"},
-    {"topic": "best-cat-christmas-tree-deterrents", "keyword": "keep cat out of christmas tree", "species": "cat", "category": "training", "topical_sheet": "HAPPYPET_SHEET_ID_TOYS", "amazon_search_query": "keep cat out of christmas tree"},
-    {"topic": "best-dog-christmas-sweaters", "keyword": "dog christmas sweater for small dogs", "species": "dog", "category": "outdoor", "topical_sheet": "HAPPYPET_SHEET_ID_TOYS", "amazon_search_query": "dog christmas sweater for small dogs"},
-    {"topic": "best-window-bird-feeders-cats", "keyword": "window bird feeder for indoor cats", "species": "cat", "category": "toys", "topical_sheet": "HAPPYPET_SHEET_ID_TOYS", "amazon_search_query": "window bird feeder for indoor cats"},
-    {"topic": "best-heated-water-bowls-outdoor-cats", "keyword": "heated water bowl for outdoor cats", "species": "cat", "category": "feeding", "topical_sheet": "HAPPYPET_SHEET_ID_FOOD", "amazon_search_query": "heated water bowl for outdoor cats"},
-    {"topic": "best-breakaway-cat-collars", "keyword": "breakaway cat collar with bell", "species": "cat", "category": "collars", "topical_sheet": "HAPPYPET_SHEET_ID_TOYS", "amazon_search_query": "breakaway cat collar with bell"},
-    {"topic": "best-cat-trees-small-apartments", "keyword": "cat tree for small apartments", "species": "cat", "category": "scratching", "topical_sheet": "HAPPYPET_SHEET_ID_TOYS", "amazon_search_query": "cat tree for small apartments"},
-    {"topic": "best-washable-crate-pads-puppies", "keyword": "washable crate pad for puppies", "species": "dog", "category": "crates", "topical_sheet": "HAPPYPET_SHEET_ID_HOME", "amazon_search_query": "washable crate pad for puppies"}
+    {"topic": "best-cat-advent-calendars", "publish_by": "2026-11-02", "keyword": "cat advent calendar with treats", "species": "cat", "category": "treats", "topical_sheet": "HAPPYPET_SHEET_ID_FOOD", "amazon_search_query": "cat advent calendar with treats"},
+    {"topic": "best-dog-advent-calendars", "publish_by": "2026-11-05", "keyword": "dog advent calendar with treats", "species": "dog", "category": "treats", "topical_sheet": "HAPPYPET_SHEET_ID_FOOD", "amazon_search_query": "dog advent calendar with treats"},
+    {"topic": "best-automatic-ball-launchers", "publish_by": "2026-11-19", "keyword": "automatic ball launcher for small dogs", "species": "dog", "category": "toys", "topical_sheet": "HAPPYPET_SHEET_ID_TOYS", "amazon_search_query": "automatic ball launcher for small dogs"},
+    {"topic": "best-cat-christmas-tree-deterrents", "publish_by": "2026-11-23", "keyword": "keep cat out of christmas tree", "species": "cat", "category": "training", "topical_sheet": "HAPPYPET_SHEET_ID_TOYS", "amazon_search_query": "keep cat out of christmas tree"},
+    {"topic": "best-dog-christmas-sweaters", "publish_by": "2026-11-26", "keyword": "dog christmas sweater for small dogs", "species": "dog", "category": "outdoor", "topical_sheet": "HAPPYPET_SHEET_ID_TOYS", "amazon_search_query": "dog christmas sweater for small dogs"},
+    {"topic": "best-window-bird-feeders-cats", "publish_by": "2026-11-30", "keyword": "window bird feeder for indoor cats", "species": "cat", "category": "toys", "topical_sheet": "HAPPYPET_SHEET_ID_TOYS", "amazon_search_query": "window bird feeder for indoor cats"},
+    {"topic": "best-heated-water-bowls-outdoor-cats", "publish_by": "2026-12-07", "keyword": "heated water bowl for outdoor cats", "species": "cat", "category": "feeding", "topical_sheet": "HAPPYPET_SHEET_ID_FOOD", "amazon_search_query": "heated water bowl for outdoor cats"},
+    {"topic": "best-breakaway-cat-collars", "publish_by": "2026-12-14", "keyword": "breakaway cat collar with bell", "species": "cat", "category": "collars", "topical_sheet": "HAPPYPET_SHEET_ID_TOYS", "amazon_search_query": "breakaway cat collar with bell"},
+    {"topic": "best-cat-trees-small-apartments", "publish_by": "2026-12-31", "keyword": "cat tree for small apartments", "species": "cat", "category": "scratching", "topical_sheet": "HAPPYPET_SHEET_ID_TOYS", "amazon_search_query": "cat tree for small apartments"},
+    {"topic": "best-washable-crate-pads-puppies", "publish_by": "2026-12-31", "keyword": "washable crate pad for puppies", "species": "dog", "category": "crates", "topical_sheet": "HAPPYPET_SHEET_ID_HOME", "amazon_search_query": "washable crate pad for puppies"}
   ]
 }

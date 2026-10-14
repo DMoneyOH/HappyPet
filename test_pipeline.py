@@ -1767,21 +1767,35 @@ class TestRefillAgent(unittest.TestCase):
             rp.ideate_topics(set(), set(), 3)
         return captured["prompt"]
 
-    def test_the_q4_rules_apply_through_new_years_eve(self):
+    def test_through_new_years_eve_self_planned_topics_target_after_the_holidays(self):
+        """Seeds fill every slot to 12-31, so a topic the refill plans itself
+        publishes in January or later (Maeve-main, 2026-10-14)."""
         for day in ("2026-10-14", "2026-11-30", "2026-12-31"):
             with self.subTest(day=day):
                 prompt = self._prompt_on(day)
-                self.assertIn("- Q4 mode (Oct 14 to Dec 31): every topic must target a long-tail", prompt)
-                self.assertIn("best-cat-advent-calendars, best-dog-advent-calendars,", prompt)
+                self.assertIn("- Every topic must target a long-tail keyword of 3 to 6 words", prompt)
+                self.assertIn("- Every topic you plan yourself publishes after the holidays: "
+                              "prefer topics people shop for in January to April:", prompt)
                 self.assertNotIn("February to April", prompt)
+                self.assertNotIn("Thanksgiving", prompt)
 
-    def test_the_q4_seed_bullet_names_exactly_the_plans_seeds(self):
+    def _listed(self, day):
+        prompt = self._prompt_on(day)
+        if "Propose these planned slugs first" not in prompt:
+            return []
+        listed = prompt.split("if they are not already covered or queued: ")[1]
+        return listed.split(".\n")[0].split(", ")
+
+    def test_the_seed_bullet_names_exactly_the_plans_live_seeds(self):
         import generate_posts as gp
         seeds = [s["topic"] for s in gp.load_publish_plan()["seeds"]]
         self.assertEqual(len(seeds), 10)
-        prompt = self._prompt_on("2026-10-25")
-        listed = prompt.split("propose these slugs first if they are not already covered or queued: ")[1]
-        self.assertEqual(listed.split(".\n")[0].split(", "), seeds)
+        self.assertEqual(self._listed("2026-10-25"), seeds)
+        # 11-23 is the tree deterrents' last day; on 11-24 it and the three
+        # earlier seeds have expired (publish_by 11-02, 11-05, 11-19, 11-23).
+        self.assertEqual(self._listed("2026-11-23"), seeds[3:])
+        self.assertEqual(self._listed("2026-11-24"), seeds[4:])
+        self.assertEqual(self._listed("2026-12-31"), seeds[8:])
 
     def test_the_gear_guard_holds_on_every_dated_block(self):
         for day in ("2026-10-25", "2027-02-01"):
@@ -1793,7 +1807,8 @@ class TestRefillAgent(unittest.TestCase):
             with self.subTest(day=day):
                 prompt = self._prompt_on(day)
                 self.assertNotIn("Q4 mode", prompt)
-                self.assertNotIn("advent", prompt.replace('"advent calendar"', ""))
+                for word in ("advent", "christmas", "stocking", "gift"):
+                    self.assertNotIn(word, prompt.lower())
                 self.assertIn("Never use a bare \"best <product>\" head term as the keyword.", prompt)
                 self.assertIn("- Prefer topics people shop for in February to April:", prompt)
 
@@ -3473,16 +3488,16 @@ class TestQ4PublishOrder(unittest.TestCase):
         "best-airtight-pet-food-containers", "best-cat-litter-scoops",
     ]
 
-    def _walk(self, queue, history=("dog", "cat"), order=None):
+    def _walk(self, queue, history=("dog", "cat"), order=None, today="2026-10-15"):
         """Every pick the real select_next_topic makes on `queue` (slug -> species,
         in products.json file order), from the 2026-10-13 feed (newest dog, then
-        cat), with the real publish plan unless `order` is given."""
+        cat), with the real publish plan unless `order` is given, as of `today`."""
         import generate_posts as gp
         products = {t: {"topic": t, "title": t, "keyword": t, "format": "roundup",
                         "species": sp} for t, sp in queue.items()}
         history, picks = list(history), []
         while (res := gp.select_next_topic(products, set(picks), recent_species=history,
-                                           order=order)):
+                                           order=order, today=today)):
             picks.append(res[0])
             history = [res[1]["species"]] + history
         return picks
@@ -3516,6 +3531,33 @@ class TestQ4PublishOrder(unittest.TestCase):
             "best-heated-outdoor-cat-houses", "best-self-warming-pet-pads",
             "best-dog-collars-night-walks", "best-dog-advent-calendars",
             "best-lickable-cat-treats"])
+
+    PUBLISH_BY = {"best-cat-advent-calendars": "2026-11-02", "best-dog-advent-calendars": "2026-11-05",
+                  "best-automatic-ball-launchers": "2026-11-19",
+                  "best-cat-christmas-tree-deterrents": "2026-11-23",
+                  "best-dog-christmas-sweaters": "2026-11-26",
+                  "best-window-bird-feeders-cats": "2026-11-30",
+                  "best-heated-water-bowls-outdoor-cats": "2026-12-07",
+                  "best-breakaway-cat-collars": "2026-12-14",
+                  "best-cat-trees-small-apartments": "2026-12-31",
+                  "best-washable-crate-pads-puppies": "2026-12-31"}
+
+    def test_each_seed_expires_a_week_after_its_slot_capped_for_the_holidays(self):
+        """Slot + 7 days (worked by hand from her table 1), capped at 12-20 for
+        the Christmas-themed seeds and 12-31 for the rest: only the crate pads
+        (slot Mon 12-28) hit a cap."""
+        plan = json.loads((REPO / "_data" / "publish_plan.json").read_text(encoding="utf-8"))
+        self.assertEqual({s["topic"]: s["publish_by"] for s in plan["seeds"]}, self.PUBLISH_BY)
+
+    def test_a_seed_resolved_after_its_publish_by_falls_back_to_file_order(self):
+        queue = dict(self.QUEUED, **self.NEW)
+        on_time = self._walk(queue, today="2026-11-02")      # its last day
+        self.assertEqual(on_time.index("best-cat-advent-calendars"), 3)
+        late = self._walk(queue, today="2026-11-03")
+        # Unplanned now: behind every planned entry, January included, then in
+        # file order among the unplanned (it is the first NEW entry).
+        self.assertEqual(late[-1], "best-cat-advent-calendars")
+        self.assertEqual(late[:-1], [t for t in self.SLOTS if t != "best-cat-advent-calendars"])
 
     def test_an_unplanned_topic_waits_behind_every_planned_one(self):
         queue = dict({"best-unplanned-refill-topic": "both"}, **self.QUEUED)
@@ -10473,6 +10515,26 @@ class TestRefillCli(unittest.TestCase):
         self.assertIn("filled 4, dropped 0", out)
         rc, out = self.run_cli("check", "--base", str(self.base))
         self.assertEqual(rc, 0, out)
+
+    def test_context_stops_offering_a_seed_after_its_publish_by(self):
+        d = self.base.parent
+        (d / "_data").mkdir()
+        seed = {"keyword": "k w", "species": "dog", "category": "toys",
+                "topical_sheet": "HAPPYPET_SHEET_ID_TOYS", "amazon_search_query": "q"}
+        (d / "_data" / "publish_plan.json").write_text(json.dumps({"seeds": [
+            dict(seed, topic="best-seed-early", publish_by="2026-11-02"),
+            dict(seed, topic="best-seed-late", publish_by="2026-12-31")]}), encoding="utf-8")
+        import refill_products
+        for today, offered in (("2026-11-02", ["best-seed-early", "best-seed-late"]),
+                               ("2026-11-03", ["best-seed-late"])):
+            with self.subTest(today=today), \
+                 patch.object(refill_products, "eastern_date", lambda: today):
+                out = d / "ctx.json"
+                self.run_cli("context", "--out", str(out), "--batch", "4")
+                ctx = json.loads(out.read_text(encoding="utf-8"))
+                self.assertEqual([s["topic"] for s in ctx["seeds"]], offered)
+                self.assertEqual(ctx["today"], today)
+                self.assertIn("best-seed-early", ctx["taken_slugs"])   # still reserved
 
     def test_context_without_a_plan_has_no_seeds(self):
         out = self.base.parent / "ctx.json"

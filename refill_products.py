@@ -498,34 +498,30 @@ def slugify(text: str) -> str:
     return re.sub(r"-{2,}", "-", re.sub(r"[^a-z0-9-]", "", text.lower().replace(" ", "-"))).strip("-")
 
 
-# Scarlett's refill rules (Director-approved 2026-10-13). The Q4 block applies
-# from Q4_FIRST_DAY through Q4_LAST_DAY (ET dates); after it the long-tail rule
-# stays and the season line switches to spring.
-Q4_FIRST_DAY = "2026-10-14"
+# Refill keyword and season rules (Scarlett, Director-approved 2026-10-13;
+# Maeve-main's 2026-10-14 rulings). The publish plan's seeds carry the Q4
+# topics and fill every slot through Q4_LAST_DAY, so a topic the refill plans
+# itself publishes after the holidays: through Q4_LAST_DAY it targets January
+# to April, after it the spring line applies. The long-tail rule is permanent.
 Q4_LAST_DAY = "2026-12-31"
-LONG_TAIL_RULE = ('Every topic must target a long-tail keyword of 3 to 6 words that carries a qualifier (a size, breed type, season, use or problem, e.g. "for small dogs", "for winter", "for outdoor cats") or a gift/buy-now phrase (e.g. "stocking stuffer", "christmas", "advent calendar", "gift"). '
+LONG_TAIL_RULE = ('Every topic must target a long-tail keyword of 3 to 6 words that carries a qualifier (a size, breed type, season, use or problem, e.g. "for small dogs", "for winter", "for outdoor cats"). '
                   'Never use a bare "best <product>" head term as the keyword.')
-Q4_SEASON = ("Prefer, in order: holiday and gift topics that must be live before Thanksgiving; cold-weather needs (heating, paws, coats, water that freezes); new-pet-at-Christmas needs (puppy, kitten) for late December.")
+AFTER_HOLIDAYS_SEASON = ("Every topic you plan yourself publishes after the holidays: prefer topics people shop for in January to April: winter cold-weather needs, new-pet care, spring shedding and grooming, flea and tick season starting, outdoor and walking accessories, new-puppy training.")
 SPRING_SEASON = ("Prefer topics people shop for in February to April: spring shedding and grooming, flea and tick season starting, outdoor and walking accessories, new-puppy training.")
 
 
-def _month_day(iso: str) -> str:
-    d = datetime.date.fromisoformat(iso)
-    return f"{gp._MONTHS[d.month - 1]} {d.day}"
-
-
 def season_rules(today: str) -> str:
-    """The dated rule block for an ISO date (the refill's ET date). In Q4 its
-    last bullet names the publish plan's seed slugs, read from the plan."""
+    """The dated rule block for an ISO date (the refill's ET date). Through
+    Q4_LAST_DAY it first names the publish plan's live seeds (this Gemini path
+    has no other way to take them), then the after-the-holidays line."""
     if today > Q4_LAST_DAY:
         return f"- {LONG_TAIL_RULE}\n- {SPRING_SEASON}"
-    rules = (f"- Q4 mode ({_month_day(Q4_FIRST_DAY)} to {_month_day(Q4_LAST_DAY)}): "
-             f"{LONG_TAIL_RULE[0].lower()}{LONG_TAIL_RULE[1:]}\n- {Q4_SEASON}")
-    seeds = [s["topic"] for s in gp.load_publish_plan().get("seeds", [])]
+    rules = f"- {LONG_TAIL_RULE}"
+    seeds = [s["topic"] for s in gp.live_seeds(gp.load_publish_plan(), today)]
     if seeds:
-        rules += ("\n- When the prompt's month is October or November, propose these "
-                  f"slugs first if they are not already covered or queued: {', '.join(seeds)}.")
-    return rules
+        rules += ("\n- Propose these planned slugs first, if they are not already covered "
+                  f"or queued: {', '.join(seeds)}.")
+    return rules + f"\n- {AFTER_HOLIDAYS_SEASON}"
 
 
 def ideate_topics(pub: set, queued: set, batch: int) -> list:

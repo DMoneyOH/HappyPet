@@ -197,12 +197,15 @@ def cmd_context(args) -> int:
     products = load_products(args.products, "products")
     taken = taken_slugs(products)
     seeds = plan_seeds()
+    today = rp.eastern_date()
+    live = gp.live_seeds({"seeds": seeds}, today)
     ctx = {
         "batch": args.batch,
-        "today": rp.eastern_date(),
-        # The next untaken seeds, at most a batch. Every seed slug is also listed
-        # as taken, so the session never plans one itself: seeds arrive only here.
-        "seeds": [s for s in seeds if s["topic"] not in taken][:args.batch],
+        "today": today,
+        # The next untaken seeds still inside their publish_by window, at most a
+        # batch. Every seed slug is also listed as taken, so the session never
+        # plans one itself: seeds arrive only here.
+        "seeds": [s for s in live if s["topic"] not in taken][:args.batch],
         "categories": list(categories.TOPICS),
         "topical_sheets": list(rp.VALID_SHEETS),
         "species": list(SPECIES),
