@@ -66,6 +66,7 @@ It comes apart in two pieces for filling and cleaning, which is genuinely easy. 
 - Smart dogs solve it quickly and lose interest
 - Not suitable if your dog needs soft or gentle toys
 
+---
 
 ### PetSafe Busy Buddy Tug-A-Jug
 
@@ -116,6 +117,7 @@ A plush tree trunk with six squeaky squirrels tucked inside, in the XL size. The
 - Determined chewers can rip the fabric over time
 - The trunk opening is large for small dogs
 
+---
 
 ### Nina Ottosson Dog Tornado
 
@@ -129,6 +131,8 @@ A rotating puzzle with several layers that spin independently, uncovering compar
 - Heavy for toy breeds
 - Takes some fiddling to set up
 
+---
+
 ### Trixie Activity Flip Board
 
 A starter puzzle that combines sliders, flaps and lift-away covers, so a dog new to problem-solving learns cause and effect without getting overwhelmed. Most owners report the mix of actions taps into natural foraging instincts. The plastic can crack if a strong chewer goes for the edges, so it suits light to moderate play.
@@ -139,6 +143,8 @@ A starter puzzle that combines sliders, flaps and lift-away covers, so a dog new
 
 **Cons:**
 - Plastic can crack under a strong chewer
+
+---
 
 ### KONG Classic (medium)
 

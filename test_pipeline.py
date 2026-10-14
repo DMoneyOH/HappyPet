@@ -10376,15 +10376,17 @@ def _jekyll_absolute_url(val):
 
 
 class _MiniLiquid:
-    """Renders the related-reviews include, and only that, without Ruby.
+    """Renders small pieces of the site's Liquid without Ruby: the
+    related-reviews include, the social-image include (the one image rule) and
+    the default layout's <title> tag.
 
     HONEST LIMIT: there is no Ruby or Jekyll on the build box, so this is not
-    Jekyll. It is a small Liquid subset -- the tags and filters the include
-    uses, with Liquid's own truthiness (only nil and false are falsy) and its
+    Jekyll. It is a small Liquid subset -- the tags and filters those pieces
+    use, with Liquid's own truthiness (only nil and false are falsy) and its
     flat assign scope. Anything outside the subset raises instead of guessing,
-    so the include cannot quietly grow past what this checks. The real render
+    so a template cannot quietly grow past what this checks. The real render
     is build-check.yml's `jekyll build` on the PR; these tests guard the
-    selection logic against the real _posts on every CI run.
+    logic against the real _posts on every CI run.
     """
 
     TOKEN = re.compile(r"(\{%-?.*?-?%\}|\{\{-?.*?-?\}\})", re.S)
@@ -10732,13 +10734,30 @@ class TestPublishedRootIsAllowlisted(unittest.TestCase):
 class TestTitleSuffix(unittest.TestCase):
     """Every page title ends "| HappyPet Reviews" (Director, 2026-10-13), added
     once by default.html, so no page's own title may carry a suffix of its own.
-    The home page is the exception: its own title already names the site, so it
-    renders as written (Maeve-main, 2026-10-14: the brand once, not twice)."""
+    A title that already names the site (the home page's) renders as written:
+    the brand once, never twice (Maeve-main, 2026-10-14)."""
+
+    @classmethod
+    def setUpClass(cls):
+        layout = (REPO / "_layouts" / "default.html").read_text(encoding="utf-8")
+        cls.tag = re.search(r"<title>.*?</title>", layout).group(0)
 
     def _title(self, page):
-        layout = (REPO / "_layouts" / "default.html").read_text(encoding="utf-8")
-        tag = re.search(r"<title>.*?</title>", layout).group(0)
-        return _MiniLiquid(tag).render({"page": page, "site": {"title": "Happy Pet Product Reviews"}})
+        return _MiniLiquid(self.tag).render({"page": page, "site": {"title": "Happy Pet Product Reviews"}})
+
+    @staticmethod
+    def _site_pages():
+        """(name, title, url) of every published root page and every post: the
+        root pages are the published-root allowlist's .md entries."""
+        out = []
+        pages = [REPO / n for n in sorted(TestPublishedRootIsAllowlisted.PUBLIC) if n.endswith(".md")]
+        for p in pages + sorted((REPO / "_posts").glob("2*.md")):
+            fm = p.read_text(encoding="utf-8").split("---", 2)[1]
+            title = re.search(r"^title: *(.+)$", fm, re.M)
+            link = re.search(r"^permalink: *(\S+)", fm, re.M)
+            url = link.group(1) if link else ("/" if p.name == "index.md" else "/x/")
+            out.append((p.name, title.group(1).strip().strip('"\'') if title else None, url))
+        return out
 
     def test_the_layout_appends_the_approved_suffix(self):
         self.assertEqual(self._title({"title": "Best Cat Litter", "url": "/litter/best-cat-litter/"}),
@@ -10757,13 +10776,23 @@ class TestTitleSuffix(unittest.TestCase):
         self.assertEqual(self._title({"url": "/x/"}), "<title>Happy Pet Product Reviews</title>")
 
     def test_no_page_title_carries_its_own_suffix(self):
-        suffixed = []
-        for p in list(REPO.glob("*.md")) + list((REPO / "_posts").glob("*.md")):
-            text = p.read_text(encoding="utf-8")
-            fm = text.split("---", 2)[1] if text.startswith("---") else ""
-            if re.search(r"^title:.*\|\s*Happy\s*Pet", fm, re.M | re.I):
-                suffixed.append(p.name)
+        suffixed = [name for name, title, _ in self._site_pages()
+                    if title and re.search(r"\|\s*Happy\s*Pet", title, re.I)]
         self.assertEqual(suffixed, [])
+
+    def test_every_published_title_names_the_brand_exactly_once(self):
+        """The guard for about.md's old title ("About Happy Pet Product Reviews"
+        would have rendered the brand twice) and any title like it."""
+        for name, title, url in self._site_pages():
+            with self.subTest(page=name):
+                rendered = self._title({"title": title, "url": url})
+                self.assertEqual(len(re.findall(r"Happy ?Pet", rendered)), 1, rendered)
+
+    def test_a_title_that_already_names_the_brand_gets_no_suffix(self):
+        for title in ("About Happy Pet Product Reviews", "HappyPet Picks"):
+            with self.subTest(title=title):
+                self.assertEqual(self._title({"title": title, "url": "/about/"}),
+                                 f"<title>{title}</title>")
 
 
 class TestSocialImage(unittest.TestCase):

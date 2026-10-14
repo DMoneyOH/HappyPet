@@ -66,7 +66,6 @@ A diffuser covers one room and needs an outlet. When the stress comes with a car
 
 **Supplements and chews** (Purina Pro Plan Calming Care, VetriScience Composure Chews) suit everyday nervousness, travel and vet trips, and they fit into a meal routine. Some cats reject the texture.
 
-
 **The collar** (ThunderEase) goes wherever the cat goes, which makes it the pick when noise like thunder or fireworks is the trigger. It has to be fitted correctly, and its scent may fade with heavy wear.
 
 **The spray** (Pet Remedy) is for spot treatment: the carrier, the bedding, the exam room. It needs reapplying, and the scent can be strong for sensitive noses.
