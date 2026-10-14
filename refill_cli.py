@@ -6,7 +6,9 @@ and reads products off Amazon pages. It writes them to one plan file; every
 decision about what may enter products.json lives here, offline:
 
   context --out ctx.json [--batch N]   what the session needs: the 22 topics, the
-                                       Pinterest boards, every slug already taken
+                                       Pinterest boards, every slug already taken,
+                                       today's ET date and the publish plan's
+                                       untaken seed topics (at most N, in order)
   seed    --plan plan.json             validate each planned topic, append the
                                        valid ones as NEEDS_* placeholders
   resolve --plan plan.json --base b.json
@@ -128,6 +130,44 @@ def product_problems(p) -> list:
     return bad
 
 
+# C-3: a keyword is a bare "best <product>" head term when its first word is
+# "best" and no later word is one of these qualifiers. "best dog toys" and
+# "best freeze dried dog treats" are bare; "best dog toys for small dogs" and
+# "cat advent calendar with treats" are not.
+HEAD_TERM_QUALIFIERS = frozenset({
+    "for", "with", "without", "under", "over", "in", "on", "to", "from", "by",
+    "near", "that", "who", "vs", "versus", "after", "before", "during"})
+
+
+def is_bare_head_term(keyword) -> bool:
+    words = str(keyword or "").lower().split()
+    return bool(words) and words[0] == "best" and not HEAD_TERM_QUALIFIERS.intersection(words[1:])
+
+
+SEED_MATCH_FIELDS = ("keyword", "species", "category")
+
+
+def offered_seeds(seeds: list, taken: set, today: str, batch: int) -> list:
+    """The seeds a run is handed: live on `today`, not taken, plan order, at
+    most `batch`. context writes these; seed recomputes them to check a plan."""
+    return [s for s in gp.live_seeds({"seeds": seeds}, today) if s["topic"] not in taken][:batch]
+
+
+def seed_rule_problems(t: dict, seeds: list, allowed: set) -> list:
+    """C-2/C-3 for one planned topic or new entry. A plan-seed slug must be one
+    of `allowed` and match the plan's keyword, species and category; any other
+    topic is self-planned and must not use a bare "best X" head term."""
+    by_slug = {s["topic"]: s for s in seeds}
+    slug = t.get("topic")
+    if slug not in by_slug:
+        return (["keyword is a bare \"best <product>\" head term"]
+                if is_bare_head_term(t.get("keyword")) else [])
+    if slug not in allowed:
+        return ["topic is a publish-plan seed this run was not handed"]
+    diff = [f for f in SEED_MATCH_FIELDS if t.get(f) != by_slug[slug].get(f)]
+    return [f"seed differs from the publish plan in: {', '.join(diff)}"] if diff else []
+
+
 def new_entry_problems(e: dict, taken: set) -> list:
     """Every seed and resolve rule, applied to one entry as it sits in products.json.
     `taken` must not contain the entry's own slug."""
@@ -172,19 +212,48 @@ def load_plan(path: Path) -> dict:
     return plan
 
 
+def plan_seeds() -> list:
+    """The publish plan's seed topics (_data/publish_plan.json), in plan order.
+    Each carries every topic field but `title`, and no product. A plan that
+    cannot be read, or whose `seeds` is not a list, is a clean SystemExit naming
+    the file; an entry without a string `topic` is skipped with a warning."""
+    path = REPO_DIR / "_data" / "publish_plan.json"
+    try:
+        plan = gp.load_publish_plan(REPO_DIR)
+    except CorruptJSONError as exc:
+        raise SystemExit(f"publish plan unreadable: {exc}") from None
+    seeds = plan.get("seeds", []) if isinstance(plan, dict) else None
+    if not isinstance(seeds, list):
+        raise SystemExit(f"publish plan {path}: `seeds` is not a list")
+    good = [s for s in seeds if isinstance(s, dict) and isinstance(s.get("topic"), str)]
+    if len(good) != len(seeds):
+        print(f"WARNING: skipped {len(seeds) - len(good)} malformed seed(s) in {path}")
+    return good
+
+
 def cmd_context(args) -> int:
     products = load_products(args.products, "products")
+    taken = taken_slugs(products)
+    seeds = plan_seeds()
+    today = rp.eastern_date()
     ctx = {
         "batch": args.batch,
+        "today": today,
+        # The next untaken seeds still inside their publish_by window, at most a
+        # batch. Every seed slug is also listed as taken, so the session never
+        # plans one itself: seeds arrive only here (seed and check enforce it).
+        "seeds": offered_seeds(seeds, taken, today, args.batch),
         "categories": list(categories.TOPICS),
         "topical_sheets": list(rp.VALID_SHEETS),
         "species": list(SPECIES),
         "queued": [{"topic": e.get("topic"), "category": e.get("category"),
                     "species": e.get("species")} for e in products],
-        "taken_slugs": sorted(s for s in taken_slugs(products) if s.startswith("best-")),
+        "taken_slugs": sorted(s for s in taken | {s["topic"] for s in seeds}
+                              if s.startswith("best-")),
     }
     Path(args.out).write_text(json.dumps(ctx, indent=2) + "\n", encoding="utf-8")
-    print(f"context: {len(ctx['taken_slugs'])} taken slugs, batch {args.batch}")
+    print(f"context: {len(ctx['taken_slugs'])} taken slugs, {len(ctx['seeds'])} seed(s), "
+          f"batch {args.batch}")
     return 0
 
 
@@ -195,9 +264,15 @@ def cmd_seed(args) -> int:
         return 1
     products = load_products(args.products, "products")
     taken = taken_slugs(products)
+    seeds = plan_seeds()
+    # The seeds context handed this run: same plan, same queue, same ET day,
+    # and --max is the run's batch (run-refill.ps1 passes the same number).
+    allowed = {s["topic"] for s in offered_seeds(seeds, taken, rp.eastern_date(), args.max)}
     seeded = []
     for t in plan["topics"][:args.max]:
         bad = topic_problems(t, taken)
+        if isinstance(t, dict):
+            bad += seed_rule_problems(t, seeds, allowed)
         name = t.get("topic") if isinstance(t, dict) else None
         if bad:
             print(f"REJECTED topic {name!r}: {'; '.join(bad)}")
@@ -257,11 +332,16 @@ def cmd_check(args) -> int:
     problems = automerge_gate.refill_products_problems(json.dumps(head), json.dumps(base))
     base_topics = {e.get("topic") for e in base if isinstance(e, dict)}
     taken = taken_slugs(base)
+    seeds = plan_seeds()
+    # check has no batch size, so a seed entry must be live and untaken at the
+    # branch point (any batch's offer is a prefix of these) and match the plan.
+    allowed = {s["topic"] for s in offered_seeds(seeds, taken, rp.eastern_date(), len(seeds))}
     for e in head:
         if not isinstance(e, dict) or e.get("topic") in base_topics:
             continue
         name = e.get("topic")
         problems += [f"entry {name!r}: {m}" for m in new_entry_problems(e, taken)]
+        problems += [f"entry {name!r}: {m}" for m in seed_rule_problems(e, seeds, allowed)]
         if isinstance(name, str):
             taken |= {name, _bare(name)}   # a second entry with this slug collides
     for p in problems:

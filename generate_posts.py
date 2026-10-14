@@ -1199,15 +1199,47 @@ def recent_published_species(count: int = 2) -> list:
     return [_post_species(md) for _, _, md in dated[:count]]
 
 
-def select_next_topic(products: dict, used_slugs: set, recent_species: list = None):
-    """Return (slug, product) for the next eligible products.json entry, in dict
-    order, skipping already-used slugs and entries missing required fields.
+def load_publish_plan(repo: Path = None) -> dict:
+    """_data/publish_plan.json ({"order": [...], "seeds": [...]}), or {} when
+    there is none. Raises CorruptJSONError on an unreadable file."""
+    return read_json((repo or REPO_DIR) / "_data" / "publish_plan.json", default={})
+
+
+def live_seeds(plan: dict, today: str) -> list:
+    """The plan's seed entries still inside their window: `publish_by` (an ISO
+    date) on or after `today`. A seed past it is no longer planned anywhere."""
+    seeds = plan.get("seeds", []) if isinstance(plan, dict) else []
+    return [s for s in seeds if isinstance(s, dict) and isinstance(s.get("topic"), str)
+            and today <= s.get("publish_by", "9999-12-31")]
+
+
+def load_publish_order(today: str = None) -> list:
+    """The publish plan's `order` for `today` (default: the ET date), with every
+    expired seed taken out, or [] when there is no plan."""
+    if today is None:
+        from refill_products import eastern_date
+        today = eastern_date()
+    plan = load_publish_plan()
+    seeds = {s["topic"] for s in plan.get("seeds", []) if isinstance(s, dict)}
+    live = {s["topic"] for s in live_seeds(plan, today)}
+    return [t for t in plan.get("order", []) if t not in seeds or t in live]
+
+
+def select_next_topic(products: dict, used_slugs: set, recent_species: list = None,
+                      order: list = None, today: str = None):
+    """Return (slug, product) for the next eligible products.json entry, skipping
+    already-used slugs and entries missing required fields. Entries named in the
+    publish plan's `order` (_data/publish_plan.json; injectable for testing) go
+    first, in that order; the rest follow in dict order. A refill appends new
+    topics to the end of products.json, so this is what lets a planned topic
+    take its slot. A seed past its `publish_by` is ranked like any unplanned
+    entry; `today` (default: the ET date) is injectable for testing.
 
     Species balancing: if the last two DATED posts were the same dog/cat species,
     skip further entries of that species and pick the first eligible entry of a
     different species (a `both` entry always qualifies), so the feed never runs
     3+ of the same species in a row. If every remaining entry is that species,
-    fall back to plain dict order. `recent_species` (newest first) is injectable
+    fall back to the plain order above. `recent_species` (newest first) is injectable
     for testing; production reads it from the published _posts/. Returns None when
     nothing is eligible."""
     required = ("topic", "title", "keyword", "format")
@@ -1215,6 +1247,8 @@ def select_next_topic(products: dict, used_slugs: set, recent_species: list = No
                 if slug not in used_slugs and all(k in p for k in required)]
     if not eligible:
         return None
+    rank = {slug: i for i, slug in enumerate(load_publish_order(today) if order is None else order)}
+    eligible.sort(key=lambda e: rank.get(e[0], len(rank)))  # stable: unplanned keep dict order
 
     if recent_species is None:
         recent_species = recent_published_species(2)

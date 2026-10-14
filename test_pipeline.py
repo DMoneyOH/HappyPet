@@ -1756,6 +1756,77 @@ class TestRefillAgent(unittest.TestCase):
         self.assertEqual([t.strip() for t in listed.split(",")], list(categories.TOPICS))
         self.assertNotIn("gear", captured["prompt"])
 
+    def _prompt_on(self, iso_date):
+        import refill_products as rp
+        captured = {}
+        def fake_call(model, prompt, **kw):
+            captured["prompt"] = prompt
+            return json.dumps({"topics": []})
+        with patch.object(rp.gp, "_call_gemini", side_effect=fake_call), \
+             patch.object(rp, "eastern_date", lambda: iso_date):
+            rp.ideate_topics(set(), set(), 3)
+        return captured["prompt"]
+
+    def test_through_new_years_eve_self_planned_topics_target_after_the_holidays(self):
+        """Seeds fill every slot to 12-31, so a topic the refill plans itself
+        publishes in January or later (Maeve-main, 2026-10-14)."""
+        for day in ("2026-10-14", "2026-11-30", "2026-12-31"):
+            with self.subTest(day=day):
+                prompt = self._prompt_on(day)
+                self.assertIn("- Every topic must target a long-tail keyword of 3 to 6 words", prompt)
+                self.assertIn("- Every topic you plan yourself publishes after the holidays: "
+                              "prefer topics people shop for in January to April:", prompt)
+                self.assertNotIn("February to April", prompt)
+                self.assertNotIn("Thanksgiving", prompt)
+
+    def _listed(self, day):
+        prompt = self._prompt_on(day)
+        if "Propose these planned slugs first" not in prompt:
+            return []
+        listed = prompt.split("if they are not already covered or queued: ")[1]
+        return listed.split(".\n")[0].split(", ")
+
+    def test_the_seed_bullet_names_exactly_the_plans_live_seeds(self):
+        import generate_posts as gp
+        seeds = [s["topic"] for s in gp.load_publish_plan()["seeds"]]
+        self.assertEqual(len(seeds), 10)
+        self.assertEqual(self._listed("2026-10-25"), seeds)
+        # 11-23 is the tree deterrents' last day; on 11-24 it and the three
+        # earlier seeds have expired (publish_by 11-02, 11-05, 11-19, 11-23).
+        self.assertEqual(self._listed("2026-11-23"), seeds[3:])
+        self.assertEqual(self._listed("2026-11-24"), seeds[4:])
+        self.assertEqual(self._listed("2026-12-31"), seeds[8:])
+
+    def test_the_gear_guard_holds_on_every_dated_block(self):
+        for day in ("2026-10-25", "2027-02-01"):
+            with self.subTest(day=day):
+                self.assertNotIn("gear", self._prompt_on(day))
+
+    def test_from_new_years_day_the_long_tail_rule_stays_and_spring_replaces_q4(self):
+        for day in ("2027-01-01", "2027-01-31", "2027-03-15"):
+            with self.subTest(day=day):
+                prompt = self._prompt_on(day)
+                self.assertNotIn("Q4 mode", prompt)
+                for word in ("advent", "christmas", "stocking", "gift"):
+                    self.assertNotIn(word, prompt.lower())
+                self.assertIn("Never use a bare \"best <product>\" head term as the keyword.", prompt)
+
+    SEASON_LINES = ("publishes after the holidays", "February to April", "Favor products relevant in")
+
+    def test_each_date_gets_exactly_one_season_line(self):
+        """One season instruction, right for the date: after-the-holidays through
+        12-31, spring through 2027-01-31, then this month and the next two."""
+        for day, line in (("2026-10-25", "publishes after the holidays"),
+                          ("2026-12-31", "publishes after the holidays"),
+                          ("2027-01-01", "February to April"),
+                          ("2027-01-31", "February to April"),
+                          ("2027-02-01", "Favor products relevant in February and the coming two months."),
+                          ("2027-03-15", "Favor products relevant in March and the coming two months.")):
+            with self.subTest(day=day):
+                prompt = self._prompt_on(day)
+                self.assertIn(line, prompt)
+                self.assertEqual(sum(s in prompt for s in self.SEASON_LINES), 1, prompt[-600:])
+
     def test_image_validation_rejects_svg_placeholder(self):
         # run #2 shipped an .svg sprite as a "product image" -- never again
         import refill_products as rp
@@ -3379,6 +3450,156 @@ class TestSelectNextTopicSpeciesBalance(unittest.TestCase):
         runs = [picked_species[i] == picked_species[i + 1] == picked_species[i + 2]
                 for i in range(len(picked_species) - 2)]
         self.assertFalse(any(runs), f"3+ same species in a row: {picked_species}")
+
+
+class TestQ4PublishOrder(unittest.TestCase):
+    """Scarlett's Q4 order (Director-approved 2026-10-13,
+    80-workspace/scarlett/2026-10-13-q4-topic-seed-list.md). products.json holds
+    the queued part: the head for Thu 10-15, her 12 queued topics in slot order,
+    then the 11 off-season topics in her January order. _data/publish_plan.json
+    holds the whole order, including her 10 new topics, which come through the
+    refill and are appended to the end of products.json."""
+
+    # The queue as this commit leaves it: slug -> species, read off products.json.
+    QUEUED = {
+        "best-heated-outdoor-cat-houses": "cat",
+        "best-self-warming-pet-pads": "both", "best-dog-collars-night-walks": "dog",
+        "best-lickable-cat-treats": "cat", "best-dog-winter-coats": "dog",
+        "best-pet-hair-vacuums": "both", "best-freeze-dried-dog-treats": "dog",
+        "best-dog-paw-balms": "dog", "best-plush-dog-toys": "dog",
+        "best-cardboard-cat-scratchers": "cat", "best-pet-first-aid-kits": "both",
+        "best-puppy-teething-toys": "dog", "best-dog-training-clickers": "dog",
+        "best-cat-hairball-remedies": "cat", "best-cat-litter-mats": "cat",
+        "best-pet-dental-water-additives": "both", "best-cat-flea-treatments": "cat",
+        "best-fish-oil-for-dogs": "dog", "best-elevated-cat-bowls": "cat",
+        "best-dog-shampoo-sensitive-skin": "dog", "best-senior-cat-food": "cat",
+        "best-dog-ear-cleaners": "dog", "best-airtight-pet-food-containers": "both",
+        "best-cat-litter-scoops": "cat",
+    }
+    # Her 10 new topics, in slot order: slug -> species.
+    NEW = {"best-cat-advent-calendars": "cat", "best-dog-advent-calendars": "dog",
+           "best-automatic-ball-launchers": "dog", "best-cat-christmas-tree-deterrents": "cat",
+           "best-dog-christmas-sweaters": "dog", "best-window-bird-feeders-cats": "cat",
+           "best-heated-water-bowls-outdoor-cats": "cat", "best-breakaway-cat-collars": "cat",
+           "best-cat-trees-small-apartments": "cat", "best-washable-crate-pads-puppies": "dog"}
+    # Her table 1 (the 22 slots Mon 10-19 .. Thu 12-31), preceded by the 10-15
+    # head and followed by her January list. Written out from her file, not
+    # read from _data/publish_plan.json.
+    SLOTS = [
+        "best-heated-outdoor-cat-houses",
+        "best-self-warming-pet-pads", "best-dog-collars-night-walks",
+        "best-cat-advent-calendars", "best-dog-advent-calendars",
+        "best-lickable-cat-treats", "best-dog-winter-coats", "best-pet-hair-vacuums",
+        "best-automatic-ball-launchers", "best-cat-christmas-tree-deterrents",
+        "best-dog-christmas-sweaters", "best-window-bird-feeders-cats",
+        "best-freeze-dried-dog-treats", "best-heated-water-bowls-outdoor-cats",
+        "best-dog-paw-balms", "best-breakaway-cat-collars", "best-plush-dog-toys",
+        "best-cardboard-cat-scratchers", "best-pet-first-aid-kits",
+        "best-puppy-teething-toys", "best-cat-trees-small-apartments",
+        "best-washable-crate-pads-puppies", "best-dog-training-clickers",
+        "best-cat-hairball-remedies", "best-cat-litter-mats", "best-pet-dental-water-additives",
+        "best-cat-flea-treatments", "best-fish-oil-for-dogs", "best-elevated-cat-bowls",
+        "best-dog-shampoo-sensitive-skin", "best-senior-cat-food", "best-dog-ear-cleaners",
+        "best-airtight-pet-food-containers", "best-cat-litter-scoops",
+    ]
+
+    def _walk(self, queue, history=("dog", "cat"), order=None, today="2026-10-15"):
+        """Every pick the real select_next_topic makes on `queue` (slug -> species,
+        in products.json file order), from the 2026-10-13 feed (newest dog, then
+        cat), with the real publish plan unless `order` is given, as of `today`."""
+        import generate_posts as gp
+        products = {t: {"topic": t, "title": t, "keyword": t, "format": "roundup",
+                        "species": sp} for t, sp in queue.items()}
+        history, picks = list(history), []
+        while (res := gp.select_next_topic(products, set(picks), recent_species=history,
+                                           order=order, today=today)):
+            picks.append(res[0])
+            history = [res[1]["species"]] + history
+        return picks
+
+    def test_the_live_queue_keeps_the_planned_relative_order(self):
+        # Robust to publishing (entries retire) and to refills (entries append).
+        import generate_posts as gp
+        live = [t for t in gp.load_products() if t in self.QUEUED]
+        self.assertEqual(live, [t for t in self.QUEUED if t in live])
+
+    def test_the_queue_alone_in_file_order_follows_the_plan(self):
+        """No plan (order=[]): file order through the species rule. Expected picks
+        were worked by hand: after freeze-dried treats and paw balms (two dogs),
+        plush dog toys waits one slot and cardboard cat scratchers goes early."""
+        expected = list(self.QUEUED)
+        expected[8], expected[9] = expected[9], expected[8]
+        self.assertEqual(self._walk(self.QUEUED, order=[]), expected)
+
+    def test_the_22_slots_publish_in_her_order_with_the_new_topics_appended_last(self):
+        """The acceptance test: today's queue, then her 10 new topics appended at
+        the END of products.json (where a refill puts them), through the real
+        picker and the real plan. Publishes exactly her table, then January."""
+        queue = dict(self.QUEUED, **self.NEW)
+        self.assertEqual(list(queue)[-10:], list(self.NEW))   # appended last
+        self.assertEqual(self._walk(queue), self.SLOTS)
+
+    def test_a_new_topic_that_never_resolved_hands_its_slot_to_the_next_planned_one(self):
+        queue = dict(self.QUEUED)
+        queue.update({t: sp for t, sp in self.NEW.items() if t != "best-cat-advent-calendars"})
+        self.assertEqual(self._walk(queue)[:5], [
+            "best-heated-outdoor-cat-houses", "best-self-warming-pet-pads",
+            "best-dog-collars-night-walks", "best-dog-advent-calendars",
+            "best-lickable-cat-treats"])
+
+    PUBLISH_BY = {"best-cat-advent-calendars": "2026-11-02", "best-dog-advent-calendars": "2026-11-05",
+                  "best-automatic-ball-launchers": "2026-11-19",
+                  "best-cat-christmas-tree-deterrents": "2026-11-23",
+                  "best-dog-christmas-sweaters": "2026-11-26",
+                  "best-window-bird-feeders-cats": "2026-11-30",
+                  "best-heated-water-bowls-outdoor-cats": "2026-12-07",
+                  "best-breakaway-cat-collars": "2026-12-14",
+                  "best-cat-trees-small-apartments": "2026-12-31",
+                  "best-washable-crate-pads-puppies": "2026-12-31"}
+
+    def test_each_seed_expires_a_week_after_its_slot_capped_for_the_holidays(self):
+        """Slot + 7 days (worked by hand from her table 1), capped at 12-20 for
+        the Christmas-themed seeds and 12-31 for the rest: only the crate pads
+        (slot Mon 12-28) hit a cap."""
+        plan = json.loads((REPO / "_data" / "publish_plan.json").read_text(encoding="utf-8"))
+        self.assertEqual({s["topic"]: s["publish_by"] for s in plan["seeds"]}, self.PUBLISH_BY)
+
+    def test_a_seed_resolved_after_its_publish_by_falls_back_to_file_order(self):
+        queue = dict(self.QUEUED, **self.NEW)
+        on_time = self._walk(queue, today="2026-11-02")      # its last day
+        self.assertEqual(on_time.index("best-cat-advent-calendars"), 3)
+        late = self._walk(queue, today="2026-11-03")
+        # Unplanned now: behind every planned entry, January included, then in
+        # file order among the unplanned (it is the first NEW entry).
+        self.assertEqual(late[-1], "best-cat-advent-calendars")
+        self.assertEqual(late[:-1], [t for t in self.SLOTS if t != "best-cat-advent-calendars"])
+
+    def test_an_unplanned_topic_waits_behind_every_planned_one(self):
+        queue = dict({"best-unplanned-refill-topic": "both"}, **self.QUEUED)
+        self.assertEqual(self._walk(queue)[-1], "best-unplanned-refill-topic")
+
+    def test_every_seed_is_planned_and_seedable_now(self):
+        """Each seed sits in `order`, and each one not yet taken passes the
+        refill's own topic validation once the session adds a title."""
+        import refill_cli
+        plan = json.loads((REPO / "_data" / "publish_plan.json").read_text(encoding="utf-8"))
+        self.assertEqual([s["topic"] for s in plan["seeds"]],
+                         [t for t in self.SLOTS if t in self.NEW])
+        self.assertEqual(plan["order"], self.SLOTS)
+        taken = refill_cli.taken_slugs(json.loads((REPO / "products.json").read_text(encoding="utf-8")))
+        for s in plan["seeds"]:
+            if s["topic"] in taken:
+                continue
+            with self.subTest(seed=s["topic"]):
+                self.assertEqual(s["species"], self.NEW[s["topic"]])
+                self.assertNotIn("product", s)
+                self.assertEqual(refill_cli.topic_problems(dict(s, title="A Title"), taken), [])
+
+    def test_the_species_fixture_matches_the_live_queue(self):
+        import generate_posts as gp
+        live = gp.load_products()
+        self.assertEqual([t for t, sp in self.QUEUED.items()
+                          if t in live and live[t].get("species") != sp], [])
 
 
 class TestBuildWriterInputs(unittest.TestCase):
@@ -10247,6 +10468,185 @@ class TestRefillCli(unittest.TestCase):
     def test_a_plan_with_a_bom_still_loads(self):
         self.plan.write_bytes(b"\xef\xbb\xbf" + json.dumps({"topics": []}).encode())
         self.assertEqual(self.cli.load_plan(self.plan), {"topics": []})
+
+    def test_context_hands_over_the_plans_untaken_seeds_in_plan_order(self):
+        d = self.base.parent
+        (d / "_data").mkdir()
+        seed = {"keyword": "k w", "species": "dog", "category": "toys",
+                "topical_sheet": "HAPPYPET_SHEET_ID_TOYS", "amazon_search_query": "q"}
+        (d / "_data" / "publish_plan.json").write_text(json.dumps({"order": [], "seeds": [
+            dict(seed, topic="best-published-post"),       # taken: published
+            dict(seed, topic="best-seed-one"),
+            dict(seed, topic="best-queued-two"),           # taken: queued
+            dict(seed, topic="best-seed-two"),
+            dict(seed, topic="best-seed-three")]}), encoding="utf-8")
+        out = d / "ctx.json"
+        self.run_cli("context", "--out", str(out), "--batch", "2")
+        ctx = json.loads(out.read_text(encoding="utf-8"))
+        self.assertEqual([s["topic"] for s in ctx["seeds"]], ["best-seed-one", "best-seed-two"])
+        self.assertRegex(ctx["today"], r"^\d{4}-\d{2}-\d{2}$")
+
+    def test_context_lists_every_seed_slug_as_taken(self):
+        """Seeds arrive only through `seeds`: every seed slug, beyond this batch
+        too, is listed as taken so the session never plans one itself."""
+        d = self.base.parent
+        (d / "_data").mkdir()
+        seed = {"keyword": "k w", "species": "dog", "category": "toys",
+                "topical_sheet": "HAPPYPET_SHEET_ID_TOYS", "amazon_search_query": "q"}
+        (d / "_data" / "publish_plan.json").write_text(json.dumps({"seeds": [
+            dict(seed, topic="best-seed-one"), dict(seed, topic="best-seed-two")]}),
+            encoding="utf-8")
+        out = d / "ctx.json"
+        self.run_cli("context", "--out", str(out), "--batch", "1")
+        ctx = json.loads(out.read_text(encoding="utf-8"))
+        self.assertEqual([s["topic"] for s in ctx["seeds"]], ["best-seed-one"])
+        self.assertIn("best-seed-one", ctx["taken_slugs"])
+        self.assertIn("best-seed-two", ctx["taken_slugs"])
+
+    def test_an_unreadable_plan_stops_the_context_naming_the_file(self):
+        d = self.base.parent
+        (d / "_data").mkdir()
+        (d / "_data" / "publish_plan.json").write_text("{not json", encoding="utf-8")
+        with self.assertRaises(SystemExit) as cm:
+            self.run_cli("context", "--out", str(d / "ctx.json"))
+        self.assertIn("publish_plan.json", str(cm.exception))
+        (d / "_data" / "publish_plan.json").write_text('{"seeds": {}}', encoding="utf-8")
+        with self.assertRaises(SystemExit) as cm:
+            self.run_cli("context", "--out", str(d / "ctx.json"))
+        self.assertIn("publish_plan.json", str(cm.exception))
+
+    def test_the_real_first_batch_of_seeds_survives_seed_resolve_and_check(self):
+        """The 10-25 run's four seeds (two share `treats`), each with a title the
+        session writes and a product it reads, through the real seed, resolve and
+        check commands: all four land, nothing dropped, the check passes."""
+        real = json.loads((REPO / "_data" / "publish_plan.json").read_text(encoding="utf-8"))
+        topics = [dict(s, title=f"Seed Title {i}", product=self.product(asin=f"B0SEEDS00{i}"))
+                  for i, s in enumerate(real["seeds"][:4])]
+        self.assertEqual([t["category"] for t in topics][:2], ["treats", "treats"])
+        self.plan.write_text(json.dumps({"abort": None, "topics": topics}), encoding="utf-8")
+        self.assertEqual(self.run_cli("seed", "--plan", str(self.plan), "--max", "4")[0], 0)
+        rc, out = self.run_cli("resolve", "--plan", str(self.plan), "--base", str(self.base))
+        self.assertEqual(rc, 0, out)
+        self.assertIn("filled 4, dropped 0", out)
+        rc, out = self.run_cli("check", "--base", str(self.base))
+        self.assertEqual(rc, 0, out)
+
+    def test_context_stops_offering_a_seed_after_its_publish_by(self):
+        d = self.base.parent
+        (d / "_data").mkdir()
+        seed = {"keyword": "k w", "species": "dog", "category": "toys",
+                "topical_sheet": "HAPPYPET_SHEET_ID_TOYS", "amazon_search_query": "q"}
+        (d / "_data" / "publish_plan.json").write_text(json.dumps({"seeds": [
+            dict(seed, topic="best-seed-early", publish_by="2026-11-02"),
+            dict(seed, topic="best-seed-late", publish_by="2026-12-31")]}), encoding="utf-8")
+        import refill_products
+        for today, offered in (("2026-11-02", ["best-seed-early", "best-seed-late"]),
+                               ("2026-11-03", ["best-seed-late"])):
+            with self.subTest(today=today), \
+                 patch.object(refill_products, "eastern_date", lambda: today):
+                out = d / "ctx.json"
+                self.run_cli("context", "--out", str(out), "--batch", "4")
+                ctx = json.loads(out.read_text(encoding="utf-8"))
+                self.assertEqual([s["topic"] for s in ctx["seeds"]], offered)
+                self.assertEqual(ctx["today"], today)
+                self.assertIn("best-seed-early", ctx["taken_slugs"])   # still reserved
+
+    def _plan_two_seeds(self):
+        d = self.base.parent
+        (d / "_data").mkdir(exist_ok=True)
+        seed = {"species": "dog", "category": "toys", "topical_sheet": "HAPPYPET_SHEET_ID_TOYS",
+                "publish_by": "2026-11-30"}
+        (d / "_data" / "publish_plan.json").write_text(json.dumps({"seeds": [
+            dict(seed, topic="best-seed-one", keyword="seed one for small dogs",
+                 amazon_search_query="seed one for small dogs"),
+            dict(seed, topic="best-seed-two", keyword="seed two for small dogs",
+                 amazon_search_query="seed two for small dogs")]}), encoding="utf-8")
+        return {"best-seed-one": self.topic(topic="best-seed-one", keyword="seed one for small dogs",
+                                            amazon_search_query="seed one for small dogs"),
+                "best-seed-two": self.topic(topic="best-seed-two", keyword="seed two for small dogs",
+                                            amazon_search_query="seed two for small dogs")}
+
+    def _seed(self, topics, max_):
+        import refill_products
+        self.plan.write_text(json.dumps({"abort": None, "topics": topics}), encoding="utf-8")
+        with patch.object(refill_products, "eastern_date", lambda: "2026-11-01"):
+            return self.run_cli("seed", "--plan", str(self.plan), "--max", str(max_))
+
+    def test_seed_takes_a_handed_seed_and_rejects_one_it_was_not_handed(self):
+        seeds = self._plan_two_seeds()
+        # batch 1: context hands best-seed-one only.
+        rc, out = self._seed([seeds["best-seed-one"]], 1)
+        self.assertEqual(rc, 0, out)
+        self.assertIn("seeded 1: best-seed-one", out)
+        self.head.write_text(self.base.read_text(encoding="utf-8"), encoding="utf-8")
+        rc, out = self._seed([seeds["best-seed-two"]], 1)
+        self.assertEqual(rc, 1, out)
+        self.assertIn("publish-plan seed this run was not handed", out)
+
+    def test_seed_rejects_a_seed_that_differs_from_the_plan(self):
+        seeds = self._plan_two_seeds()
+        for field, value in (("keyword", "seed one toys"), ("species", "cat"), ("category", "beds")):
+            with self.subTest(field=field):
+                self.head.write_text(self.base.read_text(encoding="utf-8"), encoding="utf-8")
+                rc, out = self._seed([dict(seeds["best-seed-one"], **{field: value})], 2)
+                self.assertEqual(rc, 1, out)
+                self.assertIn(f"differs from the publish plan in: {field}", out)
+
+    def test_seed_rejects_an_expired_seed(self):
+        import refill_products
+        seeds = self._plan_two_seeds()
+        self.plan.write_text(json.dumps({"abort": None, "topics": [seeds["best-seed-one"]]}),
+                             encoding="utf-8")
+        with patch.object(refill_products, "eastern_date", lambda: "2026-12-01"):
+            rc, out = self.run_cli("seed", "--plan", str(self.plan), "--max", "2")
+        self.assertEqual(rc, 1, out)
+        self.assertIn("not handed", out)
+
+    def test_seed_rejects_a_bare_best_x_head_term_for_a_self_planned_topic(self):
+        self._plan_two_seeds()
+        for kw, ok in (("best dog toys", False), ("best freeze dried dog treats", False),
+                       ("best dog toys for small dogs", True), ("dog toys for small dogs", True)):
+            with self.subTest(keyword=kw):
+                self.head.write_text(self.base.read_text(encoding="utf-8"), encoding="utf-8")
+                rc, out = self._seed([self.topic(keyword=kw)], 4)
+                self.assertEqual(rc, 0 if ok else 1, out)
+                self.assertEqual("head term" in out, not ok, out)
+
+    def test_bare_head_term_definition(self):
+        cases = {"best dog toys": True, "Best  Cat Litter Mat": True, "best": True,
+                 "best freeze dried dog treats": True,
+                 "best dog toys for small dogs": False, "best cat tree under 100": False,
+                 "cat advent calendar with treats": False, "bestselling dog toys": False,
+                 "": False, None: False}
+        for kw, bare in cases.items():
+            with self.subTest(keyword=kw):
+                self.assertEqual(self.cli.is_bare_head_term(kw), bare)
+
+    def test_check_holds_a_seed_entry_that_differs_or_expired_and_a_bare_head_term(self):
+        import refill_products
+        self._plan_two_seeds()
+        good_seed = self.full_entry(topic="best-seed-one", keyword="seed one for small dogs",
+                                    amazon_search_query="seed one for small dogs",
+                                    asin="B0SEEDCHK1")
+        cases = [("good seed", "2026-11-01", good_seed, True),
+                 ("changed category", "2026-11-01", dict(good_seed, category="beds"), False),
+                 ("expired", "2026-12-01", good_seed, False),
+                 ("bare head term", "2026-11-01",
+                  self.full_entry(topic="best-dog-toy-thing", keyword="best dog toys",
+                                  asin="B0SEEDCHK2"), False),
+                 ("long tail", "2026-11-01",
+                  self.full_entry(topic="best-dog-toy-thing", keyword="best dog toys for small dogs",
+                                  asin="B0SEEDCHK3"), True)]
+        for label, today, entry, ok in cases:
+            with self.subTest(case=label), \
+                 patch.object(refill_products, "eastern_date", lambda: today):
+                rc, out = self.check([entry])
+                self.assertEqual(rc, 0 if ok else 1, out)
+
+    def test_context_without_a_plan_has_no_seeds(self):
+        out = self.base.parent / "ctx.json"
+        self.run_cli("context", "--out", str(out), "--batch", "6")
+        self.assertEqual(json.loads(out.read_text(encoding="utf-8"))["seeds"], [])
 
     def test_context_lists_topics_and_taken_slugs(self):
         out = self.base.parent / "ctx.json"
