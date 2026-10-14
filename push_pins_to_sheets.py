@@ -61,9 +61,15 @@ _FB_FALLBACK_TEMPLATES: list[str] = [
 # forms, which every tag variant of one article shares.
 FB_UTM = 'utm_source=facebook&utm_medium=social&utm_campaign=post'
 
+def _page_url(url: str) -> str:
+    """The file's one URL clean-up: scheme, host and path with one trailing
+    slash; query and fragment dropped."""
+    parts = urllib.parse.urlsplit(url.strip())
+    return f"{parts.scheme}://{parts.netloc}{parts.path.rstrip('/')}/"
+
 def _fb_url(article_url: str) -> str:
     """The article's page URL with the Facebook tag in place of any query."""
-    return article_url.split('?')[0].split('#')[0].rstrip('/') + '/?' + FB_UTM
+    return _page_url(article_url) + '?' + FB_UTM
 
 def _build_fb_message(slug: str, title: str, article_url: str) -> str:
     """Return a personable Facebook post message keyed to slug, fallback to title-derived hook."""
@@ -313,17 +319,18 @@ def send_queue_alert(unpublished_count: int) -> None:
     log(what, 'INFO' if sent else ('WARN' if 'NOT sent' in what else 'ERROR'))
 
 def _dedup_key(url: str) -> str:
-    """Col B's dedup form: lowercased scheme and host, the path with one trailing
-    slash, no query or fragment. Rows from Apr 4-16 hold the clean URL, rows from
-    Apr 19 the Pinterest-tagged one, new rows the Facebook-tagged one; all three
-    forms of one article share this key, so none is queued twice."""
-    parts = urllib.parse.urlsplit(url.strip())
-    return f"{parts.scheme.lower()}://{parts.netloc.lower()}{parts.path.rstrip('/')}/"
+    """Col B's dedup form: the _page_url() host and path, with the scheme dropped
+    (http and https match) and the host lowercased without a leading "www.".
+    Rows from Apr 4-16 hold the clean URL, rows from Apr 19 the Pinterest-tagged
+    one, new rows the Facebook-tagged one; every form of one article shares this
+    key, so none is queued twice."""
+    parts = urllib.parse.urlsplit(_page_url(url))
+    return parts.netloc.lower().removeprefix('www.') + parts.path
 
 def read_fb_queue_state(ws) -> tuple[set, _dt.date]:
     """
     Single read of the Facebook Queue sheet. Returns:
-      - set of _dedup_key() forms of the URLs already queued (col B) -- the
+      - set of _dedup_key() keys of the rows already queued (col B) -- the
         dedup authority
       - the first free SchedDate (latest existing + 1 day; tomorrow if empty)
     One read per run instead of one per pin, and callers increment the date
@@ -331,11 +338,11 @@ def read_fb_queue_state(ws) -> tuple[set, _dt.date]:
     Raises on read failure -- appending blind would create duplicates.
     """
     rows = sheets_retry('get_all_values', ws.get_all_values)
-    urls  = set()
+    queued_keys = set()
     dates = []
     for row in rows[1:]:  # skip header
         if len(row) > 1 and row[1].strip():
-            urls.add(_dedup_key(row[1]))
+            queued_keys.add(_dedup_key(row[1]))
         if len(row) > 5 and row[5].strip():
             try:
                 dates.append(_dt.date.fromisoformat(row[5].strip()))
@@ -344,41 +351,34 @@ def read_fb_queue_state(ws) -> tuple[set, _dt.date]:
     next_date = (max(dates) if dates else _dt.date.today()) + _dt.timedelta(days=1)
     if next_date <= _dt.date.today():
         next_date = _dt.date.today() + _dt.timedelta(days=1)
-    return urls, next_date
-
-
-SITE_BASE = 'https://happypetproductreviews.com'
-# Landscape (1200x630) brand card: the last resort, so the Image column is never
-# empty and never the portrait pin.
-FB_FALLBACK_IMAGE = f'{SITE_BASE}/assets/images/og-image.png'
+    return queued_keys, next_date
 
 
 def product_image_url(slug: str) -> str:
     """The image the Facebook Queue row carries: the PRODUCT, never the pin.
 
     The pin (queue JSON image_url) is a 1000x1500 portrait made for Pinterest;
-    Facebook crops or distorts it. Same rule as the post page's buy panel
-    (_layouts/post.html) and its og:image (_includes/social-image.html): the
-    self-hosted thumbnail when the post has one, else the post's own `image`
-    front matter (the Amazon CDN photo), else the site's landscape brand card.
+    Facebook crops or distorts it. This mirrors the site's one image rule,
+    _includes/social-image.html (the post's og:image, and the buy panel's pick):
+    the self-hosted thumbnail when the post has one, else the post's own `image`
+    front matter made absolute, else the landscape brand card. A test renders the
+    include beside this function so the two cannot drift.
     """
+    import generate_posts as gp
+    from validate_published_chewy_links import parse_frontmatter
+    pick = None
     if (REPO_DIR / 'assets' / 'images' / 'thumbs' / f'{slug}.jpg').is_file():
-        return f'{SITE_BASE}/assets/images/thumbs/{slug}.jpg'
-    # Exact-slug match: _posts/YYYY-MM-DD-<slug>.md, so 'x-<slug>' cannot match.
-    for post in sorted((REPO_DIR / '_posts').glob(
-            f'[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]-{slug}.md')):
-        lines = post.read_text(encoding='utf-8-sig').splitlines()
-        if not lines or lines[0].strip() != '---':
-            continue
-        for line in lines[1:]:
-            if line.strip() == '---':
+        pick = f'/assets/images/thumbs/{slug}.jpg'
+    else:
+        # Exact-slug match: _posts/YYYY-MM-DD-<slug>.md, so 'x-<slug>' cannot match.
+        for post in sorted((REPO_DIR / '_posts').glob(
+                f'[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]-{slug}.md')):
+            pick = parse_frontmatter(post).get('image')
+            if pick:
                 break
-            m = re.match(r'image:[ \t]*(.*?)[ \t]*$', line)
-            if m:
-                url = m.group(1).strip('\'"').strip()
-                if url:
-                    return url
-    return FB_FALLBACK_IMAGE
+    pick = pick or '/assets/images/og-image.png'
+    # Liquid's absolute_url: an absolute URL passes through, a path gets the site.
+    return pick if re.match(r'[a-z][a-z0-9+.-]*://', pick, re.I) else gp.SITE_BASE + pick
 
 
 def main():
@@ -437,11 +437,11 @@ def main():
     # "name exists in sent/" check skipped every freshly pinned article and no
     # FB row was ever appended. The sheet is the only duplicate-proof record.
     try:
-        queued_urls, sched_cursor = read_fb_queue_state(fb_ws)
+        queued_keys, sched_cursor = read_fb_queue_state(fb_ws)
     except Exception as read_exc:
         log(f'Could not read FB Queue sheet: {read_exc} -- aborting (appending blind would duplicate rows)', 'ERROR')
         sys.exit(1)
-    log(f'FB Queue state: {len(queued_urls)} rows queued, next SchedDate={sched_cursor.isoformat()}')
+    log(f'FB Queue state: {len(queued_keys)} rows queued, next SchedDate={sched_cursor.isoformat()}')
 
     today     = _dt.date.today().isoformat()
     processed = 0
@@ -470,7 +470,7 @@ def main():
                     shutil.move(str(qf), str(sent_dir / qf.name))
                     log(f'SENT: {qf.name} -> _pin_queue/sent/{note}')
 
-            if _dedup_key(article_url) in queued_urls:
+            if _dedup_key(article_url) in queued_keys:
                 log(f'SKIP (already in FB Queue sheet): {qf.name}')
                 # Ensure the processed marker exists even if a prior run died
                 # between append and move.
@@ -487,7 +487,7 @@ def main():
             # Append to Facebook Queue: Title, URL, Message, Image, OrigDate, SchedDate, Species, Posted, PostID
             fb_row = [title, _fb_url(article_url), message, image_url, today, sched_date, species, 'FALSE', '']
             fb_ws.append_row(fb_row)
-            queued_urls.add(_dedup_key(article_url))
+            queued_keys.add(_dedup_key(article_url))
             sched_cursor += _dt.timedelta(days=1)
             log(f'FB QUEUE: appended {slug} -> SchedDate={sched_date}')
 

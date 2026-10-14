@@ -2612,7 +2612,7 @@ def stage_article(slug: str, product: dict, body: str, pin_desc: str,
     assert_amazon_figures_labelled("stage_article", content_clean, slug,
                                    product.get("price"), product.get("stars"))
 
-    article_url = build_url(slug, utm=True, category=category or None)
+    article_url = build_url(slug, utm=True, category=category)
     # Pin image source: prefer the curated /images/I/ image -- fetch_image reaches
     # it directly and, if that host is blocked, recovers the same image id on the
     # images-na host. Only derive from the ASIN's legacy /images/P/ scheme when no

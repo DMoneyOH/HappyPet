@@ -4044,15 +4044,21 @@ class TestFacebookLinkTracking(unittest.TestCase):
                  "facebook-tagged (new)": self.FB_URL,
                  "no trailing slash": self.CLEAN_URL.rstrip("/"),
                  "upper-case host, padded": "  https://HappyPetProductReviews.com/toys/best-snuffle-mats-dogs/  ",
-                 "fragment": self.CLEAN_URL + "#top"}
+                 "fragment": self.CLEAN_URL + "#top",
+                 "http": self.CLEAN_URL.replace("https://", "http://"),
+                 "www": self.CLEAN_URL.replace("https://", "https://www."),
+                 "http + www, pinterest-tagged": self.PIN_URL.replace("https://", "http://www.")}
         for label, existing in forms.items():
             with self.subTest(label):
                 self._run_main(existing_urls=[existing]).append_row.assert_not_called()
 
     def test_a_different_article_never_counts_as_queued(self):
         """Normalizing must not merge two articles: another slug, a slug that is a
-        prefix of ours, and our slug under another category all still append."""
-        for existing in ("https://happypetproductreviews.com/toys/best-snuffle-mats/",
+        prefix of ours, our slug under another category, and our path on another
+        host all still append."""
+        for existing in ("https://example.com/toys/best-snuffle-mats-dogs/",
+                         "https://wwwhappypetproductreviews.com/toys/best-snuffle-mats-dogs/",
+                         "https://happypetproductreviews.com/toys/best-snuffle-mats/",
                          "https://happypetproductreviews.com/toys/best-snuffle-mats-dogs-2/",
                          "https://happypetproductreviews.com/dog-toys/best-snuffle-mats-dogs/"
                          "?utm_source=pinterest&utm_medium=social&utm_campaign=pin"):
@@ -7114,12 +7120,7 @@ class TestProductReviewStructuredData(unittest.TestCase):
                 if name == "default":
                     val = val if val else lookup(arg)
                 elif name == "absolute_url":
-                    # Jekyll's url_filters.rb: "return input if
-                    # Addressable::URI.parse(input.to_s).absolute?" -- an
-                    # already-absolute URL passes through untouched, only a
-                    # relative path gets site.url prepended.
-                    if not re.match(r"^[a-z][a-z0-9+.-]*://", str(val), re.I):
-                        val = "https://happypetproductreviews.com" + str(val)
+                    val = _jekyll_absolute_url(val)
                 elif name == "date":
                     val = str(val)          # already YYYY-MM-DD in front matter
                 elif name == "jsonify":
@@ -10343,6 +10344,16 @@ class TestRefillWatchdog(unittest.TestCase):
 # ---------------------------------------------------------------------------
 # Related-reviews block (_includes/related-reviews.html, traffic plan move 1)
 # ---------------------------------------------------------------------------
+def _jekyll_absolute_url(val):
+    """The test suite's one stand-in for Jekyll's absolute_url. Jekyll's
+    url_filters.rb: "return input if Addressable::URI.parse(input.to_s).absolute?"
+    -- an already-absolute URL passes through untouched, only a path (with its
+    leading slash) gets site.url prepended. baseurl is '' on this site."""
+    if re.match(r"[a-z][a-z0-9+.-]*://", str(val), re.I):
+        return val
+    return "https://happypetproductreviews.com" + str(val)
+
+
 class _MiniLiquid:
     """Renders the related-reviews include, and only that, without Ruby.
 
@@ -10528,9 +10539,7 @@ class _MiniLiquid:
             elif name == "default":
                 val = val if val not in (None, False, "") else args[0]
             elif name == "absolute_url":
-                # Jekyll leaves an absolute URL alone and prefixes site.url on a path.
-                val = val if re.match(r"[a-z][a-z0-9+.-]*://", str(val)) else (
-                    "https://happypetproductreviews.com" + str(val))
+                val = _jekyll_absolute_url(val)
             elif name == "escape":
                 val = ("" if val is None else str(val)).replace("&", "&amp;").replace(
                     "<", "&lt;").replace(">", "&gt;").replace('"', "&quot;").replace("'", "&#39;")
@@ -10719,13 +10728,10 @@ class TestSocialImage(unittest.TestCase):
         cls.source = cls.INCLUDE.read_text(encoding="utf-8")
         cls.thumbs = {t.stem for t in (REPO / "assets" / "images" / "thumbs").glob("*.jpg")}
         cls.static_files = [{"path": f"/assets/images/thumbs/{s}.jpg"} for s in sorted(cls.thumbs)]
+        from validate_published_chewy_links import parse_frontmatter
         cls.posts = []
         for p in sorted((REPO / "_posts").glob("[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]-*.md")):
-            fm = {}
-            for line in p.read_text(encoding="utf-8").split("---", 2)[1].splitlines():
-                m = re.match(r"^([a-z_]+):\s*(.+)$", line)
-                if m:
-                    fm[m.group(1)] = m.group(2).strip().strip('"')
+            fm = parse_frontmatter(p)
             cls.posts.append({"slug": p.stem[11:], "image": fm.get("image"),
                               "pin_image": fm.get("pin_image")})
 
@@ -10737,8 +10743,8 @@ class TestSocialImage(unittest.TestCase):
         self.assertGreaterEqual(len(self.posts), 60)
         self.assertTrue(self.thumbs, "no thumbnails found")
         self.assertTrue(any(p["pin_image"] for p in self.posts), "no post has a pin_image")
-        self.assertTrue(any(p["slug"] not in self.thumbs for p in self.posts),
-                        "every post has a thumbnail: the fallback branch is untested")
+        # Not required: a post without a thumbnail. A thumbnail backfill may cover
+        # every post; the no-thumbnail branch is held by the synthetic pages below.
 
     def test_every_post_gets_its_thumbnail_or_its_own_image(self):
         for post in self.posts:
@@ -10773,12 +10779,57 @@ class TestSocialImage(unittest.TestCase):
 
     def test_the_brand_card_and_thumbnails_are_not_portrait(self):
         """The reason the pin is out: nothing the include can emit may be 2:3."""
+        import generate_pin_images as g
+        if not g.PIL_AVAILABLE:
+            self.skipTest("Pillow not installed")
         from PIL import Image
         self.assertEqual(Image.open(REPO / "assets" / "images" / "og-image.png").size, (1200, 630))
         for stem in sorted(self.thumbs):
             with self.subTest(thumb=stem):
                 w, h = Image.open(REPO / "assets" / "images" / "thumbs" / f"{stem}.jpg").size
                 self.assertGreaterEqual(w, h)
+
+    def test_the_facebook_sheet_rule_is_the_include_rule(self):
+        """push_pins_to_sheets.product_image_url mirrors this include. Both run
+        on every real post, then on synthetic posts covering each branch: a
+        thumbnail, an absolute image, a relative image (absolute_url), single
+        quotes, and nothing at all."""
+        import shutil
+        import tempfile
+        import push_pins_to_sheets as pps
+        from validate_published_chewy_links import parse_frontmatter
+        for post in self.posts:
+            with self.subTest(slug=post["slug"]):
+                self.assertEqual(pps.product_image_url(post["slug"]), self._render(post))
+        tmp = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
+        (tmp / "_posts").mkdir()
+        (tmp / "assets" / "images" / "thumbs").mkdir(parents=True)
+        (tmp / "assets" / "images" / "thumbs" / "has-thumb.jpg").write_bytes(b"jpg")
+        cases = {"has-thumb": 'image: "https://m.media-amazon.com/images/I/a.jpg"',
+                 "absolute": 'image: "https://m.media-amazon.com/images/I/b.jpg"',
+                 "relative": 'image: "/assets/images/c.jpg"',
+                 "single-quoted": "image: '/assets/images/d.jpg'",
+                 "nothing": 'pin_image: "/assets/images/pins/e.jpg"'}
+        for slug, line in cases.items():
+            (tmp / "_posts" / f"2026-10-05-{slug}.md").write_text(
+                f"---\nlayout: post\n{line}\n---\nBody.\n", encoding="utf-8")
+        static = [{"path": "/assets/images/thumbs/has-thumb.jpg"}]
+        with patch.object(pps, "REPO_DIR", tmp):
+            for slug in cases:
+                with self.subTest(case=slug):
+                    fm = parse_frontmatter(tmp / "_posts" / f"2026-10-05-{slug}.md")
+                    liquid = _MiniLiquid(self.source).render(
+                        {"site": {"baseurl": "", "static_files": static},
+                         "page": {"slug": slug, "image": fm.get("image")}})
+                    self.assertEqual(pps.product_image_url(slug), liquid)
+                    self.assertTrue(liquid.startswith(self.SITE + "/") or
+                                    liquid.startswith("https://m.media-amazon.com/"), liquid)
+
+    def test_the_buy_panel_takes_its_image_from_the_include(self):
+        post = (REPO / "_layouts" / "post.html").read_text(encoding="utf-8")
+        self.assertIn("{%- include social-image.html -%}", post)
+        self.assertNotIn("static_files", post, "post.html has a second copy of the image rule")
 
     def test_default_layout_uses_the_include_and_never_pin_image(self):
         layout = (REPO / "_layouts" / "default.html").read_text(encoding="utf-8")
