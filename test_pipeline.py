@@ -10671,6 +10671,8 @@ class TestRefillCli(unittest.TestCase):
             return self.run_cli("check", "--base", str(self.base), *flags)
 
     def _seed_entry(self, n):
+        if n not in (1, 2):
+            raise ValueError(f"_plan_two_seeds has seeds 1 and 2, not {n}")
         words = ("one", "two")[n - 1]
         return self.full_entry(topic=f"best-seed-{words}", keyword=f"seed {words} for small dogs",
                                amazon_search_query=f"seed {words} for small dogs",
@@ -11201,6 +11203,38 @@ def _bash_for_workflow_steps():
     return None, "no bash 4+ (publish.yml uses mapfile) outside WSL"
 
 
+# The hub layout's intro and how-we-choose markup, as rendered, per front-matter field.
+HUB_FIELD_MARKUP = {"intro": '<p class="standfirst">{}</p>',
+                    "how_we_choose": '<p class="hub-method"><b>How we choose:</b> {}</p>'}
+
+
+def _hub_front_matter_strings(text):
+    """The quoted `key: "value"` lines of a hub file's front matter. Read by
+    hand because validate_published_chewy_links.parse_frontmatter strips quotes
+    off both ends loosely and ignores escapes, so a stray backslash or inner
+    quote would pass through it unseen. This reader matches the whole quoted
+    scalar and refuses an escape or inner quote, so the value is exactly the
+    double-quoted YAML scalar Jekyll reads, with nothing to unescape."""
+    block = text.split("---\n")[1]
+    out = {}
+    for line in block.splitlines():
+        m = re.fullmatch(r'(\w+): "(.*)"', line)
+        if m:
+            assert not re.search(r'["\\]', m.group(2)), f"{line!r} has an escape or a quote"
+            out[m.group(1)] = m.group(2)
+    return out
+
+
+def _render_hub_field(field, hub_file_text):
+    """The hub layout's own `if page.<field>` block, rendered by _MiniLiquid
+    from a hub file's front matter, stripped."""
+    layout = (REPO / "_layouts" / "hub.html").read_text(encoding="utf-8")
+    m = re.search(r"\{%-?\s*if page\." + field + r"\s*-?%\}.*?\{%-?\s*endif\s*-?%\}",
+                  layout, re.S)
+    assert m, f"hub.html has no `if page.{field}` block"
+    return _MiniLiquid(m.group(0)).render({"page": _hub_front_matter_strings(hub_file_text)}).strip()
+
+
 class TestTopicHubs(unittest.TestCase):
     """Topic hubs (Director-approved 2026-10-13): hubs/<topic>.md, one layout
     (_layouts/hub.html) that lists every post in the topic, the post breadcrumb
@@ -11257,52 +11291,32 @@ class TestTopicHubs(unittest.TestCase):
                                  f"hubs/{slug}.md differs from {hub_pages.COPY_FILE}; run "
                                  "python hub_pages.py --sync")
 
-    @staticmethod
-    def _front_matter_strings(text):
-        """The quoted `key: "value"` lines of a hub file's front matter, read
-        by hand, not through hub_pages or json: what Jekyll's YAML reader would
-        give for a double-quoted scalar with no escapes in it."""
-        block = text.split("---\n")[1]
-        out = {}
-        for line in block.splitlines():
-            m = re.fullmatch(r'(\w+): "(.*)"', line)
-            if m:
-                assert not re.search(r'["\\]', m.group(2)), f"{line!r} has an escape or a quote"
-                out[m.group(1)] = m.group(2)
-        return out
-
     def test_each_hubs_rendered_intro_and_method_are_its_copy_file_entry(self):
         """D-2, from the other end: the layout's own intro and how-we-choose
         markup, rendered from each hub file's front matter, shows exactly the
         text in _data/hub_copy.json. Expected text is the data file's literal,
         not hub_pages.hub_text, so a writer bug cannot cancel itself out."""
-        layout = (REPO / "_layouts" / "hub.html").read_text(encoding="utf-8")
         copy = json.loads((REPO / "_data" / "hub_copy.json").read_text(encoding="utf-8"))
         self.assertTrue(self.hubs)
-        for field, markup in (("intro", '<p class="standfirst">{}</p>'),
-                              ("how_we_choose", '<p class="hub-method"><b>How we choose:</b> {}</p>')):
-            m = re.search(r"\{%-?\s*if page\." + field + r"\s*-?%\}.*?\{%-?\s*endif\s*-?%\}",
-                          layout, re.S)
-            self.assertIsNotNone(m, f"hub.html has no `if page.{field}` block")
+        for field, markup in HUB_FIELD_MARKUP.items():
             for slug in self.hubs:
                 with self.subTest(hub=slug, field=field):
                     self.assertIn(slug, copy)
-                    page = self._front_matter_strings(
-                        (REPO / "hubs" / f"{slug}.md").read_text(encoding="utf-8"))
-                    rendered = _MiniLiquid(m.group(0)).render({"page": page}).strip()
-                    self.assertEqual(rendered, markup.format(copy[slug][field]))
+                    hub_file = (REPO / "hubs" / f"{slug}.md").read_text(encoding="utf-8")
+                    self.assertEqual(_render_hub_field(field, hub_file),
+                                     markup.format(copy[slug][field]))
 
     def test_the_rendered_copy_check_catches_copy_that_drifted(self):
         """Prove the check above can fail: a hub whose intro was edited in the
         hub file alone, by one character, renders text the data file lacks."""
-        layout = (REPO / "_layouts" / "hub.html").read_text(encoding="utf-8")
         copy = json.loads((REPO / "_data" / "hub_copy.json").read_text(encoding="utf-8"))
         slug = sorted(self.hubs)[0]
-        text = (REPO / "hubs" / f"{slug}.md").read_text(encoding="utf-8")
-        page = self._front_matter_strings(text.replace(copy[slug]["intro"], copy[slug]["intro"] + "!"))
-        m = re.search(r"\{%-?\s*if page\.intro\s*-?%\}.*?\{%-?\s*endif\s*-?%\}", layout, re.S)
-        rendered = _MiniLiquid(m.group(0)).render({"page": page}).strip()
-        self.assertNotEqual(rendered, '<p class="standfirst">{}</p>'.format(copy[slug]["intro"]))
+        intro = copy[slug]["intro"]
+        hub_file = (REPO / "hubs" / f"{slug}.md").read_text(encoding="utf-8")
+        self.assertIn(intro, hub_file)
+        rendered = _render_hub_field("intro", hub_file.replace(intro, intro + "!"))
+        self.assertEqual(rendered, HUB_FIELD_MARKUP["intro"].format(intro + "!"))
+        self.assertNotEqual(rendered, HUB_FIELD_MARKUP["intro"].format(intro))
 
     def test_the_copy_file_has_complete_copy_for_every_topic(self):
         """So the publish never meets a topic without copy. Plain one-line text
@@ -11444,43 +11458,44 @@ class TestTopicHubs(unittest.TestCase):
                              "---\nlayout: hub\n---\n")
 
 
+# Exactly what publish.yml's `permissions:` holds as of 2026-10-14: contents for
+# the publish commit, issues for the alert issues, actions to dispatch deploy.yml.
+PUBLISH_PERMISSIONS = {"contents": "write", "issues": "write", "actions": "write"}
+
+
+def _workflow_permissions(text):
+    """(top-level permissions mapping, count of `permissions` keys at any
+    indent). Reads the whole block: blank and comment lines inside it do not
+    end it, so a key after one is still counted."""
+    lines = text.splitlines()
+    starts = [i for i, ln in enumerate(lines) if re.match(r"permissions\s*:", ln)]
+    anywhere = len(re.findall(r"^\s*permissions\s*:", text, re.M))
+    if len(starts) != 1 or lines[starts[0]].rstrip() != "permissions:":
+        return None, anywhere
+    perms = {}
+    for ln in lines[starts[0] + 1:]:
+        if not ln.strip() or ln.lstrip().startswith("#"):
+            continue
+        if not ln[0].isspace():
+            break
+        m = re.fullmatch(r"\s+([\w-]+):\s*(\S+?)(?:\s+#.*)?", ln)
+        if not m:
+            return None, anywhere
+        perms[m.group(1)] = m.group(2)
+    return perms, anywhere
+
+
 class TestPublishWorkflowPins(unittest.TestCase):
     """What publish.yml's token may do, and what no workflow may run. Both are
     pinned as literals, so a widening or a new caller is a failing test and a
     reviewed change, not a quiet edit."""
 
     WORKFLOWS = REPO / ".github" / "workflows"
-    # Exactly what publish.yml's `permissions:` holds as of 2026-10-14: contents
-    # for the publish commit, issues for the alert issues, actions to dispatch
-    # deploy.yml.
-    PUBLISH_PERMISSIONS = {"contents": "write", "issues": "write", "actions": "write"}
-
-    @staticmethod
-    def _permissions(text):
-        """(top-level permissions mapping, count of `permissions` keys at any
-        indent). Reads the whole block: blank and comment lines inside it do
-        not end it, so a key after one is still counted."""
-        lines = text.splitlines()
-        starts = [i for i, ln in enumerate(lines) if re.match(r"permissions\s*:", ln)]
-        anywhere = len(re.findall(r"^\s*permissions\s*:", text, re.M))
-        if len(starts) != 1 or lines[starts[0]].rstrip() != "permissions:":
-            return None, anywhere
-        perms = {}
-        for ln in lines[starts[0] + 1:]:
-            if not ln.strip() or ln.lstrip().startswith("#"):
-                continue
-            if not ln[0].isspace():
-                break
-            m = re.fullmatch(r"\s+([\w-]+):\s*(\S+?)(?:\s+#.*)?", ln)
-            if not m:
-                return None, anywhere
-            perms[m.group(1)] = m.group(2)
-        return perms, anywhere
 
     def test_publish_permissions_are_pinned(self):
         text = (self.WORKFLOWS / "publish.yml").read_text(encoding="utf-8")
-        perms, anywhere = self._permissions(text)
-        self.assertEqual(perms, self.PUBLISH_PERMISSIONS,
+        perms, anywhere = _workflow_permissions(text)
+        self.assertEqual(perms, PUBLISH_PERMISSIONS,
                          "publish.yml's permissions: block changed; widening the token "
                          "is a reviewed change, so update this pin in the same PR")
         self.assertEqual(anywhere, 1, "a second permissions: key (a job-level block) "
@@ -11491,7 +11506,7 @@ class TestPublishWorkflowPins(unittest.TestCase):
         and has to come out different from the pinned mapping."""
         base = ("permissions:\n  contents: write\n  issues: write\n"
                 "  actions: write   # dispatch deploy.yml\n\nconcurrency:\n  group: g\n")
-        self.assertEqual(self._permissions(base), (self.PUBLISH_PERMISSIONS, 1))
+        self.assertEqual(_workflow_permissions(base), (PUBLISH_PERMISSIONS, 1))
         for label, text in (
                 ("new key", base.replace("  issues: write\n", "  issues: write\n  pull-requests: write\n")),
                 ("new key after a blank line",
@@ -11504,7 +11519,7 @@ class TestPublishWorkflowPins(unittest.TestCase):
                                            "permissions: write-all\n")),
                 ("job-level block", base + "jobs:\n  publish:\n    permissions:\n      contents: write\n")):
             with self.subTest(case=label):
-                self.assertNotEqual(self._permissions(text), (self.PUBLISH_PERMISSIONS, 1))
+                self.assertNotEqual(_workflow_permissions(text), (PUBLISH_PERMISSIONS, 1))
 
     def test_no_workflow_runs_hub_pages_sync(self):
         """`hub_pages.py --sync` rewrites existing hubs from the copy file. It is
@@ -11513,6 +11528,7 @@ class TestPublishWorkflowPins(unittest.TestCase):
         self.assertIn("publish.yml", [p.name for p in files])
         for p in files:
             with self.subTest(workflow=p.name):
+                # Case-folded so `--SYNC` is caught too, whatever spelling a caller picks.
                 self.assertNotIn("--sync", p.read_text(encoding="utf-8").lower())
 
 
@@ -11557,8 +11573,6 @@ class TestPublishWritesTheHub(unittest.TestCase):
         self.assertIn("if: failure() && steps.hub.outcome == 'failure'\n", head)
         self.assertEqual(re.findall(r"secrets\.\w+", head + script), ["secrets.GITHUB_TOKEN"])
         self.assertIn("gh issue create", script)
-        perms = re.search(r"^permissions:\n((?:  .*\n)+)", self.workflow, re.M).group(1)
-        self.assertIn("issues: write", perms)
 
     GH_CALL_END = "---END-OF-CALL---"
 
@@ -11738,8 +11752,7 @@ class TestPublishWritesTheHub(unittest.TestCase):
         existing `issues: write` covers, so the permissions block is unchanged."""
         head, script = self._step(self.ISSUE_STEP)
         self.assertEqual(re.findall(r"secrets\.\w+", head + script), ["secrets.GITHUB_TOKEN"])
-        self.assertEqual(TestPublishWorkflowPins._permissions(self.workflow)[0],
-                         TestPublishWorkflowPins.PUBLISH_PERMISSIONS)
+        self.assertEqual(_workflow_permissions(self.workflow)[0], PUBLISH_PERMISSIONS)
         self.assertEqual(sorted(set(re.findall(r"\bgh (\w+ \w+)", script))),
                          ["issue create", "issue list"])
 
