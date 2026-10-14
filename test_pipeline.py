@@ -3885,10 +3885,11 @@ class TestFacebookLinkTracking(unittest.TestCase):
     It mirrors the Pinterest tag generate_posts.build_url puts on article_url:
     utm_source=pinterest&utm_medium=social&utm_campaign=pin.
 
-    Only the message (col C) changes. Col B stays the raw article_url because
-    it is the dedup key: main() re-reads every sent/ file on each run, and a
-    col B that no longer matches the rows already in the sheet would re-append
-    the whole back catalogue to the Facebook queue."""
+    Col B (the link the Apps Script posts) carries the same facebook tag as the
+    message (col C); before 2026-10-13 it carried the Pinterest tag, so Facebook
+    clicks counted as Pinterest. Col B is also the dedup key: main() re-reads
+    every sent/ file on each run, so a row must match on its normalized form
+    whichever tag it was written with, or the back catalogue re-queues."""
 
     PIN_URL = ("https://happypetproductreviews.com/toys/best-snuffle-mats-dogs/"
                "?utm_source=pinterest&utm_medium=social&utm_campaign=pin")
@@ -3957,18 +3958,42 @@ class TestFacebookLinkTracking(unittest.TestCase):
             self.pk.main()
         return ws
 
-    def test_row_keeps_raw_article_url_and_tags_only_the_message(self):
+    def test_a_new_rows_url_column_carries_the_facebook_tag(self):
         ws = self._run_main(existing_urls=[])
         ws.append_row.assert_called_once()
         row = ws.append_row.call_args.args[0]
-        self.assertEqual(row[1], self.PIN_URL, "col B is the dedup key and must not change")
-        self.assertEqual(self._url_in(row[2]), self.FB_URL)
+        self.assertEqual(row[1], self.FB_URL)
+        self.assertNotIn("pinterest", row[1])
 
-    def test_an_already_queued_article_is_still_skipped(self):
-        """Rows written before this change hold the Pinterest-tagged URL in col B;
-        those must still match, or every sent/ file posts a second time."""
-        ws = self._run_main(existing_urls=[self.PIN_URL])
-        ws.append_row.assert_not_called()
+    def test_the_url_column_and_the_message_link_agree(self):
+        row = self._run_main(existing_urls=[]).append_row.call_args.args[0]
+        self.assertEqual(self._url_in(row[2]), row[1])
+
+    CLEAN_URL = "https://happypetproductreviews.com/toys/best-snuffle-mats-dogs/"
+
+    def test_an_already_queued_article_is_skipped_whatever_its_col_b_form(self):
+        """Col B holds the clean URL on rows from Apr 4-16, the Pinterest-tagged URL
+        from Apr 19, the Facebook-tagged URL from this change on. Each must still
+        match, or every sent/ file posts a second time."""
+        forms = {"clean (Apr 4-16)": self.CLEAN_URL,
+                 "pinterest-tagged (Apr 19 on)": self.PIN_URL,
+                 "facebook-tagged (new)": self.FB_URL,
+                 "no trailing slash": self.CLEAN_URL.rstrip("/"),
+                 "upper-case host, padded": "  https://HappyPetProductReviews.com/toys/best-snuffle-mats-dogs/  ",
+                 "fragment": self.CLEAN_URL + "#top"}
+        for label, existing in forms.items():
+            with self.subTest(label):
+                self._run_main(existing_urls=[existing]).append_row.assert_not_called()
+
+    def test_a_different_article_never_counts_as_queued(self):
+        """Normalizing must not merge two articles: another slug, a slug that is a
+        prefix of ours, and our slug under another category all still append."""
+        for existing in ("https://happypetproductreviews.com/toys/best-snuffle-mats/",
+                         "https://happypetproductreviews.com/toys/best-snuffle-mats-dogs-2/",
+                         "https://happypetproductreviews.com/dog-toys/best-snuffle-mats-dogs/"
+                         "?utm_source=pinterest&utm_medium=social&utm_campaign=pin"):
+            with self.subTest(existing=existing):
+                self._run_main(existing_urls=[existing]).append_row.assert_called_once()
 
     # -- main(): the sheet row's Image column (col D) ----------------------------
     # The Facebook Queue row's Image column is what the external Apps Script
@@ -4041,7 +4066,7 @@ class TestFacebookLinkTracking(unittest.TestCase):
         row = ws.append_row.call_args.args[0]
         self.assertEqual(len(row), 9)
         self.assertEqual((row[0], row[1], row[6], row[7], row[8]),
-                         ("Best Snuffle Mats", self.PIN_URL, "dog", "FALSE", ""))
+                         ("Best Snuffle Mats", self.FB_URL, "dog", "FALSE", ""))
 
     def test_the_pinterest_side_still_carries_the_pin_image(self):
         """post_pins.py reads image_url from the queue JSON; this change must not

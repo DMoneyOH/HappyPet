@@ -53,16 +53,21 @@ _FB_FALLBACK_TEMPLATES: list[str] = [
     "Less guesswork, better {topic}. Here's what we'd get.",
 ]
 
-# GA4 campaign tag for the link in the Facebook message, so Facebook visits are
-# attributable. Mirrors the Pinterest tag generate_posts.build_url puts on
-# article_url (utm_source=pinterest&utm_medium=social&utm_campaign=pin). Only the
-# message carries it: the row's URL column stays the raw article_url, because
-# that column is the dedup key read_fb_queue_state() matches against.
+# GA4 campaign tag for Facebook links, so Facebook visits are attributable.
+# Mirrors the Pinterest tag generate_posts.build_url puts on article_url
+# (utm_source=pinterest&utm_medium=social&utm_campaign=pin). Both the message
+# (col C) and the row's URL (col B, the link the Apps Script posts) carry it.
+# Col B is also the dedup key, so read_fb_queue_state() compares _dedup_key()
+# forms, which every tag variant of one article shares.
 FB_UTM = 'utm_source=facebook&utm_medium=social&utm_campaign=post'
+
+def _fb_url(article_url: str) -> str:
+    """The article's page URL with the Facebook tag in place of any query."""
+    return article_url.split('?')[0].split('#')[0].rstrip('/') + '/?' + FB_UTM
 
 def _build_fb_message(slug: str, title: str, article_url: str) -> str:
     """Return a personable Facebook post message keyed to slug, fallback to title-derived hook."""
-    clean_url = article_url.split('?')[0].split('#')[0].rstrip('/') + '/?' + FB_UTM
+    clean_url = _fb_url(article_url)
     # Try each hook key as a substring of the slug
     for key, hook in _FB_HOOKS.items():
         if key in slug:
@@ -86,6 +91,7 @@ import re
 import sys
 import shutil
 import time
+import urllib.parse
 import datetime as _dt
 from pathlib import Path
 
@@ -306,10 +312,19 @@ def send_queue_alert(unpublished_count: int) -> None:
     sent, what = queue_alert.send_alert(subject, body)
     log(what, 'INFO' if sent else ('WARN' if 'NOT sent' in what else 'ERROR'))
 
+def _dedup_key(url: str) -> str:
+    """Col B's dedup form: lowercased scheme and host, the path with one trailing
+    slash, no query or fragment. Rows from Apr 4-16 hold the clean URL, rows from
+    Apr 19 the Pinterest-tagged one, new rows the Facebook-tagged one; all three
+    forms of one article share this key, so none is queued twice."""
+    parts = urllib.parse.urlsplit(url.strip())
+    return f"{parts.scheme.lower()}://{parts.netloc.lower()}{parts.path.rstrip('/')}/"
+
 def read_fb_queue_state(ws) -> tuple[set, _dt.date]:
     """
     Single read of the Facebook Queue sheet. Returns:
-      - set of article URLs already queued (col B) -- the dedup authority
+      - set of _dedup_key() forms of the URLs already queued (col B) -- the
+        dedup authority
       - the first free SchedDate (latest existing + 1 day; tomorrow if empty)
     One read per run instead of one per pin, and callers increment the date
     per appended row so a batch never collides on the same day.
@@ -320,7 +335,7 @@ def read_fb_queue_state(ws) -> tuple[set, _dt.date]:
     dates = []
     for row in rows[1:]:  # skip header
         if len(row) > 1 and row[1].strip():
-            urls.add(row[1].strip())
+            urls.add(_dedup_key(row[1]))
         if len(row) > 5 and row[5].strip():
             try:
                 dates.append(_dt.date.fromisoformat(row[5].strip()))
@@ -455,7 +470,7 @@ def main():
                     shutil.move(str(qf), str(sent_dir / qf.name))
                     log(f'SENT: {qf.name} -> _pin_queue/sent/{note}')
 
-            if article_url.strip() in queued_urls:
+            if _dedup_key(article_url) in queued_urls:
                 log(f'SKIP (already in FB Queue sheet): {qf.name}')
                 # Ensure the processed marker exists even if a prior run died
                 # between append and move.
@@ -470,9 +485,9 @@ def main():
             sched_date = sched_cursor.isoformat()
 
             # Append to Facebook Queue: Title, URL, Message, Image, OrigDate, SchedDate, Species, Posted, PostID
-            fb_row = [title, article_url, message, image_url, today, sched_date, species, 'FALSE', '']
+            fb_row = [title, _fb_url(article_url), message, image_url, today, sched_date, species, 'FALSE', '']
             fb_ws.append_row(fb_row)
-            queued_urls.add(article_url.strip())
+            queued_urls.add(_dedup_key(article_url))
             sched_cursor += _dt.timedelta(days=1)
             log(f'FB QUEUE: appended {slug} -> SchedDate={sched_date}')
 
