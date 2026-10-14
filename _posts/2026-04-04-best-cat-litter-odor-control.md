@@ -1,13 +1,13 @@
 ---
 layout: post
-title: "Best Cat Litter for Odor Control"
+title: "Best Cat Litter for Odor Control: 3 Picks Compared"
 date: 2026-04-04
 categories: [litter]
 redirect_from:
   - /cat-litter/best-cat-litter-odor-control/
 species: cat
 tags: [cat litter odor control]
-description: "Say goodbye to that smell for good. The litters multi-cat owners swear by, compared side by side."
+description: "Fresh Step, Dr. Elsey's and Arm & Hammer compared on clumping, dust and scent, with an unscented pick for sensitive cats and a winner for multi-cat homes."
 affiliate_url: "https://www.amazon.com/dp/B000VDR8LA?th=1&tag=happypetdc-20"
 product_short: "Fresh Step Multi-Cat Litter"
 image: "https://images-na.ssl-images-amazon.com/images/P/B000VDR8LA.01.LZZZZZZZ.jpg"
