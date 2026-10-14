@@ -198,9 +198,10 @@ jobs:
           TOPICS=$(sed -n 's/^ERROR \([a-z0-9-]*\): .*/\1/p' "$RUNNER_TEMP/hub_pages.err" | paste -sd, -)
           TITLE="⚠️ Publish blocked: no hub copy for ${TOPICS:-a topic}"
           # A block that stays unfixed fails every run (cron, push, Stage 1), so one
-          # open issue per title is enough. If the listing fails, or there are more
-          # than --limit open issues, open the issue anyway: by policy a duplicate
-          # is better than a lost alert.
+          # open issue per title is enough. If the listing fails, open the issue
+          # anyway. So too if a matching open issue lies beyond the first 200 listed
+          # (--limit): it is missed and a duplicate is opened, by policy better than
+          # a lost alert.
           OPEN=$(gh issue list --repo DMoneyOH/HappyPet --state open --limit 200 \
             --json title --jq '.[].title' || true)
           if grep -Fxq -- "$TITLE" <<< "$OPEN"; then

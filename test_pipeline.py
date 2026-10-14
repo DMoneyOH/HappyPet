@@ -11528,7 +11528,9 @@ class TestPublishWorkflowPins(unittest.TestCase):
         self.assertIn("publish.yml", [p.name for p in files])
         for p in files:
             with self.subTest(workflow=p.name):
-                # Case-folded so `--SYNC` is caught too, whatever spelling a caller picks.
+                # Deliberate over-match: hub_pages matches `--sync` exactly, so a case
+                # variant would not sync, but failing on one costs nothing and guards
+                # a future case-insensitive parser.
                 self.assertNotIn("--sync", p.read_text(encoding="utf-8").lower())
 
 
