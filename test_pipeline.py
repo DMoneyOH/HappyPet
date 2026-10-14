@@ -11257,6 +11257,53 @@ class TestTopicHubs(unittest.TestCase):
                                  f"hubs/{slug}.md differs from {hub_pages.COPY_FILE}; run "
                                  "python hub_pages.py --sync")
 
+    @staticmethod
+    def _front_matter_strings(text):
+        """The quoted `key: "value"` lines of a hub file's front matter, read
+        by hand, not through hub_pages or json: what Jekyll's YAML reader would
+        give for a double-quoted scalar with no escapes in it."""
+        block = text.split("---\n")[1]
+        out = {}
+        for line in block.splitlines():
+            m = re.fullmatch(r'(\w+): "(.*)"', line)
+            if m:
+                assert not re.search(r'["\\]', m.group(2)), f"{line!r} has an escape or a quote"
+                out[m.group(1)] = m.group(2)
+        return out
+
+    def test_each_hubs_rendered_intro_and_method_are_its_copy_file_entry(self):
+        """D-2, from the other end: the layout's own intro and how-we-choose
+        markup, rendered from each hub file's front matter, shows exactly the
+        text in _data/hub_copy.json. Expected text is the data file's literal,
+        not hub_pages.hub_text, so a writer bug cannot cancel itself out."""
+        layout = (REPO / "_layouts" / "hub.html").read_text(encoding="utf-8")
+        copy = json.loads((REPO / "_data" / "hub_copy.json").read_text(encoding="utf-8"))
+        self.assertTrue(self.hubs)
+        for field, markup in (("intro", '<p class="standfirst">{}</p>'),
+                              ("how_we_choose", '<p class="hub-method"><b>How we choose:</b> {}</p>')):
+            m = re.search(r"\{%-?\s*if page\." + field + r"\s*-?%\}.*?\{%-?\s*endif\s*-?%\}",
+                          layout, re.S)
+            self.assertIsNotNone(m, f"hub.html has no `if page.{field}` block")
+            for slug in self.hubs:
+                with self.subTest(hub=slug, field=field):
+                    self.assertIn(slug, copy)
+                    page = self._front_matter_strings(
+                        (REPO / "hubs" / f"{slug}.md").read_text(encoding="utf-8"))
+                    rendered = _MiniLiquid(m.group(0)).render({"page": page}).strip()
+                    self.assertEqual(rendered, markup.format(copy[slug][field]))
+
+    def test_the_rendered_copy_check_catches_copy_that_drifted(self):
+        """Prove the check above can fail: a hub whose intro was edited in the
+        hub file alone, by one character, renders text the data file lacks."""
+        layout = (REPO / "_layouts" / "hub.html").read_text(encoding="utf-8")
+        copy = json.loads((REPO / "_data" / "hub_copy.json").read_text(encoding="utf-8"))
+        slug = sorted(self.hubs)[0]
+        text = (REPO / "hubs" / f"{slug}.md").read_text(encoding="utf-8")
+        page = self._front_matter_strings(text.replace(copy[slug]["intro"], copy[slug]["intro"] + "!"))
+        m = re.search(r"\{%-?\s*if page\.intro\s*-?%\}.*?\{%-?\s*endif\s*-?%\}", layout, re.S)
+        rendered = _MiniLiquid(m.group(0)).render({"page": page}).strip()
+        self.assertNotEqual(rendered, '<p class="standfirst">{}</p>'.format(copy[slug]["intro"]))
+
     def test_the_copy_file_has_complete_copy_for_every_topic(self):
         """So the publish never meets a topic without copy. Plain one-line text
         (no double quotes, backslashes or newlines), so every reader of the hub
