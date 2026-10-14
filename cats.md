@@ -1,6 +1,6 @@
 ---
 layout: default
-title: Cat Product Reviews | Happy Pet Product Reviews
+title: Cat Product Reviews
 description: In-depth reviews of the best cat products - litter, scratchers, feeders, carriers and more. Honest picks for every budget.
 permalink: /cats/
 ---

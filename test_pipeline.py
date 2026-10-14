@@ -10729,6 +10729,24 @@ class TestPublishedRootIsAllowlisted(unittest.TestCase):
                 self.assertFalse(self._excluded(name), f"{name} is a site page and must publish")
 
 
+class TestTitleSuffix(unittest.TestCase):
+    """Every page title ends "| HappyPet Reviews" (Director, 2026-10-13), added
+    once by default.html, so no page's own title may carry a suffix of its own."""
+
+    def test_the_layout_appends_the_approved_suffix(self):
+        layout = (REPO / "_layouts" / "default.html").read_text(encoding="utf-8")
+        self.assertIn("{{ page.title }} | HappyPet Reviews{% else %}", layout)
+
+    def test_no_page_title_carries_its_own_suffix(self):
+        suffixed = []
+        for p in list(REPO.glob("*.md")) + list((REPO / "_posts").glob("*.md")):
+            text = p.read_text(encoding="utf-8")
+            fm = text.split("---", 2)[1] if text.startswith("---") else ""
+            if re.search(r"^title:.*\|\s*Happy\s*Pet", fm, re.M | re.I):
+                suffixed.append(p.name)
+        self.assertEqual(suffixed, [])
+
+
 class TestSocialImage(unittest.TestCase):
     """og:image is the PRODUCT picture, never the Pinterest pin.
 
