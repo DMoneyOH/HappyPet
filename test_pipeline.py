@@ -10731,11 +10731,30 @@ class TestPublishedRootIsAllowlisted(unittest.TestCase):
 
 class TestTitleSuffix(unittest.TestCase):
     """Every page title ends "| HappyPet Reviews" (Director, 2026-10-13), added
-    once by default.html, so no page's own title may carry a suffix of its own."""
+    once by default.html, so no page's own title may carry a suffix of its own.
+    The home page is the exception: its own title already names the site, so it
+    renders as written (Maeve-main, 2026-10-14: the brand once, not twice)."""
+
+    def _title(self, page):
+        layout = (REPO / "_layouts" / "default.html").read_text(encoding="utf-8")
+        tag = re.search(r"<title>.*?</title>", layout).group(0)
+        return _MiniLiquid(tag).render({"page": page, "site": {"title": "Happy Pet Product Reviews"}})
 
     def test_the_layout_appends_the_approved_suffix(self):
-        layout = (REPO / "_layouts" / "default.html").read_text(encoding="utf-8")
-        self.assertIn("{{ page.title }} | HappyPet Reviews{% else %}", layout)
+        self.assertEqual(self._title({"title": "Best Cat Litter", "url": "/litter/best-cat-litter/"}),
+                         "<title>Best Cat Litter | HappyPet Reviews</title>")
+        self.assertEqual(self._title({"title": "Cat Product Reviews", "url": "/cats/"}),
+                         "<title>Cat Product Reviews | HappyPet Reviews</title>")
+
+    def test_the_home_page_names_the_brand_once(self):
+        index = (REPO / "index.md").read_text(encoding="utf-8")
+        title = re.search(r"^title: *(.+)$", index, re.M).group(1).strip()
+        rendered = self._title({"title": title, "url": "/"})
+        self.assertEqual(rendered, f"<title>{title}</title>")
+        self.assertEqual(len(re.findall(r"Happy ?Pet", rendered)), 1, rendered)
+
+    def test_a_page_without_a_title_gets_the_site_name(self):
+        self.assertEqual(self._title({"url": "/x/"}), "<title>Happy Pet Product Reviews</title>")
 
     def test_no_page_title_carries_its_own_suffix(self):
         suffixed = []
