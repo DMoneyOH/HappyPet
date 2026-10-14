@@ -443,7 +443,8 @@ def main():
         sys.exit(1)
     log(f'FB Queue state: {len(queued_keys)} rows queued, next SchedDate={sched_cursor.isoformat()}')
 
-    today     = _dt.date.today().isoformat()
+    from refill_products import eastern_date
+    today     = eastern_date()   # OrigDate in ET, like pulled_on
     processed = 0
     failed    = 0
     alert_sent = False

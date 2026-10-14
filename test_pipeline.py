@@ -4116,8 +4116,9 @@ class TestFacebookLinkTracking(unittest.TestCase):
         self.assertEqual(img, self.FALLBACK)
 
     def test_a_post_whose_slug_merely_ends_with_ours_is_not_matched(self):
+        # The decoy sorts BEFORE the real post, so a suffix match would pick it.
         other = self._post('image: "https://m.media-amazon.com/images/I/OTHER.jpg"')
-        img = self._col_d(posts={"2026-10-05-extra-" + self.SLUG + ".md": other,
+        img = self._col_d(posts={"2026-10-05-aaa-" + self.SLUG + ".md": other,
                                  "2026-10-05-" + self.SLUG + ".md": self._post()})
         self.assertEqual(img, self.AMAZON)
 
@@ -4129,6 +4130,13 @@ class TestFacebookLinkTracking(unittest.TestCase):
                               ({}, [self.SLUG])):
             with self.subTest(posts=bool(posts), thumbs=bool(thumbs)):
                 self.assertNotIn("/pins/", self._col_d(posts=posts, thumbs=thumbs))
+
+    def test_orig_date_is_the_eastern_date(self):
+        """OrigDate (col E) is stamped with eastern_date(), like pulled_on."""
+        import refill_products
+        with patch.object(refill_products, "eastern_date", lambda: "2025-01-01"):
+            row = self._run_main(existing_urls=[]).append_row.call_args.args[0]
+        self.assertEqual(row[4], "2025-01-01")
 
     def test_the_rest_of_the_row_is_unchanged(self):
         ws = self._run_main(existing_urls=[],
@@ -5381,6 +5389,19 @@ class TestBuildCheckPathFilter(unittest.TestCase):
                     state = not negated
             return state
         return any(included(f) for f in files)
+
+    def test_the_diff_and_summary_steps_cannot_fail_the_job(self):
+        """A non-empty diff reports and never fails: every diff and grep in the
+        "Diff the two sites" step ends in `|| true` (grep -c exits 1 on zero
+        matches, diff exits 1 on any difference). Only a build error is red."""
+        wf = (REPO / ".github" / "workflows" / "build-check.yml").read_text(encoding="utf-8")
+        step = wf.split("- name: Diff the two sites", 1)[1].split("- name:", 1)[0]
+        cmds = [l.strip() for l in step.splitlines()
+                if re.search(r"(^|\$\()\s*(diff|grep)\b", l.strip())]
+        self.assertEqual(len(cmds), 5, cmds)
+        for cmd in cmds:
+            with self.subTest(cmd=cmd):
+                self.assertRegex(cmd, r"\|\| true\)?$")
 
     def test_a_published_post_edit_runs_the_check(self):
         self.assertTrue(self._runs(["_posts/2026-04-16-best-cat-litter.md"]))
