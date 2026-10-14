@@ -10731,11 +10731,47 @@ class TestPublishedRootIsAllowlisted(unittest.TestCase):
                 self.assertFalse(self._excluded(name), f"{name} is a site page and must publish")
 
 
+class TestMergeRedirects(unittest.TestCase):
+    """Batch B's three merges (Scarlett spec 3a-3c): each survivor's
+    redirect_from carries its own old path plus the retired post's live
+    permalink and every redirect the retired post had, so no old URL 404s."""
+
+    SURVIVORS = {
+        "2026-08-31-best-cat-window-hammocks.md": [
+            "/cat-beds/best-cat-window-hammocks/", "/beds/best-cat-window-perch/",
+            "/cat-gear/best-cat-window-perch/", "/cat-beds/best-cat-window-perch/"],
+        "2026-04-07-best-interactive-dog-toys.md": [
+            "/dog-toys/best-interactive-dog-toys/", "/toys/best-dog-puzzle-toys/",
+            "/dog-gear/best-dog-puzzle-toys/", "/dog-toys/best-dog-puzzle-toys/"],
+        "2026-10-01-best-calming-diffusers-pets.md": [
+            "/dog-health/best-calming-diffusers-pets/", "/pet-health/best-calming-diffusers-pets/",
+            "/calming/best-cat-calming-products/", "/cat-health/best-cat-calming-products/"],
+    }
+    RETIRED = ("best-cat-window-perch", "best-dog-puzzle-toys", "best-cat-calming-products")
+
+    def test_each_survivor_carries_every_merge_redirect(self):
+        for name, expected in self.SURVIVORS.items():
+            with self.subTest(post=name):
+                fm = (REPO / "_posts" / name).read_text(encoding="utf-8").split("---", 2)[1]
+                block = re.search(r"^redirect_from:\n((?:  - .*\n)+)", fm, re.M)
+                self.assertIsNotNone(block, "no redirect_from")
+                self.assertEqual(re.findall(r"^  - (\S+)$", block.group(1), re.M), expected)
+
+    def test_no_retired_post_is_still_published(self):
+        for slug in self.RETIRED:
+            with self.subTest(slug=slug):
+                self.assertEqual(list((REPO / "_posts").glob(f"*-{slug}.md")), [])
+
+
 class TestTitleSuffix(unittest.TestCase):
     """Every page title ends "| HappyPet Reviews" (Director, 2026-10-13), added
     once by default.html, so no page's own title may carry a suffix of its own.
     A title that already names the site (the home page's) renders as written:
-    the brand once, never twice (Maeve-main, 2026-10-14)."""
+    the brand once, never twice (Maeve-main, 2026-10-14). The brand is the
+    site's name, "Happy Pet Product Reviews", or "HappyPet": an ordinary
+    phrase such as "Happy Pets" is not the brand and keeps the suffix."""
+
+    BRAND = re.compile(r"Happy Pet Product Reviews|HappyPet")
 
     @classmethod
     def setUpClass(cls):
@@ -10770,7 +10806,7 @@ class TestTitleSuffix(unittest.TestCase):
         title = re.search(r"^title: *(.+)$", index, re.M).group(1).strip()
         rendered = self._title({"title": title, "url": "/"})
         self.assertEqual(rendered, f"<title>{title}</title>")
-        self.assertEqual(len(re.findall(r"Happy ?Pet", rendered)), 1, rendered)
+        self.assertEqual(len(self.BRAND.findall(rendered)), 1, rendered)
 
     def test_a_page_without_a_title_gets_the_site_name(self):
         self.assertEqual(self._title({"url": "/x/"}), "<title>Happy Pet Product Reviews</title>")
@@ -10786,7 +10822,12 @@ class TestTitleSuffix(unittest.TestCase):
         for name, title, url in self._site_pages():
             with self.subTest(page=name):
                 rendered = self._title({"title": title, "url": url})
-                self.assertEqual(len(re.findall(r"Happy ?Pet", rendered)), 1, rendered)
+                self.assertEqual(len(self.BRAND.findall(rendered)), 1, rendered)
+
+    def test_happy_pets_in_a_title_is_not_the_brand(self):
+        title = "Fresh Home, Happy Pets: Top Odor Eliminators for Pet Stains"
+        self.assertEqual(self._title({"title": title, "url": "/cleaning/x/"}),
+                         f"<title>{title} | HappyPet Reviews</title>")
 
     def test_a_title_that_already_names_the_brand_gets_no_suffix(self):
         for title in ("About Happy Pet Product Reviews", "HappyPet Picks"):
