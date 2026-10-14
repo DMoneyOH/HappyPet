@@ -1,0 +1,20 @@
+{% comment %}
+  The index entries for a list of posts: the one tiering every listing uses
+  (home, /cats/, /dogs/, topic hubs). Entry 1 is the lead, 2 and 3 are wide,
+  the rest are standard; the first seven load eagerly. The variant is decided
+  here rather than by an nth-child rule so the hierarchy survives filtering.
+
+  Parameters:
+    include.posts   required, the posts to list, in order
+{% endcomment %}
+{% for post in include.posts %}
+  {% if forloop.index == 1 %}
+    {% include post-card.html post=post rank=forloop.index variant="major" eager=true %}
+  {% elsif forloop.index <= 3 %}
+    {% include post-card.html post=post rank=forloop.index variant="wide" eager=true %}
+  {% elsif forloop.index <= 7 %}
+    {% include post-card.html post=post rank=forloop.index eager=true %}
+  {% else %}
+    {% include post-card.html post=post rank=forloop.index %}
+  {% endif %}
+{% endfor %}

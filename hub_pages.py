@@ -22,7 +22,6 @@ import categories
 REPO_DIR = Path(__file__).parent.resolve()
 HUB_MIN = 3
 _DATED = re.compile(r"\d{4}-\d{2}-\d{2}-.+\.md")
-_CATEGORY = re.compile(r"^categories:\s*\[\s*['\"]?([^\]'\",\s]+)", re.M)
 
 
 def topic_counts(repo: Path = REPO_DIR) -> Counter:
@@ -30,9 +29,9 @@ def topic_counts(repo: Path = REPO_DIR) -> Counter:
     counts = Counter()
     for md in (repo / "_posts").glob("*.md"):
         if _DATED.fullmatch(md.name):
-            m = _CATEGORY.search(md.read_text(encoding="utf-8"))
-            if m:
-                counts[m.group(1)] += 1
+            topic = categories.post_category(md)
+            if topic:
+                counts[topic] += 1
     return counts
 
 

@@ -107,23 +107,8 @@ layout: default
         <span>We are writing in-depth guides right now. Check back shortly.</span>
       </div>
       {% else %}
-      {% for post in site.posts %}
-        {% comment %}
-          Entry 1 is the lead, 2 and 3 are wide, the rest are standard. The
-          variant is decided here rather than by an nth-child rule so the
-          hierarchy survives filtering. Nothing prints twice: unlike the last
-          pass there is no separate hero holding the newest review.
-        {% endcomment %}
-        {% if forloop.index == 1 %}
-          {% include post-card.html post=post rank=forloop.index variant="major" eager=true %}
-        {% elsif forloop.index <= 3 %}
-          {% include post-card.html post=post rank=forloop.index variant="wide" eager=true %}
-        {% elsif forloop.index <= 7 %}
-          {% include post-card.html post=post rank=forloop.index eager=true %}
-        {% else %}
-          {% include post-card.html post=post rank=forloop.index %}
-        {% endif %}
-      {% endfor %}
+      {% comment %} Nothing prints twice: there is no separate hero holding the newest review. {% endcomment %}
+      {% include post-list.html posts=site.posts %}
       {% endif %}
     </div>
 

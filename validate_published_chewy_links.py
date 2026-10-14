@@ -38,13 +38,17 @@ def log(msg: str, level: str = "INFO") -> None:
 
 
 def parse_frontmatter(md_path: Path) -> dict:
-    """Extract YAML frontmatter fields from a Jekyll post."""
-    text = md_path.read_text(encoding="utf-8")
+    """Extract the top-level YAML frontmatter fields from a Jekyll post. Like
+    Jekyll, a UTF-8 byte-order mark is ignored; an indented (nested) key is not
+    a page variable, so it is skipped."""
+    text = md_path.read_text(encoding="utf-8-sig")
     m = re.match(r"^---\n(.*?)\n---", text, re.DOTALL)
     if not m:
         return {}
     fm = {}
     for line in m.group(1).splitlines():
+        if line[:1].isspace():
+            continue
         if ":" in line:
             k, _, v = line.partition(":")
             fm[k.strip()] = v.strip().strip('"').strip("'")
