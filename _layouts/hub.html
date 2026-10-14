@@ -4,8 +4,9 @@ layout: default
 {%- comment -%}
   A topic hub: /<topic>/ lists every published post whose FIRST category is
   the page's `hub_topic` (the rule every other consumer uses), newest first,
-  so a new post appears here on the next build with no edit. Copy (title, description, intro, how_we_choose) lives in
-  the hub page's own front matter under hubs/. post.html points its breadcrumb
+  so a new post appears here on the next build with no edit. Copy (title,
+  description, intro, how_we_choose) is the hub page's front matter, which
+  hub_pages.py writes from _data/hub_copy.json. post.html points its breadcrumb
   at the hub for its category when one exists.
 {%- endcomment -%}
 {%- include category-label.html category=page.hub_topic -%}

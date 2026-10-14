@@ -4,14 +4,24 @@
 A hub is hubs/<topic>.md (layout: hub, permalink /<topic>/); the layout lists
 the topic's posts itself, so a hub never needs editing when a post lands. What
 needs a file is a topic reaching HUB_MIN posts for the first time: this writes
-a minimal hub for it (title = the topic label, no intro) and leaves existing
-hubs untouched. Copy for a new hub comes from Scarlett afterwards.
+its hub and leaves existing hubs untouched.
 
-Not wired into any workflow. Run it by hand, or from publish.yml after a post
-is dated (a CI change, so it needs its own approval).
+A hub's copy (COPY_FIELDS) comes from COPY_FILE, the one source for every
+topic: each hub file is exactly hub_text() of its entry, and the tests hold it
+there. A topic that needs a hub but has no complete copy is an error: nothing
+is written and the exit code is 1, never a hub without copy.
 
-usage: python hub_pages.py [--dry-run]
+publish.yml runs this after it dates the day's posts (Director-approved
+2026-10-14), so the publish that takes a topic to HUB_MIN posts commits the
+topic's hub in the same commit. A copy error fails that publish before its
+commit, so nothing is pushed, and publish.yml opens an issue naming the topic.
+
+--sync is by hand only, never from publish.yml: after editing COPY_FILE, it
+rewrites every existing hub whose file differs from hub_text().
+
+usage: python hub_pages.py [--dry-run] [--sync]
 """
+import json
 import re
 import sys
 from collections import Counter
@@ -21,6 +31,8 @@ import categories
 
 REPO_DIR = Path(__file__).parent.resolve()
 HUB_MIN = 3
+COPY_FILE = "_data/hub_copy.json"
+COPY_FIELDS = ("title", "description", "intro", "how_we_choose")
 _DATED = re.compile(r"\d{4}-\d{2}-\d{2}-.+\.md")
 
 
@@ -42,24 +54,77 @@ def missing_hubs(repo: Path = REPO_DIR) -> list:
             if counts[t] >= HUB_MIN and not (repo / "hubs" / f"{t}.md").exists()]
 
 
-def write_hub(slug: str, repo: Path = REPO_DIR) -> Path:
-    label = categories.LABELS[slug]
+def load_copy(repo: Path = REPO_DIR) -> dict:
+    return json.loads((repo / COPY_FILE).read_text(encoding="utf-8"))
+
+
+def copy_problems(slug: str, hub_copy: dict) -> list:
+    """Why `slug` cannot get a hub from `hub_copy`; empty = it can."""
+    entry = hub_copy.get(slug)
+    entry = entry if isinstance(entry, dict) else {}
+    missing = [f for f in COPY_FIELDS
+               if not (isinstance(entry.get(f), str) and entry[f].strip())]
+    return [f"{slug}: no {', '.join(missing)} in {COPY_FILE}"] if missing else []
+
+
+def hub_text(slug: str, hub_copy: dict) -> str:
+    """The hub file for `slug`. Each copy value is written as a JSON string,
+    which is also a valid YAML double-quoted scalar."""
+    lines = ["---", "layout: hub", f"hub_topic: {slug}", f"permalink: /{slug}/"]
+    lines += [f"{f}: {json.dumps(hub_copy[slug][f], ensure_ascii=False)}" for f in COPY_FIELDS]
+    return "\n".join(lines + ["---", ""])
+
+
+def write_hub(slug: str, hub_copy: dict, repo: Path = REPO_DIR) -> Path:
     path = repo / "hubs" / f"{slug}.md"
     path.parent.mkdir(exist_ok=True)
-    path.write_text(f'---\nlayout: hub\nhub_topic: {slug}\npermalink: /{slug}/\n'
-                    f'title: "{label}"\n---\n', encoding="utf-8")
+    path.write_text(hub_text(slug, hub_copy), encoding="utf-8")
     return path
 
 
-def main(argv=None) -> int:
-    dry = "--dry-run" in (argv if argv is not None else sys.argv[1:])
-    todo = missing_hubs()
+def _fail(problems: list) -> int:
+    for p in problems:
+        print(f"ERROR {p}", file=sys.stderr)
+    print(f"ERROR wrote no hub: a hub ships only with its copy. Add the topic's "
+          f"{', '.join(COPY_FIELDS)} to {COPY_FILE}.", file=sys.stderr)
+    return 1
+
+
+def sync(dry: bool, repo: Path = REPO_DIR) -> int:
+    """Rewrite every existing hub whose file differs from hub_text()."""
+    slugs = sorted(p.stem for p in (repo / "hubs").glob("*.md"))
+    hub_copy = load_copy(repo)
+    problems = [p for slug in slugs for p in copy_problems(slug, hub_copy)]
+    if problems:
+        return _fail(problems)
+    stale = [s for s in slugs if (repo / "hubs" / f"{s}.md").read_text(encoding="utf-8")
+             != hub_text(s, hub_copy)]
+    for slug in stale:
+        print(("would rewrite" if dry else "rewrote"), f"hubs/{slug}.md")
+        if not dry:
+            write_hub(slug, hub_copy, repo)
+    if not stale:
+        print(f"every hub matches {COPY_FILE}")
+    return 0
+
+
+def main(argv=None, repo: Path = REPO_DIR) -> int:
+    argv = argv if argv is not None else sys.argv[1:]
+    dry = "--dry-run" in argv
+    if "--sync" in argv:
+        return sync(dry, repo)
+    todo = missing_hubs(repo)
+    if not todo:
+        print("every topic with", HUB_MIN, "or more posts has a hub")
+        return 0
+    hub_copy = load_copy(repo)
+    problems = [p for slug in todo for p in copy_problems(slug, hub_copy)]
+    if problems:
+        return _fail(problems)
     for slug in todo:
         print(("would write" if dry else "wrote"), f"hubs/{slug}.md")
         if not dry:
-            write_hub(slug)
-    if not todo:
-        print("every topic with", HUB_MIN, "or more posts has a hub")
+            write_hub(slug, hub_copy, repo)
     return 0
 
 
