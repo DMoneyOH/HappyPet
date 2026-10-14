@@ -64,7 +64,7 @@ If your dog falls into any of these categories, the **best dog anxiety vest** on
 
 Across the situations owners write about most often, stormy evenings, fireworks, vet appointments, and long car trips, the **ThunderShirt for Dogs, Large, Platinum Sport - Dog Anxiety Relief Calming Vest** stands out as the most reliable, easy‑to‑use anxiety solution in this roundup. Its pressure‑wrap technology consistently calms nervous dogs without the need for medication, and the durable, washable construction makes it a practical addition to any dog owner’s toolkit. While a few color choices would be nice, the performance outweighs the minor aesthetic limitations. For anyone looking for the **best dog anxiety vest**, this product earns the highest recommendation.
 
-**Rating: 4.3/5**  
+**Rating: 4.3/5** (as of Apr 16, 2026)  
 
 Ready to give your dog the calm they deserve? Grab the **[ThunderShirt Calming Vest for Dogs](https://www.amazon.com/dp/B01FN4GW2M?th=1&tag=happypetdc-20)** today and see the difference a gentle hug can make.  
 
