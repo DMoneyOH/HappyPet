@@ -15,6 +15,7 @@ import os, re, json, datetime, time, urllib.request, urllib.error, urllib.parse,
 from pathlib import Path
 
 from json_io import atomic_write_json, read_json
+import categories
 
 try:
     from dotenv import load_dotenv
@@ -890,9 +891,7 @@ def slugify(s: str) -> str:
 
 def _post_category(md: Path):
     """First `categories:` value in a post's front matter, quotes stripped."""
-    m = re.search(r"^categories:\s*\[\s*['\"]?([^\]'\",\s]+)",
-                  md.read_text(encoding="utf-8"), re.M)
-    return m.group(1) if m else None
+    return categories.post_category(md)
 
 
 def _published_category(slug: str):

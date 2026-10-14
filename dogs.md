@@ -20,17 +20,7 @@ permalink: /dogs/
         <span>We are writing in-depth guides right now. Check back shortly.</span>
       </div>
       {% else %}
-        {% for post in dog_posts %}
-          {% if forloop.index == 1 %}
-            {% include post-card.html post=post rank=forloop.index variant="major" eager=true %}
-          {% elsif forloop.index <= 3 %}
-            {% include post-card.html post=post rank=forloop.index variant="wide" eager=true %}
-          {% elsif forloop.index <= 7 %}
-            {% include post-card.html post=post rank=forloop.index eager=true %}
-          {% else %}
-            {% include post-card.html post=post rank=forloop.index %}
-          {% endif %}
-        {% endfor %}
+        {% include post-list.html posts=dog_posts %}
       {% endif %}
     </div>
   </div>

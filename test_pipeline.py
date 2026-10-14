@@ -5635,6 +5635,9 @@ class TestBuildCheckPathFilter(unittest.TestCase):
     def test_a_refill_pr_does_not(self):
         self.assertFalse(self._runs(["products.json"]))
 
+    def test_a_topic_hub_edit_runs_the_check(self):
+        self.assertTrue(self._runs(["hubs/toys.md"]))
+
     def test_a_draft_alongside_a_layout_change_still_runs(self):
         self.assertTrue(self._runs(["_posts/DRAFT-x.md", "_layouts/post.html"]))
 
@@ -11079,6 +11082,117 @@ class TestRelatedReviews(unittest.TestCase):
         self.assertLess(tag, layout.find('<div class="buybar">'))
 
 
+class TestTopicHubs(unittest.TestCase):
+    """Topic hubs (Director-approved 2026-10-13): hubs/<topic>.md, one layout
+    (_layouts/hub.html) that lists every post in the topic, the post breadcrumb
+    pointing at the topic's hub, and hub_pages.py for a topic that reaches 3
+    posts later. The listing itself is Liquid (where_exp, which _MiniLiquid does
+    not model); build-check.yml's jekyll build is its real render."""
+
+    HUBS = ("toys", "beds", "food", "outdoor", "feeding", "calming", "carriers",
+            "grooming", "health", "litter", "travel")
+
+    @classmethod
+    def setUpClass(cls):
+        from validate_published_chewy_links import parse_frontmatter
+        cls.hubs = {p.stem: parse_frontmatter(p) for p in (REPO / "hubs").glob("*.md")}
+
+    def test_the_eleven_approved_hubs_exist_with_their_copy(self):
+        self.assertEqual(sorted(self.hubs), sorted(self.HUBS),
+                         "hubs/ and HUBS differ. A hub ships only with Scarlett's copy "
+                         "(title, description, intro, how_we_choose) and a HUBS entry, "
+                         "both before merge.")
+        for slug, fm in self.hubs.items():
+            with self.subTest(hub=slug):
+                self.assertEqual(fm["layout"], "hub")
+                self.assertEqual(fm["hub_topic"], slug)
+                self.assertEqual(fm["permalink"], f"/{slug}/")
+                for key in ("title", "description", "intro", "how_we_choose"):
+                    self.assertTrue(fm.get(key), key)
+                self.assertNotIn("sitemap", fm)   # jekyll-sitemap lists every hub
+
+    def test_report_topics_that_reached_three_without_a_hub(self):
+        """Never fails: hub creation is not automated (a Director decision), so a
+        topic that reaches 3 posts shows up here, as a skip with its name,
+        until Scarlett's copy and a HUBS entry land."""
+        import hub_pages
+        missing = hub_pages.missing_hubs()
+        if missing:
+            self.skipTest("REPORT, not a failure: topics with 3+ posts and no hub: "
+                          + ", ".join(missing) + ". Needs Scarlett's copy, then "
+                          "hubs/<topic>.md and a HUBS entry.")
+
+    def test_every_hub_topic_has_three_or_more_posts(self):
+        import hub_pages
+        counts = hub_pages.topic_counts()
+        for slug in self.hubs:
+            with self.subTest(hub=slug):
+                self.assertGreaterEqual(counts[slug], 3)
+
+    def test_no_hub_url_collides_with_a_page_post_or_redirect(self):
+        taken = {}
+        for p in list(REPO.glob("*.md")) + list((REPO / "_posts").glob("2*.md")):
+            text = p.read_text(encoding="utf-8")
+            fm = text.split("---", 2)[1] if text.startswith("---") else ""
+            for m in re.finditer(r"^permalink: *(\S+)", fm, re.M):
+                taken[m.group(1)] = p.name
+            for m in re.finditer(r"^  - (/\S*)$", fm, re.M):   # redirect_from entries
+                taken[m.group(1)] = p.name
+        for slug in self.hubs:
+            with self.subTest(hub=slug):
+                self.assertNotIn(f"/{slug}/", taken)
+
+    def test_the_layout_lists_the_topics_posts(self):
+        layout = (REPO / "_layouts" / "hub.html").read_text(encoding="utf-8")
+        self.assertIn('site.posts | where_exp: "p", "p.categories.first == page.hub_topic"', layout)
+        self.assertIn("{% include post-list.html posts=hub_posts %}", layout)
+
+    def test_every_listing_uses_the_one_tiering_include(self):
+        """home, /cats/, /dogs/ and hubs list posts through post-list.html, which
+        keeps the existing tiers (lead, two wide, eager through 7)."""
+        include = (REPO / "_includes" / "post-list.html").read_text(encoding="utf-8")
+        for tier in ('forloop.index == 1 %}', 'forloop.index <= 3 %}', 'forloop.index <= 7 %}'):
+            self.assertIn(tier, include)
+        for rel in ("_layouts/home.html", "cats.md", "dogs.md", "_layouts/hub.html"):
+            with self.subTest(page=rel):
+                text = (REPO / rel).read_text(encoding="utf-8")
+                self.assertIn("{% include post-list.html posts=", text)
+                self.assertNotIn("forloop.index", text)
+
+    def test_a_post_breadcrumb_points_at_its_topic_hub_when_one_exists(self):
+        post = (REPO / "_layouts" / "post.html").read_text(encoding="utf-8")
+        crumb = re.search(r'<nav class="crumb".*?</nav>', post, re.S).group(0)
+        pages = [{"hub_topic": s, "url": f"/{s}/"} for s in self.HUBS] + [{"url": "/cats/"}]
+        for category, href in (("toys", "/toys/"), ("litter", "/litter/"), ("tech", "/#reviews")):
+            with self.subTest(category=category):
+                html = _MiniLiquid(crumb).render({"site": {"baseurl": "", "pages": pages},
+                                                  "category": category, "category_label": "L"})
+                self.assertIn(f'<a href="{href}">L</a>', html)
+
+    def test_hub_pages_writes_a_hub_only_for_a_topic_that_reached_three(self):
+        import tempfile
+        import hub_pages
+        with tempfile.TemporaryDirectory() as d:
+            self._hub_pages_on_fixture(hub_pages, Path(d))
+
+    def _hub_pages_on_fixture(self, hub_pages, tmp):
+        (tmp / "_posts").mkdir()
+        (tmp / "hubs").mkdir()
+        (tmp / "hubs" / "toys.md").write_text("---\nlayout: hub\n---\n", encoding="utf-8")
+        for topic, n in (("toys", 3), ("dental", 3), ("tech", 2)):
+            for i in range(n):
+                (tmp / "_posts" / f"2026-01-0{i + 1}-best-{topic}-{i}.md").write_text(
+                    f"---\ncategories: [{topic}]\n---\n", encoding="utf-8")
+        (tmp / "_posts" / "DRAFT-best-tech-x.md").write_text(
+            "---\ncategories: [tech]\n---\n", encoding="utf-8")   # drafts do not count
+        self.assertEqual(hub_pages.missing_hubs(tmp), ["dental"])
+        path = hub_pages.write_hub("dental", tmp)
+        self.assertEqual(path.read_text(encoding="utf-8"),
+                         '---\nlayout: hub\nhub_topic: dental\npermalink: /dental/\n'
+                         'title: "Dental"\n---\n')
+        self.assertEqual(hub_pages.missing_hubs(tmp), [])
+
+
 class TestPublishedRootIsAllowlisted(unittest.TestCase):
     """Jekyll publishes every root file and folder that is not underscore- or
     dot-prefixed and not in _config.yml's `exclude:`. The github-pages gem also
@@ -11096,6 +11210,7 @@ class TestPublishedRootIsAllowlisted(unittest.TestCase):
         "privacy-policy.md", "search.md", "search.json", "robots.txt",
         "favicon.ico", "favicon-16x16.png", "favicon-32x32.png",
         "apple-touch-icon.png", "assets",
+        "hubs",  # topic hub pages; each sets its own /<topic>/ permalink
     }
 
     @classmethod
@@ -11187,7 +11302,7 @@ class TestTitleSuffix(unittest.TestCase):
         root pages are the published-root allowlist's .md entries."""
         out = []
         pages = [REPO / n for n in sorted(TestPublishedRootIsAllowlisted.PUBLIC) if n.endswith(".md")]
-        for p in pages + sorted((REPO / "_posts").glob("2*.md")):
+        for p in pages + sorted((REPO / "_posts").glob("2*.md")) + sorted((REPO / "hubs").glob("*.md")):
             fm = p.read_text(encoding="utf-8").split("---", 2)[1]
             title = re.search(r"^title: *(.+)$", fm, re.M)
             link = re.search(r"^permalink: *(\S+)", fm, re.M)
@@ -11358,6 +11473,46 @@ class TestSocialImage(unittest.TestCase):
         post = (REPO / "_layouts" / "post.html").read_text(encoding="utf-8")
         self.assertIn("{%- include social-image.html -%}", post)
         self.assertNotIn("static_files", post, "post.html has a second copy of the image rule")
+
+    def test_the_buy_panels_hero_image_is_the_includes_pick(self):
+        """post.html's hero_image block, rendered with the include's own text
+        spliced in where the include tag sits: the thumbnail (with baseurl), else
+        the post's image, else nothing -- never the pin."""
+        post = (REPO / "_layouts" / "post.html").read_text(encoding="utf-8")
+        start = post.index("{%- capture social_image -%}")
+        block = post[start:post.index("{%- endif -%}", start) + len("{%- endif -%}")]
+        block = block.replace("{%- include social-image.html -%}", self.source)
+        pin = self.SITE + "/assets/images/pins/x.jpg"
+        cases = [({"slug": "has-thumb", "image": "https://m.media-amazon.com/images/I/a.jpg",
+                   "pin_image": pin}, "/assets/images/thumbs/has-thumb.jpg"),
+                 ({"slug": "no-thumb", "image": "https://m.media-amazon.com/images/I/b.jpg",
+                   "pin_image": pin}, "https://m.media-amazon.com/images/I/b.jpg"),
+                 ({"slug": "pin-only", "pin_image": pin}, None)]
+        for page, hero in cases:
+            with self.subTest(slug=page["slug"]):
+                ml = _MiniLiquid(block)
+                ml.render({"site": {"baseurl": "", "static_files": [
+                    {"path": "/assets/images/thumbs/has-thumb.jpg"}]}, "page": page})
+                self.assertEqual(ml.ctx.get("hero_image"), hero)
+
+    def test_a_bom_or_a_nested_image_key_reads_like_jekyll(self):
+        """Jekyll ignores a UTF-8 BOM and reads only top-level keys as page
+        variables, so the Facebook image does too."""
+        import tempfile
+        import push_pins_to_sheets as pps
+        amazon = "https://m.media-amazon.com/images/I/bom.jpg"
+        with tempfile.TemporaryDirectory() as d:
+            tmp = Path(d)
+            (tmp / "_posts").mkdir()
+            (tmp / "_posts" / "2026-10-05-with-bom.md").write_bytes(
+                b"\xef\xbb\xbf" + f'---\nlayout: post\nimage: "{amazon}"\n---\n'.encode())
+            (tmp / "_posts" / "2026-10-05-nested.md").write_text(
+                '---\nlayout: post\nseo:\n  image: "https://m.media-amazon.com/images/I/n.jpg"\n---\n',
+                encoding="utf-8")
+            with patch.object(pps, "REPO_DIR", tmp):
+                self.assertEqual(pps.product_image_url("with-bom"), amazon)
+                self.assertEqual(pps.product_image_url("nested"),
+                                 self.SITE + "/assets/images/og-image.png")
 
     def test_default_layout_uses_the_include_and_never_pin_image(self):
         layout = (REPO / "_layouts" / "default.html").read_text(encoding="utf-8")
