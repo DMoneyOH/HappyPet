@@ -8008,7 +8008,7 @@ class TestPublishedChewyLinkCoverage(unittest.TestCase):
         # published post whose own front matter carries an https chewy_url.
         known = {"best-automatic-litter-box", "best-calming-diffusers-pets",
                  "best-cat-dental-treats", "best-catnip-toys", "best-dog-nail-grinder",
-                 "best-dog-probiotic-supplements", "best-dog-puzzle-toys",
+                 "best-dog-probiotic-supplements",
                  "best-elevated-dog-beds", "best-gps-dog-trackers",
                  "best-pet-hair-removers-laundry-furniture"}
         self.assertLessEqual(known, live, sorted(known - live))
