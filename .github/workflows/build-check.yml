@@ -34,6 +34,7 @@ on:
       - '_posts/**'
       - '!_posts/DRAFT-*.md'
       - '_layouts/**'
+      - 'hubs/**'
       - '_includes/**'
       - '_data/**'
       - '_config.yml'

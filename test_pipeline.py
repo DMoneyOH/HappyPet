@@ -5635,6 +5635,9 @@ class TestBuildCheckPathFilter(unittest.TestCase):
     def test_a_refill_pr_does_not(self):
         self.assertFalse(self._runs(["products.json"]))
 
+    def test_a_topic_hub_edit_runs_the_check(self):
+        self.assertTrue(self._runs(["hubs/toys.md"]))
+
     def test_a_draft_alongside_a_layout_change_still_runs(self):
         self.assertTrue(self._runs(["_posts/DRAFT-x.md", "_layouts/post.html"]))
 
@@ -11274,7 +11277,7 @@ class TestTitleSuffix(unittest.TestCase):
         root pages are the published-root allowlist's .md entries."""
         out = []
         pages = [REPO / n for n in sorted(TestPublishedRootIsAllowlisted.PUBLIC) if n.endswith(".md")]
-        for p in pages + sorted((REPO / "_posts").glob("2*.md")):
+        for p in pages + sorted((REPO / "_posts").glob("2*.md")) + sorted((REPO / "hubs").glob("*.md")):
             fm = p.read_text(encoding="utf-8").split("---", 2)[1]
             title = re.search(r"^title: *(.+)$", fm, re.M)
             link = re.search(r"^permalink: *(\S+)", fm, re.M)
