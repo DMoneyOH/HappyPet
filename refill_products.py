@@ -498,6 +498,22 @@ def slugify(text: str) -> str:
     return re.sub(r"-{2,}", "-", re.sub(r"[^a-z0-9-]", "", text.lower().replace(" ", "-"))).strip("-")
 
 
+# Scarlett's refill rules (Director-approved 2026-10-13). The Q4 block applies
+# through 2026-12-31 (ET); from 2027-01-01 the long-tail rule stays and the
+# season line switches to spring.
+Q4_LAST_DAY = "2026-12-31"
+_Q4_RULES = """- Q4 mode (Oct 14 to Dec 31): every topic must target a long-tail keyword of 3 to 6 words that carries a qualifier (a size, breed type, season, use or problem, e.g. "for small dogs", "for winter", "for outdoor cats") or a gift/buy-now phrase (e.g. "stocking stuffer", "christmas", "advent calendar", "gift"). Never use a bare "best <product>" head term as the keyword.
+- Prefer, in order: holiday and gift topics that must be live before Thanksgiving; cold-weather needs (heating, paws, coats, water that freezes); new-pet-at-Christmas needs (puppy, kitten) for late December.
+- When the prompt's month is October or November, propose these slugs first if they are not already covered or queued: best-cat-advent-calendars, best-dog-advent-calendars, best-automatic-ball-launchers, best-cat-christmas-tree-deterrents, best-dog-christmas-sweaters, best-window-bird-feeders-cats, best-heated-water-bowls-outdoor-cats, best-breakaway-cat-collars, best-cat-trees-small-apartments, best-washable-crate-pads-puppies."""
+_LONG_TAIL_AND_SPRING_RULES = """- Every topic must target a long-tail keyword of 3 to 6 words that carries a qualifier (a size, breed type, season, use or problem, e.g. "for small dogs", "for winter", "for outdoor cats") or a gift/buy-now phrase (e.g. "stocking stuffer", "christmas", "advent calendar", "gift"). Never use a bare "best <product>" head term as the keyword.
+- Prefer topics people shop for in February to April: spring shedding and grooming, flea and tick season starting, outdoor and walking gear, new-puppy training."""
+
+
+def season_rules(today: str) -> str:
+    """The dated rule block for an ISO date (the refill's ET date)."""
+    return _Q4_RULES if today <= Q4_LAST_DAY else _LONG_TAIL_AND_SPRING_RULES
+
+
 def ideate_topics(pub: set, queued: set, batch: int) -> list:
     month = time.strftime("%B")
     taken = ", ".join(sorted(pub | queued))
@@ -523,6 +539,7 @@ Rules:
   HAPPYPET_SHEET_ID_HEALTH (Pet Health & Wellness: supplements, dental care, calming, grooming)
 - amazon_search_query: what a shopper would type into Amazon to find the single best mainstream product for this topic
 - Favor products relevant in {month} and the coming two months (seasonality), mixed across species, category, and price points.
+{season_rules(eastern_date())}
 Answer strictly as JSON."""
     # 2.5-flash spends thinking tokens from the same budget; 4096 truncated
     raw = gp._call_gemini(gp.GEMINI_GEN_MODEL, prompt, max_tokens=16384,

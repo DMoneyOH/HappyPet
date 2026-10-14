@@ -1754,7 +1754,38 @@ class TestRefillAgent(unittest.TestCase):
         import categories
         listed = re.search(r"exactly one of: ([^\n.]+)", captured["prompt"]).group(1)
         self.assertEqual([t.strip() for t in listed.split(",")], list(categories.TOPICS))
-        self.assertNotIn("gear", captured["prompt"])
+        # Scarlett's spring season line says "walking gear" in prose; the rule
+        # here is about a "gear" category, so the dated season block is set aside.
+        rest = captured["prompt"].replace(rp.season_rules(rp.eastern_date()), "")
+        self.assertNotIn("gear", rest)
+
+    def _prompt_on(self, iso_date):
+        import refill_products as rp
+        captured = {}
+        def fake_call(model, prompt, **kw):
+            captured["prompt"] = prompt
+            return json.dumps({"topics": []})
+        with patch.object(rp.gp, "_call_gemini", side_effect=fake_call), \
+             patch.object(rp, "eastern_date", lambda: iso_date):
+            rp.ideate_topics(set(), set(), 3)
+        return captured["prompt"]
+
+    def test_the_q4_rules_apply_through_new_years_eve(self):
+        for day in ("2026-10-14", "2026-11-30", "2026-12-31"):
+            with self.subTest(day=day):
+                prompt = self._prompt_on(day)
+                self.assertIn("- Q4 mode (Oct 14 to Dec 31): every topic must target a long-tail", prompt)
+                self.assertIn("best-cat-advent-calendars, best-dog-advent-calendars,", prompt)
+                self.assertNotIn("February to April", prompt)
+
+    def test_from_new_years_day_the_long_tail_rule_stays_and_spring_replaces_q4(self):
+        for day in ("2027-01-01", "2027-03-15"):
+            with self.subTest(day=day):
+                prompt = self._prompt_on(day)
+                self.assertNotIn("Q4 mode", prompt)
+                self.assertNotIn("advent", prompt.replace('"advent calendar"', ""))
+                self.assertIn("Never use a bare \"best <product>\" head term as the keyword.", prompt)
+                self.assertIn("- Prefer topics people shop for in February to April:", prompt)
 
     def test_image_validation_rejects_svg_placeholder(self):
         # run #2 shipped an .svg sprite as a "product image" -- never again
