@@ -1199,15 +1199,26 @@ def recent_published_species(count: int = 2) -> list:
     return [_post_species(md) for _, _, md in dated[:count]]
 
 
-def select_next_topic(products: dict, used_slugs: set, recent_species: list = None):
-    """Return (slug, product) for the next eligible products.json entry, in dict
-    order, skipping already-used slugs and entries missing required fields.
+def load_publish_order() -> list:
+    """The `order` list of _data/publish_plan.json, or [] when there is none."""
+    p = REPO_DIR / "_data" / "publish_plan.json"
+    return read_json(p).get("order", []) if p.exists() else []
+
+
+def select_next_topic(products: dict, used_slugs: set, recent_species: list = None,
+                      order: list = None):
+    """Return (slug, product) for the next eligible products.json entry, skipping
+    already-used slugs and entries missing required fields. Entries named in the
+    publish plan's `order` (_data/publish_plan.json; injectable for testing) go
+    first, in that order; the rest follow in dict order. A refill appends new
+    topics to the end of products.json, so this is what lets a planned topic
+    take its slot.
 
     Species balancing: if the last two DATED posts were the same dog/cat species,
     skip further entries of that species and pick the first eligible entry of a
     different species (a `both` entry always qualifies), so the feed never runs
     3+ of the same species in a row. If every remaining entry is that species,
-    fall back to plain dict order. `recent_species` (newest first) is injectable
+    fall back to the plain order above. `recent_species` (newest first) is injectable
     for testing; production reads it from the published _posts/. Returns None when
     nothing is eligible."""
     required = ("topic", "title", "keyword", "format")
@@ -1215,6 +1226,8 @@ def select_next_topic(products: dict, used_slugs: set, recent_species: list = No
                 if slug not in used_slugs and all(k in p for k in required)]
     if not eligible:
         return None
+    rank = {slug: i for i, slug in enumerate(load_publish_order() if order is None else order)}
+    eligible.sort(key=lambda e: rank.get(e[0], len(rank)))  # stable: unplanned keep dict order
 
     if recent_species is None:
         recent_species = recent_published_species(2)

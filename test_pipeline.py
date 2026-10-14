@@ -3458,6 +3458,82 @@ class TestQ4PublishOrder(unittest.TestCase):
         expected[8], expected[9] = expected[9], expected[8]
         self.assertEqual(picks, expected)
 
+    # Her table 1 (the 22 slots Mon 10-19 .. Thu 12-31), preceded by the 10-15
+    # head and followed by her January list. Written out from her file, not
+    # read from _data/publish_plan.json.
+    SLOTS = [
+        "best-heated-outdoor-cat-houses",
+        "best-self-warming-pet-pads", "best-dog-collars-night-walks",
+        "best-cat-advent-calendars", "best-dog-advent-calendars",
+        "best-lickable-cat-treats", "best-dog-winter-coats", "best-pet-hair-vacuums",
+        "best-automatic-ball-launchers", "best-cat-christmas-tree-deterrents",
+        "best-dog-christmas-sweaters", "best-window-bird-feeders-cats",
+        "best-freeze-dried-dog-treats", "best-heated-water-bowls-outdoor-cats",
+        "best-dog-paw-balms", "best-breakaway-cat-collars", "best-plush-dog-toys",
+        "best-cardboard-cat-scratchers", "best-pet-first-aid-kits",
+        "best-puppy-teething-toys", "best-cat-trees-small-apartments",
+        "best-washable-crate-pads-puppies", "best-dog-training-clickers",
+        "best-cat-hairball-remedies", "best-cat-litter-mats", "best-pet-dental-water-additives",
+        "best-cat-flea-treatments", "best-fish-oil-for-dogs", "best-elevated-cat-bowls",
+        "best-dog-shampoo-sensitive-skin", "best-senior-cat-food", "best-dog-ear-cleaners",
+        "best-airtight-pet-food-containers", "best-cat-litter-scoops",
+    ]
+    NEW = {"best-cat-advent-calendars": "cat", "best-dog-advent-calendars": "dog",
+           "best-automatic-ball-launchers": "dog", "best-cat-christmas-tree-deterrents": "cat",
+           "best-dog-christmas-sweaters": "dog", "best-window-bird-feeders-cats": "cat",
+           "best-heated-water-bowls-outdoor-cats": "cat", "best-breakaway-cat-collars": "cat",
+           "best-cat-trees-small-apartments": "cat", "best-washable-crate-pads-puppies": "dog"}
+
+    def _walk(self, queue, history=("dog", "cat")):
+        """Every pick the real select_next_topic makes on `queue` (slug -> species),
+        in products.json file order, with the real publish plan."""
+        import generate_posts as gp
+        products = {t: {"topic": t, "title": t, "keyword": t, "format": "roundup",
+                        "species": sp} for t, sp in queue.items()}
+        history, picks = list(history), []
+        while (res := gp.select_next_topic(products, set(picks), recent_species=history)):
+            picks.append(res[0])
+            history = [res[1]["species"]] + history
+        return picks
+
+    def test_the_22_slots_publish_in_her_order_with_the_new_topics_appended_last(self):
+        """The acceptance test: today's queue, then her 10 new topics appended at
+        the END of products.json (where a refill puts them), through the real
+        picker and the real plan. Publishes exactly her table, then January."""
+        queue = dict(zip(self.PLAN, self.SPECIES))
+        queue.update(self.NEW)
+        self.assertEqual(list(queue)[-10:], list(self.NEW))   # appended last
+        self.assertEqual(self._walk(queue), self.SLOTS)
+
+    def test_a_new_topic_that_never_resolved_hands_its_slot_to_the_next_planned_one(self):
+        queue = dict(zip(self.PLAN, self.SPECIES))
+        queue.update({t: sp for t, sp in self.NEW.items() if t != "best-cat-advent-calendars"})
+        picks = self._walk(queue)
+        self.assertEqual(picks[:5], ["best-heated-outdoor-cat-houses", "best-self-warming-pet-pads",
+                                     "best-dog-collars-night-walks", "best-dog-advent-calendars",
+                                     "best-lickable-cat-treats"])
+
+    def test_an_unplanned_topic_waits_behind_every_planned_one(self):
+        queue = {"best-unplanned-refill-topic": "both"}
+        queue.update(zip(self.PLAN, self.SPECIES))
+        self.assertEqual(self._walk(queue)[-1], "best-unplanned-refill-topic")
+
+    def test_every_seed_is_planned_and_seedable_now(self):
+        """Each seed sits in `order`, and each one not yet taken passes the
+        refill's own topic validation once the session adds a title."""
+        import refill_cli
+        plan = json.loads((REPO / "_data" / "publish_plan.json").read_text(encoding="utf-8"))
+        self.assertEqual([s["topic"] for s in plan["seeds"]],
+                         [t for t in self.SLOTS if t in self.NEW])
+        self.assertEqual(plan["order"], self.SLOTS)
+        taken = refill_cli.taken_slugs(json.loads((REPO / "products.json").read_text(encoding="utf-8")))
+        for s in plan["seeds"]:
+            if s["topic"] in taken:
+                continue
+            with self.subTest(seed=s["topic"]):
+                self.assertEqual(s["species"], self.NEW[s["topic"]])
+                self.assertEqual(refill_cli.topic_problems(dict(s, title="A Title"), taken), [])
+
     def test_the_species_fixture_matches_the_live_queue(self):
         import generate_posts as gp
         live = gp.load_products()
@@ -10332,6 +10408,28 @@ class TestRefillCli(unittest.TestCase):
     def test_a_plan_with_a_bom_still_loads(self):
         self.plan.write_bytes(b"\xef\xbb\xbf" + json.dumps({"topics": []}).encode())
         self.assertEqual(self.cli.load_plan(self.plan), {"topics": []})
+
+    def test_context_hands_over_the_plans_untaken_seeds_in_plan_order(self):
+        d = self.base.parent
+        (d / "_data").mkdir()
+        seed = {"keyword": "k w", "species": "dog", "category": "toys",
+                "topical_sheet": "HAPPYPET_SHEET_ID_TOYS", "amazon_search_query": "q"}
+        (d / "_data" / "publish_plan.json").write_text(json.dumps({"order": [], "seeds": [
+            dict(seed, topic="best-published-post"),       # taken: published
+            dict(seed, topic="best-seed-one"),
+            dict(seed, topic="best-queued-two"),           # taken: queued
+            dict(seed, topic="best-seed-two"),
+            dict(seed, topic="best-seed-three")]}), encoding="utf-8")
+        out = d / "ctx.json"
+        self.run_cli("context", "--out", str(out), "--batch", "2")
+        ctx = json.loads(out.read_text(encoding="utf-8"))
+        self.assertEqual([s["topic"] for s in ctx["seeds"]], ["best-seed-one", "best-seed-two"])
+        self.assertRegex(ctx["today"], r"^\d{4}-\d{2}-\d{2}$")
+
+    def test_context_without_a_plan_has_no_seeds(self):
+        out = self.base.parent / "ctx.json"
+        self.run_cli("context", "--out", str(out), "--batch", "6")
+        self.assertEqual(json.loads(out.read_text(encoding="utf-8"))["seeds"], [])
 
     def test_context_lists_topics_and_taken_slugs(self):
         out = self.base.parent / "ctx.json"

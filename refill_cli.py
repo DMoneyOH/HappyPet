@@ -6,7 +6,9 @@ and reads products off Amazon pages. It writes them to one plan file; every
 decision about what may enter products.json lives here, offline:
 
   context --out ctx.json [--batch N]   what the session needs: the 22 topics, the
-                                       Pinterest boards, every slug already taken
+                                       Pinterest boards, every slug already taken,
+                                       today's ET date and the publish plan's
+                                       untaken seed topics (at most N, in order)
   seed    --plan plan.json             validate each planned topic, append the
                                        valid ones as NEEDS_* placeholders
   resolve --plan plan.json --base b.json
@@ -172,19 +174,31 @@ def load_plan(path: Path) -> dict:
     return plan
 
 
+def planned_seeds(taken: set, batch: int) -> list:
+    """The publish plan's seed topics (_data/publish_plan.json) not yet taken, in
+    plan order, at most `batch`. Each carries every topic field but `title`."""
+    p = REPO_DIR / "_data" / "publish_plan.json"
+    seeds = read_json(p).get("seeds", []) if p.exists() else []
+    return [s for s in seeds if s["topic"] not in taken][:batch]
+
+
 def cmd_context(args) -> int:
     products = load_products(args.products, "products")
+    taken = taken_slugs(products)
     ctx = {
         "batch": args.batch,
+        "today": rp.eastern_date(),
+        "seeds": planned_seeds(taken, args.batch),
         "categories": list(categories.TOPICS),
         "topical_sheets": list(rp.VALID_SHEETS),
         "species": list(SPECIES),
         "queued": [{"topic": e.get("topic"), "category": e.get("category"),
                     "species": e.get("species")} for e in products],
-        "taken_slugs": sorted(s for s in taken_slugs(products) if s.startswith("best-")),
+        "taken_slugs": sorted(s for s in taken if s.startswith("best-")),
     }
     Path(args.out).write_text(json.dumps(ctx, indent=2) + "\n", encoding="utf-8")
-    print(f"context: {len(ctx['taken_slugs'])} taken slugs, batch {args.batch}")
+    print(f"context: {len(ctx['taken_slugs'])} taken slugs, {len(ctx['seeds'])} seed(s), "
+          f"batch {args.batch}")
     return 0
 
 
