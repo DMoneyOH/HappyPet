@@ -11341,6 +11341,78 @@ class TestTopicHubs(unittest.TestCase):
                              "---\nlayout: hub\n---\n")
 
 
+class TestPublishWorkflowPins(unittest.TestCase):
+    """What publish.yml's token may do, and what no workflow may run. Both are
+    pinned as literals, so a widening or a new caller is a failing test and a
+    reviewed change, not a quiet edit."""
+
+    WORKFLOWS = REPO / ".github" / "workflows"
+    # Exactly what publish.yml's `permissions:` holds as of 2026-10-14: contents
+    # for the publish commit, issues for the alert issues, actions to dispatch
+    # deploy.yml.
+    PUBLISH_PERMISSIONS = {"contents": "write", "issues": "write", "actions": "write"}
+
+    @staticmethod
+    def _permissions(text):
+        """(top-level permissions mapping, count of `permissions` keys at any
+        indent). Reads the whole block: blank and comment lines inside it do
+        not end it, so a key after one is still counted."""
+        lines = text.splitlines()
+        starts = [i for i, ln in enumerate(lines) if re.match(r"permissions\s*:", ln)]
+        anywhere = len(re.findall(r"^\s*permissions\s*:", text, re.M))
+        if len(starts) != 1 or lines[starts[0]].rstrip() != "permissions:":
+            return None, anywhere
+        perms = {}
+        for ln in lines[starts[0] + 1:]:
+            if not ln.strip() or ln.lstrip().startswith("#"):
+                continue
+            if not ln[0].isspace():
+                break
+            m = re.fullmatch(r"\s+([\w-]+):\s*(\S+?)(?:\s+#.*)?", ln)
+            if not m:
+                return None, anywhere
+            perms[m.group(1)] = m.group(2)
+        return perms, anywhere
+
+    def test_publish_permissions_are_pinned(self):
+        text = (self.WORKFLOWS / "publish.yml").read_text(encoding="utf-8")
+        perms, anywhere = self._permissions(text)
+        self.assertEqual(perms, self.PUBLISH_PERMISSIONS,
+                         "publish.yml's permissions: block changed; widening the token "
+                         "is a reviewed change, so update this pin in the same PR")
+        self.assertEqual(anywhere, 1, "a second permissions: key (a job-level block) "
+                                      "can widen what the top-level block pins")
+
+    def test_the_permissions_pin_reads_a_widening_however_it_is_written(self):
+        """Attack the reader: each of these is a widening or an unreadable form
+        and has to come out different from the pinned mapping."""
+        base = ("permissions:\n  contents: write\n  issues: write\n"
+                "  actions: write   # dispatch deploy.yml\n\nconcurrency:\n  group: g\n")
+        self.assertEqual(self._permissions(base), (self.PUBLISH_PERMISSIONS, 1))
+        for label, text in (
+                ("new key", base.replace("  issues: write\n", "  issues: write\n  pull-requests: write\n")),
+                ("new key after a blank line",
+                 base.replace("  actions: write   # dispatch deploy.yml\n",
+                              "  actions: write\n\n  # comment\n\n  packages: write\n")),
+                ("value widened", base.replace("contents: write", "contents: admin")),
+                ("key dropped", base.replace("  issues: write\n", "")),
+                ("write-all", base.replace("permissions:\n  contents: write\n  issues: write\n"
+                                           "  actions: write   # dispatch deploy.yml\n",
+                                           "permissions: write-all\n")),
+                ("job-level block", base + "jobs:\n  publish:\n    permissions:\n      contents: write\n")):
+            with self.subTest(case=label):
+                self.assertNotEqual(self._permissions(text), (self.PUBLISH_PERMISSIONS, 1))
+
+    def test_no_workflow_runs_hub_pages_sync(self):
+        """`hub_pages.py --sync` rewrites existing hubs from the copy file. It is
+        hand-run, after editing the copy, and no workflow may run it."""
+        files = [p for p in self.WORKFLOWS.rglob("*") if p.is_file()]
+        self.assertIn("publish.yml", [p.name for p in files])
+        for p in files:
+            with self.subTest(workflow=p.name):
+                self.assertNotIn("--sync", p.read_text(encoding="utf-8").lower())
+
+
 class TestPublishWritesTheHub(unittest.TestCase):
     """Acceptance (Director-approved 2026-10-14): the publish that takes a topic
     to HUB_MIN posts commits the topic's hub, with Scarlett's copy. Runs
