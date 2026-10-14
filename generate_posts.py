@@ -2348,7 +2348,7 @@ def yaml_quote(text: str) -> str:
 _LISTING_SEPARATOR = re.compile(r"[,:]\s|\s[-\u2013\u2014|]\s")
 
 
-_SHORT_NAME_WORDS = 6
+_SHORT_NAME_WORDS = 8
 _DANGLING = {"&", "+", "-", "a", "and", "for", "in", "of", "the", "with"}
 
 
@@ -2356,7 +2356,7 @@ def short_product_name(name) -> str:
     """The product name the purchase panel and sticky buybar show. The only name
     the generator has is the Amazon listing title ("AWOOF Pet Snuffle Mat for
     Dogs, Interactive Feed Game"), so keep the part before its first separator,
-    capped at six words for a title with none, dropping a connector the cap
+    capped at eight words for a title with none, dropping a connector the cap
     leaves dangling. A copy heuristic, not a rule: product_short in a post can be
     edited by hand."""
     words = _LISTING_SEPARATOR.split(" ".join(str(name or "").split()), 1)[0].split()

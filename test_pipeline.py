@@ -3875,14 +3875,21 @@ class TestShortProductName(unittest.TestCase):
             with self.subTest(name=name):
                 self.assertEqual(gp.short_product_name(name), short)
 
-    def test_a_separatorless_title_is_capped_at_six_words(self):
+    def test_a_separatorless_title_is_capped_at_eight_words(self):
+        # Eight, not six: the Director's ruling of 2026-10-13.
         import generate_posts as gp
         cases = {
             "Pet Grooming Glove Gentle Deshedding Brush Efficient Pet Hair Remover":
-                "Pet Grooming Glove Gentle Deshedding Brush",
-            # the cap never leaves a dangling connector
-            "Blue Buffalo Bits Beef Soft & Chewy Dog Treats": "Blue Buffalo Bits Beef Soft",
-            "Hertzko Self Cleaning Slicker Brush for Dogs and Cats": "Hertzko Self Cleaning Slicker Brush",
+                "Pet Grooming Glove Gentle Deshedding Brush Efficient Pet",
+            "Blue Buffalo Bits Beef Soft & Chewy Dog Treats": "Blue Buffalo Bits Beef Soft & Chewy Dog",
+            # exactly eight words: kept whole
+            "KONG Classic Dog Toy Durable Natural Rubber Chew":
+                "KONG Classic Dog Toy Durable Natural Rubber Chew",
+            # the cap never leaves a dangling connector, however many in a row
+            "Hertzko Self Cleaning Slicker Brush for Dogs and Cats":
+                "Hertzko Self Cleaning Slicker Brush for Dogs",
+            "Calming Bed Donut Shape Cuddler Round for the Dogs and Cats":
+                "Calming Bed Donut Shape Cuddler Round",
         }
         for name, short in cases.items():
             with self.subTest(name=name):
