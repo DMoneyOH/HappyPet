@@ -20,6 +20,7 @@ import os
 import re
 import sys
 import tempfile
+import textwrap
 import types
 import unittest
 from pathlib import Path
@@ -8266,6 +8267,22 @@ class TestPublishedChewyLinkCoverage(unittest.TestCase):
         self.assertEqual(by_slug["best-dog-probiotic-supplements"]["product_name"],
                          "Purina Pro Plan FortiFlora")
 
+    def test_post_entry_reads_the_body_after_the_front_matter_bom_or_not(self):
+        """D-3: Jekyll ignores a UTF-8 byte-order mark. post_entry has to as
+        well, or the body is the whole file and an anchor in the front matter
+        is taken for the product name."""
+        url = "https://www.amazon.com/dp/B0BOMTEST1?tag=happypetdc-20"
+        text = (f"---\nlayout: post\naffiliate_url: {url}\n"
+                f'excerpt: "See [Front Matter Decoy]({url})"\n---\n'
+                f"Our pick: [Real Product Name]({url}).\n")
+        with tempfile.TemporaryDirectory() as d:
+            path = Path(d) / "2026-10-05-best-bom-test.md"
+            for bom in ("", "\ufeff"):
+                with self.subTest(bom=bool(bom)):
+                    path.write_text(bom + text, encoding="utf-8")
+                    entry = self.v.post_entry(path, {})
+                    self.assertEqual(entry["product_name"], "Real Product Name")
+
     def test_a_post_in_scope_is_never_reported_as_having_no_url(self):
         """The specific silent-skip shape. NO_URL must mean the post carries no
         Chewy link at all, never "the queue did not happen to list it"."""
@@ -11085,23 +11102,20 @@ class TestRelatedReviews(unittest.TestCase):
 class TestTopicHubs(unittest.TestCase):
     """Topic hubs (Director-approved 2026-10-13): hubs/<topic>.md, one layout
     (_layouts/hub.html) that lists every post in the topic, the post breadcrumb
-    pointing at the topic's hub, and hub_pages.py for a topic that reaches 3
-    posts later. The listing itself is Liquid (where_exp, which _MiniLiquid does
+    pointing at the topic's hub, and hub_pages.py, which publish.yml runs so a
+    topic that reaches 3 posts gets its hub in the same publish (Director-approved
+    2026-10-14). The listing itself is Liquid (where_exp, which _MiniLiquid does
     not model); build-check.yml's jekyll build is its real render."""
-
-    HUBS = ("toys", "beds", "food", "outdoor", "feeding", "calming", "carriers",
-            "grooming", "health", "litter", "travel")
 
     @classmethod
     def setUpClass(cls):
         from validate_published_chewy_links import parse_frontmatter
         cls.hubs = {p.stem: parse_frontmatter(p) for p in (REPO / "hubs").glob("*.md")}
 
-    def test_the_eleven_approved_hubs_exist_with_their_copy(self):
-        self.assertEqual(sorted(self.hubs), sorted(self.HUBS),
-                         "hubs/ and HUBS differ. A hub ships only with Scarlett's copy "
-                         "(title, description, intro, how_we_choose) and a HUBS entry, "
-                         "both before merge.")
+    def test_the_hubs_are_exactly_the_topics_with_three_or_more_posts(self):
+        import hub_pages
+        counts = hub_pages.topic_counts()
+        self.assertEqual(sorted(self.hubs), sorted(t for t in counts if counts[t] >= 3))
         for slug, fm in self.hubs.items():
             with self.subTest(hub=slug):
                 self.assertEqual(fm["layout"], "hub")
@@ -11111,16 +11125,50 @@ class TestTopicHubs(unittest.TestCase):
                     self.assertTrue(fm.get(key), key)
                 self.assertNotIn("sitemap", fm)   # jekyll-sitemap lists every hub
 
-    def test_report_topics_that_reached_three_without_a_hub(self):
-        """Never fails: hub creation is not automated (a Director decision), so a
-        topic that reaches 3 posts shows up here, as a skip with its name,
-        until Scarlett's copy and a HUBS entry land."""
+    def test_no_topic_reached_three_without_a_hub(self):
+        """publish.yml writes the hub in the publish that dates a topic's third
+        post. A topic here reached 3 some other way: run hub_pages.py."""
         import hub_pages
-        missing = hub_pages.missing_hubs()
-        if missing:
-            self.skipTest("REPORT, not a failure: topics with 3+ posts and no hub: "
-                          + ", ".join(missing) + ". Needs Scarlett's copy, then "
-                          "hubs/<topic>.md and a HUBS entry.")
+        self.assertEqual(hub_pages.missing_hubs(), [],
+                         "topics with 3+ posts and no hub; run hub_pages.py")
+
+    def test_every_hub_is_written_from_the_copy_file(self):
+        """D-2: _data/hub_copy.json is the one source of hub copy. Each hub file
+        is exactly what hub_pages writes from it, so copy edited in a hub file
+        alone, or in the data file alone, goes red here."""
+        import hub_pages
+        copy = hub_pages.load_copy()
+        for slug in self.hubs:
+            with self.subTest(hub=slug):
+                self.assertEqual((REPO / "hubs" / f"{slug}.md").read_text(encoding="utf-8"),
+                                 hub_pages.hub_text(slug, copy))
+
+    def test_the_copy_file_has_complete_copy_for_every_topic(self):
+        """So the publish never meets a topic without copy. Plain one-line text
+        (no double quotes, backslashes or newlines), so every reader of the hub
+        front matter, ours included, reads it exactly."""
+        import categories
+        import hub_pages
+        copy = hub_pages.load_copy()
+        self.assertEqual(sorted(copy), sorted(categories.TOPICS))
+        for slug, entry in copy.items():
+            with self.subTest(topic=slug):
+                self.assertEqual(sorted(entry), sorted(hub_pages.COPY_FIELDS))
+                self.assertEqual(hub_pages.copy_problems(slug, copy), [])
+                for field, text in entry.items():
+                    self.assertFalse(set(text) & set('"\\\n'), field)
+                    self.assertEqual(text, text.strip(), field)
+
+    def test_scarletts_copy_for_the_new_topics(self):
+        """Spot-pins from Scarlett's 2026-10-14 copy file, typed in here as an
+        independent record, not read back from the data file."""
+        import hub_pages
+        copy = hub_pages.load_copy()
+        self.assertEqual(copy["treats"]["title"], "Dog and Cat Treats: Picks by Purpose")
+        self.assertEqual(copy["tech"]["title"], "Pet Tech: Cameras and GPS Trackers")
+        self.assertEqual(copy["scratching"]["title"], "Cat Scratchers and Cat Trees")
+        self.assertTrue(copy["treats"]["intro"].startswith(
+            "A treat does a job, whether that job is rewarding a sit, hiding a pill"))
 
     def test_every_hub_topic_has_three_or_more_posts(self):
         import hub_pages
@@ -11162,7 +11210,7 @@ class TestTopicHubs(unittest.TestCase):
     def test_a_post_breadcrumb_points_at_its_topic_hub_when_one_exists(self):
         post = (REPO / "_layouts" / "post.html").read_text(encoding="utf-8")
         crumb = re.search(r'<nav class="crumb".*?</nav>', post, re.S).group(0)
-        pages = [{"hub_topic": s, "url": f"/{s}/"} for s in self.HUBS] + [{"url": "/cats/"}]
+        pages = [{"hub_topic": s, "url": f"/{s}/"} for s in self.hubs] + [{"url": "/cats/"}]
         for category, href in (("toys", "/toys/"), ("litter", "/litter/"), ("tech", "/#reviews")):
             with self.subTest(category=category):
                 html = _MiniLiquid(crumb).render({"site": {"baseurl": "", "pages": pages},
@@ -11175,7 +11223,36 @@ class TestTopicHubs(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             self._hub_pages_on_fixture(hub_pages, Path(d))
 
+    def test_hub_pages_writes_no_hub_for_a_topic_without_copy(self):
+        import io
+        import tempfile
+        import hub_pages
+        dental = {"title": "T", "description": "D", "intro": "I", "how_we_choose": "H"}
+        for label, copy in (("no entry", {}), ("empty intro", {"dental": dict(dental, intro=" ")}),
+                            ("missing field", {"dental": {"title": "T"}})):
+            with self.subTest(case=label), tempfile.TemporaryDirectory() as d:
+                tmp = Path(d)
+                self._posts(tmp, {"dental": 3, "toys": 3})
+                (tmp / "_data").mkdir()
+                (tmp / "_data" / "hub_copy.json").write_text(json.dumps(copy), encoding="utf-8")
+                err = io.StringIO()
+                with contextlib.redirect_stderr(err), contextlib.redirect_stdout(io.StringIO()):
+                    self.assertEqual(hub_pages.main([], repo=tmp), 1)
+                self.assertIn("dental", err.getvalue())
+                self.assertEqual(sorted(p.name for p in (tmp / "hubs").glob("*.md")), ["toys.md"])
+
+    @staticmethod
+    def _posts(tmp, per_topic):
+        (tmp / "_posts").mkdir()
+        (tmp / "hubs").mkdir()
+        (tmp / "hubs" / "toys.md").write_text("---\nlayout: hub\n---\n", encoding="utf-8")
+        for topic, n in per_topic.items():
+            for i in range(n):
+                (tmp / "_posts" / f"2026-01-0{i + 1}-best-{topic}-{i}.md").write_text(
+                    f"---\ncategories: [{topic}]\n---\n", encoding="utf-8")
+
     def _hub_pages_on_fixture(self, hub_pages, tmp):
+        import io
         (tmp / "_posts").mkdir()
         (tmp / "hubs").mkdir()
         (tmp / "hubs" / "toys.md").write_text("---\nlayout: hub\n---\n", encoding="utf-8")
@@ -11186,11 +11263,119 @@ class TestTopicHubs(unittest.TestCase):
         (tmp / "_posts" / "DRAFT-best-tech-x.md").write_text(
             "---\ncategories: [tech]\n---\n", encoding="utf-8")   # drafts do not count
         self.assertEqual(hub_pages.missing_hubs(tmp), ["dental"])
-        path = hub_pages.write_hub("dental", tmp)
-        self.assertEqual(path.read_text(encoding="utf-8"),
+        (tmp / "_data").mkdir()
+        (tmp / "_data" / "hub_copy.json").write_text(json.dumps({"dental": {
+            "title": "Dental Gear", "description": "Desc.", "intro": "Intro.",
+            "how_we_choose": "Method."}}), encoding="utf-8")
+        with contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(hub_pages.main([], repo=tmp), 0)
+        self.assertEqual((tmp / "hubs" / "dental.md").read_text(encoding="utf-8"),
                          '---\nlayout: hub\nhub_topic: dental\npermalink: /dental/\n'
-                         'title: "Dental"\n---\n')
+                         'title: "Dental Gear"\ndescription: "Desc."\nintro: "Intro."\n'
+                         'how_we_choose: "Method."\n---\n')
+        self.assertEqual((tmp / "hubs" / "toys.md").read_text(encoding="utf-8"),
+                         "---\nlayout: hub\n---\n", "an existing hub is left alone")
         self.assertEqual(hub_pages.missing_hubs(tmp), [])
+
+
+class TestPublishWritesTheHub(unittest.TestCase):
+    """Acceptance (Director-approved 2026-10-14): the publish that takes a topic
+    to 3 posts commits the topic's hub, with Scarlett's copy. Runs publish.yml's
+    own dating step and hub step, in bash, on a scratch git repo."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.workflow = (REPO / ".github" / "workflows" / "publish.yml").read_text(encoding="utf-8")
+
+    def _step(self, name):
+        m = re.search(r"\n      - name: " + re.escape(name) + r"\n((?:        (?!run:).*\n)*)"
+                      r"        run: \|\n((?:          .*\n|\n)*)", self.workflow)
+        self.assertIsNotNone(m, name)
+        return m.group(1), textwrap.dedent(m.group(2))
+
+    HUB_STEP = "Write the hub for a topic that reached 3 posts"
+
+    def test_the_hub_step_runs_after_dating_and_before_the_commit(self):
+        names = re.findall(r"^      - name: (.+)$", self.workflow, re.M)
+        self.assertLess(names.index("Find and date unpublished posts"), names.index(self.HUB_STEP))
+        self.assertLess(names.index(self.HUB_STEP), names.index("Commit and push"))
+        head, script = self._step(self.HUB_STEP)
+        self.assertIn("if: steps.stage.outputs.nothing_to_publish == 'false'", head)
+        self.assertNotIn("secrets.", head + script)
+        self.assertNotIn("env:", head)
+
+    def _publish(self, tmp, earlier_posts, copy):
+        import shutil
+        import subprocess
+        import shlex
+        bash = shutil.which("bash")
+        if not bash:
+            self.skipTest("no bash")
+        for rel in ("hub_pages.py", "categories.py", "_data/categories.json"):
+            (tmp / rel).parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy(REPO / rel, tmp / rel)
+        (tmp / "_data" / "hub_copy.json").write_text(json.dumps(copy), encoding="utf-8")
+        (tmp / "hubs").mkdir()
+        (tmp / "hubs" / "toys.md").write_text("---\nlayout: hub\n---\n", encoding="utf-8")
+        (tmp / "_posts").mkdir()
+        post = "---\nlayout: post\ntitle: T\ndate: 2026-01-01\ncategories: [treats]\n---\nBody.\n"
+        for i in range(earlier_posts):
+            (tmp / "_posts" / f"2026-10-1{i}-best-treat-{i}.md").write_text(post, encoding="utf-8")
+        (tmp / "_posts" / "DRAFT-best-treat-new.md").write_text(post, encoding="utf-8")
+
+        def git(*args):
+            return subprocess.run(["git", "-c", "core.autocrlf=false", "-c", "user.name=t",
+                                   "-c", "user.email=t@example.invalid", *args],
+                                  cwd=tmp, capture_output=True, text=True, check=True).stdout
+        git("init", "-q")
+        git("add", "-A")
+        git("commit", "-q", "-m", "fixture")
+        python = shlex.quote(Path(sys.executable).as_posix())
+        _, date_step = self._step("Find and date unpublished posts")
+        _, hub_step = self._step(self.HUB_STEP)
+        script = (date_step.replace("${{ steps.cap.outputs.cap }}", "1")
+                  + hub_step.replace("python3 ", python + " "))
+        env = dict(os.environ, GITHUB_OUTPUT=str(tmp / "github_output"),
+                   GIT_CONFIG_PARAMETERS="'core.autocrlf=false'")
+        run = subprocess.run([bash, "--noprofile", "--norc", "-eo", "pipefail", "-c", script],
+                             cwd=tmp, capture_output=True, text=True, env=env)
+        return run, git("diff", "--cached", "--name-only").split()
+
+    def test_the_publish_of_a_third_treats_post_commits_the_treats_hub(self):
+        import hub_pages
+        with tempfile.TemporaryDirectory() as d:
+            tmp = Path(d)
+            run, staged = self._publish(tmp, 2, hub_pages.load_copy())
+            self.assertEqual(run.returncode, 0, run.stdout + run.stderr)
+            self.assertIn("hubs/treats.md", staged)
+            self.assertTrue(any(s.startswith("_posts/2") and s.endswith("-best-treat-new.md")
+                                for s in staged), staged)
+            hub = (tmp / "hubs" / "treats.md").read_text(encoding="utf-8")
+            self.assertTrue(hub.startswith("---\nlayout: hub\nhub_topic: treats\n"
+                                           "permalink: /treats/\n"), hub)
+            self.assertIn('title: "Dog and Cat Treats: Picks by Purpose"\n', hub)
+            self.assertIn('intro: "A treat does a job, whether that job is rewarding a sit, '
+                          'hiding a pill or filling a stocking.', hub)
+            self.assertIn('how_we_choose: "Every pick is compared on its ingredient list, '
+                          'owner ratings and what reviews say again and again about how pets '
+                          'take to it."\n', hub)
+
+    def test_the_publish_of_a_second_treats_post_writes_no_hub(self):
+        import hub_pages
+        with tempfile.TemporaryDirectory() as d:
+            run, staged = self._publish(Path(d), 1, hub_pages.load_copy())
+            self.assertEqual(run.returncode, 0, run.stdout + run.stderr)
+            self.assertFalse([s for s in staged if s.startswith("hubs/")], staged)
+
+    def test_a_third_post_in_a_topic_without_copy_fails_before_the_commit(self):
+        import hub_pages
+        copy = {k: v for k, v in hub_pages.load_copy().items() if k != "treats"}
+        with tempfile.TemporaryDirectory() as d:
+            tmp = Path(d)
+            run, staged = self._publish(tmp, 2, copy)
+            self.assertNotEqual(run.returncode, 0)
+            self.assertIn("treats: no entry in _data/hub_copy.json", run.stderr)
+            self.assertFalse((tmp / "hubs" / "treats.md").exists())
 
 
 class TestPublishedRootIsAllowlisted(unittest.TestCase):

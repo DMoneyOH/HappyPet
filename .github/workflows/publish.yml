@@ -178,6 +178,16 @@ jobs:
             git add "assets/images/pins/${slug}.jpg"
           done
 
+      - name: Write the hub for a topic that reached 3 posts
+        if: steps.stage.outputs.nothing_to_publish == 'false'
+        run: |
+          # Director-approved 2026-10-14: the publish that takes a topic to 3
+          # dated posts commits the topic's hub in the same commit, written
+          # from _data/hub_copy.json. A topic with no copy exits 1 here, before
+          # the commit, so nothing is pushed and the run goes red.
+          python3 hub_pages.py
+          git add hubs/
+
       - name: Write pending-slugs for Stage 3
         if: steps.stage.outputs.nothing_to_publish == 'false'
         run: |

@@ -37,16 +37,24 @@ def log(msg: str, level: str = "INFO") -> None:
         f.write(line + "\n")
 
 
+def read_post(md_path: Path) -> tuple:
+    """(front matter block, body) of a Jekyll post, read as Jekyll reads it: a
+    UTF-8 byte-order mark is ignored and the body starts after the front
+    matter. No front matter gives (None, the whole text)."""
+    text = md_path.read_text(encoding="utf-8-sig")
+    m = re.match(r"^---\n(.*?)\n---", text, re.DOTALL)
+    return (m.group(1), text[m.end():]) if m else (None, text)
+
+
 def parse_frontmatter(md_path: Path) -> dict:
     """Extract the top-level YAML frontmatter fields from a Jekyll post. Like
     Jekyll, a UTF-8 byte-order mark is ignored; an indented (nested) key is not
     a page variable, so it is skipped."""
-    text = md_path.read_text(encoding="utf-8-sig")
-    m = re.match(r"^---\n(.*?)\n---", text, re.DOTALL)
-    if not m:
+    block, _ = read_post(md_path)
+    if block is None:
         return {}
     fm = {}
-    for line in m.group(1).splitlines():
+    for line in block.splitlines():
         if line[:1].isspace():
             continue
         if ":" in line:
@@ -201,9 +209,7 @@ def extract_featured_product_name(body: str, affiliate_url: str) -> str:
 def post_entry(md_path: Path, products: dict) -> dict:
     """One published post's checkable facts: its slug, its own Chewy link, and
     the product name that link has to agree with."""
-    text = md_path.read_text(encoding="utf-8")
-    fm_match = re.match(r"^---\n(.*?)\n---", text, re.DOTALL)
-    body = text[fm_match.end():] if fm_match else text
+    _, body = read_post(md_path)
     fm = parse_frontmatter(md_path)
     slug = extract_slug(md_path)
     queued = products.get(slug, {})
