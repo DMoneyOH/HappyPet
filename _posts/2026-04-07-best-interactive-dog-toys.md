@@ -13,6 +13,7 @@ tags: [interactive dog toys]
 description: "Fetch, tug, sniff or puzzle play: 8 interactive dog toys matched to how your dog plays, and which ones keep a dog busy without you."
 affiliate_url: "https://www.amazon.com/dp/B000F4AVPA?th=1&tag=happypetdc-20"
 product_short: "Chuckit! Ultra Ball (2-pack)"
+chewy_url: "https://chewy.sjv.io/c/7160344/3054490/32975?u=https%3A%2F%2Fwww.chewy.com%2Fchuckit-ultra-rubber-ball-tough-dog%2Fdp%2F38371&intsrc=APIG_24727"
 image: "https://images-na.ssl-images-amazon.com/images/P/B000F4AVPA.01.LZZZZZZZ.jpg"
 ---
 

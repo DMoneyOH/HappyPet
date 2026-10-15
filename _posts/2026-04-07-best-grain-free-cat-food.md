@@ -11,6 +11,7 @@ description: "Blue Buffalo, Merrick, Taste of the Wild and Wellness CORE compare
 image: "https://images-na.ssl-images-amazon.com/images/P/B002UT92EY.01.LZZZZZZZ.jpg"
 affiliate_url: "https://www.amazon.com/dp/B002UT92EY?tag=happypetdc-20"
 product_short: "Blue Buffalo Wilderness Grain-Free Cat Food"
+chewy_url: "https://chewy.sjv.io/c/7160344/3054490/32975?u=https%3A%2F%2Fwww.chewy.com%2Fblue-buffalo-wilderness-chicken%2Fdp%2F32098&intsrc=APIG_24727"
 ---
 
 Grain-free food fills a whole aisle, and plenty of owners switch hoping it will settle a sensitive stomach or an itchy, dull coat. Many owners report their cats do well on a grain-free diet, and brands pitch it as mirroring a cat's ancestral diet more closely, though vets are clear that true grain allergies in cats are rare, and there is no general evidence that dropping grains beats a conventional complete diet. But with so many options out there, how do you choose the best grain-free cat food without breaking the bank?
