@@ -7491,7 +7491,21 @@ class TestProductReviewStructuredData(unittest.TestCase):
                 self.assertLessEqual(float(rating["ratingValue"]), rating["bestRating"])
                 for actor in ("author", "publisher"):
                     self.assertTrue(review[actor]["name"], f"{actor} name is empty")
-                self.assertEqual(data["offers"]["url"], fm["affiliate_url"])
+                # Search Console flagged the old price-less Offer (2026-10-15).
+                self.assertNotIn("offers", data)
+
+    def test_no_offers_or_price_is_emitted(self):
+        """We are an affiliate site, not the seller: the shopper buys at the
+        retailer, so Merchant listings do not apply, and an Offer without a
+        price fails Search Console validation. A review alone keeps the page
+        eligible for Product snippets. Checked against the JSON-LD block with
+        Liquid comments stripped, so the note explaining the decision does not
+        itself trip the guard."""
+        emitted = re.sub(r"\{%-?\s*comment\s*-?%\}.*?\{%-?\s*endcomment\s*-?%\}",
+                         "", self._block(), flags=re.S)
+        for needle in ("offers", "Offer", "price"):
+            with self.subTest(needle=needle):
+                self.assertNotIn(needle, emitted)
 
     def test_no_aggregate_rating_is_invented(self):
         """AggregateRating means an average of many ratings. This repo holds no
