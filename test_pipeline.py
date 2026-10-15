@@ -10784,53 +10784,57 @@ class TestRefillWatchdog(unittest.TestCase):
         with patch.object(self.qa, "publishable_unpublished", return_value=["a", "b"]):
             self.assertEqual(pk.count_unpublished(), 2)
 
-    def _main(self, env, products=None, smtp=None):
-        env = {"GMAIL_SMTP_USER": "", "GMAIL_ACCOUNT": "", "GMAIL_APP_PASSWORD": "", **env}
-        with patch.dict(os.environ, env), \
-             patch.object(self.qa, "publishable_unpublished", return_value=products or []), \
-             patch.object(self.qa.smtplib, "SMTP", **(smtp or {})) as mock_smtp:
-            rc, out = io_capture(self.w.main)
-        return rc, out, mock_smtp
+    def _main(self, env, products=None, with_output=True):
+        """Run main() with SMTP mocked and mail credentials SET, so a send would
+        happen if any email path were left. Returns (rc, stdout, SMTP mock, the
+        GITHUB_OUTPUT values parsed the way the runner reads them, or None)."""
+        with tempfile.TemporaryDirectory() as d:
+            out = Path(d) / "github_output"
+            env = {"GMAIL_SMTP_USER": "u", "GMAIL_ACCOUNT": "u", "GMAIL_APP_PASSWORD": "x",
+                   "GITHUB_OUTPUT": str(out) if with_output else "", **env}
+            with patch.dict(os.environ, env), \
+                 patch.object(self.qa, "publishable_unpublished", return_value=products or []), \
+                 patch.object(self.qa.smtplib, "SMTP") as mock_smtp:
+                rc, stdout = io_capture(self.w.main)
+            outputs = _parse_github_output(out.read_text(encoding="utf-8")) if out.exists() else None
+        return rc, stdout, mock_smtp, outputs
 
-    def test_alert_without_mail_credentials_still_exits_red(self):
-        rc, out, smtp = self._main({"OPEN_REFILL_PRS": "[]"})
+    def test_an_alert_is_written_for_the_issue_step_and_exits_red(self):
+        rc, out, smtp, outputs = self._main({"OPEN_REFILL_PRS": "[42]"}, products=["best-a"])
         self.assertEqual(rc, 1)
         self.assertIn("ALERT", out)
-        self.assertIn("NOT sent", out)
+        self.assertEqual(outputs["reason"],
+                         "only 1 publishable topic(s) queued; refill PR(s) open but not merged: #42")
+        self.assertIn("/pull/42", outputs["body"])
+        self.assertIn("Run a refill, or merge the open refill PR.", outputs["body"])
+        self.assertEqual(sorted(outputs), ["body", "reason"])
+        smtp.assert_not_called()   # one alert path: no email, even with credentials set
+
+    def test_an_alert_without_github_output_still_exits_red(self):
+        rc, out, smtp, outputs = self._main({"OPEN_REFILL_PRS": "[]"}, with_output=False)
+        self.assertEqual(rc, 1)
+        self.assertIn("ALERT", out)
+        self.assertIsNone(outputs)
         smtp.assert_not_called()
-
-    def test_failed_send_is_reported_and_still_red(self):
-        rc, out, _ = self._main({"OPEN_REFILL_PRS": "[]", "GMAIL_APP_PASSWORD": "x"},
-                                smtp={"side_effect": OSError("no route")})
-        self.assertEqual(rc, 1)
-        self.assertIn("Alert email failed", out)
-
-    def test_sent_alert_names_the_open_pr_and_has_a_sender(self):
-        rc, out, smtp = self._main({"OPEN_REFILL_PRS": "[42]", "GMAIL_APP_PASSWORD": "x"},
-                                   products=["best-a"])
-        self.assertEqual(rc, 1)
-        conn = smtp.return_value.__enter__.return_value
-        sender, to, raw = conn.sendmail.call_args.args
-        self.assertEqual(sender, "hello@happypetproductreviews.com")  # never empty
-        self.assertEqual(to, ["hello@happypetproductreviews.com"])
-        self.assertIn("From: hello@happypetproductreviews.com", raw)
-        self.assertIn("/pull/42", raw)
-        conn.login.assert_called_once_with("hello@happypetproductreviews.com", "x")
 
     def test_a_non_ascii_digit_count_alerts_instead_of_crashing(self):
-        rc, out, _ = self._main({"OPEN_REFILL_PRS": "²"}, products=["a", "b", "c"])
+        rc, out, _, outputs = self._main({"OPEN_REFILL_PRS": "²"}, products=["a", "b", "c"])
         self.assertEqual(rc, 1)
         self.assertIn("could not be read", out)
+        self.assertIn("could not be read", outputs["reason"])
 
     def test_healthy_queue_exits_green_and_sends_nothing(self):
-        rc, _, smtp = self._main({"OPEN_REFILL_PRS": "[]"}, products=["a", "b"])
+        rc, _, smtp, outputs = self._main({"OPEN_REFILL_PRS": "[]"}, products=["a", "b"])
         self.assertEqual(rc, 0)
+        self.assertIsNone(outputs)
         smtp.assert_not_called()
 
-    def test_workflow_is_read_only_and_passes_values_through_env(self):
+    def test_workflow_writes_only_issues_and_passes_values_through_env(self):
         wf = (REPO / ".github" / "workflows" / "refill-watchdog.yml").read_text(encoding="utf-8")
         self.assertIn("permissions: {}", wf)
-        self.assertNotRegex(wf, r":\s*write")
+        self.assertEqual(_job_permissions(wf, "watchdog"),
+                         {"contents": "read", "pull-requests": "read", "issues": "write"})
+        self.assertEqual(re.findall(r"[\w-]+:\s*write", wf), ["issues: write"])
         self.assertIn("persist-credentials: false", wf)
         self.assertIn("open=unreadable", wf)
         self.assertIn("map(.number) | tojson", wf)
@@ -12090,6 +12094,549 @@ class TestSocialImage(unittest.TestCase):
     def test_pinterest_keeps_its_own_pin_image(self):
         post = (REPO / "_layouts" / "post.html").read_text(encoding="utf-8")
         self.assertRegex(post, r"pinterest\.com/pin/create/button/\?[^\"]*media=\{\{ page\.pin_image")
+
+
+# ---------------------------------------------------------------------------
+# Alert issues (Director-approved 2026-10-15): every workflow alert is one
+# deduplicated GitHub issue, and GitHub's own notification email carries it.
+# No workflow sends mail. Each issue step runs here in bash with `gh` stubbed by
+# a shell function that records its arguments, as TestPublishWritesTheHub does.
+# ---------------------------------------------------------------------------
+WORKFLOWS = REPO / ".github" / "workflows"
+GH_CALL_END = "---END-OF-CALL---"
+# `gh issue list` answers with $OPEN_ISSUES (one title per line, as
+# `--jq '.[].title'` prints them) or fails when $LIST_FAILS; `gh issue create`
+# fails when $CREATE_FAILS. Every call's args land in $GH_ARGS.
+GH_STUB = ('gh() {\n'
+           '  printf "%s\\n" "$@" >> "$GH_ARGS"; echo "' + GH_CALL_END + '" >> "$GH_ARGS"\n'
+           '  if [ "$1 $2" = "issue list" ]; then\n'
+           '    [ -n "$LIST_FAILS" ] && return 1\n'
+           '    [ -n "$OPEN_ISSUES" ] && printf "%s\\n" "$OPEN_ISSUES"\n'
+           '  fi\n'
+           '  if [ "$1 $2" = "issue create" ] && [ -n "$CREATE_FAILS" ]; then return 1; fi\n'
+           '  return 0\n}\n')
+RUN_URL_EXPR = "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+
+def _named_step(workflow_text, name):
+    """(head, script) of the step called `name`: head is the lines between its
+    name and its `run: |`, script the dedented run block. None if absent."""
+    m = re.search(r"\n      - name: " + re.escape(name) + r"\n((?:        (?!run:).*\n)*)"
+                  r"        run: \|\n((?:          .*\n|\n)*)", workflow_text)
+    return (m.group(1), textwrap.dedent(m.group(2))) if m else None
+
+
+def _job_permissions(text, job):
+    """The `permissions:` mapping of job `job` (a 2-space key under jobs:), or
+    None when the job is absent, has none, or holds anything but plain keys."""
+    lines = text.splitlines()
+    if f"  {job}:" not in lines:
+        return None
+    block = []
+    for ln in lines[lines.index(f"  {job}:") + 1:]:
+        if ln.strip() and not ln.startswith("   "):
+            break
+        block.append(ln)
+    starts = [i for i, ln in enumerate(block) if re.match(r"\s*permissions\s*:", ln)]
+    if len(starts) != 1 or block[starts[0]].rstrip() != "    permissions:":
+        return None
+    perms = {}
+    for ln in block[starts[0] + 1:]:
+        if not ln.strip() or ln.lstrip().startswith("#"):
+            continue
+        if not ln.startswith("      "):
+            break
+        m = re.fullmatch(r"      ([\w-]+):\s*(\S+?)(?:\s+#.*)?", ln)
+        if not m:
+            return None
+        perms[m.group(1)] = m.group(2)
+    return perms
+
+
+def _parse_github_output(text):
+    """GITHUB_OUTPUT as the runner reads it: `key=value` lines and
+    `key<<DELIM` ... `DELIM` blocks."""
+    out, lines, i = {}, text.split("\n"), 0
+    while i < len(lines):
+        line, i = lines[i], i + 1
+        if not line:
+            continue
+        m = re.fullmatch(r"([\w-]+)<<(\S+)", line)
+        if m:
+            end = lines.index(m.group(2), i)
+            out[m.group(1)], i = "\n".join(lines[i:end]), end + 1
+        else:
+            key, value = line.split("=", 1)
+            out[key] = value
+    return out
+
+
+def _run_alert_step(testcase, script, env, cwd, open_issues=(), list_fails=False,
+                    create_fails=False):
+    """Run an issue step's script in bash the way the runner does (-eo pipefail)
+    with `gh` stubbed. Returns (completed process, gh calls as lists of args)."""
+    import subprocess
+    bash, why = _bash_for_workflow_steps()
+    if not bash:
+        testcase.skipTest(why)
+    gh_args = Path(cwd) / "gh_args"
+    full_env = dict(os.environ, GH_ARGS=gh_args.as_posix(),
+                    OPEN_ISSUES="\n".join(open_issues), LIST_FAILS="1" if list_fails else "",
+                    CREATE_FAILS="1" if create_fails else "", **env)
+    proc = subprocess.run([bash, "--noprofile", "--norc", "-eo", "pipefail", "-c", GH_STUB + script],
+                          cwd=cwd, capture_output=True, text=True, encoding="utf-8", env=full_env)
+    raw = gh_args.read_text(encoding="utf-8") if gh_args.exists() else ""
+    calls = [chunk.split("\n")[:-1] if chunk.endswith("\n") else chunk.split("\n")
+             for chunk in raw.split(GH_CALL_END + "\n") if chunk]
+    return proc, calls
+
+
+def _eastern_now_or_skip(testcase):
+    """Now in America/New_York from Python's tz database, after checking the
+    step's bash can convert to it too; skips where either cannot (Git Bash on
+    Windows ships no zoneinfo). The CI runner has both."""
+    import subprocess
+    bash, why = _bash_for_workflow_steps()
+    if not bash:
+        testcase.skipTest(why)
+    probe = subprocess.run([bash, "--noprofile", "--norc", "-c", "TZ=America/New_York date -d @0 +%Z"],
+                           capture_output=True, text=True).stdout.strip()
+    if probe != "EST":
+        testcase.skipTest(f"this bash has no America/New_York zone (got {probe!r})")
+    try:
+        from zoneinfo import ZoneInfo
+        import datetime
+        return datetime.datetime.now(ZoneInfo("America/New_York"))
+    except Exception as exc:  # no tz database for Python here
+        testcase.skipTest(f"no America/New_York in Python's tz database: {exc}")
+
+
+class _AlertIssueStep:
+    """Checks every alert issue step shares. A subclass names the workflow and
+    step and supplies one failing scenario; these run it."""
+
+    WORKFLOW = STEP = None
+    TOKEN_EXPRS = ["secrets.GITHUB_TOKEN"]
+    RUN_URL = "https://github.com/DMoneyOH/HappyPet/actions/runs/4242"
+    RUN_URL_IN_ENV = True
+    ISSUE_REPO = "DMoneyOH/HappyPet"
+    TITLE_RE = None        # the title the scenario opens
+    TIME_LABEL = "Reported: "
+    TITLE_DATE_IS_EASTERN = True
+
+    @classmethod
+    def setUpClass(cls):
+        cls.workflow = (WORKFLOWS / cls.WORKFLOW).read_text(encoding="utf-8")
+        found = _named_step(cls.workflow, cls.STEP)
+        cls.head, cls.script = found if found else (None, None)
+
+    def scenario_env(self):
+        return {}
+
+    def prepare(self, tmp):
+        pass
+
+    def run_step(self, open_issues=(), list_fails=False, create_fails=False, **env):
+        self.assertIsNotNone(self.script, f"{self.WORKFLOW} has no step {self.STEP!r}")
+        with tempfile.TemporaryDirectory() as d:
+            self.prepare(Path(d))
+            return _run_alert_step(self, self.script,
+                                   {"RUN_URL": self.RUN_URL, **self.scenario_env(), **env},
+                                   d, open_issues, list_fails, create_fails)
+
+    @staticmethod
+    def creates(calls):
+        return [c for c in calls if c[:2] == ["issue", "create"]]
+
+    @staticmethod
+    def arg(call, flag):
+        return call[call.index(flag) + 1]
+
+    @staticmethod
+    def body(call):
+        return "\n".join(call[call.index("--body") + 1:call.index("--assignee")])
+
+    def opened(self, **kw):
+        """Run the scenario; assert it opened exactly one issue; (title, body)."""
+        proc, calls = self.run_step(**kw)
+        self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+        creates = self.creates(calls)
+        self.assertEqual(len(creates), 1, calls)
+        return self.arg(creates[0], "--title"), self.body(creates[0])
+
+    # -- static ---------------------------------------------------------------
+    def test_the_step_uses_only_the_token_and_keeps_expressions_out_of_bash(self):
+        self.assertIsNotNone(self.script, f"{self.WORKFLOW} has no step {self.STEP!r}")
+        self.assertEqual(re.findall(r"(?:secrets\.\w+|github\.token)", self.head + self.script),
+                         self.TOKEN_EXPRS)
+        # Values reach bash through env:, never as ${{ }} text inside the script.
+        self.assertNotIn("${{", self.script)
+        self.assertEqual(sorted(set(re.findall(r"\bgh (\w+ \w+)", self.script))),
+                         ["issue create", "issue list"])
+
+    def test_the_workflow_sends_no_email(self):
+        for needle in ("GMAIL_", "smtplib", "smtp."):
+            self.assertNotIn(needle, self.workflow.lower() if needle == "smtp." else self.workflow)
+
+    def test_the_run_link_comes_from_the_run_context(self):
+        if not self.RUN_URL_IN_ENV:
+            self.skipTest("this step's body carries the run link from its checker")
+        self.assertIn("          RUN_URL: " + RUN_URL_EXPR + "\n", self.head)
+
+    # -- behaviour --------------------------------------------------------------
+    def test_a_failure_opens_one_issue_naming_the_run(self):
+        proc, calls = self.run_step()
+        self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+        listing = calls[0]
+        self.assertEqual(listing[:2], ["issue", "list"], calls)
+        self.assertEqual(self.arg(listing, "--repo"), self.ISSUE_REPO)
+        self.assertEqual(self.arg(listing, "--state"), "open")
+        self.assertIn("--json", listing)
+        creates = self.creates(calls)
+        self.assertEqual(len(creates), 1, calls)
+        self.assertEqual(self.arg(creates[0], "--repo"), self.ISSUE_REPO)
+        self.assertEqual(self.arg(creates[0], "--assignee"), "DMoneyOH")
+        self.assertRegex(self.arg(creates[0], "--title"), self.TITLE_RE)
+        body = self.body(creates[0])
+        self.assertIn(self.RUN_URL, body)
+        self.assertIn(self.TIME_LABEL, body)
+        self.assertIn(f"_Auto-generated by {self.WORKFLOW}_", body)
+
+    def test_an_open_issue_with_the_same_title_stops_a_second(self):
+        title, _ = self.opened()
+        proc, calls = self.run_step(open_issues=["Unrelated open issue", title])
+        self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+        self.assertEqual([c[:2] for c in calls], [["issue", "list"]], calls)
+        self.assertIn("already open", proc.stdout)
+
+    def test_only_the_exact_title_stops_a_new_issue(self):
+        title, _ = self.opened()
+        for label, titles in (("prefix", [title[:-1]]), ("longer", [title + " (2)"]),
+                              ("case differs", [title.lower()]), ("quoted", [f"Re: {title}"]),
+                              ("none open", [])):
+            with self.subTest(case=label):
+                self.opened(open_issues=titles)
+
+    def test_a_failed_listing_still_opens_the_issue(self):
+        """An alert that could not check for a duplicate is worth a duplicate;
+        it is not worth silence."""
+        title, _ = self.opened()
+        self.opened(open_issues=[title], list_fails=True)
+
+    def test_an_issue_that_cannot_be_opened_turns_the_step_red(self):
+        proc, calls = self.run_step(create_fails=True)
+        self.assertNotEqual(proc.returncode, 0)
+        self.assertEqual(len(self.creates(calls)), 1, calls)
+
+    def test_the_title_date_and_the_time_are_eastern(self):
+        now = _eastern_now_or_skip(self)
+        title, body = self.opened()
+        line = next(ln for ln in body.splitlines() if ln.startswith(self.TIME_LABEL))
+        self.assertRegex(line, r" (?:1[0-2]|[1-9]):[0-5]\d [AP]M E[SD]T$")
+        self.assertIn(now.strftime("%Z"), line)
+        if self.TITLE_DATE_IS_EASTERN:
+            # The behavioural check below only tells ET from UTC between 20:00 and
+            # midnight ET, so the step's date source is also pinned as written.
+            self.assertIn("DAY=$(TZ=America/New_York date +%F)\n", self.script)
+            self.assertIn(now.strftime("%Y-%m-%d"), title)
+
+
+class TestSlotWatchdog(_AlertIssueStep, unittest.TestCase):
+    """slot-watchdog.yml: 4 hours after a Mon/Thu publish slot, no post dated
+    that UTC day on main opens one issue for the day."""
+
+    WORKFLOW = "slot-watchdog.yml"
+    STEP = "Missed slot — create GitHub issue"
+    TITLE_RE = r"^⚠️ Missed publish slot: no post on main for Thu 2026-10-15$"
+    TIME_LABEL = "Checked: "
+    TITLE_DATE_IS_EASTERN = False   # the slot's own UTC day, not today's
+    POSTS = ("2026-10-12-best-a.md", "2026-10-16-best-b.md", "DRAFT-best-c.md")
+
+    def scenario_env(self):
+        return {"SLOT_DATE": "2026-10-15", "REPO_URL": "https://github.com/DMoneyOH/HappyPet"}
+
+    def prepare(self, tmp):
+        (tmp / "_posts").mkdir()
+        for name in self.POSTS:
+            (tmp / "_posts" / name).write_text("---\n---\n", encoding="utf-8")
+
+    def test_it_runs_four_hours_after_each_publish_slot(self):
+        publish = (WORKFLOWS / "publish.yml").read_text(encoding="utf-8")
+        self.assertEqual(re.findall(r"- cron: '([^']*)'", publish), ["0 12 * * 1,4"])
+        self.assertEqual(re.findall(r"- cron: '([^']*)'", self.workflow), ["0 16 * * 1,4"])
+        self.assertIn("\n  workflow_dispatch:\n", self.workflow)
+
+    def test_it_reads_main_and_may_only_open_issues(self):
+        self.assertEqual(_workflow_permissions(self.workflow), ({"contents": "read", "issues": "write"}, 1))
+        self.assertIn("uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4\n", self.workflow)
+        self.assertIn("          ref: main\n", self.workflow)
+        self.assertIn("          persist-credentials: false\n", self.workflow)
+        self.assertIn("          SLOT_DATE: ${{ inputs.date }}\n", self.head)
+
+    def test_a_filled_slot_opens_nothing(self):
+        for day, post in (("2026-10-15", "2026-10-15-best-d.md"), ("2026-10-12", None)):
+            with self.subTest(day=day):
+                with tempfile.TemporaryDirectory() as d:
+                    self.prepare(Path(d))
+                    if post:
+                        (Path(d) / "_posts" / post).write_text("x", encoding="utf-8")
+                    proc, calls = _run_alert_step(self, self.script,
+                                                  {**self.scenario_env(), "SLOT_DATE": day,
+                                                   "RUN_URL": self.RUN_URL}, d)
+                self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+                self.assertEqual(calls, [])
+                self.assertIn("filled", proc.stdout)
+
+    def test_drafts_and_other_days_do_not_fill_the_slot(self):
+        title, body = self.opened()
+        self.assertIn("main has no `_posts/2026-10-15-*.md`", body)
+        self.assertIn("stage1/", body)
+        self.assertIn("/actions/workflows/publish.yml", body)
+
+    def test_a_missed_monday_is_named_monday(self):
+        with tempfile.TemporaryDirectory() as d:
+            (Path(d) / "_posts").mkdir()
+            proc, calls = _run_alert_step(self, self.script, {**self.scenario_env(),
+                                          "SLOT_DATE": "2026-10-12", "RUN_URL": self.RUN_URL}, d)
+        self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+        self.assertEqual([self.arg(c, "--title") for c in self.creates(calls)],
+                         ["⚠️ Missed publish slot: no post on main for Mon 2026-10-12"])
+
+    def test_a_day_without_a_slot_opens_nothing(self):
+        for day in ("2026-10-13", "2026-10-14", "2026-10-16", "2026-10-17", "2026-10-18"):
+            with self.subTest(day=day):
+                proc, calls = self.run_step(SLOT_DATE=day)
+                self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+                self.assertEqual(calls, [])
+                self.assertIn("not a publish day", proc.stdout)
+
+    def test_a_malformed_date_fails_without_opening_anything(self):
+        for day in ("2026-02-30", "15/10/2026", "2026-10-15; touch pwned", "$(touch pwned)",
+                    "2026-10-15\n2026-10-12"):
+            with self.subTest(day=day):
+                with tempfile.TemporaryDirectory() as d:
+                    self.prepare(Path(d))
+                    proc, calls = _run_alert_step(self, self.script, {**self.scenario_env(),
+                                                  "SLOT_DATE": day, "RUN_URL": self.RUN_URL}, d)
+                    self.assertFalse((Path(d) / "pwned").exists())
+                self.assertNotEqual(proc.returncode, 0)
+                self.assertEqual(calls, [])
+
+    def test_a_blank_date_checks_today_in_utc(self):
+        import datetime
+        today = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d")
+        proc, calls = self.run_step(SLOT_DATE="")
+        self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+        self.assertIn(today, proc.stdout + "".join(self.arg(c, "--title") for c in self.creates(calls)))
+
+    def test_the_slot_time_is_given_in_eastern_time(self):
+        """12:00 UTC is 8:00 AM EDT in October and 7:00 AM EST in December."""
+        _eastern_now_or_skip(self)
+        for day, slot in (("2026-10-15", "(12:00 UTC, 8:00 AM EDT)"),
+                          ("2026-12-03", "(12:00 UTC, 7:00 AM EST)")):
+            with self.subTest(day=day):
+                _, body = self.opened(SLOT_DATE=day)
+                self.assertIn(slot, body)
+
+
+class TestPublishFailureIssue(_AlertIssueStep, unittest.TestCase):
+    """publish.yml: a failed publish opens one issue a day, except when the hub
+    step failed, which already opened its own."""
+
+    WORKFLOW = "publish.yml"
+    STEP = "Publish failed — create GitHub issue"
+    TITLE_RE = r"^⚠️ Publish failed on \d{4}-\d{2}-\d{2}$"
+
+    def scenario_env(self):
+        return {"TRIGGER": "push", "PUSHED": "skipped"}
+
+    def test_it_fires_on_failure_unless_the_hub_issue_already_did(self):
+        self.assertIn("        if: failure() && steps.hub.outcome != 'failure'\n", self.head)
+        names = re.findall(r"^      - name: (.+)$", self.workflow, re.M)
+        self.assertEqual(names[-1], self.STEP)
+        self.assertIn("          PUSHED: ${{ steps.push.outcome }}\n", self.head)
+        self.assertIn("          TRIGGER: ${{ github.event_name }}\n", self.head)
+        push_head, _ = _named_step(self.workflow, "Commit and push")
+        self.assertIn("        id: push\n", push_head)
+
+    def test_the_token_is_not_widened(self):
+        self.assertEqual(_workflow_permissions(self.workflow), (PUBLISH_PERMISSIONS, 1))
+
+    def test_the_body_says_whether_the_post_reached_main(self):
+        for pushed, says, never in (("skipped", "Nothing was published", "the post is published"),
+                                    ("failure", "Nothing was published", "the post is published"),
+                                    ("", "Nothing was published", "the post is published"),
+                                    ("success", "the post is published", "Nothing was published")):
+            with self.subTest(pushed=pushed):
+                _, body = self.opened(PUSHED=pushed)
+                self.assertIn(says, body)
+                self.assertNotIn(never, body)
+                self.assertIn("Trigger: push", body)
+                self.assertIn("job `publish`", body)
+
+
+class TestDeployFailureIssue(_AlertIssueStep, unittest.TestCase):
+    """deploy.yml: a report job after every other job opens one issue naming
+    the job that failed. Only that job may write issues."""
+
+    WORKFLOW = "deploy.yml"
+    STEP = "Deploy failed — create GitHub issue"
+    TITLE_RE = r"^⚠️ Deploy failed on \d{4}-\d{2}-\d{2}: build$"
+
+    def scenario_env(self):
+        return {"TRIGGER": "push", "BUILD": "failure", "DEPLOY": "skipped", "PINS": "skipped"}
+
+    def test_the_report_job_follows_every_job_and_fires_on_failure(self):
+        jobs_text = self.workflow[self.workflow.index("\njobs:\n"):]
+        jobs = re.findall(r"^  ([\w-]+):$", jobs_text, re.M)
+        self.assertEqual(jobs, ["build", "deploy", "trigger-pins", "report-failure"])
+        report = jobs_text[jobs_text.index("\n  report-failure:\n"):]
+        self.assertIn("\n    needs: [build, deploy, trigger-pins]\n", report)
+        self.assertIn("\n    if: failure()\n", report)
+        self.assertNotIn("uses:", report)   # no checkout: it reads nothing
+        for var, job in (("BUILD", "build"), ("DEPLOY", "deploy"), ("PINS", "trigger-pins")):
+            self.assertIn(f"          {var}: ${{{{ needs.{job}.result }}}}\n", self.head)
+
+    def test_only_the_report_job_gains_issues_write(self):
+        self.assertEqual(_workflow_permissions(self.workflow),
+                         ({"contents": "read", "pages": "write", "id-token": "write"}, 4))
+        self.assertEqual(_job_permissions(self.workflow, "report-failure"), {"issues": "write"})
+        self.assertEqual(_job_permissions(self.workflow, "deploy"),
+                         {"pages": "write", "id-token": "write"})
+        self.assertEqual(_job_permissions(self.workflow, "trigger-pins"),
+                         {"contents": "read", "actions": "write"})
+        self.assertIsNone(_job_permissions(self.workflow, "build"))
+        self.assertEqual(self.workflow.count("issues: write"), 1)
+
+    def test_the_issue_names_each_failed_job_and_what_to_do(self):
+        for results, suffix, says, never in (
+                (("failure", "skipped", "skipped"), "build", "Jekyll build failed", "pin.yml by hand"),
+                (("success", "failure", "skipped"), "deploy", "GitHub Pages did not take it", "Jekyll"),
+                (("success", "success", "failure"), "trigger-pins", "Run pin.yml by hand", "Jekyll"),
+                (("success", "success", "success"), "unknown job", "Open the run", "Jekyll")):
+            with self.subTest(results=results):
+                title, body = self.opened(**dict(zip(("BUILD", "DEPLOY", "PINS"), results)))
+                self.assertTrue(title.endswith(": " + suffix), title)
+                self.assertIn(says, body)
+                self.assertNotIn(never, body)
+                self.assertIn(f"failed in: {suffix}.", body)
+
+
+class TestPinFailureIssue(_AlertIssueStep, unittest.TestCase):
+    """pin.yml: a failed pin run opens one issue a day per slug list, in place
+    of the old Gmail alert."""
+
+    WORKFLOW = "pin.yml"
+    STEP = "Alert on failure"
+    TITLE_RE = r"^⚠️ Pins failed on \d{4}-\d{2}-\d{2}: best-a,best-b$"
+
+    def scenario_env(self):
+        return {"SLUGS": "best-a,best-b", "LIVE": "true", "POSTED": "failure"}
+
+    def test_the_token_is_pinned(self):
+        self.assertEqual(_workflow_permissions(self.workflow),
+                         ({"contents": "write", "issues": "write"}, 1))
+        self.assertIn("        if: failure() && steps.resolve.outputs.nothing_to_pin != 'true'\n", self.head)
+        self.assertIn("          SLUGS: ${{ steps.resolve.outputs.slugs }}\n", self.head)
+
+    def test_the_body_says_which_stage_failed(self):
+        for env, says in (({"LIVE": "false", "POSTED": ""}, "not live after 30 minutes"),
+                          ({"LIVE": "true", "POSTED": "failure"}, "post_pins.py reported a failed"),
+                          ({"LIVE": "true", "POSTED": "success"}, "the run log names it")):
+            with self.subTest(env=env):
+                _, body = self.opened(**env)
+                self.assertIn(says, body)
+                self.assertIn("failed for: best-a,best-b.", body)
+
+    def test_slugs_are_data_not_shell(self):
+        with tempfile.TemporaryDirectory() as d:
+            hostile = "best-a,$(touch pwned),`touch pwned2`;touch pwned3"
+            proc, calls = _run_alert_step(self, self.script, {**self.scenario_env(),
+                                          "SLUGS": hostile, "RUN_URL": self.RUN_URL}, d)
+            self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+            self.assertEqual(sorted(p.name for p in Path(d).iterdir()), ["gh_args"])
+        self.assertTrue(self.arg(self.creates(calls)[0], "--title").endswith(": " + hostile))
+
+    def test_no_slugs_still_names_the_failure(self):
+        title, body = self.opened(SLUGS="")
+        self.assertTrue(title.endswith(": no slugs resolved"), title)
+
+
+class TestFacebookTokenIssue(_AlertIssueStep, unittest.TestCase):
+    """refresh-facebook-token.yml: a failed monthly check opens one issue."""
+
+    WORKFLOW = "refresh-facebook-token.yml"
+    STEP = "Alert on token failure"
+    TITLE_RE = r"^⚠️ Facebook Page token check failed on \d{4}-\d{2}-\d{2}$"
+
+    def test_the_token_may_only_open_issues(self):
+        self.assertEqual(_workflow_permissions(self.workflow), ({"issues": "write"}, 1))
+        self.assertIn("        if: failure()\n", self.head)
+
+    def test_the_body_says_what_to_do(self):
+        _, body = self.opened()
+        self.assertIn("FACEBOOK_PAGE_TOKEN", body)
+        self.assertIn("/me/accounts", body)
+
+
+class TestRefillWatchdogIssue(_AlertIssueStep, unittest.TestCase):
+    """refill-watchdog.yml: refill_watchdog.py's alert, opened as an issue by
+    the next step from the reason and body the script writes."""
+
+    WORKFLOW = "refill-watchdog.yml"
+    STEP = "Queue low — create GitHub issue"
+    TOKEN_EXPRS = ["github.token"]
+    RUN_URL_IN_ENV = False
+    TITLE_RE = (r"^⚠️ Refill watchdog \d{4}-\d{2}-\d{2}: only 1 publishable topic\(s\) "
+                r"queued; refill PR\(s\) open but not merged: #42$")
+
+    def checker_outputs(self, prs="[42]", products=("best-a",)):
+        """Run refill_watchdog.main() for real and read back what it wrote to
+        GITHUB_OUTPUT, as the runner would hand it to the next step."""
+        import refill_watchdog
+        import queue_alert
+        with tempfile.TemporaryDirectory() as d:
+            out = Path(d) / "github_output"
+            env = {"OPEN_REFILL_PRS": prs, "GITHUB_OUTPUT": str(out),
+                   "GITHUB_REPOSITORY": self.ISSUE_REPO, "GITHUB_RUN_ID": "4242"}
+            with patch.dict(os.environ, env), \
+                 patch.object(queue_alert, "publishable_unpublished", return_value=list(products)):
+                rc, _ = io_capture(refill_watchdog.main)
+            self.assertEqual(rc, 1)
+            return _parse_github_output(out.read_text(encoding="utf-8"))
+
+    def scenario_env(self):
+        outputs = self.checker_outputs()
+        return {"REPO": self.ISSUE_REPO, "REASON": outputs["reason"], "BODY": outputs["body"]}
+
+    def test_the_step_fires_on_any_failure_of_the_job(self):
+        self.assertIn("        if: failure()\n", self.head)
+        check_head = self.workflow[self.workflow.index("Check queue depth"):self.workflow.index(self.STEP)]
+        self.assertIn("        id: check\n", check_head)
+        self.assertIn("          REASON: ${{ steps.check.outputs.reason }}\n", self.head)
+        self.assertIn("          BODY: ${{ steps.check.outputs.body }}\n", self.head)
+
+    def test_the_issue_carries_the_checkers_body(self):
+        _, body = self.opened()
+        self.assertIn("Refill watchdog: only 1 publishable topic(s) queued", body)
+        self.assertIn("https://github.com/DMoneyOH/HappyPet/pull/42", body)
+        self.assertIn("Close this issue once the queue is refilled.", body)
+
+    def test_a_checker_that_died_still_opens_an_issue(self):
+        title, body = self.opened(REASON="", BODY="")
+        self.assertTrue(title.endswith(": the queue check itself failed"), title)
+        self.assertIn("failed before it could report the queue depth", body)
+
+
+class TestOneAlertPath(unittest.TestCase):
+    """No workflow mails an alert; the opt-in preflight test email and the held
+    legacy Stage 1 are the only workflows left holding the GMAIL_* secrets."""
+
+    def test_only_preflight_and_legacy_generate_name_gmail(self):
+        holders = sorted(p.name for p in WORKFLOWS.glob("*.yml")
+                         if "GMAIL_" in p.read_text(encoding="utf-8")
+                         or "smtplib" in p.read_text(encoding="utf-8"))
+        self.assertEqual(holders, ["generate.yml", "preflight.yml"])
 
 
 if __name__ == "__main__":

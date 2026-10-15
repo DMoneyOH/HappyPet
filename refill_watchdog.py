@@ -4,20 +4,22 @@
 Keyed on queue DEPTH, not on whether a refill job ran, so it catches every cause
 at once: the PC was off, Chrome was dead, the wrapper never started, a refill PR
 is sitting held, or nobody merged it. Depth is queue_alert.publishable_unpublished,
-the same count push_pins_to_sheets' queue-low email uses.
+the same count push_pins_to_sheets' queue-low check uses.
 
   ALERT when fewer than MIN_DEPTH publishable topics are queued (an open refill PR
-        is named in the email, but does not silence it: it is not merged yet), or
+        is named in the alert, but does not silence it: it is not merged yet), or
         when the open-PR list could not be read (fail closed).
 
 Env: OPEN_REFILL_PRS, the JSON list of open refill/* PR numbers the workflow read
-with gh (anything else is "unreadable"), and the GMAIL_* secrets queue_alert uses.
+with gh (anything else is "unreadable"). The alert is written to GITHUB_OUTPUT as
+`reason` (one line) and `body`; the workflow's next step opens the GitHub issue.
 Exit 0 healthy; exit 1 after alerting, so the run goes red and GitHub's own
-failed-run notice is a second channel even when the email cannot be sent.
+failed-run notice is a second channel even when the issue cannot be opened.
 """
 import json
 import os
 import sys
+import uuid
 
 import queue_alert
 
@@ -60,8 +62,11 @@ def main() -> int:
     body = (f"Refill watchdog: {reason}.\n\nThe Mon/Thu publish runs out when the queue "
             f"does. Run a refill, or merge the open refill PR.{links}\n\n"
             f"Run: https://github.com/{repo}/actions/runs/{os.environ.get('GITHUB_RUN_ID', '?')}")
-    _, what = queue_alert.send_alert(f"[HappyPet] Refill watchdog: {reason}", body)
-    print(what)
+    out = os.environ.get("GITHUB_OUTPUT")
+    if out:
+        end = f"EOF_{uuid.uuid4().hex}"   # a delimiter the body cannot contain
+        with open(out, "a", encoding="utf-8") as fh:
+            fh.write(f"reason={reason}\nbody<<{end}\n{body}\n{end}\n")
     return 1
 
 

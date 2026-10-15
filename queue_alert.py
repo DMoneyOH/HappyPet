@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
-"""queue_alert.py -- the ONE definition of queue depth and the ONE alert sender,
-shared by push_pins_to_sheets' queue-low email and refill_watchdog, so the two
-alerts can never disagree about how many topics are left.
+"""queue_alert.py -- the ONE definition of queue depth, shared by
+push_pins_to_sheets' queue-low check and refill_watchdog, so the two can never
+disagree about how many topics are left. send_alert is push_pins' email sender;
+refill_watchdog alerts through a GitHub issue instead.
 
 Depth counts only PUBLISHABLE unpublished entries (validate_product passes): a
 queue of held NEEDS_* placeholders posts nothing, so it is not depth.
