@@ -10803,12 +10803,34 @@ class TestRefillWatchdog(unittest.TestCase):
         rc, out, smtp, outputs = self._main({"OPEN_REFILL_PRS": "[42]"}, products=["best-a"])
         self.assertEqual(rc, 1)
         self.assertIn("ALERT", out)
-        self.assertEqual(outputs["reason"],
-                         "only 1 publishable topic(s) queued; refill PR(s) open but not merged: #42")
+        self.assertEqual(outputs["summary"], "the topic queue is low")
+        self.assertIn("Refill watchdog: only 1 publishable topic(s) queued; "
+                      "refill PR(s) open but not merged: #42.", outputs["body"])
         self.assertIn("/pull/42", outputs["body"])
         self.assertIn("Run a refill, or merge the open refill PR.", outputs["body"])
-        self.assertEqual(sorted(outputs), ["body", "reason"])
+        self.assertIn("Close this issue once the queue is refilled.", outputs["body"])
+        self.assertEqual(sorted(outputs), ["body", "summary"])
         smtp.assert_not_called()   # one alert path: no email, even with credentials set
+
+    def test_the_summary_carries_no_count_so_reruns_share_a_title(self):
+        summaries = {self._main({"OPEN_REFILL_PRS": prs}, products=products)[3]["summary"]
+                     for prs, products in (("[]", []), ("[]", ["a"]), ("[42]", ["a"]), ("[7,9]", []))}
+        self.assertEqual(summaries, {"the topic queue is low"})
+        unreadable = {self._main({"OPEN_REFILL_PRS": "x"}, products=products)[3]["summary"]
+                      for products in ([], ["a", "b", "c"])}
+        self.assertEqual(unreadable, {"open refill PRs could not be read"})
+
+    def test_an_unreadable_pr_list_gets_advice_for_that_cause(self):
+        """The fault is the PR listing, not the queue, so the advice is to fix the
+        listing and re-run, never "close once the queue is refilled"."""
+        _, _, _, outputs = self._main({"OPEN_REFILL_PRS": "unreadable"}, products=["a", "b", "c"])
+        body = outputs["body"]
+        self.assertIn("open refill PRs could not be read; 3 publishable topic(s) queued", body)
+        self.assertIn("\"Count open refill PRs\" step could not list", body)
+        self.assertIn("re-run this workflow", body)
+        self.assertIn("Close this issue once a watchdog run passes.", body)
+        self.assertNotIn("queue is refilled", body)
+        self.assertNotIn("merge the open refill PR", body)
 
     def test_an_alert_without_github_output_still_exits_red(self):
         rc, out, smtp, outputs = self._main({"OPEN_REFILL_PRS": "[]"}, with_output=False)
@@ -10821,7 +10843,7 @@ class TestRefillWatchdog(unittest.TestCase):
         rc, out, _, outputs = self._main({"OPEN_REFILL_PRS": "²"}, products=["a", "b", "c"])
         self.assertEqual(rc, 1)
         self.assertIn("could not be read", out)
-        self.assertIn("could not be read", outputs["reason"])
+        self.assertEqual(outputs["summary"], "open refill PRs could not be read")
 
     def test_healthy_queue_exits_green_and_sends_nothing(self):
         rc, _, smtp, outputs = self._main({"OPEN_REFILL_PRS": "[]"}, products=["a", "b"])
@@ -11576,6 +11598,7 @@ class TestPublishWritesTheHub(unittest.TestCase):
         names = re.findall(r"^      - name: (.+)$", self.workflow, re.M)
         self.assertEqual(names.index(self.ISSUE_STEP), names.index(self.HUB_STEP) + 1)
         head, script = self._step(self.ISSUE_STEP)
+        self.assertIn("id: hub_issue\n", head)
         self.assertIn("if: failure() && steps.hub.outcome == 'failure'\n", head)
         self.assertEqual(re.findall(r"secrets\.\w+", head + script), ["secrets.GITHUB_TOKEN"])
         self.assertIn("gh issue create", script)
@@ -11695,7 +11718,19 @@ class TestPublishWritesTheHub(unittest.TestCase):
             self.assertIn(f"ERROR treats: no {missing} in {hub_pages.COPY_FILE}", body)
             self.assertIn("nothing was published", body)
 
-    BLOCKED_TITLE = "⚠️ Publish blocked: no hub copy for treats"
+    @property
+    def BLOCKED_TITLE(self):
+        """The dated title the step opens today. The day comes from the same
+        `TZ=America/New_York date` the step runs: what is under test here is the
+        exact-title dedup; the ET conversion has its own tests (_AlertIssueStep)."""
+        import subprocess
+        bash, why = _bash_for_workflow_steps()
+        if not bash:
+            self.skipTest(why)
+        day = subprocess.run([bash, "--noprofile", "--norc", "-c", "TZ=America/New_York date +%F"],
+                             capture_output=True, text=True, env=dict(os.environ, TZ="UTC"),
+                             check=True).stdout.strip()
+        return f"⚠️ Publish blocked on {day}: no hub copy for treats"
 
     @staticmethod
     def _creates(calls):
@@ -11735,9 +11770,11 @@ class TestPublishWritesTheHub(unittest.TestCase):
         """Exact title, so a different topic set, a longer one that merely
         contains this topic, and another alert all still get their own issue."""
         for label, titles in (
-                ("different topic", ["⚠️ Publish blocked: no hub copy for tech"]),
-                ("superset of topics", ["⚠️ Publish blocked: no hub copy for treats,tech"]),
-                ("prefix of the title", ["⚠️ Publish blocked: no hub copy for"]),
+                ("different topic", [self.BLOCKED_TITLE.replace("treats", "tech")]),
+                ("superset of topics", [self.BLOCKED_TITLE + ",tech"]),
+                ("prefix of the title", [self.BLOCKED_TITLE[:-len("treats")]]),
+                ("another day", [re.sub(r"\d{4}-\d{2}-\d{2}", "2026-01-01", self.BLOCKED_TITLE)]),
+                ("undated, as before 2026-10-15", ["⚠️ Publish blocked: no hub copy for treats"]),
                 ("same words, other alert", ["Queue low: no hub copy for treats"]),
                 ("case differs", [self.BLOCKED_TITLE.lower()]),
                 ("no open issues", [])):
@@ -12225,12 +12262,17 @@ class _AlertIssueStep:
     TITLE_RE = None        # the title the scenario opens
     TIME_LABEL = "Reported: "
     TITLE_DATE_IS_EASTERN = True
+    CREATE_FAILURE_IS_FATAL = True   # False where a failed create must only warn
 
     @classmethod
     def setUpClass(cls):
         cls.workflow = (WORKFLOWS / cls.WORKFLOW).read_text(encoding="utf-8")
         found = _named_step(cls.workflow, cls.STEP)
         cls.head, cls.script = found if found else (None, None)
+        if cls.script:
+            # An inline `python3 -c` runs this interpreter, as the hub tests do.
+            import shlex
+            cls.script = cls.script.replace("python3 ", shlex.quote(Path(sys.executable).as_posix()) + " ")
 
     def scenario_env(self):
         return {}
@@ -12326,9 +12368,15 @@ class _AlertIssueStep:
         self.opened(open_issues=[title], list_fails=True)
 
     def test_an_issue_that_cannot_be_opened_turns_the_step_red(self):
+        """Red, so GitHub's failed-run notice still reaches someone. Where the
+        step must never stop its job, a failed create warns in the log instead."""
         proc, calls = self.run_step(create_fails=True)
-        self.assertNotEqual(proc.returncode, 0)
         self.assertEqual(len(self.creates(calls)), 1, calls)
+        if self.CREATE_FAILURE_IS_FATAL:
+            self.assertNotEqual(proc.returncode, 0)
+        else:
+            self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+            self.assertIn("::warning::gh issue create failed", proc.stdout)
 
     def test_the_title_date_and_the_time_are_eastern(self):
         now = _eastern_now_or_skip(self)
@@ -12356,7 +12404,8 @@ class TestSlotWatchdog(_AlertIssueStep, unittest.TestCase):
     TITLE_RE = r"^⚠️ Missed publish slot: no post on main for Thu 2026-10-15$"
     TIME_LABEL = "Checked: "
     TITLE_DATE_IS_EASTERN = False   # the slot's own UTC day, not today's
-    POSTS = ("2026-10-12-best-a.md", "2026-10-16-best-b.md", "DRAFT-best-c.md")
+    POSTS = ("2026-10-12-best-a.md", "2026-10-16-best-b.md", "DRAFT-best-c.md",
+             "DRAFT-2026-10-15-best-e.md")   # names the day but is not a dated post
 
     def scenario_env(self):
         return {"SLOT_DATE": "2026-10-15", "REPO_URL": "https://github.com/DMoneyOH/HappyPet"}
@@ -12457,7 +12506,11 @@ class TestPublishFailureIssue(_AlertIssueStep, unittest.TestCase):
         return {"TRIGGER": "push", "PUSHED": "skipped"}
 
     def test_it_fires_on_failure_unless_the_hub_issue_already_did(self):
-        self.assertIn("        if: failure() && steps.hub.outcome != 'failure'\n", self.head)
+        """Skipped only when the hub-copy issue step succeeded (filed or found its
+        issue). A hub block whose own issue failed to open still gets reported."""
+        self.assertIn("        if: failure() && steps.hub_issue.outcome != 'success'\n", self.head)
+        hub_head, _ = _named_step(self.workflow, "Hub without copy — create GitHub issue")
+        self.assertIn("        id: hub_issue\n", hub_head)
         names = re.findall(r"^      - name: (.+)$", self.workflow, re.M)
         self.assertEqual(names[-1], self.STEP)
         self.assertIn("          PUSHED: ${{ steps.push.outcome }}\n", self.head)
@@ -12587,14 +12640,13 @@ class TestFacebookTokenIssue(_AlertIssueStep, unittest.TestCase):
 
 class TestRefillWatchdogIssue(_AlertIssueStep, unittest.TestCase):
     """refill-watchdog.yml: refill_watchdog.py's alert, opened as an issue by
-    the next step from the reason and body the script writes."""
+    the next step from the summary and body the script writes."""
 
     WORKFLOW = "refill-watchdog.yml"
     STEP = "Queue low — create GitHub issue"
     TOKEN_EXPRS = ["github.token"]
     RUN_URL_IN_ENV = False
-    TITLE_RE = (r"^⚠️ Refill watchdog \d{4}-\d{2}-\d{2}: only 1 publishable topic\(s\) "
-                r"queued; refill PR\(s\) open but not merged: #42$")
+    TITLE_RE = r"^⚠️ Refill watchdog \d{4}-\d{2}-\d{2}: the topic queue is low$"
 
     def checker_outputs(self, prs="[42]", products=("best-a",)):
         """Run refill_watchdog.main() for real and read back what it wrote to
@@ -12613,13 +12665,13 @@ class TestRefillWatchdogIssue(_AlertIssueStep, unittest.TestCase):
 
     def scenario_env(self):
         outputs = self.checker_outputs()
-        return {"REPO": self.ISSUE_REPO, "REASON": outputs["reason"], "BODY": outputs["body"]}
+        return {"REPO": self.ISSUE_REPO, "SUMMARY": outputs["summary"], "BODY": outputs["body"]}
 
     def test_the_step_fires_on_any_failure_of_the_job(self):
         self.assertIn("        if: failure()\n", self.head)
         check_head = self.workflow[self.workflow.index("Check queue depth"):self.workflow.index(self.STEP)]
         self.assertIn("        id: check\n", check_head)
-        self.assertIn("          REASON: ${{ steps.check.outputs.reason }}\n", self.head)
+        self.assertIn("          SUMMARY: ${{ steps.check.outputs.summary }}\n", self.head)
         self.assertIn("          BODY: ${{ steps.check.outputs.body }}\n", self.head)
 
     def test_the_issue_carries_the_checkers_body(self):
@@ -12629,9 +12681,161 @@ class TestRefillWatchdogIssue(_AlertIssueStep, unittest.TestCase):
         self.assertIn("Close this issue once the queue is refilled.", body)
 
     def test_a_checker_that_died_still_opens_an_issue(self):
-        title, body = self.opened(REASON="", BODY="")
+        title, body = self.opened(SUMMARY="", BODY="")
         self.assertTrue(title.endswith(": the queue check itself failed"), title)
         self.assertIn("failed before it could report the queue depth", body)
+        self.assertIn("re-run the workflow. Close this issue once a watchdog run passes.", body)
+        self.assertIn("Run: ", body)
+        self.assertNotIn("queue is refilled", body)
+
+    def test_an_unreadable_pr_list_opens_an_issue_with_its_own_advice(self):
+        outputs = self.checker_outputs(prs="unreadable", products=("a", "b", "c"))
+        title, body = self.opened(SUMMARY=outputs["summary"], BODY=outputs["body"])
+        self.assertTrue(title.endswith(": open refill PRs could not be read"), title)
+        self.assertIn("Close this issue once a watchdog run passes.", body)
+        self.assertNotIn("queue is refilled", body)
+
+    def test_a_same_day_rerun_with_a_new_count_finds_the_open_issue(self):
+        """Depth 1 then depth 0 the same day is one issue: the count is in the
+        body, never the title."""
+        first, _ = self.opened()
+        later = self.checker_outputs(prs="[]", products=())
+        proc, calls = self.run_step(open_issues=[first], SUMMARY=later["summary"], BODY=later["body"])
+        self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+        self.assertEqual(self.creates(calls), [], calls)
+
+
+class TestStalePendingSlugsIssue(_AlertIssueStep, unittest.TestCase):
+    """publish.yml's missed-pins guard: a .pending-slugs older than 24 hours
+    opens one issue a day. It must never stop the publish, so a failed create
+    only warns."""
+
+    WORKFLOW = "publish.yml"
+    STEP = "Check for stale pending-slugs (missed pins guard)"
+    TITLE_RE = r"^⚠️ Missed pins on \d{4}-\d{2}-\d{2}: stale \.pending-slugs$"
+    CREATE_FAILURE_IS_FATAL = False
+    AGE_HOURS = 30
+
+    def prepare(self, tmp):
+        """A repo whose .pending-slugs was committed AGE_HOURS ago."""
+        import subprocess
+        import time
+        (tmp / "_pin_queue").mkdir()
+        (tmp / "_pin_queue" / ".pending-slugs").write_text("best-a,best-b\n", encoding="utf-8")
+        when = f"@{int(time.time()) - self.AGE_HOURS * 3600} +0000"
+        env = dict(os.environ, GIT_COMMITTER_DATE=when, GIT_AUTHOR_DATE=when)
+        for args in (["init", "-q"], ["add", "-A"], ["commit", "-q", "-m", "fixture"]):
+            subprocess.run(["git", "-c", "user.name=t", "-c", "user.email=t@example.invalid", *args],
+                           cwd=tmp, env=env, check=True, capture_output=True)
+
+    def test_the_trigger_and_token_are_unchanged(self):
+        self.assertIn('if [ "$AGE" -gt 86400 ]; then', self.script)
+        self.assertNotIn("        if:", self.head)
+        self.assertEqual(_workflow_permissions(self.workflow), (PUBLISH_PERMISSIONS, 1))
+
+    def test_the_body_names_the_slugs_and_their_age(self):
+        _, body = self.opened()
+        self.assertIn("is 30 hours old", body)
+        self.assertIn("may never have been posted: best-a,best-b", body)
+        self.assertIn("run pin.yml by hand with these slugs", body)
+
+    def test_a_fresh_or_absent_file_opens_nothing(self):
+        for label, hours in (("fresh", 2), ("absent", None)):
+            with self.subTest(case=label), tempfile.TemporaryDirectory() as d:
+                self.AGE_HOURS = hours or 1
+                self.prepare(Path(d))
+                if hours is None:
+                    (Path(d) / "_pin_queue" / ".pending-slugs").unlink()
+                proc, calls = _run_alert_step(self, self.script, {"RUN_URL": self.RUN_URL}, d)
+                self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+                self.assertEqual(calls, [])
+
+
+class TestHubCopyIssueFormat(_AlertIssueStep, unittest.TestCase):
+    """publish.yml's hub-copy block issue, in the shared alert format.
+    TestPublishWritesTheHub runs it end to end after a real blocked publish."""
+
+    WORKFLOW = "publish.yml"
+    STEP = "Hub without copy — create GitHub issue"
+    TITLE_RE = r"^⚠️ Publish blocked on \d{4}-\d{2}-\d{2}: no hub copy for treats$"
+    ERRORS = "ERROR treats: no intro, how_we_choose in _data/hub_copy.json"
+
+    def scenario_env(self):
+        return {"RUNNER_TEMP": "."}
+
+    def prepare(self, tmp):
+        (tmp / "hub_pages.err").write_text(self.ERRORS + "\n", encoding="utf-8")
+
+    def test_the_body_carries_the_error_and_the_fix(self):
+        _, body = self.opened()
+        self.assertIn(self.ERRORS, body)
+        self.assertIn("nothing was published", body)
+        self.assertIn("add the copy to _data/hub_copy.json, then re-run publish.yml", body)
+
+
+class TestQueueLowIssue(_AlertIssueStep, unittest.TestCase):
+    """publish.yml's queue-low issue: 3 or fewer unprocessed topics after a
+    publish opens one issue a day. The count is in the body, not the title."""
+
+    WORKFLOW = "publish.yml"
+    STEP = "Queue low — create GitHub issue"
+    TITLE_RE = r"^⚠️ Queue low on \d{4}-\d{2}-\d{2}: products\.json is running out of topics$"
+    TOPICS = ("best-a", "best-b")
+
+    def prepare(self, tmp):
+        (tmp / "_posts").mkdir()
+        (tmp / "_posts" / "2026-10-01-best-done.md").write_text("x", encoding="utf-8")
+        products = [{"topic": t} for t in ("best-done", *self.TOPICS)]
+        (tmp / "products.json").write_text(json.dumps(products), encoding="utf-8")
+
+    def test_the_trigger_and_token_are_unchanged(self):
+        self.assertIn("        if: steps.stage.outputs.nothing_to_publish == 'false'\n", self.head)
+        self.assertIn('if [ "$QUEUE_REMAINING" -le 3 ]; then', self.script)
+        self.assertEqual(_workflow_permissions(self.workflow), (PUBLISH_PERMISSIONS, 1))
+
+    def test_the_count_is_in_the_body_and_a_new_count_dedups(self):
+        title, body = self.opened()
+        self.assertIn("only **2** unprocessed topic(s) remain", body)
+        self.assertIn("run a refill", body)
+        self.TOPICS = ("best-a",)
+        proc, calls = self.run_step(open_issues=[title])
+        self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+        self.assertEqual(self.creates(calls), [], calls)
+
+    def test_a_healthy_queue_opens_nothing(self):
+        self.TOPICS = ("best-a", "best-b", "best-c", "best-d")
+        proc, calls = self.run_step()
+        self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+        self.assertEqual(calls, [])
+
+
+class TestChewyValidationIssue(_AlertIssueStep, unittest.TestCase):
+    """chewy_validate.yml: flagged links open one issue a day. A failed create
+    only warns, so a fix run still commits."""
+
+    WORKFLOW = "chewy_validate.yml"
+    STEP = "Create GitHub issue on mismatch"
+    TITLE_RE = r"^⚠️ Chewy link problems on \d{4}-\d{2}-\d{2}$"
+    CREATE_FAILURE_IS_FATAL = False
+    REPORT = ("Chewy link validation found problems on 2026-10-11\n\n"
+              "- **best-a** [MISMATCH]: wrong brand\n\n"
+              "MISMATCH = wrong-brand link (safe to --fix). ERROR = lookup/API failure "
+              "(fix creds/outage first, do NOT --fix).")
+
+    def scenario_env(self):
+        return {"REPO": self.ISSUE_REPO, "ISSUE_BODY": self.REPORT}
+
+    def test_the_trigger_and_token_are_unchanged(self):
+        self.assertIn("        if: steps.validate.outputs.validation_failed == 'true'\n", self.head)
+        self.assertEqual(_workflow_permissions(self.workflow),
+                         ({"contents": "write", "issues": "write"}, 1))
+        self.assertIn("          REPO: ${{ github.repository }}\n", self.head)
+
+    def test_the_body_carries_the_report_and_the_fix(self):
+        _, body = self.opened()
+        self.assertTrue(body.startswith(self.REPORT), body)
+        self.assertIn("with fix set to true", body)
+        self.assertEqual(body.count("_Auto-generated by chewy_validate.yml_"), 1)
 
 
 class TestOneAlertPath(unittest.TestCase):
