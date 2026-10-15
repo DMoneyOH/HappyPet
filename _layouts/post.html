@@ -32,6 +32,9 @@ layout: default
   requires that a rating shown in a rich result be visible on the page itself.
   `rating` is this site's own single verdict, printed at the foot of the post,
   so it is modelled as the reviewRating of one Review by one author.
+
+  There is no Offer either: we are an affiliate site, not the seller, so
+  Merchant listings do not apply. A Review alone keeps Product-snippet eligibility.
 {%- endcomment -%}
 {%- if page.product_name and page.rating -%}
 {%- assign product_image = hero_image | default: page.image | absolute_url -%}
@@ -42,13 +45,6 @@ layout: default
   "name": {{ page.product_name | jsonify }},
   "image": {{ product_image | jsonify }},
   "description": {{ page.description | default: page.title | jsonify }},
-  {%- if page.affiliate_url or page.chewy_url %}
-  "offers": {
-    "@type": "Offer",
-    "url": {{ page.affiliate_url | default: page.chewy_url | jsonify }},
-    "availability": "https://schema.org/InStock"
-  },
-  {%- endif %}
   "review": {
     "@type": "Review",
     "name": {{ page.title | jsonify }},
