@@ -7822,6 +7822,293 @@ class TestPublishedPostsVoiceIntegrity(unittest.TestCase):
 
 
 # ---------------------------------------------------------------------------
+# Verified products: every Amazon link in a post is on its article's list
+# ---------------------------------------------------------------------------
+# _data/verified_products.json maps an article slug to the products it may link:
+# [{"asin": "B0...", "name": ...}, ...]. Seeded 2026-10 from what the posts
+# linked at the time, so it records what was published, not a fresh check of it.
+# Runner-up products are added here, after their ASINs are confirmed on the
+# listing, before any post links them.
+#
+# An article's own front-matter affiliate_url is verified with or without an
+# entry: it is the products.json product the pipeline generated the post from,
+# and a Stage-1 PR may touch only DRAFT posts, pins and products.json
+# (automerge_gate.ALLOWED_PATHS), so a new post can never arrive with an entry.
+# An article that HAS an entry must list that link first, so the file cannot
+# keep a stale primary after the front matter changes.
+#
+# Amazon search links (/s?k=) carry no ASIN. Nine are live on three posts and
+# are recorded as {"asin": null, "search": <query>}; that set may only shrink.
+VERIFIED_PRODUCTS = REPO / "_data" / "verified_products.json"
+
+# Any Amazon host: amazon.com and its subdomains, other storefronts, and the
+# short-link hosts. The label before "amazon." must start at a boundary, so the
+# image hosts (m.media-amazon.com, images-na.ssl-images-amazon.com) never match.
+# A match with neither a scheme nor a path is prose ("on Amazon.com."), not a link.
+_AMAZON_LINK_RE = re.compile(
+    r"(?<![\w.@-])(?P<scheme>https?://)?"
+    r"(?P<host>(?:[a-z0-9-]+\.)*(?:amazon\.[a-z]{2,3}(?:\.[a-z]{2})?|amzn\.(?:to|com)|a\.co))"
+    r"(?![\w-])(?P<path>[/?#][^\s\"'<>)\]]*)?",
+    re.IGNORECASE)
+_CHEWY_LINK_RE = re.compile(
+    r"(?<![\w.@-])(?P<scheme>https?://)?"
+    r"(?P<host>(?:[a-z0-9-]+\.)*(?:chewy\.com|chewy\.sjv\.io))"
+    r"(?![\w-])(?P<path>[/?#][^\s\"'<>)\]]*)?",
+    re.IGNORECASE)
+
+
+def _links(rx, text):
+    return [m for m in rx.finditer(text or "") if m.group("scheme") or m.group("path")]
+
+
+def _amazon_link_key(m):
+    """("asin", X) or ("search", query) for an amazon.com product or search link;
+    None for any other shape (amzn.to, a.co, another storefront, a non-product
+    page), because none of those says offline which product it reaches. The ASIN
+    keeps its case and must be the whole path segment."""
+    import urllib.parse
+    host = m.group("host").lower()
+    if host != "amazon.com" and not host.endswith(".amazon.com"):
+        return None
+    parts = urllib.parse.urlsplit("https://amazon.com" + (m.group("path") or ""))
+    dp = re.fullmatch(r"(?:/[^/]+)?/(?i:dp|gp/product)/([A-Za-z0-9]+)(?:/.*)?", parts.path)
+    if dp:
+        return ("asin", dp.group(1))
+    query = urllib.parse.parse_qs(parts.query).get("k", [])
+    if parts.path in ("/s", "/s/") and len(query) == 1:
+        return ("search", query[0])
+    return None
+
+
+def _entry_key(entry):
+    return ("asin", entry["asin"]) if entry.get("asin") else ("search", entry.get("search"))
+
+
+def _post_parts(text):
+    """(front matter, body), split the way the corpus guards above split them."""
+    parts = text.split("---", 2)
+    return (parts[1], parts[2]) if len(parts) == 3 else ("", text)
+
+
+def _front_matter_value(fm, field):
+    m = re.search(rf'(?m)^{field}:\s*"?([^"\s]*)', fm)
+    return m.group(1) if m else ""
+
+
+def _post_slug(name):
+    """The article slug of a post file: dated and DRAFT- names alike."""
+    return re.sub(r"^(?:\d{4}-\d{2}-\d{2}-|DRAFT-)", "", name[:-3] if name.endswith(".md") else name)
+
+
+def _own_amazon_key(fm):
+    links = _links(_AMAZON_LINK_RE, _front_matter_value(fm, "affiliate_url"))
+    return _amazon_link_key(links[0]) if links else None
+
+
+def unverified_amazon_links(posts, verified):
+    """Every Amazon link, front matter or body, that is neither the post's own
+    affiliate_url nor on its article's verified list. Empty list = clean."""
+    offenders = []
+    for name, text in posts.items():
+        fm, _ = _post_parts(text)
+        allowed = {_entry_key(e) for e in verified.get(_post_slug(name), [])}
+        own = _own_amazon_key(fm)
+        if own:
+            allowed.add(own)
+        for m in _links(_AMAZON_LINK_RE, text):
+            key = _amazon_link_key(m)
+            if key is None or key not in allowed:
+                offenders.append(f"{name}: {m.group(0)} -> {key or 'unverifiable link shape'}")
+    return offenders
+
+
+def unverified_chewy_links(posts):
+    """Every Chewy link in a post BODY that is not the Impact-wrapped link to the
+    same Chewy product as the front-matter chewy_url -- the one link
+    validate_published_chewy_links checks. Empty list = clean."""
+    from validate_published_chewy_links import parse_chewy_url
+    offenders = []
+    for name, text in posts.items():
+        fm, body = _post_parts(text)
+        own = parse_chewy_url(_front_matter_value(fm, "chewy_url"))
+        for m in _links(_CHEWY_LINK_RE, body):
+            url = m.group(0) if m.group("scheme") else "https://" + m.group(0)
+            link = parse_chewy_url(url)
+            if own["shape"] != "wrapped":
+                why = "no wrapped front-matter chewy_url to match"
+            elif link["shape"] != "wrapped":
+                why = f"link is {link['shape']}, not the Impact wrapper"
+            elif link["dp_id"] != own["dp_id"]:
+                why = f"Chewy product {link['dp_id']}, front matter has {own['dp_id']}"
+            else:
+                continue
+            offenders.append(f"{name}: {m.group(0)} -> {why}")
+    return offenders
+
+
+class TestVerifiedProducts(unittest.TestCase):
+    """Every Amazon link in a published post is on that article's verified-product
+    list, and every inline Chewy link is the front-matter one.
+
+    In ADDITION to test_no_published_post_links_more_than_one_amazon_product,
+    not instead of it. That guard counts distinct amzn.to and /dp/ destinations
+    in a body; this one asks whether each link, of any Amazon shape, is one the
+    article has on record. It also sees what that one cannot: search links. A
+    post may carry several only because they predate the list, and the frozen
+    set below keeps that from growing.
+    """
+
+    # The nine search links live when the list was seeded, decoded by hand from
+    # the posts. Literal on purpose: computing it with the key function under
+    # test would make this agree with whatever that function says.
+    GRANDFATHERED_SEARCHES = {
+        ("best-wet-cat-food", "Sheba Perfect Portions Variety Pack"),
+        ("best-wet-cat-food", "Fancy Feast Classic Pate"),
+        ("best-wet-cat-food", "Friskies Pate Wet Cat Food"),
+        ("best-wet-cat-food", "Purina Pro Plan Wet Cat Food"),
+        ("best-senior-dog-food", "Purina Pro Plan Bright Mind Adult 7+"),
+        ("best-senior-dog-food", "Blue Buffalo Life Protection Formula Senior"),
+        ("best-senior-dog-food", "Royal Canin Canine Health Nutrition Senior 7+"),
+        ("best-dog-probiotic-supplements", "Purina Pro Plan FortiFlora"),
+        ("best-dog-probiotic-supplements",
+         "Purina Pro Plan Veterinary Supplements FortiFlora Daily Probiotics for Dogs, 30 ct"),
+    }
+
+    LISTED = "B09S8WMJY9"    # best-automatic-cat-feeder's product
+    POST = (
+        '---\nlayout: post\naffiliate_url: "https://www.amazon.com/dp/B09S8WMJY9?th=1&tag=happypetdc-20"\n'
+        'image: "https://images-na.ssl-images-amazon.com/images/P/B09S8WMJY9.01.LZZZZZZZ.jpg"\n---\n'
+        "The [PETLIBRO feeder](https://www.amazon.com/dp/B09S8WMJY9?th=1&tag=happypetdc-20) is the pick.\n"
+    )
+
+    @classmethod
+    def setUpClass(cls):
+        cls.posts = {p.name: p.read_text(encoding="utf-8")
+                     for p in sorted((REPO / "_posts").glob("*.md"))}
+        assert cls.posts, "no posts found - the guard would pass vacuously"
+        cls.verified = json.loads(VERIFIED_PRODUCTS.read_text(encoding="utf-8"))
+
+    def _with(self, extra, verified=None, post=None):
+        posts = {"2026-04-04-best-automatic-cat-feeder.md": (post or self.POST) + extra}
+        return unverified_amazon_links(posts, self.verified if verified is None else verified)
+
+    def test_every_amazon_link_is_on_its_articles_verified_list(self):
+        self.assertEqual(unverified_amazon_links(self.posts, self.verified), [])
+
+    def test_the_scan_finds_links_at_all(self):
+        """Vacuity guard: a scanner that matched nothing would pass every post."""
+        found = sum(len(_links(_AMAZON_LINK_RE, t)) for t in self.posts.values())
+        self.assertGreater(found, len(self.posts))
+
+    def test_an_unlisted_product_is_reported_however_it_is_written(self):
+        for url in ("https://www.amazon.com/dp/B0UNLISTED?tag=happypetdc-20",
+                    "HTTPS://WWW.AMAZON.COM/dp/B0UNLISTED",
+                    "amazon.com/dp/B0UNLISTED",
+                    "https://amazon.com/DP/B0UNLISTED",
+                    "https://smile.amazon.com/dp/B0UNLISTED",
+                    "https://www.amazon.com/Some-Listing-Name/dp/B0UNLISTED/ref=sr_1_1",
+                    "https://www.amazon.com/gp/product/B0UNLISTED",
+                    f"https://www.amazon.com/dp/{self.LISTED}X",
+                    f"https://www.amazon.com/dp/{self.LISTED.lower()}",
+                    f"https://www.amazon.com/gp/aw/d/{self.LISTED}",
+                    f"https://www.amazon.co.uk/dp/{self.LISTED}",
+                    "https://www.amazon.com/s?k=PETLIBRO+Feeder&tag=happypetdc-20",
+                    "https://www.amazon.com",
+                    "https://amzn.to/3abcXYZ",
+                    "https://a.co/d/abc1234"):
+            for form in ("[x]({})", '<a href="{}">x</a>', "[1]: {}",
+                         "[x](https://example.com/r?u={})"):
+                with self.subTest(url=url, form=form):
+                    found = self._with(form.format(url) + "\n")
+                    self.assertEqual(len(found), 1, found)
+                    self.assertIn(url, found[0])
+
+    def test_ordinary_text_and_the_listed_product_are_not_reported(self):
+        clean = ("Amazon reviewers rate it 4.6/5, and it is sold on Amazon.com. "
+                 "Mail support@amazon.com. "
+                 '![x](https://m.media-amazon.com/images/I/71abc._AC_SX425_.jpg) '
+                 "https://images-na.ssl-images-amazon.com/images/P/B000FLETX8.01.jpg "
+                 "[Chewy](https://chewy.sjv.io/c/1/2/3?u=https%3A%2F%2Fwww.chewy.com%2Fx%2Fdp%2F1) "
+                 f"[a](https://www.amazon.com/dp/{self.LISTED}) "
+                 f"[b](https://www.amazon.com/dp/{self.LISTED}/?tag=happypetdc-20) "
+                 f"[c](https://www.amazon.com/PETLIBRO-Feeder/dp/{self.LISTED}/ref=x) "
+                 f"[d](HTTPS://WWW.AMAZON.COM/dp/{self.LISTED}#reviews)\n")
+        self.assertEqual(self._with(clean), [])
+
+    def test_the_front_matter_link_needs_no_entry_and_nothing_else_rides_on_it(self):
+        """A new post arrives from Stage-1 with no entry: its own link passes, a
+        second product does not."""
+        self.assertEqual(self._with("", verified={}), [])
+        self.assertEqual(len(self._with("[y](https://www.amazon.com/dp/B0UNLISTED)\n",
+                                        verified={})), 1)
+
+    def test_a_listed_runner_up_passes(self):
+        listed = {"best-automatic-cat-feeder": [{"asin": self.LISTED, "name": "a"},
+                                                {"asin": "B0RUNNERUP", "name": "b"}]}
+        self.assertEqual(self._with("[y](https://www.amazon.com/dp/B0RUNNERUP)\n", listed), [])
+        self.assertEqual(len(self._with("[y](https://www.amazon.com/dp/B0RUNNERUP)\n",
+                                        {"best-automatic-cat-feeder": listed[
+                                            "best-automatic-cat-feeder"][:1]})), 1)
+
+    def test_a_draft_post_reads_the_same_article_entry(self):
+        self.assertEqual(_post_slug("DRAFT-best-dog-pools.md"), "best-dog-pools")
+        self.assertEqual(_post_slug("2026-06-01-best-dog-pools.md"), "best-dog-pools")
+
+    def test_the_verified_list_is_well_formed(self):
+        slugs = {_post_slug(n) for n in self.posts}
+        problems = []
+        for slug, entries in self.verified.items():
+            if slug not in slugs:
+                problems.append(f"{slug}: no published post has this slug")
+                continue
+            if not isinstance(entries, list) or not entries:
+                problems.append(f"{slug}: not a non-empty list")
+                continue
+            for e in entries:
+                if not isinstance(e, dict) or not isinstance(e.get("name"), str) or not e["name"].strip():
+                    problems.append(f"{slug}: entry without a name: {e!r}")
+                elif e.get("asin") is not None:
+                    if set(e) != {"asin", "name"} or not re.fullmatch(r"[A-Z0-9]{10}", e["asin"]):
+                        problems.append(f"{slug}: malformed ASIN entry: {e!r}")
+                elif set(e) != {"asin", "search", "name"} or not isinstance(e["search"], str):
+                    problems.append(f"{slug}: malformed search entry: {e!r}")
+            keys = [_entry_key(e) for e in entries if isinstance(e, dict)]
+            if len(keys) != len(set(keys)):
+                problems.append(f"{slug}: duplicate entries")
+        for name, text in self.posts.items():
+            entries = self.verified.get(_post_slug(name))
+            own = _own_amazon_key(_post_parts(text)[0])
+            if entries and own and _entry_key(entries[0]) != own:
+                problems.append(f"{name}: first entry {_entry_key(entries[0])} is not "
+                                f"the front-matter link {own}")
+        self.assertEqual(problems, [])
+
+    def test_search_entries_only_shrink(self):
+        searches = {(slug, e["search"]) for slug, entries in self.verified.items()
+                    for e in entries if e.get("asin") is None}
+        self.assertEqual(searches - self.GRANDFATHERED_SEARCHES, set())
+
+    def test_every_inline_chewy_link_is_the_front_matter_one(self):
+        self.assertEqual(unverified_chewy_links(self.posts), [])
+
+    def test_a_wrong_inline_chewy_link_is_reported(self):
+        fm = ('---\nchewy_url: "https://chewy.sjv.io/c/7160344/3054490/32975?u='
+              'https%3A%2F%2Fwww.chewy.com%2Fpurina-pro-plan-veterinary-diets%2Fdp%2F50029"\n---\n')
+        same = ("[Buy on Chewy](https://chewy.sjv.io/c/7160344/3054490/32975?prodsku=1&u="
+                "https%3A%2F%2Fwww.chewy.com%2Fpurina-pro-plan-veterinary-diets%2Fdp%2F50029)\n"
+                "Owners can find it at Chewy.com.\n")
+        self.assertEqual(unverified_chewy_links({"a.md": fm + same}), [])
+        for link in ("https://chewy.sjv.io/c/7160344/3054490/32975?u="
+                     "https%3A%2F%2Fwww.chewy.com%2Fother-product%2Fdp%2F99999",
+                     "https://www.chewy.com/purina-pro-plan-veterinary-diets/dp/50029",
+                     "WWW.CHEWY.COM/purina-pro-plan-veterinary-diets/dp/50029",
+                     "https://www.chewy.com/b/dog-food-288"):
+            with self.subTest(link=link):
+                self.assertEqual(len(unverified_chewy_links({"a.md": fm + f"[x]({link})\n"})), 1)
+        self.assertEqual(len(unverified_chewy_links({"a.md": "---\n---\n" + same})), 1)
+
+
+# ---------------------------------------------------------------------------
 # Published Chewy links: the post's own front matter is the source of truth
 # ---------------------------------------------------------------------------
 # Fixtures are the three wrong Chewy links found BY HAND on 2026-09-22 and
