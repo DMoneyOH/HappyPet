@@ -159,13 +159,19 @@ class TestPinWorkflowWiring(unittest.TestCase):
         self.assertEqual(len(hits), 1, f"expected exactly one {what}, got {hits}")
         return hits[0]
 
+    def _assert_step(self):
+        """The step that fails the job on the post outcome: the one gated by `if:` on it."""
+        # Keyed on the `if:` line, not on any mention of the expression: the alert
+        # step reads steps.post.outcome too (to word its issue) and is not this step.
+        return self._find(lambda n, b: "\n        if: steps.post.outcome" in b, "assert step")
+
     def test_post_step_continues_on_error_and_has_an_id(self):
         post = self._find(lambda n, b: "python3 post_pins.py" in b, "post step")
         self.assertIn("\n        id: post\n", self.steps[post])
         self.assertIn("\n        continue-on-error: true\n", self.steps[post])
 
     def test_assert_step_fails_on_the_post_outcome(self):
-        name = self._find(lambda n, b: "steps.post.outcome" in b, "assert step")
+        name = self._assert_step()
         block = self.steps[name]
         self.assertIn("\n        if: steps.post.outcome == 'failure'\n", block)
         self.assertIn("exit 1", block)
@@ -173,7 +179,7 @@ class TestPinWorkflowWiring(unittest.TestCase):
 
     def test_step_order_keeps_sheets_and_consume_before_assert_before_alert(self):
         post = self._find(lambda n, b: "python3 post_pins.py" in b, "post step")
-        assert_step = self._find(lambda n, b: "steps.post.outcome" in b, "assert step")
+        assert_step = self._assert_step()
         order = [post, "Push pins to Google Sheets", "Consume pending-slugs",
                  assert_step, "Alert on failure"]
         idx = [self.names.index(n) for n in order]
