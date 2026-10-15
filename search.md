@@ -2,6 +2,7 @@
 layout: default
 title: Search Reviews
 permalink: /search/
+sitemap: false
 ---
 
 <section class="piece">

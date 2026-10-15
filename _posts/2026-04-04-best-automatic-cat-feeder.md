@@ -5,6 +5,7 @@ date: 2026-04-04
 categories: [feeding]
 redirect_from:
   - /cat-feeders/best-automatic-cat-feeder/
+  - /pet-accessories/best-automatic-cat-feeder/
 species: cat
 tags: [automatic cat feeder]
 description: "Never worry about overfeeding again. This programmable feeder keeps your cat on schedule even when you're away."

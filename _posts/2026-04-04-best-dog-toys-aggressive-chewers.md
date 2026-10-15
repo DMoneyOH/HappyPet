@@ -5,6 +5,7 @@ date: 2026-04-04
 categories: [toys]
 redirect_from:
   - /dog-toys/best-dog-toys-aggressive-chewers/
+  - /pet-accessories/best-dog-toys-aggressive-chewers/
 species: dog
 tags: [dog toys aggressive chewers]
 description: "If your dog destroys every toy in minutes, these are the ones owners of real power chewers say finally survive."

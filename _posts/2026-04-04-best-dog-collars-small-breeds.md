@@ -5,6 +5,7 @@ date: 2026-04-04
 categories: [collars]
 redirect_from:
   - /dog-collars/best-dog-collars-small-breeds/
+  - /pet-accessories/best-dog-collars-small-breeds/
 species: dog
 tags: [dog collars small breeds]
 description: "Small neck, slippery collar? 4 picks for small breeds, from soft nylon to padded and break-away, plus the two-finger fit check that helps stop slip-outs."
