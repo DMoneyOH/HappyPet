@@ -12178,6 +12178,111 @@ class TestMergeRedirects(unittest.TestCase):
                 self.assertEqual(list((REPO / "_posts").glob(f"*-{slug}.md")), [])
 
 
+class TestSitemapInputs(unittest.TestCase):
+    """What the repo can prove about sitemap.xml. jekyll-sitemap writes it at
+    build time and there is no Ruby on the dev box, so these pin the inputs: the
+    plugin is on, robots.txt points at it, no post opts out, /search/ does, and
+    no redirect stub shares a canonical post URL. Search Console 2026-10-15:
+    34 URLs "Discovered - currently not indexed" and "No referring sitemaps
+    detected" on a post URL -- the file existed; it had not been submitted."""
+
+    SITEMAP = "https://happypetproductreviews.com/sitemap.xml"
+    # Search Console's own examples of the 34, copied from its report.
+    GSC_EXAMPLES = (
+        "/beds/best-cat-beds/", "/beds/best-dog-beds-large-breeds/",
+        "/calming/best-calming-diffusers-pets/", "/carriers/best-cat-carrier-backpacks/",
+        "/collars/best-dog-collars-small-breeds/",
+    )
+
+    @staticmethod
+    def _posts():
+        return [p for p in sorted((REPO / "_posts").glob("*.md")) if not p.stem.startswith("DRAFT-")]
+
+    def _canonical(self):
+        return {f"/{_post_first_category(p)}/{p.stem.split('-', 3)[3]}/": p for p in self._posts()}
+
+    def test_robots_txt_names_the_sitemap_and_blocks_no_post(self):
+        lines = [l.strip() for l in (REPO / "robots.txt").read_text(encoding="utf-8").splitlines()]
+        self.assertEqual([l for l in lines if l.lower().startswith("sitemap:")],
+                         [f"Sitemap: {self.SITEMAP}"])
+        url = re.search(r"^url: *'?([^'\s]+)'?", (REPO / "_config.yml").read_text(encoding="utf-8"), re.M).group(1)
+        self.assertEqual(f"{url}/sitemap.xml", self.SITEMAP)
+        for l in lines:
+            if l.lower().startswith("disallow:") and l.split(":", 1)[1].strip():
+                path = l.split(":", 1)[1].strip()
+                for blocked in list(self._canonical()) + ["/sitemap.xml"]:
+                    self.assertFalse(blocked.startswith(path), f"robots.txt {l!r} blocks {blocked}")
+
+    def test_the_sitemap_plugin_is_installed_and_enabled(self):
+        cfg = (REPO / "_config.yml").read_text(encoding="utf-8")
+        self.assertRegex(cfg, r"(?m)^\s*-\s*jekyll-sitemap\s*$")
+        self.assertRegex((REPO / "Gemfile").read_text(encoding="utf-8"), r"gem ['\"]jekyll-sitemap['\"]")
+        self.assertRegex((REPO / "Gemfile.lock").read_text(encoding="utf-8"), r"(?m)^  jekyll-sitemap \(")
+
+    def test_no_post_opts_out_of_the_sitemap_or_moves_its_url(self):
+        from validate_published_chewy_links import parse_frontmatter
+        for p in self._posts():
+            fm = parse_frontmatter(p)
+            for key in ("sitemap", "published", "permalink"):
+                with self.subTest(post=p.name, key=key):
+                    self.assertNotIn(key, fm)
+
+    def test_search_page_is_kept_out_of_the_sitemap(self):
+        from validate_published_chewy_links import parse_frontmatter
+        self.assertEqual(parse_frontmatter(REPO / "search.md").get("sitemap"), "false")
+        for name in ("index.md", "about.md", "cats.md", "dogs.md", "contact.md", "privacy-policy.md"):
+            with self.subTest(page=name):
+                self.assertNotIn("sitemap", parse_frontmatter(REPO / name))
+
+    def test_every_post_has_its_own_url_and_no_stub_shadows_one(self):
+        canonical = self._canonical()
+        self.assertEqual(len(canonical), len(self._posts()), "two posts share one URL")
+        claimed = {}
+        for p in self._posts():
+            for old in _post_redirect_paths(p):
+                self.assertNotIn(old, canonical, f"{p.name}: stub {old} would overwrite a post")
+                self.assertNotIn(old, claimed, f"{old} is a stub of both {claimed.get(old)} and {p.name}")
+                claimed[old] = p.name
+
+    def test_search_console_examples_are_published_posts(self):
+        canonical = self._canonical()
+        for url in self.GSC_EXAMPLES:
+            with self.subTest(url=url):
+                self.assertIn(url, canonical)
+
+
+class TestOldPermalinksStillResolve(unittest.TestCase):
+    """For ~4 minutes on 2026-04-06 (6eba5a4 until cea0382) the ten original
+    posts were all published at /pet-accessories/<slug>/, and the sitemap listed
+    them then. Search Console reports /pet-accessories/best-puppy-training-pads/
+    as a 404 (last crawled Jul 29). Its post lives at /training/<slug>/;
+    /dog-training/<slug>/ is a redirect stub to it, not the live page. Both sides
+    are literals: the old path as Google has it, the current URL as the site
+    serves it."""
+
+    OLD_TO_CURRENT = {
+        "/pet-accessories/best-puppy-training-pads/": "/training/best-puppy-training-pads/",
+        "/pet-accessories/best-automatic-cat-feeder/": "/feeding/best-automatic-cat-feeder/",
+        "/pet-accessories/best-cat-carrier-travel/": "/carriers/best-cat-carrier-travel/",
+        "/pet-accessories/best-cat-litter-odor-control/": "/litter/best-cat-litter-odor-control/",
+        "/pet-accessories/best-cat-scratching-posts/": "/scratching/best-cat-scratching-posts/",
+        "/pet-accessories/best-dog-beds-large-breeds/": "/beds/best-dog-beds-large-breeds/",
+        "/pet-accessories/best-dog-collars-small-breeds/": "/collars/best-dog-collars-small-breeds/",
+        "/pet-accessories/best-dog-toys-aggressive-chewers/": "/toys/best-dog-toys-aggressive-chewers/",
+        "/pet-accessories/best-no-pull-dog-harness/": "/harnesses/best-no-pull-dog-harness/",
+        "/pet-accessories/best-pet-water-fountain/": "/feeding/best-pet-water-fountain/",
+    }
+
+    def test_each_old_pet_accessories_url_redirects_to_its_post(self):
+        for old, current in self.OLD_TO_CURRENT.items():
+            with self.subTest(old=old):
+                slug = current.strip("/").split("/")[1]
+                post = _post_file_for_slug(slug)
+                self.assertIsNotNone(post, f"no published post for {slug}")
+                self.assertEqual(f"/{_post_first_category(post)}/{slug}/", current)
+                self.assertIn(old, _post_redirect_paths(post))
+
+
 class TestTitleSuffix(unittest.TestCase):
     """Every page title ends "| HappyPet Reviews" (Director, 2026-10-13), added
     once by default.html, so no page's own title may carry a suffix of its own.
