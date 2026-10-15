@@ -10,6 +10,7 @@ tags: [outdoor dog tie out]
 description: "A 30ft cable, a spring that takes the jolt, and a stake that stays put: backyard freedom without the fence."
 affiliate_url: "https://www.amazon.com/dp/B07CXJGZY5?tag=happypetdc-20"
 product_short: "Petbobi 30ft Dog Tie-Out Cable"
+chewy_url: "https://chewy.sjv.io/c/7160344/3054490/32975?u=https%3A%2F%2Fwww.chewy.com%2Fpetbobi-heavy-duty-16-in-ground-stake%2Fdp%2F4043878&intsrc=APIG_24727"
 image: "https://m.media-amazon.com/images/I/71ebswoloPL._AC_SX679_.jpg"
 pin_image: "https://happypetproductreviews.com/assets/images/pins/best-outdoor-dog-tie-outs.jpg?v=20260928"
 ---

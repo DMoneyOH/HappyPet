@@ -10,6 +10,7 @@ tags: [cat grass growing kit]
 description: "Give your indoor cat a safe green snack: easy cat grass growing kits that sprout in days."
 affiliate_url: "https://www.amazon.com/dp/B074SZ17C7?tag=happypetdc-20"
 product_short: "The Cat Ladies Cat Grass Kit"
+chewy_url: "https://chewy.sjv.io/c/7160344/3054490/32975?u=https%3A%2F%2Fwww.chewy.com%2Fcat-ladies-organic-pet-grass-growing%2Fdp%2F177894&intsrc=APIG_24727"
 image: "https://m.media-amazon.com/images/I/81p5hWvv3dL._AC_SX679_.jpg"
 pin_image: "https://happypetproductreviews.com/assets/images/pins/best-cat-grass-growing-kits.jpg?v=20260917"
 ---
