@@ -12180,7 +12180,9 @@ def _run_alert_step(testcase, script, env, cwd, open_issues=(), list_fails=False
     if not bash:
         testcase.skipTest(why)
     gh_args = Path(cwd) / "gh_args"
-    full_env = dict(os.environ, GH_ARGS=gh_args.as_posix(),
+    # TZ=UTC as on the runner, so a step that forgets TZ=America/New_York gets UTC
+    # here too rather than this machine's local zone.
+    full_env = dict(os.environ, TZ="UTC", GH_ARGS=gh_args.as_posix(),
                     OPEN_ISSUES="\n".join(open_issues), LIST_FAILS="1" if list_fails else "",
                     CREATE_FAILS="1" if create_fails else "", **env)
     proc = subprocess.run([bash, "--noprofile", "--norc", "-eo", "pipefail", "-c", GH_STUB + script],
@@ -12335,10 +12337,14 @@ class _AlertIssueStep:
         self.assertRegex(line, r" (?:1[0-2]|[1-9]):[0-5]\d [AP]M E[SD]T$")
         self.assertIn(now.strftime("%Z"), line)
         if self.TITLE_DATE_IS_EASTERN:
-            # The behavioural check below only tells ET from UTC between 20:00 and
-            # midnight ET, so the step's date source is also pinned as written.
-            self.assertIn("DAY=$(TZ=America/New_York date +%F)\n", self.script)
             self.assertIn(now.strftime("%Y-%m-%d"), title)
+
+    def test_the_title_date_is_taken_in_eastern_time(self):
+        """The check above tells ET from UTC only between 20:00 and midnight ET,
+        and only where bash has the zone, so the date source is pinned as written."""
+        if not self.TITLE_DATE_IS_EASTERN:
+            self.skipTest("the title carries the slot's UTC day")
+        self.assertIn("DAY=$(TZ=America/New_York date +%F)\n", self.script)
 
 
 class TestSlotWatchdog(_AlertIssueStep, unittest.TestCase):
@@ -12412,7 +12418,7 @@ class TestSlotWatchdog(_AlertIssueStep, unittest.TestCase):
 
     def test_a_malformed_date_fails_without_opening_anything(self):
         for day in ("2026-02-30", "15/10/2026", "2026-10-15; touch pwned", "$(touch pwned)",
-                    "2026-10-15\n2026-10-12"):
+                    "2026-10-15\n2026-10-12", "next thursday", "2026-10-15 +7 days", " 2026-10-15"):
             with self.subTest(day=day):
                 with tempfile.TemporaryDirectory() as d:
                     self.prepare(Path(d))
