@@ -7756,49 +7756,6 @@ class TestPublishedPostsVoiceIntegrity(unittest.TestCase):
                 offenders.append(f"{name}: {quote!r}")
         self.assertEqual(offenders, [])
 
-    def test_no_published_post_links_more_than_one_amazon_product(self):
-        """One article reviews one verified product and carries one verified
-        affiliate link. A body with two distinct Amazon destinations is
-        recommending something the pipeline has no record of -- which is how
-        best-dog-backpack-carrier shipped three invented carriers at shortcodes
-        this account does not own, and best-cat-calming-products shipped six
-        literal amzn.to/xyzN placeholders.
-
-        The corpus form of this check is DELIBERATELY WEAKER than the generation
-        gate, and the difference is what evidence exists at each point.
-        Generation knows the entry's verified link, so it compares against it.
-        Here, for 36 of the 49 posts there is no products.json entry left to
-        compare against, so the check asserts only what it can prove from the
-        file: more than one destination means at least one of them is invented,
-        whichever it is.
-
-        The gap that leaves, named rather than hidden: a post whose SINGLE link
-        is itself invented passes here. best-pet-water-fountain was exactly that
-        shape -- its front matter declared amzn.to/3NNVKFY while every link in
-        its body pointed at amzn.to/41dtOOM, so the body carried one consistent
-        destination and this guard passed it. Which of the two was wrong could
-        not be settled from this machine; it was settled by resolving both links
-        off it, and the answer was that 3NNVKFY is the fountain and 41dtOOM an
-        unrelated listing. The body was corrected to the front-matter link.
-
-        The gap is still open -- a post whose only link is invented still passes
-        here -- and no allowlist was added for that post or any other, because
-        widening this guard and then excepting the posts it catches is how a
-        guard stops meaning anything.
-        """
-        import generate_posts as gp
-        offenders = []
-        for name, text in self.posts.items():
-            body = text.split("---", 2)[2] if text.count("---") >= 2 else text
-            keys = []
-            for m in gp._ANY_AFFILIATE_LINK_RE.finditer(body):
-                k = gp.affiliate_link_key(m.group(0))
-                if k not in keys:
-                    keys.append(k)
-            if len(keys) > 1:
-                offenders.append(f"{name}: {keys}")
-        self.assertEqual(offenders, [])
-
     def test_no_published_post_carries_a_placeholder_affiliate_link(self):
         """The six "Buy now: [amzn.to/xyz1]" links shipped for four months. A
         placeholder is the one invented link that is provably invented from the
@@ -7997,12 +7954,20 @@ class TestVerifiedProducts(unittest.TestCase):
     """Every Amazon link in a published post is on that article's verified-product
     list, and every inline Chewy link is the front-matter one.
 
-    In ADDITION to test_no_published_post_links_more_than_one_amazon_product,
-    not instead of it. That guard counts distinct amzn.to and /dp/ destinations
-    in a body; this one asks whether each link, of any Amazon shape, is one the
-    article has on record. It also sees what that one cannot: search links. A
-    post may carry several only because they predate the list, and the frozen
-    set below keeps that from growing.
+    This is the only corpus guard on Amazon destinations. It replaced a test that
+    failed any post whose body linked two distinct Amazon products; that rule
+    could not allow a runner-up link even once its ASIN was verified. The safety
+    it gave is carried here: a runner-up with no entry on its own article's list
+    fails, on every post, in either link shape, and a draft is held to the same
+    rule (see the runner-up tests below). Search links are covered too, and a
+    post may carry several only because they predate the list; the frozen set
+    below keeps that from growing.
+
+    The gap both guards share, named rather than hidden: a post's own
+    front-matter affiliate_url is trusted, so a post whose only link is itself
+    invented passes. best-pet-water-fountain was that shape (front matter
+    amzn.to/3NNVKFY, body amzn.to/41dtOOM, settled only by resolving both links
+    off this machine). No allowlist was added for it or any other post.
     """
 
     # The nine search links live when the list was seeded, decoded by hand from
@@ -8096,6 +8061,58 @@ class TestVerifiedProducts(unittest.TestCase):
         self.assertEqual(len(self._with("[y](https://www.amazon.com/dp/B0RUNNERUP)\n",
                                         {"best-automatic-cat-feeder": listed[
                                             "best-automatic-cat-feeder"][:1]})), 1)
+
+    def test_a_runner_up_with_no_verified_entry_is_reported_on_every_published_post(self):
+        """The safety the retired one-product corpus test used to give, carried
+        here: it failed a post that linked a second, invented Amazon product. This
+        does the same against the REAL verified list and EVERY real post, with the
+        runner-up written two ways -- a full /dp/ link and an amzn.to short link,
+        the two shapes the invented links took -- so no post gains immunity from
+        having an entry, a long entry, or none."""
+        missed = []
+        for name, text in self.posts.items():
+            for url in ("https://www.amazon.com/dp/B0NOTLISTED?tag=happypetdc-20",
+                        "https://amzn.to/3NotListed"):
+                found = unverified_amazon_links({name: text + f"\n[Runner-up]({url})\n"},
+                                                self.verified)
+                if len(found) != 1 or url not in found[0]:
+                    missed.append(f"{name} + {url}: {found}")
+        self.assertEqual(missed, [])
+
+    def test_every_invented_link_in_a_body_is_reported_not_just_the_first(self):
+        """The shape that shipped: best-dog-backpack-carrier carried three invented
+        carriers and best-cat-calming-products six amzn.to/xyzN placeholders. Each
+        link is its own offender, so a fix that cuts one still leaves the rest red."""
+        invented = ["https://www.amazon.com/dp/B0INVENTED1",
+                    "https://www.amazon.com/dp/B0INVENTED2?tag=happypetdc-20",
+                    "https://amzn.to/xyz1", "https://amzn.to/xyz2"]
+        found = self._with("".join(f"[x]({u})\n" for u in invented), verified={})
+        self.assertEqual(len(found), len(invented), found)
+        for url in invented:
+            self.assertTrue(any(url in f for f in found), (url, found))
+
+    def test_a_verified_entry_covers_only_its_own_article_and_only_what_it_lists(self):
+        """Adding runner-ups to the list must not widen it past what was added."""
+        # Listed for ANOTHER article: no help here.
+        elsewhere = {"best-cat-carrier-travel": [{"asin": "B000FLETX8", "name": "carrier"}]}
+        found = self._with("[x](https://www.amazon.com/dp/B000FLETX8)\n", verified=elsewhere)
+        self.assertEqual(len(found), 1, found)
+        # One runner-up listed here does not whitelist a sibling that is not.
+        mine = {"best-automatic-cat-feeder": [{"asin": self.LISTED, "name": "a"},
+                                              {"asin": "B0RUNNERUP", "name": "b"}]}
+        found = self._with("[x](https://www.amazon.com/dp/B0RUNNERUP)\n"
+                           "[y](https://www.amazon.com/dp/B0INVENTED)\n", verified=mine)
+        self.assertEqual(len(found), 1, found)
+        self.assertIn("B0INVENTED", found[0])
+
+    def test_a_draft_cannot_carry_a_runner_up_either(self):
+        """A Stage-1 draft arrives with no entry, so its own link is the only one
+        it may carry; the DRAFT- file name must not skip the check."""
+        name = "DRAFT-best-automatic-cat-feeder.md"
+        self.assertEqual(unverified_amazon_links({name: self.POST}, {}), [])
+        found = unverified_amazon_links(
+            {name: self.POST + "[x](https://www.amazon.com/dp/B0INVENTED)\n"}, {})
+        self.assertEqual(len(found), 1, found)
 
     def test_a_draft_post_reads_the_same_article_entry(self):
         self.assertEqual(_post_slug("DRAFT-best-dog-pools.md"), "best-dog-pools")
