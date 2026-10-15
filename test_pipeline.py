@@ -12823,7 +12823,26 @@ class TestChewyValidationIssue(_AlertIssueStep, unittest.TestCase):
               "(fix creds/outage first, do NOT --fix).")
 
     def scenario_env(self):
-        return {"REPO": self.ISSUE_REPO, "ISSUE_BODY": self.REPORT}
+        """ISSUE_BODY as the workflow's own "Build issue body" step writes it to
+        GITHUB_ENV, from a validation report with one flagged link."""
+        import shlex
+        import subprocess
+        bash, why = _bash_for_workflow_steps()
+        if not bash:
+            self.skipTest(why)
+        _, build = _named_step(self.workflow, "Build issue body")
+        build = build.replace("python3 ", shlex.quote(Path(sys.executable).as_posix()) + " ")
+        with tempfile.TemporaryDirectory() as d:
+            report = {"date": "2026-10-11", "results": [
+                {"slug": "best-a", "status": "MISMATCH", "detail": "wrong brand"},
+                {"slug": "best-b", "status": "OK", "detail": ""}]}
+            (Path(d) / "chewy_link_validation_2026-10-11.json").write_text(json.dumps(report), encoding="utf-8")
+            env_file = Path(d) / "github_env"
+            subprocess.run([bash, "--noprofile", "--norc", "-eo", "pipefail", "-c", build], cwd=d,
+                           env=dict(os.environ, GITHUB_ENV=env_file.as_posix()), check=True,
+                           capture_output=True)
+            issue_body = _parse_github_output(env_file.read_text(encoding="utf-8"))["ISSUE_BODY"]
+        return {"REPO": self.ISSUE_REPO, "ISSUE_BODY": issue_body}
 
     def test_the_trigger_and_token_are_unchanged(self):
         self.assertIn("        if: steps.validate.outputs.validation_failed == 'true'\n", self.head)
