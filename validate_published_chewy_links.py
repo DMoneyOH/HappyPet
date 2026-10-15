@@ -113,6 +113,20 @@ STATUSES = ("OK", "CLEAN", "DEFERRED", "NO_URL", "UNWRAPPED", "MALFORMED",
 MAX_API_LOOKUPS = 12
 
 
+# Links whose slug number is NOT a variant contradiction, confirmed against the
+# live Chewy listing by a person. Keyed on (post slug, Chewy dp id), never on the
+# slug alone, so a changed link or the same listing reused on another post is
+# checked again from scratch.
+#   best-outdoor-dog-tie-outs / 4043878: Chewy titles it "Petbobi Heavy-Duty 16-in
+#   Ground Stake Dog Tie-Out Cable with Spring, Blue, 30-ft" (confirmed 2026-10-15).
+#   The slug's 16 is the stake length; the featured product, a 30-ft cable and
+#   16-in stake kit, is named "Petbobi 30ft Dog Tie-Out Cable".
+VERIFIED_VARIANT_LINKS = {
+    ("best-outdoor-dog-tie-outs", "4043878"):
+        "16-in stake is part of the 30-ft cable kit (Chewy listing, 2026-10-15)",
+}
+
+
 def parse_chewy_url(chewy_url: str) -> dict:
     """Decompose a stored chewy_url offline. No network.
 
@@ -251,6 +265,8 @@ def classify_offline(entry: dict) -> tuple[str, str]:
     if shape == "malformed":
         return "MALFORMED", f"not a resolvable Chewy product link: {url[:80]}"
     reason = find_variant_mismatch(parsed["product_slug"], entry["product_name"])
+    if reason and (entry["slug"], parsed["dp_id"]) in VERIFIED_VARIANT_LINKS:
+        reason = ""
     if reason:
         return "VARIANT_MISMATCH", f"{reason} | product: {entry['product_name'][:60]}"
     if shape == "bare":

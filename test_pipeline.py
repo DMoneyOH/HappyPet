@@ -8540,12 +8540,45 @@ class TestChewyVariantMismatch(unittest.TestCase):
         verified exact match), so any flag here is a false positive."""
         flagged = []
         for entry in self.v.published_chewy_links():
-            reason = self.v.find_variant_mismatch(
-                self.v.parse_chewy_url(entry["chewy_url"])["product_slug"],
-                entry["product_name"])
-            if reason:
-                flagged.append(f"{entry['slug']}: {reason}")
+            status, detail = self.v.classify_offline(entry)
+            if status == "VARIANT_MISMATCH":
+                flagged.append(f"{entry['slug']}: {detail}")
         self.assertEqual(flagged, [])
+
+    # The tie-out kit's slug names 16 (the stake) and the product names 30ft, so
+    # the number rule flags it; a person confirmed it on the Chewy listing and
+    # VERIFIED_VARIANT_LINKS clears exactly that (post, dp id) pair.
+    _TIE_OUT_URL = ("https://chewy.sjv.io/c/7160344/3054490/32975?u=https%3A%2F%2F"
+                    "www.chewy.com%2Fpetbobi-heavy-duty-16-in-ground-stake%2Fdp%2F4043878"
+                    "&intsrc=APIG_24727")
+
+    def _entry(self, slug, url, name="Petbobi 30ft Dog Tie-Out Cable"):
+        return {"slug": slug, "chewy_url": url, "product_name": name}
+
+    def test_the_number_rule_alone_flags_the_tie_out_kit(self):
+        self.assertTrue(self._reason(self._TIE_OUT_URL, "Petbobi 30ft Dog Tie-Out Cable"))
+
+    def test_the_confirmed_tie_out_kit_is_clean(self):
+        status, _ = self.v.classify_offline(
+            self._entry("best-outdoor-dog-tie-outs", self._TIE_OUT_URL))
+        self.assertEqual(status, "CLEAN")
+
+    def test_the_exemption_does_not_follow_the_listing_to_another_post(self):
+        status, _ = self.v.classify_offline(
+            self._entry("best-dog-crates", self._TIE_OUT_URL))
+        self.assertEqual(status, "VARIANT_MISMATCH")
+
+    def test_the_exemption_does_not_cover_another_link_on_the_same_post(self):
+        other = self._TIE_OUT_URL.replace("4043878", "999")
+        status, _ = self.v.classify_offline(
+            self._entry("best-outdoor-dog-tie-outs", other))
+        self.assertEqual(status, "VARIANT_MISMATCH")
+
+    def test_the_exemption_does_not_hide_the_globlazer_mismatch(self):
+        status, _ = self.v.classify_offline(
+            self._entry("best-outdoor-dog-tie-outs", CHEWY_WRONG_GLOBLAZER,
+                        CHEWY_WRONG_GLOBLAZER_NAME))
+        self.assertEqual(status, "VARIANT_MISMATCH")
 
 
 class TestPublishedChewyLinkCoverage(unittest.TestCase):
