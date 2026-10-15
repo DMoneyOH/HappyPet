@@ -4703,7 +4703,7 @@ class TestPostsAreOnTopics(unittest.TestCase):
         text = (REPO / "_layouts" / "redirect.html").read_text(encoding="utf-8")
         self.assertRegex(text, r"location\.replace\(\{\{ page\.redirect\.to \| jsonify \}\}"
                                r" \+ location\.search \+ location\.hash\)")
-        for kept in ('http-equiv="refresh"', 'rel="canonical"', 'name="robots" content="noindex"'):
+        for kept in ('http-equiv="refresh"', 'rel="canonical"'):
             self.assertIn(kept, text)
 
     def test_post_category_strips_quotes(self):
@@ -4813,18 +4813,51 @@ class TestAttributionSurvivesRedirectsAndNewPinUrls(unittest.TestCase):
 
     # --- the stub ----------------------------------------------------------
 
-    def test_layout_renders_target_script_and_noindex(self):
+    # Any <meta> that names a crawler (robots, googlebot, bingbot, ...) or
+    # carries a noindex directive, in any quoting, case or attribute order.
+    # Structural on purpose: dropping one spelling of the tag must not leave
+    # another that does the same job.
+    _CRAWLER_META = re.compile(
+        r"<meta\b[^>]*?(?:\bname\s*=\s*[\"']?\s*(?:robots|[a-z]*bot)\b|\bnoindex\b)[^>]*>",
+        re.I | re.S)
+
+    def test_layout_renders_target_script_and_no_noindex(self):
         html = self._render_layout(self.TARGET)
         self.assertNotIn("{{", html)
         self.assertNotIn("{%", html)
         self.assertIn(f'<link rel="canonical" href="{self.TARGET}">', html)
         self.assertIn(f'<meta http-equiv="refresh" content="0; url={self.TARGET}">', html)
         self.assertIn(f'<a href="{self.TARGET}">', html)           # visible fallback
-        self.assertIn('<meta name="robots" content="noindex">', html)
+        # Dropped 2026-10-14: Google reads an instant meta refresh as a permanent
+        # redirect and its site-move guide says to remove migration noindex rules;
+        # noindex on a 200 stub contradicts the canonical it also carries.
+        self.assertIsNone(self._CRAWLER_META.search(html),
+                          "the redirect stub must not carry a robots/noindex meta")
         code = self._script_of(html)
         self.assertIn(json.dumps(self.TARGET), code)
         self.assertIn("location.search", code)
         self.assertIn("location.hash", code)
+
+    def test_the_noindex_check_can_fail(self):
+        # The matcher above is only evidence if it flags every spelling of the
+        # tag it forbids and leaves the clean stub alone.
+        for bad in (
+            '<meta name="robots" content="noindex">',
+            "<meta name='robots' content='noindex, nofollow'>",
+            '<META NAME="ROBOTS" CONTENT="NOINDEX">',
+            '<meta\tname="robots"\tcontent="noindex">',
+            '<meta\nname="robots"\ncontent="noindex">',
+            '<meta content="noindex" name="robots">',
+            '<meta name=robots content=none>',
+            '<meta name="googlebot" content="noindex">',
+            '<meta name="bingbot" content="noindex">',
+        ):
+            with self.subTest(bad=bad):
+                self.assertIsNotNone(self._CRAWLER_META.search(bad))
+        # Inverse direction: a refresh meta whose target slug reads "none" is
+        # ordinary, not a crawler directive.
+        self.assertIsNone(self._CRAWLER_META.search(self._render_layout(
+            "https://happypetproductreviews.com/health/none-of-the-above/")))
 
     def test_stub_script_forwards_query_and_fragment(self):
         code = self._script_of(self._render_layout(self.TARGET))
