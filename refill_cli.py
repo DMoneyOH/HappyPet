@@ -15,9 +15,10 @@ decision about what may enter products.json lives here, offline:
                                        fill each placeholder this run seeded (not
                                        in b.json) from the plan's product, Chewy
                                        enrichment OFF; drop the ones left unfilled
-  check   --base base.json             every seed and resolve rule again, on every
+  check   --base base.json [--max N]   every seed and resolve rule again, on every
                                        entry not in base.json, plus the auto-merge
-                                       gate's refill rule run locally
+                                       gate's refill rule run locally; --max is the
+                                       run's batch, as for seed (default the same)
 
 Plan file: {"abort": null | "<reason>", "topics": [{topic, title, keyword, species,
 category, topical_sheet, amazon_search_query, product: null | {name, asin, image,
@@ -145,6 +146,7 @@ def is_bare_head_term(keyword) -> bool:
 
 
 SEED_MATCH_FIELDS = ("keyword", "species", "category")
+DEFAULT_MAX = 10   # seed's and check's default batch; run-refill.ps1's -Batch tops out here
 
 
 def offered_seeds(seeds: list, taken: set, today: str, batch: int) -> list:
@@ -333,9 +335,12 @@ def cmd_check(args) -> int:
     base_topics = {e.get("topic") for e in base if isinstance(e, dict)}
     taken = taken_slugs(base)
     seeds = plan_seeds()
-    # check has no batch size, so a seed entry must be live and untaken at the
-    # branch point (any batch's offer is a prefix of these) and match the plan.
-    allowed = {s["topic"] for s in offered_seeds(seeds, taken, rp.eastern_date(), len(seeds))}
+    # The seeds `seed --max N` would have been handed: same plan, same branch
+    # point, same ET day. Pass the run's batch as --max; the default is seed's.
+    allowed = {s["topic"] for s in offered_seeds(seeds, taken, rp.eastern_date(), args.max)}
+    new_entries = [e for e in head if isinstance(e, dict) and e.get("topic") not in base_topics]
+    if len(new_entries) > args.max:   # seed reads at most --max planned topics
+        problems.append(f"{len(new_entries)} new entries, more than --max {args.max}")
     for e in head:
         if not isinstance(e, dict) or e.get("topic") in base_topics:
             continue
@@ -362,7 +367,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_context.set_defaults(func=cmd_context)
     p_seed = sub.add_parser("seed")
     p_seed.add_argument("--plan", required=True)
-    p_seed.add_argument("--max", type=int, default=10)
+    p_seed.add_argument("--max", type=int, default=DEFAULT_MAX)
     p_seed.set_defaults(func=cmd_seed)
     p_resolve = sub.add_parser("resolve")
     p_resolve.add_argument("--plan", required=True)
@@ -371,6 +376,9 @@ def build_parser() -> argparse.ArgumentParser:
     p_resolve.set_defaults(func=cmd_resolve)
     p_check = sub.add_parser("check")
     p_check.add_argument("--base", required=True)
+    p_check.add_argument("--max", type=int, default=DEFAULT_MAX,
+                         help="the run's batch (what seed got as --max): the seeds it would "
+                              "have been handed, and the most new entries it could have written")
     p_check.set_defaults(func=cmd_check)
     return ap
 

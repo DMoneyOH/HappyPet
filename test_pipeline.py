@@ -10663,6 +10663,64 @@ class TestRefillCli(unittest.TestCase):
                 rc, out = self.check([entry])
                 self.assertEqual(rc, 0 if ok else 1, out)
 
+    def _check_on(self, entries, *flags, today="2026-11-01"):
+        import refill_products
+        base = json.loads(self.base.read_text(encoding="utf-8"))
+        self.head.write_text(json.dumps(base + entries), encoding="utf-8")
+        with patch.object(refill_products, "eastern_date", lambda: today):
+            return self.run_cli("check", "--base", str(self.base), *flags)
+
+    def _seed_entry(self, n):
+        if n not in (1, 2):
+            raise ValueError(f"_plan_two_seeds has seeds 1 and 2, not {n}")
+        words = ("one", "two")[n - 1]
+        return self.full_entry(topic=f"best-seed-{words}", keyword=f"seed {words} for small dogs",
+                               amazon_search_query=f"seed {words} for small dogs",
+                               asin=f"B0SEEDMAX{n}")
+
+    def test_check_holds_a_seed_beyond_the_batch_when_seed_was_bypassed(self):
+        """Defense in depth: a plan-seed entry that `seed --max 1` would refuse
+        ("not handed") is held by `check --max 1` too, even when the entry is a
+        complete one that never went through `seed`."""
+        self._plan_two_seeds()
+        second = self._seed_entry(2)
+        rc, out = self._check_on([second], "--max", "1")
+        self.assertEqual(rc, 1, out)
+        self.assertIn("publish-plan seed this run was not handed", out)
+        for flags in (("--max", "2"), ()):
+            with self.subTest(flags=flags):
+                rc, out = self._check_on([second], *flags)
+                self.assertEqual(rc, 0, out)
+
+    def test_check_holds_more_new_entries_than_the_batch(self):
+        """`seed` reads at most --max planned topics, so a branch with more new
+        entries than that did not come through it."""
+        self._plan_two_seeds()
+        both = [self._seed_entry(1), self._seed_entry(2)]
+        rc, out = self._check_on(both, "--max", "1")
+        self.assertEqual(rc, 1, out)
+        self.assertIn("2 new entries, more than --max 1", out)
+        self.assertEqual(self._check_on(both, "--max", "2")[0], 0)
+
+    def test_check_and_seed_agree_on_every_seed_at_every_batch(self):
+        """The rule is one rule: for each batch and each plan seed, `seed`
+        takes the topic exactly when `check` passes the finished entry."""
+        seeds = self._plan_two_seeds()
+        for batch in (1, 2):
+            for n, slug in ((1, "best-seed-one"), (2, "best-seed-two")):
+                with self.subTest(batch=batch, seed=slug):
+                    self.head.write_text(self.base.read_text(encoding="utf-8"), encoding="utf-8")
+                    seed_rc, _ = self._seed([seeds[slug]], batch)
+                    check_rc, out = self._check_on([self._seed_entry(n)], "--max", str(batch))
+                    self.assertEqual(check_rc == 0, seed_rc == 0, out)
+                    self.assertEqual(seed_rc == 0, n <= batch)
+
+    def test_check_takes_the_same_batch_flag_and_default_as_seed(self):
+        ap = self.cli.build_parser()
+        seed_default = ap.parse_args(["seed", "--plan", "p"]).max
+        self.assertEqual(ap.parse_args(["check", "--base", "b"]).max, seed_default)
+        self.assertEqual(ap.parse_args(["check", "--base", "b", "--max", "3"]).max, 3)
+
     def test_context_without_a_plan_has_no_seeds(self):
         out = self.base.parent / "ctx.json"
         self.run_cli("context", "--out", str(out), "--batch", "6")
@@ -11145,6 +11203,38 @@ def _bash_for_workflow_steps():
     return None, "no bash 4+ (publish.yml uses mapfile) outside WSL"
 
 
+# The hub layout's intro and how-we-choose markup, as rendered, per front-matter field.
+HUB_FIELD_MARKUP = {"intro": '<p class="standfirst">{}</p>',
+                    "how_we_choose": '<p class="hub-method"><b>How we choose:</b> {}</p>'}
+
+
+def _hub_front_matter_strings(text):
+    """The quoted `key: "value"` lines of a hub file's front matter. Read by
+    hand because validate_published_chewy_links.parse_frontmatter strips quotes
+    off both ends loosely and ignores escapes, so a stray backslash or inner
+    quote would pass through it unseen. This reader matches the whole quoted
+    scalar and refuses an escape or inner quote, so the value is exactly the
+    double-quoted YAML scalar Jekyll reads, with nothing to unescape."""
+    block = text.split("---\n")[1]
+    out = {}
+    for line in block.splitlines():
+        m = re.fullmatch(r'(\w+): "(.*)"', line)
+        if m:
+            assert not re.search(r'["\\]', m.group(2)), f"{line!r} has an escape or a quote"
+            out[m.group(1)] = m.group(2)
+    return out
+
+
+def _render_hub_field(field, hub_file_text):
+    """The hub layout's own `if page.<field>` block, rendered by _MiniLiquid
+    from a hub file's front matter, stripped."""
+    layout = (REPO / "_layouts" / "hub.html").read_text(encoding="utf-8")
+    m = re.search(r"\{%-?\s*if page\." + field + r"\s*-?%\}.*?\{%-?\s*endif\s*-?%\}",
+                  layout, re.S)
+    assert m, f"hub.html has no `if page.{field}` block"
+    return _MiniLiquid(m.group(0)).render({"page": _hub_front_matter_strings(hub_file_text)}).strip()
+
+
 class TestTopicHubs(unittest.TestCase):
     """Topic hubs (Director-approved 2026-10-13): hubs/<topic>.md, one layout
     (_layouts/hub.html) that lists every post in the topic, the post breadcrumb
@@ -11200,6 +11290,33 @@ class TestTopicHubs(unittest.TestCase):
                                  hub_pages.hub_text(slug, hub_copy),
                                  f"hubs/{slug}.md differs from {hub_pages.COPY_FILE}; run "
                                  "python hub_pages.py --sync")
+
+    def test_each_hubs_rendered_intro_and_method_are_its_copy_file_entry(self):
+        """D-2, from the other end: the layout's own intro and how-we-choose
+        markup, rendered from each hub file's front matter, shows exactly the
+        text in _data/hub_copy.json. Expected text is the data file's literal,
+        not hub_pages.hub_text, so a writer bug cannot cancel itself out."""
+        copy = json.loads((REPO / "_data" / "hub_copy.json").read_text(encoding="utf-8"))
+        self.assertTrue(self.hubs)
+        for field, markup in HUB_FIELD_MARKUP.items():
+            for slug in self.hubs:
+                with self.subTest(hub=slug, field=field):
+                    self.assertIn(slug, copy)
+                    hub_file = (REPO / "hubs" / f"{slug}.md").read_text(encoding="utf-8")
+                    self.assertEqual(_render_hub_field(field, hub_file),
+                                     markup.format(copy[slug][field]))
+
+    def test_the_rendered_copy_check_catches_copy_that_drifted(self):
+        """Prove the check above can fail: a hub whose intro was edited in the
+        hub file alone, by one character, renders text the data file lacks."""
+        copy = json.loads((REPO / "_data" / "hub_copy.json").read_text(encoding="utf-8"))
+        slug = sorted(self.hubs)[0]
+        intro = copy[slug]["intro"]
+        hub_file = (REPO / "hubs" / f"{slug}.md").read_text(encoding="utf-8")
+        self.assertIn(intro, hub_file)
+        rendered = _render_hub_field("intro", hub_file.replace(intro, intro + "!"))
+        self.assertEqual(rendered, HUB_FIELD_MARKUP["intro"].format(intro + "!"))
+        self.assertNotEqual(rendered, HUB_FIELD_MARKUP["intro"].format(intro))
 
     def test_the_copy_file_has_complete_copy_for_every_topic(self):
         """So the publish never meets a topic without copy. Plain one-line text
@@ -11341,6 +11458,82 @@ class TestTopicHubs(unittest.TestCase):
                              "---\nlayout: hub\n---\n")
 
 
+# Exactly what publish.yml's `permissions:` holds as of 2026-10-14: contents for
+# the publish commit, issues for the alert issues, actions to dispatch deploy.yml.
+PUBLISH_PERMISSIONS = {"contents": "write", "issues": "write", "actions": "write"}
+
+
+def _workflow_permissions(text):
+    """(top-level permissions mapping, count of `permissions` keys at any
+    indent). Reads the whole block: blank and comment lines inside it do not
+    end it, so a key after one is still counted."""
+    lines = text.splitlines()
+    starts = [i for i, ln in enumerate(lines) if re.match(r"permissions\s*:", ln)]
+    anywhere = len(re.findall(r"^\s*permissions\s*:", text, re.M))
+    if len(starts) != 1 or lines[starts[0]].rstrip() != "permissions:":
+        return None, anywhere
+    perms = {}
+    for ln in lines[starts[0] + 1:]:
+        if not ln.strip() or ln.lstrip().startswith("#"):
+            continue
+        if not ln[0].isspace():
+            break
+        m = re.fullmatch(r"\s+([\w-]+):\s*(\S+?)(?:\s+#.*)?", ln)
+        if not m:
+            return None, anywhere
+        perms[m.group(1)] = m.group(2)
+    return perms, anywhere
+
+
+class TestPublishWorkflowPins(unittest.TestCase):
+    """What publish.yml's token may do, and what no workflow may run. Both are
+    pinned as literals, so a widening or a new caller is a failing test and a
+    reviewed change, not a quiet edit."""
+
+    WORKFLOWS = REPO / ".github" / "workflows"
+
+    def test_publish_permissions_are_pinned(self):
+        text = (self.WORKFLOWS / "publish.yml").read_text(encoding="utf-8")
+        perms, anywhere = _workflow_permissions(text)
+        self.assertEqual(perms, PUBLISH_PERMISSIONS,
+                         "publish.yml's permissions: block changed; widening the token "
+                         "is a reviewed change, so update this pin in the same PR")
+        self.assertEqual(anywhere, 1, "a second permissions: key (a job-level block) "
+                                      "can widen what the top-level block pins")
+
+    def test_the_permissions_pin_reads_a_widening_however_it_is_written(self):
+        """Attack the reader: each of these is a widening or an unreadable form
+        and has to come out different from the pinned mapping."""
+        base = ("permissions:\n  contents: write\n  issues: write\n"
+                "  actions: write   # dispatch deploy.yml\n\nconcurrency:\n  group: g\n")
+        self.assertEqual(_workflow_permissions(base), (PUBLISH_PERMISSIONS, 1))
+        for label, text in (
+                ("new key", base.replace("  issues: write\n", "  issues: write\n  pull-requests: write\n")),
+                ("new key after a blank line",
+                 base.replace("  actions: write   # dispatch deploy.yml\n",
+                              "  actions: write\n\n  # comment\n\n  packages: write\n")),
+                ("value widened", base.replace("contents: write", "contents: admin")),
+                ("key dropped", base.replace("  issues: write\n", "")),
+                ("write-all", base.replace("permissions:\n  contents: write\n  issues: write\n"
+                                           "  actions: write   # dispatch deploy.yml\n",
+                                           "permissions: write-all\n")),
+                ("job-level block", base + "jobs:\n  publish:\n    permissions:\n      contents: write\n")):
+            with self.subTest(case=label):
+                self.assertNotEqual(_workflow_permissions(text), (PUBLISH_PERMISSIONS, 1))
+
+    def test_no_workflow_runs_hub_pages_sync(self):
+        """`hub_pages.py --sync` rewrites existing hubs from the copy file. It is
+        hand-run, after editing the copy, and no workflow may run it."""
+        files = [p for p in self.WORKFLOWS.rglob("*") if p.is_file()]
+        self.assertIn("publish.yml", [p.name for p in files])
+        for p in files:
+            with self.subTest(workflow=p.name):
+                # Deliberate over-match: hub_pages matches `--sync` exactly, so a case
+                # variant would not sync, but failing on one costs nothing and guards
+                # a future case-insensitive parser.
+                self.assertNotIn("--sync", p.read_text(encoding="utf-8").lower())
+
+
 class TestPublishWritesTheHub(unittest.TestCase):
     """Acceptance (Director-approved 2026-10-14): the publish that takes a topic
     to HUB_MIN posts commits the topic's hub, with Scarlett's copy. Runs
@@ -11382,13 +11575,16 @@ class TestPublishWritesTheHub(unittest.TestCase):
         self.assertIn("if: failure() && steps.hub.outcome == 'failure'\n", head)
         self.assertEqual(re.findall(r"secrets\.\w+", head + script), ["secrets.GITHUB_TOKEN"])
         self.assertIn("gh issue create", script)
-        perms = re.search(r"^permissions:\n((?:  .*\n)+)", self.workflow, re.M).group(1)
-        self.assertIn("issues: write", perms)
 
-    def _publish(self, tmp, earlier_posts, hub_copy):
+    GH_CALL_END = "---END-OF-CALL---"
+
+    def _publish(self, tmp, earlier_posts, hub_copy, open_issues=(), list_fails=False):
         """Run the dating and hub steps; if they fail, run the issue step, as
-        its `if: failure()` would. Returns (steps run, issue run or None,
-        staged paths, the args gh was called with)."""
+        its `if: failure()` would. `gh` is a shell function that records every
+        call's args; `gh issue list` answers with `open_issues` (the open
+        issues' titles, one per line, as `--jq '.[].title'` prints them), or
+        fails when `list_fails`. Returns (steps run, issue run or None, staged
+        paths, the list of gh calls, each a list of args)."""
         import shlex
         import shutil
         import subprocess
@@ -11417,29 +11613,40 @@ class TestPublishWritesTheHub(unittest.TestCase):
         env = dict(os.environ, GITHUB_OUTPUT=(tmp / "github_output").as_posix(),
                    RUNNER_TEMP=(tmp / "runner_temp").as_posix(),
                    GH_ARGS=(tmp / "gh_args").as_posix(),
+                   OPEN_ISSUES="\n".join(open_issues), LIST_FAILS="1" if list_fails else "",
                    GIT_CONFIG_PARAMETERS="'core.autocrlf=false'")
 
         def run(script):
             return subprocess.run([bash, "--noprofile", "--norc", "-eo", "pipefail", "-c", script],
-                                  cwd=tmp, capture_output=True, text=True, env=env)
+                                  cwd=tmp, capture_output=True, text=True, encoding="utf-8",
+                                  env=env)
         steps = run(date_step.replace("${{ steps.cap.outputs.cap }}", "1")
                     + hub_step.replace("python3 ", python + " "))
         issue = None
         if steps.returncode != 0:
-            issue = run('gh() { printf "%s\\n" "$@" > "$GH_ARGS"; }\n' + issue_step)
-        gh_args = ((tmp / "gh_args").read_text(encoding="utf-8").splitlines()
-                   if (tmp / "gh_args").exists() else [])
+            stub = ('gh() {\n'
+                    '  printf "%s\\n" "$@" >> "$GH_ARGS"; echo "' + self.GH_CALL_END + '" >> "$GH_ARGS"\n'
+                    '  if [ "$1 $2" = "issue list" ]; then\n'
+                    '    [ -n "$LIST_FAILS" ] && return 1\n'
+                    '    [ -n "$OPEN_ISSUES" ] && printf "%s\\n" "$OPEN_ISSUES"\n'
+                    '  fi\n'
+                    '  return 0\n}\n')
+            issue = run(stub + issue_step)
+        raw = ((tmp / "gh_args").read_text(encoding="utf-8")
+               if (tmp / "gh_args").exists() else "")
+        calls = [chunk.split("\n")[:-1] if chunk.endswith("\n") else chunk.split("\n")
+                 for chunk in raw.split(self.GH_CALL_END + "\n") if chunk]
         self.assertEqual(hub_pages.HUB_MIN, 3, "the step names say 3")
-        return steps, issue, git("diff", "--cached", "--name-only").split(), gh_args
+        return steps, issue, git("diff", "--cached", "--name-only").split(), calls
 
     def test_the_publish_of_a_third_treats_post_commits_the_treats_hub(self):
         import hub_pages
         with tempfile.TemporaryDirectory() as d:
             tmp = Path(d)
-            steps, issue, staged, gh_args = self._publish(tmp, hub_pages.HUB_MIN - 1,
-                                                          hub_pages.load_copy())
+            steps, issue, staged, calls = self._publish(tmp, hub_pages.HUB_MIN - 1,
+                                                        hub_pages.load_copy())
             self.assertEqual(steps.returncode, 0, steps.stdout + steps.stderr)
-            self.assertEqual((issue, gh_args), (None, []))
+            self.assertEqual((issue, calls), (None, []))
             self.assertIn("hubs/treats.md", staged)
             self.assertTrue(any(s.startswith("_posts/2") and s.endswith("-best-treats-new.md")
                                 for s in staged), staged)
@@ -11469,18 +11676,87 @@ class TestPublishWritesTheHub(unittest.TestCase):
         missing = ", ".join(hub_pages.COPY_FIELDS[1:])
         with tempfile.TemporaryDirectory() as d:
             tmp = Path(d)
-            steps, issue, staged, gh_args = self._publish(tmp, hub_pages.HUB_MIN - 1, hub_copy)
+            steps, issue, staged, calls = self._publish(tmp, hub_pages.HUB_MIN - 1, hub_copy)
             self.assertNotEqual(steps.returncode, 0)
             self.assertIn(f"ERROR treats: no {missing} in {hub_pages.COPY_FILE}", steps.stderr)
             self.assertFalse((tmp / "hubs" / "treats.md").exists())
             self.assertFalse([s for s in staged if s.startswith("hubs/")], staged)
             self.assertEqual(issue.returncode, 0, issue.stdout + issue.stderr)
-            self.assertEqual(gh_args[:2], ["issue", "create"])
+            creates = self._creates(calls)
+            self.assertEqual(len(creates), 1, calls)
+            gh_args = creates[0]
             title = gh_args[gh_args.index("--title") + 1]
-            self.assertEqual(title, "⚠️ Publish blocked: no hub copy for treats")
+            self.assertEqual(title, self.BLOCKED_TITLE)
             body = "\n".join(gh_args[gh_args.index("--body") + 1:gh_args.index("--assignee")])
             self.assertIn(f"ERROR treats: no {missing} in {hub_pages.COPY_FILE}", body)
             self.assertIn("nothing was published", body)
+
+    BLOCKED_TITLE = "⚠️ Publish blocked: no hub copy for treats"
+
+    @staticmethod
+    def _creates(calls):
+        return [c for c in calls if c[:2] == ["issue", "create"]]
+
+    def _blocked_run(self, **kw):
+        """A blocked publish (treats at its third post, no copy) with the
+        given open issues; returns (issue step run, gh calls)."""
+        import hub_pages
+        hub_copy = hub_pages.load_copy()
+        hub_copy["treats"] = {"title": hub_copy["treats"]["title"]}
+        with tempfile.TemporaryDirectory() as d:
+            steps, issue, _, calls = self._publish(Path(d), hub_pages.HUB_MIN - 1, hub_copy, **kw)
+        self.assertNotEqual(steps.returncode, 0)
+        return issue, calls
+
+    def test_a_blocked_publish_finds_its_open_issue_before_opening_one(self):
+        """The same block, run after run, is one issue: the step lists the open
+        issues first, under the token it already has."""
+        issue, calls = self._blocked_run()
+        self.assertEqual(issue.returncode, 0, issue.stdout + issue.stderr)
+        self.assertEqual(calls[0][:2], ["issue", "list"], calls)
+        listing = calls[0]
+        self.assertEqual(listing[listing.index("--repo") + 1], "DMoneyOH/HappyPet")
+        self.assertEqual(listing[listing.index("--state") + 1], "open")
+        self.assertIn("--json", listing)
+        self.assertEqual(len(self._creates(calls)), 1, calls)
+
+    def test_a_blocked_publish_opens_no_second_issue_while_one_is_open(self):
+        issue, calls = self._blocked_run(open_issues=["Unrelated open issue", self.BLOCKED_TITLE])
+        self.assertEqual(issue.returncode, 0, issue.stdout + issue.stderr)
+        self.assertEqual(self._creates(calls), [], calls)
+        self.assertEqual([c[:2] for c in calls], [["issue", "list"]], calls)
+        self.assertIn("already open", issue.stdout)
+
+    def test_only_an_open_issue_for_the_same_topics_stops_a_new_one(self):
+        """Exact title, so a different topic set, a longer one that merely
+        contains this topic, and another alert all still get their own issue."""
+        for label, titles in (
+                ("different topic", ["⚠️ Publish blocked: no hub copy for tech"]),
+                ("superset of topics", ["⚠️ Publish blocked: no hub copy for treats,tech"]),
+                ("prefix of the title", ["⚠️ Publish blocked: no hub copy for"]),
+                ("same words, other alert", ["Queue low: no hub copy for treats"]),
+                ("case differs", [self.BLOCKED_TITLE.lower()]),
+                ("no open issues", [])):
+            with self.subTest(case=label):
+                issue, calls = self._blocked_run(open_issues=titles)
+                self.assertEqual(issue.returncode, 0, issue.stdout + issue.stderr)
+                self.assertEqual(len(self._creates(calls)), 1, calls)
+
+    def test_a_failed_issue_listing_still_opens_the_issue(self):
+        """An alert that could not check for a duplicate is worth a duplicate;
+        it is not worth silence."""
+        issue, calls = self._blocked_run(open_issues=[self.BLOCKED_TITLE], list_fails=True)
+        self.assertEqual(issue.returncode, 0, issue.stdout + issue.stderr)
+        self.assertEqual(len(self._creates(calls)), 1, calls)
+
+    def test_the_issue_step_stays_inside_the_publish_token(self):
+        """Dedup adds `gh issue list` to the step, which the token's
+        existing `issues: write` covers, so the permissions block is unchanged."""
+        head, script = self._step(self.ISSUE_STEP)
+        self.assertEqual(re.findall(r"secrets\.\w+", head + script), ["secrets.GITHUB_TOKEN"])
+        self.assertEqual(_workflow_permissions(self.workflow)[0], PUBLISH_PERMISSIONS)
+        self.assertEqual(sorted(set(re.findall(r"\bgh (\w+ \w+)", script))),
+                         ["issue create", "issue list"])
 
 
 class TestPublishedRootIsAllowlisted(unittest.TestCase):
