@@ -64,7 +64,7 @@ A diffuser covers one room and needs an outlet. When the stress comes with a car
 | Pet Remedy Calming Spray | Spray | Spot treatment during vet trips or carrier rides |
 | NaturVet Calming Aid (Liquid) | Oral liquid | Cats that dislike chews or have dental issues |
 
-**Supplements and chews** (Purina Pro Plan Calming Care, VetriScience Composure Chews) suit everyday nervousness, travel and vet trips, and they fit into a meal routine. Some cats reject the texture.
+**Supplements and chews** (Purina Pro Plan Calming Care is a powder you sprinkle on food; VetriScience Composure Chews are chews) suit everyday nervousness, travel and vet trips, and they fit into a meal routine. Some cats reject the texture.
 
 **The collar** (ThunderEase) goes wherever the cat goes, which makes it the pick when noise like thunder or fireworks is the trigger. It has to be fitted correctly, and its scent may fade with heavy wear.
 
