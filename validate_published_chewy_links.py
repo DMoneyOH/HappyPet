@@ -105,7 +105,7 @@ _GENERIC_ANCHOR_RE = re.compile(
 # honest: a post whose API check is queued for a later run is not OK and is not
 # a skip, and saying so is the whole difference from the gap above.
 STATUSES = ("OK", "CLEAN", "DEFERRED", "NO_URL", "UNWRAPPED", "MALFORMED",
-            "VARIANT_MISMATCH", "MISMATCH", "REVIEW", "ERROR")
+            "VARIANT_MISMATCH", "MISMATCH", "UNVERIFIED", "REVIEW", "ERROR")
 
 # Impact lookups per scheduled run. The job runs weekly, so at 12 a site of 49
 # linked posts is swept in five weeks; pushing all 49 through on every run is
@@ -315,15 +315,37 @@ def check_brand_match(product_name: str, chewy_matched_name: str) -> tuple[bool,
     return False, f"brand mismatch: searched='{searched}' matched='{matched}'"
 
 
+def _squash(text: str) -> str:
+    """Letters and digits only, so Chewy's `hills-science-diet` slug and the
+    brand "Hill's" compare equal."""
+    return re.sub(r"[^a-z0-9]", "", (text or "").lower())
+
+
+def slug_names_brand(chewy_url: str, product_name: str) -> bool:
+    """Whether the stored link's own Chewy slug names the article's brand.
+    Offline. A slug is Chewy's name for the listing but is not what Chewy routes
+    on (the listing id is), so this may support OK and never a MISMATCH."""
+    expected = _squash(brand_token(product_name))
+    return bool(expected) and expected in _squash(parse_chewy_url(chewy_url)["product_slug"])
+
+
 def validate_chewy_url(chewy_url: str, product_name: str) -> tuple[str, str]:
     """
-    Re-run chewy_lookup for the product and compare against stored URL.
+    Judge the stored link by the listing it points to.
     Returns (status, detail):
-      OK          - brand match confirmed
-      MISMATCH    - stored URL resolves to different brand
+      OK          - the stored link's listing names the article's brand
+      MISMATCH    - the catalog's own entry for the stored listing id is
+                    another brand
+      UNVERIFIED  - the stored listing could not be identified, so no verdict
       REVIEW      - sentinel stored, needs human check
       NO_URL      - no Chewy URL stored (Amazon-only product)
       ERROR       - lookup failed
+
+    This used to search the catalog by the product name and brand-check the
+    top hit, never looking at the stored link. A correct ChomChom link was
+    reported MISMATCH because the search ranked a Fido glove first (#137,
+    #155). The stored listing id is now looked for among the search results;
+    a different top hit is not evidence against the stored link.
     """
     if not chewy_url:
         return "NO_URL", "no chewy_url stored"
@@ -331,16 +353,30 @@ def validate_chewy_url(chewy_url: str, product_name: str) -> tuple[str, str]:
         return "REVIEW", f"sentinel value: {chewy_url[:60]}"
 
     try:
-        from chewy_lookup import lookup, ChewyAPIError
+        import chewy_lookup as cl
     except ImportError as ie:
         # A broken import must be loud -- this exact failure mode (importing a
         # function that didn't exist at module level) silently rubber-stamped
         # every URL as OK for weeks.
         return "ERROR", f"chewy_lookup not importable: {ie}"
 
+    parsed = parse_chewy_url(chewy_url)
+    dp_id, slug = parsed["dp_id"], parsed["product_slug"]
+    if not dp_id:
+        return "UNVERIFIED", f"stored link carries no Chewy listing id: {chewy_url[:80]}"
+    if not cl.ACCOUNT_SID or not cl.AUTH_TOKEN:
+        return "UNVERIFIED", "Impact credentials not set -- stored listing not looked up"
+
+    # The slug's words are the listing's own name, so they are the search most
+    # likely to return it; the product name is the second try.
+    listing = None
     try:
-        result = lookup(product_name)
-    except ChewyAPIError as e:
+        for keyword in dict.fromkeys(k for k in (slug.replace("-", " "), product_name) if k):
+            listing = next((item for item in cl.search_catalog(keyword, page_size=10)
+                            if parse_chewy_url(item.get("Url") or "")["dp_id"] == dp_id), None)
+            if listing:
+                break
+    except cl.ChewyAPIError as e:
         # API outage / bad creds is NOT evidence of a bad link. Reporting it as
         # MISMATCH once meant --fix could clear every stored Chewy link during
         # an Impact.com blip.
@@ -348,17 +384,21 @@ def validate_chewy_url(chewy_url: str, product_name: str) -> tuple[str, str]:
     except Exception as e:
         return "ERROR", f"lookup exception: {e}"
 
-    matched_name = result.get("chewy_matched_name") or ""
-    if not matched_name:
-        # Lookup ran but found nothing to compare against -- needs a human, but
-        # it is not a positive contradiction of the stored link.
-        return "REVIEW", "lookup found no Chewy match to compare -- verify stored URL manually"
-
-    ok, reason = check_brand_match(product_name, matched_name)
-    if ok:
-        return "OK", f"brand confirmed: {matched_name[:60]}"
-    # Positive contradiction: lookup matched a real product of a different brand
-    return "MISMATCH", f"{reason} | stored: {chewy_url[:60]} | matched: {matched_name[:60]}"
+    expected = brand_token(product_name)
+    if listing:
+        name  = listing.get("Name") or ""
+        found = brand_token(name)
+        if not expected or not found:
+            return "UNVERIFIED", f"no brand to compare: product {product_name[:40]!r}, listing {name[:40]!r}"
+        if _squash(expected) in _squash(name) or _squash(found) in _squash(product_name):
+            return "OK", f"stored listing {dp_id} is {name[:60]}"
+        return "MISMATCH", (f"brand mismatch: expected='{expected}', stored listing {dp_id} "
+                            f"is '{found}' | stored: {chewy_url[:60]} | listing: {name[:60]}")
+    if slug_names_brand(chewy_url, product_name):
+        return "OK", (f"stored link slug {slug!r} names '{expected}'; listing {dp_id} "
+                      f"not in catalog search results")
+    return "UNVERIFIED", (f"stored listing {dp_id} not in catalog search results and slug "
+                          f"{slug!r} does not name '{expected}' -- check the link by hand")
 
 
 def main() -> None:
@@ -383,6 +423,7 @@ def main() -> None:
 
     results = []
     counts  = {s: 0 for s in STATUSES}
+    cleared = set()
 
     for entry in entries:
         slug         = entry["slug"]
@@ -418,6 +459,8 @@ def main() -> None:
             log(f"  SKIP  {slug} -- carries no Chewy link at all")
         elif status == "REVIEW":
             log(f"  REVIEW {slug} -- {detail}", "WARN")
+        elif status == "UNVERIFIED":
+            log(f"  UNVERIFIED {slug} -- {detail}", "WARN")
         elif status == "UNWRAPPED":
             log(f"  UNWRAPPED {slug} -- {detail}", "ERROR")
         elif status == "MALFORMED":
@@ -426,7 +469,13 @@ def main() -> None:
             log(f"  VARIANT_MISMATCH {slug} -- {detail}", "ERROR")
         elif status == "MISMATCH":
             log(f"  MISMATCH {slug} -- {detail}", "ERROR")
-            if args.fix and slug in products:
+            if args.fix and slug_names_brand(chewy_url, product_name):
+                # Checked at the write itself, whatever produced the verdict: a
+                # link that names the article's brand is never cleared here.
+                log(f"  FIX REFUSED {slug} -- the stored link names the article's brand; "
+                    f"check it by hand", "WARN")
+            elif args.fix and slug in products:
+                cleared.add(slug)
                 products[slug]["chewy_url"]    = None
                 products[slug]["chewy_price"]  = None
                 products[slug]["chewy_stock"]  = None
@@ -456,18 +505,17 @@ def main() -> None:
 
     log("DONE -- " + ", ".join(f"{counts[s]} {s}" for s in STATUSES if counts[s]))
 
-    if args.fix and counts["MISMATCH"] > 0:
+    if args.fix and cleared:
         json_path = REPO_DIR / "products.json"
         raw = json.loads(json_path.read_text())
         for entry in raw:
-            slug = entry.get("topic", "")
-            if slug in products and products[slug].get("chewy_url") is None:
+            if entry.get("topic", "") in cleared:
                 entry["chewy_url"]    = None
                 entry["chewy_price"]  = None
                 entry["chewy_stock"]  = None
                 entry["chewy_rating"] = None
         atomic_write_json(json_path, raw)
-        log(f"FIX: products.json updated -- {counts['MISMATCH']} bad chewy_url entries cleared")
+        log(f"FIX: products.json updated -- {len(cleared)} bad chewy_url entries cleared")
 
     if not args.report_only:
         report_path = REPO_DIR / f"chewy_link_validation_{datetime.date.today().isoformat()}.json"

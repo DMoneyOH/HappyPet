@@ -8723,6 +8723,191 @@ class TestChewyApiThrottle(unittest.TestCase):
         self.assertIn("DEFERRED", self.v.STATUSES)
 
 
+# The top catalog hit for "ChomChom Pet Hair Roller" in issue #155, name as the
+# issue quoted it. Its listing id is invented: the issue did not record one.
+CHEWY_FIDO_GLOVE_ITEM = {
+    "Name": "Fido Fave Reusable Washable Pet Hair Remover Glove",
+    "Url": ("https://chewy.sjv.io/c/7160344/3054490/32975?u=https%3A%2F%2Fwww.chewy.com"
+            "%2Ffido-fave-reusable-washable-pet-hair%2Fdp%2F999001&intsrc=APIG_24727"),
+}
+
+
+class TestChewyStoredLinkIsWhatIsJudged(unittest.TestCase):
+    """#137 / #155: a correct link reported as a wrong-brand MISMATCH.
+
+    The validator searched the catalog by the article's product name, took the
+    top hit, and compared THAT hit's brand. The stored link was never looked at,
+    so a correct ChomChom link was reported as wrong because the search ranked a
+    Fido glove first -- and the issue text calls MISMATCH "safe to --fix".
+
+    The real post is read here, so the #155 case is the live link and the
+    product name the job actually derives for it, not a reconstruction.
+    """
+
+    SLUG = "best-pet-hair-removers-laundry-furniture"
+
+    def setUp(self):
+        import chewy_lookup as cl
+        import validate_published_chewy_links as v
+        self.v, self.cl = v, cl
+        post = next((REPO / "_posts").glob(f"2*-{self.SLUG}.md"))
+        self.entry = v.post_entry(post, {})
+        self.dp = v.parse_chewy_url(self.entry["chewy_url"])["dp_id"]
+
+    def _item(self, name, dp):
+        return {"Name": name,
+                "Url": ("https://chewy.sjv.io/c/7160344/3054490/32975?u=https%3A%2F%2F"
+                        f"www.chewy.com%2Fsome-listing%2Fdp%2F{dp}&intsrc=APIG_24727")}
+
+    def _judge(self, items, url=None, name=None, creds=("x", "y")):
+        """Run the validator against a fake catalog. Any real socket fails the test."""
+        calls = []
+
+        def fake_search(keyword, page_size=10):
+            calls.append(keyword)
+            if isinstance(items, Exception):
+                raise items
+            return list(items)
+
+        with patch.object(self.cl, "ACCOUNT_SID", creds[0]), \
+             patch.object(self.cl, "AUTH_TOKEN", creds[1]), \
+             patch.object(self.cl, "search_catalog", side_effect=fake_search), \
+             patch.object(self.cl, "lookup", side_effect=AssertionError("lookup() called")), \
+             patch("urllib.request.urlopen", side_effect=AssertionError("network used")):
+            status, detail = self.v.validate_chewy_url(
+                url or self.entry["chewy_url"], name or self.entry["product_name"])
+        return status, detail, calls
+
+    def test_the_post_under_test_is_the_one_in_issue_155(self):
+        self.assertEqual(self.entry["product_name"], "ChomChom Pet Hair Roller")
+        self.assertEqual(self.dp, "163270")
+
+    def test_a_different_top_search_hit_is_not_a_mismatch(self):
+        """The #155 repro: the catalog returns only the Fido glove."""
+        status, detail, _ = self._judge([CHEWY_FIDO_GLOVE_ITEM])
+        self.assertNotEqual(status, "MISMATCH", detail)
+        self.assertEqual(status, "OK", detail)
+
+    def test_the_stored_listing_is_found_by_its_own_listing_id(self):
+        """Fido ranks first; the ChomChom listing the link points to is in the
+        results. The verdict comes from the listing, not from the rank."""
+        status, detail, _ = self._judge(
+            [CHEWY_FIDO_GLOVE_ITEM, self._item("ChomChom Roller Pet Hair Remover", self.dp)])
+        self.assertEqual(status, "OK", detail)
+        self.assertIn("ChomChom", detail)
+
+    def test_a_stored_listing_of_another_brand_is_a_mismatch(self):
+        """The real failure this job exists for still fires: the listing the
+        stored link deep-links to is, by the catalog's own name, another brand."""
+        status, detail, _ = self._judge(
+            [self._item("Fido Fave Reusable Washable Pet Hair Remover Glove", self.dp)])
+        self.assertEqual(status, "MISMATCH", detail)
+        self.assertIn("fido", detail.lower())
+
+    def test_an_unidentifiable_target_is_unverified_never_a_mismatch(self):
+        """No catalog item carries the stored listing id, and the link's own
+        slug names no brand: nothing says where the link goes."""
+        url = self.entry["chewy_url"].replace("chomchom-roller-pet-hair-remover",
+                                              "reusable-roller-lint-remover")
+        status, detail, _ = self._judge([CHEWY_FIDO_GLOVE_ITEM], url=url)
+        self.assertEqual(status, "UNVERIFIED", detail)
+        self.assertIn("UNVERIFIED", self.v.STATUSES)
+
+    def test_a_slug_of_another_brand_alone_is_unverified_not_a_mismatch(self):
+        """A slug is a weak, unconfirmed claim. It may support OK; it is never
+        enough on its own to report a link as wrong, because --fix acts on that."""
+        url = self.entry["chewy_url"].replace("chomchom-roller-pet-hair-remover",
+                                              "fido-fave-reusable-washable-pet-hair")
+        status, detail, _ = self._judge([], url=url)
+        self.assertEqual(status, "UNVERIFIED", detail)
+
+    def test_brand_spelling_is_compared_on_letters_and_digits(self):
+        """`hills-science-diet-...` is how Chewy slugs "Hill's"."""
+        url = ("https://chewy.sjv.io/c/7160344/3054490/32975?u=https%3A%2F%2Fwww.chewy.com"
+               "%2Fhills-science-diet-adult-7-chicken%2Fdp%2F37854&intsrc=APIG_24727")
+        status, detail, _ = self._judge([], url=url, name="Hill's Science Diet Adult 7+")
+        self.assertEqual(status, "OK", detail)
+
+    def test_no_credentials_means_no_search_and_no_verdict(self):
+        status, detail, calls = self._judge([CHEWY_FIDO_GLOVE_ITEM], creds=("", ""))
+        self.assertEqual(status, "UNVERIFIED", detail)
+        self.assertEqual(calls, [])
+
+    def test_an_api_failure_is_still_an_error(self):
+        status, detail, _ = self._judge(self.cl.ChewyAPIError("HTTP 503"))
+        self.assertEqual(status, "ERROR", detail)
+
+
+class TestChewyFixNeverClearsAMatchingLink(unittest.TestCase):
+    """--fix clears products.json entries reported MISMATCH. It must never clear
+    a link whose own target names the expected brand, whatever produced the
+    verdict -- the issue text tells the reader MISMATCH is safe to --fix."""
+
+    GOOD_URL = ("https://chewy.sjv.io/c/7160344/3054490/32975?u=https%3A%2F%2Fwww.chewy.com"
+                "%2Fchomchom-roller-pet-hair-remover%2Fdp%2F163270&intsrc=APIG_24727")
+    BAD_URL = CHEWY_FIDO_GLOVE_ITEM["Url"]
+
+    def setUp(self):
+        import chewy_lookup as cl
+        import validate_published_chewy_links as v
+        self.v, self.cl = v, cl
+        self.tmp = Path(tempfile.mkdtemp())
+        self.addCleanup(lambda: __import__("shutil").rmtree(self.tmp, ignore_errors=True))
+        (self.tmp / "_posts").mkdir()
+        amazon = "https://www.amazon.com/dp/B00BAGTNAQ?tag=happypetdc-20"
+        # No chewy_url in front matter, so the queue entry is the link judged --
+        # the only source --fix can write to.
+        (self.tmp / "_posts" / "2026-08-20-pet-hair.md").write_text(
+            f"---\nlayout: post\naffiliate_url: {amazon}\n---\n"
+            f"Pick: [ChomChom Pet Hair Roller]({amazon})\n", encoding="utf-8")
+
+    def _run_fix(self, chewy_url, items, forced=None):
+        products = self.tmp / "products.json"
+        # Compact on purpose: a rewrite by atomic_write_json (indent=2) changes
+        # the bytes even when no value changed.
+        # The bystander is a queue entry with no post and no link: nothing judges
+        # it, so a fix run must leave its price where it is.
+        products.write_text(json.dumps([{"topic": "pet-hair", "name": "ChomChom Pet Hair Roller",
+                                         "chewy_url": chewy_url, "chewy_price": "24.99"},
+                                        {"topic": "bystander", "chewy_url": None,
+                                         "chewy_price": "9.99"}],
+                                       separators=(",", ":")), encoding="utf-8")
+        before = products.read_bytes()
+        extra = (patch.object(self.v, "validate_chewy_url", return_value=forced)
+                 if forced else contextlib.nullcontext())
+        with patch.object(self.v, "REPO_DIR", self.tmp), \
+             patch.object(self.v, "POSTS_DIR", self.tmp / "_posts"), \
+             patch.object(self.v, "LOG_PATH", self.tmp / "val.log"), \
+             patch.object(self.cl, "ACCOUNT_SID", "x"), \
+             patch.object(self.cl, "AUTH_TOKEN", "y"), \
+             patch.object(self.cl, "search_catalog", return_value=list(items)), \
+             patch("urllib.request.urlopen", side_effect=AssertionError("network used")), \
+             patch.object(sys, "argv", ["validate", "--fix", "--report-only"]), \
+             extra:
+            with contextlib.suppress(SystemExit):
+                self.v.main()
+        return before, products.read_bytes()
+
+    def test_the_155_false_alarm_leaves_the_correct_link_alone(self):
+        before, after = self._run_fix(self.GOOD_URL, [CHEWY_FIDO_GLOVE_ITEM])
+        self.assertEqual(after, before)
+
+    def test_a_forced_mismatch_still_cannot_clear_a_link_naming_the_brand(self):
+        """The guard sits at the write, not only in the verdict: even a MISMATCH
+        from somewhere else cannot clear a link whose slug names the brand."""
+        before, after = self._run_fix(self.GOOD_URL, [], forced=("MISMATCH", "forced"))
+        self.assertEqual(after, before)
+
+    def test_a_link_to_another_brand_is_still_cleared(self):
+        """The inverse: --fix still does its job, so the two tests above pass
+        because of the guard, not because --fix never writes."""
+        _, after = self._run_fix(self.BAD_URL, [CHEWY_FIDO_GLOVE_ITEM])
+        entry, bystander = json.loads(after)
+        self.assertIsNone(entry["chewy_url"])
+        self.assertIsNone(entry["chewy_price"])
+        self.assertEqual(bystander["chewy_price"], "9.99", "only the judged entry is cleared")
+
+
 # ---------------------------------------------------------------------------
 # Cross-module symbol integrity: generate_posts is a shared module, and the
 # modules that import it reach through it at CALL time.
