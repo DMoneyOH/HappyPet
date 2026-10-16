@@ -6,6 +6,8 @@ categories: [scratching]
 redirect_from:
   - /cat-scratching/best-cat-scratching-posts/
   - /pet-accessories/best-cat-scratching-posts/
+  - /cat-toys/cat/best-cat-scratching-posts/
+  - /cat-toys/best-cat-scratching-posts/
 species: cat
 tags: [cat scratching post]
 description: "Most scratching posts wobble and get ignored. These are the ones cats actually use and owners swear by."

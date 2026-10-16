@@ -6,6 +6,7 @@ categories: [carriers]
 redirect_from:
   - /cat-carriers/best-cat-carrier-travel/
   - /pet-accessories/best-cat-carrier-travel/
+  - /cat-carriers/cat/best-cat-carrier-travel/
 species: cat
 tags: [cat carrier travel]
 description: "The right carrier makes vet trips and travel stress-free for both you and your cat."

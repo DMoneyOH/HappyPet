@@ -6,6 +6,7 @@ categories: [harnesses]
 redirect_from:
   - /dog-harnesses/best-no-pull-dog-harness/
   - /pet-accessories/best-no-pull-dog-harness/
+  - /dog-harnesses/dog/best-no-pull-dog-harness/
 species: dog
 tags: [no pull dog harness XL]
 description: "Stops pulling without hurting your dog. The PetSafe Easy Walk is the harness owners of real strong pullers keep recommending."
