@@ -6,6 +6,7 @@ categories: [training]
 redirect_from:
   - /dog-training/best-puppy-training-pads/
   - /pet-accessories/best-puppy-training-pads/
+  - /dog-training/dog/best-puppy-training-pads/
 species: dog
 tags: [puppy training pads]
 description: "The right training pads make housebreaking faster and less messy. Here's what actually works for new puppy owners."

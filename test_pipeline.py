@@ -12374,6 +12374,39 @@ class TestOldPermalinksStillResolve(unittest.TestCase):
                 self.assertIn(old, _post_redirect_paths(post))
 
 
+class TestApril4UrlsStillResolve(unittest.TestCase):
+    """On 2026-04-04 the ten original posts first went up with the species in the
+    URL (dee2491: /cat-carriers/cat/<slug>/), lost it the same day (c436cfb:
+    /cat-carriers/<slug>/) and the scratching-post page spent a stretch of that
+    day at /cat-toys/<slug>/ before moving to /cat-scratching/ (62b2bb2). Eleven
+    old paths, none redirected until now. Both sides are literals: the old path
+    as the git history has it, the current URL as the site serves it."""
+
+    OLD_TO_CURRENT = {
+        "/cat-feeders/cat/best-automatic-cat-feeder/": "/feeding/best-automatic-cat-feeder/",
+        "/cat-carriers/cat/best-cat-carrier-travel/": "/carriers/best-cat-carrier-travel/",
+        "/cat-litter/cat/best-cat-litter-odor-control/": "/litter/best-cat-litter-odor-control/",
+        "/cat-toys/cat/best-cat-scratching-posts/": "/scratching/best-cat-scratching-posts/",
+        "/cat-toys/best-cat-scratching-posts/": "/scratching/best-cat-scratching-posts/",
+        "/dog-beds/dog/best-dog-beds-large-breeds/": "/beds/best-dog-beds-large-breeds/",
+        "/dog-collars/dog/best-dog-collars-small-breeds/": "/collars/best-dog-collars-small-breeds/",
+        "/dog-toys/dog/best-dog-toys-aggressive-chewers/": "/toys/best-dog-toys-aggressive-chewers/",
+        "/dog-harnesses/dog/best-no-pull-dog-harness/": "/harnesses/best-no-pull-dog-harness/",
+        "/pet-feeding/both/best-pet-water-fountain/": "/feeding/best-pet-water-fountain/",
+        "/dog-training/dog/best-puppy-training-pads/": "/training/best-puppy-training-pads/",
+    }
+
+    def test_each_april_4_url_redirects_to_its_post(self):
+        self.assertEqual(len(self.OLD_TO_CURRENT), 11)
+        for old, current in self.OLD_TO_CURRENT.items():
+            with self.subTest(old=old):
+                slug = current.strip("/").split("/")[1]
+                post = _post_file_for_slug(slug)
+                self.assertIsNotNone(post, f"no published post for {slug}")
+                self.assertEqual(f"/{_post_first_category(post)}/{slug}/", current)
+                self.assertIn(old, _post_redirect_paths(post))
+
+
 class TestTitleSuffix(unittest.TestCase):
     """Every page title ends "| HappyPet Reviews" (Director, 2026-10-13), added
     once by default.html, so no page's own title may carry a suffix of its own.

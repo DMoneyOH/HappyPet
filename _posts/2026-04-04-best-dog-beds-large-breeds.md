@@ -6,6 +6,7 @@ categories: [beds]
 redirect_from:
   - /dog-beds/best-dog-beds-large-breeds/
   - /pet-accessories/best-dog-beds-large-breeds/
+  - /dog-beds/dog/best-dog-beds-large-breeds/
 species: dog
 tags: [dog beds large breeds]
 description: "Big dogs need real support. This orthopedic bed is built to last and actually holds its shape."

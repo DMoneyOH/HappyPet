@@ -6,6 +6,7 @@ categories: [litter]
 redirect_from:
   - /cat-litter/best-cat-litter-odor-control/
   - /pet-accessories/best-cat-litter-odor-control/
+  - /cat-litter/cat/best-cat-litter-odor-control/
 species: cat
 tags: [cat litter odor control]
 description: "Fresh Step, Dr. Elsey's and Arm & Hammer compared on clumping, dust and scent, with an unscented pick for sensitive cats and a winner for multi-cat homes."

@@ -6,6 +6,7 @@ categories: [feeding]
 redirect_from:
   - /pet-feeding/best-pet-water-fountain/
   - /pet-accessories/best-pet-water-fountain/
+  - /pet-feeding/both/best-pet-water-fountain/
 species: both
 tags: [pet water fountain]
 description: "Cats and dogs drink more water when it's moving. This fountain is quiet, easy to clean, and built to last."
