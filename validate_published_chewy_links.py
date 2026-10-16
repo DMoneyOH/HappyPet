@@ -304,19 +304,23 @@ def _squash(text: str) -> str:
     return re.sub(r"[^a-z0-9]", "", (text or "").lower())
 
 
-def check_brand_match(product_name: str, chewy_matched_name: str) -> tuple[bool, str]:
+def check_brand_match(product_name: str, chewy_matched_name: str) -> tuple:
     """
-    Returns (ok, reason). The same two-way test as chewy_lookup.lookup()'s brand
-    identity gate: the product's brand token must appear in the matched name, or
-    the matched name's brand token in the product name. Unlike lookup()'s gate,
-    both sides are compared on letters and digits only (see _squash).
+    Returns (ok, reason), where ok is True (same brand), False (another brand)
+    or None (no verdict: a side has no brand token, an empty name included).
+
+    The brand test is two-way, like chewy_lookup.lookup()'s brand identity
+    gate: the product's brand token must appear in the matched name, or the
+    matched name's brand token in the product name. It differs from that gate
+    in two ways. lookup() treats a missing token on either side, or an empty
+    matched name, as no conflict and lets the match through; here that is
+    None. And both sides are compared on letters and digits only (_squash).
     """
-    if not chewy_matched_name:
-        return False, "no matched name available"
     searched = brand_token(product_name)
-    matched  = brand_token(chewy_matched_name)
-    if not searched:
-        return True, "no brand token extractable from product name"
+    matched  = brand_token(chewy_matched_name or "")
+    if not searched or not matched:
+        return None, (f"no brand to compare: product brand {searched!r}, "
+                      f"matched brand {matched!r}")
     if _squash(searched) in _squash(chewy_matched_name):
         return True, f"brand '{searched}' found in matched name"
     if _squash(matched) in _squash(product_name):
@@ -391,14 +395,19 @@ def validate_chewy_url(chewy_url: str, product_name: str) -> tuple[str, str]:
 
     if not listing:
         # The slug is not what Chewy routes on, so it is a note, never a verdict.
-        names = "names" if slug_names_brand(chewy_url, product_name) else "does not name"
+        brand = brand_token(product_name)
+        if not brand:
+            note = "the article's product name has no brand word"
+        elif slug_names_brand(chewy_url, product_name):
+            note = f"its slug {slug!r} names '{brand}'"
+        else:
+            note = f"its slug {slug!r} does not name '{brand}'"
         return "UNVERIFIED", (f"stored listing {dp_id} not in catalog search results "
-                              f"(its slug {slug!r} {names} '{brand_token(product_name)}') "
-                              f"-- check the link by hand")
+                              f"({note}) -- check the link by hand")
     name = listing.get("Name") or ""
-    if not brand_token(product_name) or not brand_token(name):
-        return "UNVERIFIED", f"no brand to compare: product {product_name[:40]!r}, listing {name[:40]!r}"
     ok, reason = check_brand_match(product_name, name)
+    if ok is None:
+        return "UNVERIFIED", f"{reason} | product {product_name[:40]!r}, listing {name[:40]!r}"
     if ok:
         return "OK", f"stored listing {dp_id} is {name[:60]}"
     return "MISMATCH", f"{reason} | stored listing {dp_id}: {chewy_url[:60]} | listing: {name[:60]}"
