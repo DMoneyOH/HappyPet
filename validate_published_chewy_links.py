@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """
 validate_published_chewy_links.py
-Reads all published posts in _posts/, resolves Chewy affiliate_url values,
-compares matched Chewy product names against the article's product via the
-brand identity gate in chewy_lookup.py, and reports mismatches.
+Reads every published post's Chewy link (its front matter, or the products.json
+queue as a fallback), checks each one offline, and for this run's share of posts
+looks the stored listing up in the Impact catalog and compares that listing's
+brand against the article's product (check_brand_match). Reports what it finds.
 
 Run locally or as a weekly GHA scheduled job.
 Outputs a JSON report: chewy_link_validation_YYYY-MM-DD.json
@@ -297,10 +298,18 @@ def brand_token(text: str) -> str:
     return words[0] if words else ""
 
 
+def _squash(text: str) -> str:
+    """Letters and digits only, so Chewy's `hills-science-diet` slug and the
+    brand "Hill's" compare equal."""
+    return re.sub(r"[^a-z0-9]", "", (text or "").lower())
+
+
 def check_brand_match(product_name: str, chewy_matched_name: str) -> tuple[bool, str]:
     """
-    Returns (ok, reason). Replicates chewy_lookup brand identity gate.
-    If searched brand token does not appear in matched name and vice versa: mismatch.
+    Returns (ok, reason). The same two-way test as chewy_lookup.lookup()'s brand
+    identity gate: the product's brand token must appear in the matched name, or
+    the matched name's brand token in the product name. Unlike lookup()'s gate,
+    both sides are compared on letters and digits only (see _squash).
     """
     if not chewy_matched_name:
         return False, "no matched name available"
@@ -308,23 +317,17 @@ def check_brand_match(product_name: str, chewy_matched_name: str) -> tuple[bool,
     matched  = brand_token(chewy_matched_name)
     if not searched:
         return True, "no brand token extractable from product name"
-    if searched in chewy_matched_name.lower():
+    if _squash(searched) in _squash(chewy_matched_name):
         return True, f"brand '{searched}' found in matched name"
-    if matched in product_name.lower():
+    if _squash(matched) in _squash(product_name):
         return True, f"matched brand '{matched}' found in product name"
     return False, f"brand mismatch: searched='{searched}' matched='{matched}'"
 
 
-def _squash(text: str) -> str:
-    """Letters and digits only, so Chewy's `hills-science-diet` slug and the
-    brand "Hill's" compare equal."""
-    return re.sub(r"[^a-z0-9]", "", (text or "").lower())
-
-
 def slug_names_brand(chewy_url: str, product_name: str) -> bool:
     """Whether the stored link's own Chewy slug names the article's brand.
-    Offline. A slug is Chewy's name for the listing but is not what Chewy routes
-    on (the listing id is), so this may support OK and never a MISMATCH."""
+    Offline, and the slug only: Chewy routes on the listing id, not the slug,
+    so this is never a verdict on the link. It is the --fix backstop in main()."""
     expected = _squash(brand_token(product_name))
     return bool(expected) and expected in _squash(parse_chewy_url(chewy_url)["product_slug"])
 
@@ -336,7 +339,9 @@ def validate_chewy_url(chewy_url: str, product_name: str) -> tuple[str, str]:
       OK          - the stored link's listing names the article's brand
       MISMATCH    - the catalog's own entry for the stored listing id is
                     another brand
-      UNVERIFIED  - the stored listing could not be identified, so no verdict
+      UNVERIFIED  - the stored listing id was not in the catalog results (or
+                    there is no brand to compare), so no verdict -- whatever
+                    the link's slug says
       REVIEW      - sentinel stored, needs human check
       NO_URL      - no Chewy URL stored (Amazon-only product)
       ERROR       - lookup failed
@@ -355,9 +360,9 @@ def validate_chewy_url(chewy_url: str, product_name: str) -> tuple[str, str]:
     try:
         import chewy_lookup as cl
     except ImportError as ie:
-        # A broken import must be loud -- this exact failure mode (importing a
-        # function that didn't exist at module level) silently rubber-stamped
-        # every URL as OK for weeks.
+        # A broken import must be loud. An earlier version imported a name
+        # chewy_lookup did not define at module level, and that failure
+        # rubber-stamped every URL as OK for weeks.
         return "ERROR", f"chewy_lookup not importable: {ie}"
 
     parsed = parse_chewy_url(chewy_url)
@@ -384,21 +389,19 @@ def validate_chewy_url(chewy_url: str, product_name: str) -> tuple[str, str]:
     except Exception as e:
         return "ERROR", f"lookup exception: {e}"
 
-    expected = brand_token(product_name)
-    if listing:
-        name  = listing.get("Name") or ""
-        found = brand_token(name)
-        if not expected or not found:
-            return "UNVERIFIED", f"no brand to compare: product {product_name[:40]!r}, listing {name[:40]!r}"
-        if _squash(expected) in _squash(name) or _squash(found) in _squash(product_name):
-            return "OK", f"stored listing {dp_id} is {name[:60]}"
-        return "MISMATCH", (f"brand mismatch: expected='{expected}', stored listing {dp_id} "
-                            f"is '{found}' | stored: {chewy_url[:60]} | listing: {name[:60]}")
-    if slug_names_brand(chewy_url, product_name):
-        return "OK", (f"stored link slug {slug!r} names '{expected}'; listing {dp_id} "
-                      f"not in catalog search results")
-    return "UNVERIFIED", (f"stored listing {dp_id} not in catalog search results and slug "
-                          f"{slug!r} does not name '{expected}' -- check the link by hand")
+    if not listing:
+        # The slug is not what Chewy routes on, so it is a note, never a verdict.
+        names = "names" if slug_names_brand(chewy_url, product_name) else "does not name"
+        return "UNVERIFIED", (f"stored listing {dp_id} not in catalog search results "
+                              f"(its slug {slug!r} {names} '{brand_token(product_name)}') "
+                              f"-- check the link by hand")
+    name = listing.get("Name") or ""
+    if not brand_token(product_name) or not brand_token(name):
+        return "UNVERIFIED", f"no brand to compare: product {product_name[:40]!r}, listing {name[:40]!r}"
+    ok, reason = check_brand_match(product_name, name)
+    if ok:
+        return "OK", f"stored listing {dp_id} is {name[:60]}"
+    return "MISMATCH", f"{reason} | stored listing {dp_id}: {chewy_url[:60]} | listing: {name[:60]}"
 
 
 def main() -> None:
@@ -470,16 +473,14 @@ def main() -> None:
         elif status == "MISMATCH":
             log(f"  MISMATCH {slug} -- {detail}", "ERROR")
             if args.fix and slug_names_brand(chewy_url, product_name):
-                # Checked at the write itself, whatever produced the verdict: a
-                # link that names the article's brand is never cleared here.
-                log(f"  FIX REFUSED {slug} -- the stored link names the article's brand; "
-                    f"check it by hand", "WARN")
+                # Checked at the write itself, whatever produced the verdict,
+                # and offline: a link whose own slug names the article's brand
+                # is never cleared here. It checks the slug only -- a MISMATCH
+                # on a slug of another brand rests on the catalog verdict alone.
+                log(f"  FIX REFUSED {slug} -- the stored link's slug names the article's "
+                    f"brand; check it by hand", "WARN")
             elif args.fix and slug in products:
                 cleared.add(slug)
-                products[slug]["chewy_url"]    = None
-                products[slug]["chewy_price"]  = None
-                products[slug]["chewy_stock"]  = None
-                products[slug]["chewy_rating"] = None
                 log(f"  FIX: cleared chewy_url for {slug}")
             elif args.fix:
                 # --fix edits products.json and nothing else. A post whose link
