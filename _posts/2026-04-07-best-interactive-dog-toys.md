@@ -105,7 +105,7 @@ It's not built for dogs who chew aggressively, the plush pieces won't survive th
 
 ---
 
-### Outward Hound Hide-A-Squirrel
+### [Outward Hound Hide-A-Squirrel](https://www.amazon.com/dp/B005VS9WO6?tag=happypetdc-20)
 
 A plush tree trunk with six squeaky squirrels tucked inside, in the XL size. The dog's job is to find each squirrel and pull it free, and with the squirrels left out it works as a plain fetch toy. Owners report it holds up to repeated pulling and shaking, and the whole thing goes in the washing machine. It sits close to the Frisco puzzle above in concept, so pick by size: this XL trunk suits bigger dogs, and small dogs may find the opening wide enough to empty it in one go.
 
@@ -120,7 +120,7 @@ A plush tree trunk with six squeaky squirrels tucked inside, in the XL size. The
 
 ---
 
-### Nina Ottosson Dog Tornado
+### [Nina Ottosson Dog Tornado](https://www.amazon.com/dp/B07239T47Y?tag=happypetdc-20)
 
 A rotating puzzle with several layers that spin independently, uncovering compartments where you hide treats or kibble. Owners find the stepped difficulty keeps a dog engaged for longer, and it stands up to enthusiastic pawing. It can be heavy for toy breeds, and assembly takes a few minutes of fiddling.
 
@@ -134,7 +134,7 @@ A rotating puzzle with several layers that spin independently, uncovering compar
 
 ---
 
-### Trixie Activity Flip Board
+### [Trixie Activity Flip Board](https://www.amazon.com/dp/B0054Q9TMA?tag=happypetdc-20)
 
 A starter puzzle that combines sliders, flaps and lift-away covers, so a dog new to problem-solving learns cause and effect without getting overwhelmed. Most owners report the mix of actions taps into natural foraging instincts. The plastic can crack if a strong chewer goes for the edges, so it suits light to moderate play.
 
@@ -147,7 +147,7 @@ A starter puzzle that combines sliders, flaps and lift-away covers, so a dog new
 
 ---
 
-### KONG Classic (medium)
+### [KONG Classic (medium)](https://www.amazon.com/dp/B000AYN7LU?tag=happypetdc-20)
 
 Technically a chew toy, but the hollow center takes treats, peanut butter or frozen broth, which turns it into a puzzle the dog works at alone. Owners rate its durability highly, and the rubber rarely punctures. The puzzle only works if your dog is willing to work for the food, so it may not appeal to a dog that wants instant results.
 

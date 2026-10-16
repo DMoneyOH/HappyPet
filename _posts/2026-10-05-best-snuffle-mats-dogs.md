@@ -42,11 +42,11 @@ Cons:
 
 ### Adjustable Snuffle Mat for Dogs Puzzle Feeder Toy
 
-The Adjustable Snuffle Mat for Dogs Puzzle Feeder Toy suits owners who want to change the difficulty as their dog catches on. Dogs that solve a basic mat in a few days tend to lose interest, and an adjustable design gives you a way to make the search harder without buying a second product. The tradeoff: more moving parts usually means more to clean, and owners of heavy chewers should watch any loose or removable pieces closely.
+The [Adjustable Snuffle Mat for Dogs Puzzle Feeder Toy](https://www.amazon.com/dp/B09JZJTTTY?tag=happypetdc-20) suits owners who want to change the difficulty as their dog catches on. Dogs that solve a basic mat in a few days tend to lose interest, and an adjustable design gives you a way to make the search harder without buying a second product. The tradeoff: more moving parts usually means more to clean, and owners of heavy chewers should watch any loose or removable pieces closely.
 
 ### Snuffle Mat for Dogs Interactive Puzzle Toys Feeding Games
 
-The Snuffle Mat for Dogs Interactive Puzzle Toys Feeding Games leans into the puzzle side of the category, which works well for dogs that need more than a simple sniff-and-find session. Owners looking to fill a long afternoon indoors tend to like this kind of layout. Expect a short learning curve. Some dogs give up early on a puzzle-heavy mat, so start with easy hiding spots and plenty of visible treats before you make it harder.
+The [Snuffle Mat for Dogs Interactive Puzzle Toys Feeding Games](https://www.amazon.com/dp/B08JGHMDLX?tag=happypetdc-20) leans into the puzzle side of the category, which works well for dogs that need more than a simple sniff-and-find session. Owners looking to fill a long afternoon indoors tend to like this kind of layout. Expect a short learning curve. Some dogs give up early on a puzzle-heavy mat, so start with easy hiding spots and plenty of visible treats before you make it harder.
 
 ## Buying guide
 

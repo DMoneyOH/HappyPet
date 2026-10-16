@@ -50,7 +50,7 @@ The ADAPTIL Calm Home Diffuser Kit for Dogs covers the animal the FELIWAY produc
 
 ### FELIWAY Classic Cat Calming Pheromone Diffuser
 
-The FELIWAY Classic Cat Calming Pheromone Diffuser comes from the same brand as the featured pick and suits a single-cat home dealing with one specific stressor, like a move or new furniture. Plenty of cat owners start here simply because the name looks familiar on the shelf, and owner reviews often describe it as a low-fuss first step. The tradeoff: its name promises calm in general terms, while the Optimum listing spells out specific behaviors like spraying and fighting. If your cat has one of those named problems, the featured kit matches the job more directly.
+The [FELIWAY Classic Cat Calming Pheromone Diffuser](https://www.amazon.com/dp/B01AVIIFRA?tag=happypetdc-20) comes from the same brand as the featured pick and suits a single-cat home dealing with one specific stressor, like a move or new furniture. Plenty of cat owners start here simply because the name looks familiar on the shelf, and owner reviews often describe it as a low-fuss first step. The tradeoff: its name promises calm in general terms, while the Optimum listing spells out specific behaviors like spraying and fighting. If your cat has one of those named problems, the featured kit matches the job more directly.
 
 ## Beyond the plug-in: other calming options for cats
 
@@ -58,10 +58,10 @@ A diffuser covers one room and needs an outlet. When the stress comes with a car
 
 | Product | Type | When it helps |
 |---|---|---|
-| Purina Pro Plan Calming Care | Daily supplement | Daily anxiety, travel, vet visits |
-| VetriScience Composure Chews | Chew supplement | Mild to moderate anxiety, grooming stress |
+| [Purina Pro Plan Calming Care](https://www.amazon.com/dp/B0BGVF6PGW?tag=happypetdc-20) | Daily supplement | Daily anxiety, travel, vet visits |
+| [VetriScience Composure Chews](https://www.amazon.com/dp/B003KV7XVA?tag=happypetdc-20) | Chew supplement | Mild to moderate anxiety, grooming stress |
 | ThunderEase Calming Collar | Calming collar | Thunderstorms, fireworks, sudden bangs |
-| Pet Remedy Calming Spray | Spray | Spot treatment during vet trips or carrier rides |
+| [Pet Remedy Calming Spray](https://www.amazon.com/dp/B09RLTCGS6?tag=happypetdc-20) | Spray | Spot treatment during vet trips or carrier rides |
 | NaturVet Calming Aid (Liquid) | Oral liquid | Cats that dislike chews or have dental issues |
 
 **Supplements and chews** (Purina Pro Plan Calming Care, a powder you sprinkle on food; VetriScience Composure Chews) suit everyday nervousness, travel and vet trips, and they fit into a meal routine. Some cats reject the texture.
