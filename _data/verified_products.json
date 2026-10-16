@@ -99,6 +99,22 @@
     {
       "asin": "B000F4AVPA",
       "name": "Chuckit! Ultra Ball (2-pack)"
+    },
+    {
+      "asin": "B005VS9WO6",
+      "name": "Outward Hound Hide-A-Squirrel"
+    },
+    {
+      "asin": "B07239T47Y",
+      "name": "Nina Ottosson Dog Tornado"
+    },
+    {
+      "asin": "B0054Q9TMA",
+      "name": "Trixie Activity Flip Board"
+    },
+    {
+      "asin": "B000AYN7LU",
+      "name": "KONG Classic (medium)"
     }
   ],
   "best-pet-cameras": [
@@ -328,12 +344,28 @@
     {
       "asin": "B07MH7WTSN",
       "name": "Suction-Cup Cat Window Hammock"
+    },
+    {
+      "asin": "B0F9FD3115",
+      "name": "Zakkart SnugCloud cat window perch"
+    },
+    {
+      "asin": "B0BJZ8YPZD",
+      "name": "AMOSIJOY sill perch, wood and metal frame"
     }
   ],
   "best-dog-training-treats": [
     {
       "asin": "B08XY6CFFW",
       "name": "Blue Buffalo Bits Beef Training Treats"
+    },
+    {
+      "asin": "B0D6KFWJLP",
+      "name": "Buddy Biscuits Trainers Training Bites"
+    },
+    {
+      "asin": "B07LB88XF7",
+      "name": "Pupford Freeze Dried Training Treats"
     }
   ],
   "best-portable-pet-playpens": [
@@ -370,6 +402,14 @@
     {
       "asin": "B00CKFL93K",
       "name": "Rocco & Roxie Stain & Odor Eliminator"
+    },
+    {
+      "asin": "B0723HRWJW",
+      "name": "Nature's Miracle Advanced Stain and Odor Eliminator Dog Spray"
+    },
+    {
+      "asin": "B07FK2M4XG",
+      "name": "Resolve Urine Destroyer Spray Pet Stain and Odor Remover"
     }
   ],
   "best-outdoor-dog-tie-outs": [
@@ -382,12 +422,36 @@
     {
       "asin": "B097W651NJ",
       "name": "FELIWAY Optimum Cat Diffuser Kit"
+    },
+    {
+      "asin": "B01AVIIFRA",
+      "name": "FELIWAY Classic Cat Calming Pheromone Diffuser"
+    },
+    {
+      "asin": "B0BGVF6PGW",
+      "name": "Purina Pro Plan Calming Care"
+    },
+    {
+      "asin": "B003KV7XVA",
+      "name": "VetriScience Composure Chews"
+    },
+    {
+      "asin": "B09RLTCGS6",
+      "name": "Pet Remedy Calming Spray"
     }
   ],
   "best-snuffle-mats-dogs": [
     {
       "asin": "B07N1JYYCW",
       "name": "AWOOF Snuffle Mat"
+    },
+    {
+      "asin": "B09JZJTTTY",
+      "name": "Adjustable Snuffle Mat for Dogs Puzzle Feeder Toy"
+    },
+    {
+      "asin": "B08JGHMDLX",
+      "name": "Snuffle Mat for Dogs Interactive Puzzle Toys Feeding Games"
     }
   ],
   "best-cat-grooming-brushes": [

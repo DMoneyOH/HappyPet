@@ -49,9 +49,9 @@ The 2PC cordless foldable cat hammock bed leans on a fold-flat design, which hel
 
 ### Zakkart SnugCloud cat window perch
 
-The Zakkart SnugCloud Cat Window Perch suits a cat who likes to curl up against something. A raised bolster runs along all four sides, so a cat braces against an edge and rests easier than one balancing on a flat pad, and the bolster catches the paw that would otherwise dangle. The cordless design leaves no pull-cord loop for a paw or a collar to catch. The cover comes off for washing, which matters once the warmest spot in the house has collected every loose hair, and the perch folds flat, so moving it to a sunnier window in winter takes minutes.
+The [Zakkart SnugCloud Cat Window Perch](https://www.amazon.com/dp/B0F9FD3115?tag=happypetdc-20) suits a cat who likes to curl up against something. A raised bolster runs along all four sides, so a cat braces against an edge and rests easier than one balancing on a flat pad, and the bolster catches the paw that would otherwise dangle. The cordless design leaves no pull-cord loop for a paw or a collar to catch. The cover comes off for washing, which matters once the warmest spot in the house has collected every loose hair, and the perch folds flat, so moving it to a sunnier window in winter takes minutes.
 
-### AMOSIJOY cat sill perch with wood and metal frame
+### [AMOSIJOY cat sill perch with wood and metal frame](https://www.amazon.com/dp/B0BJZ8YPZD?tag=happypetdc-20)
 
 The name points to a frame-braced design rather than a glass mount, which tends to suit rooms where suction cups keep failing, like a humid bathroom or a textured pane. A wood and metal frame carries weight through the sill, so a heavier cat is less of a gamble. The tradeoff is placement: a braced perch needs a window that fits it, and it stays in that window rather than moving from room to room.
 

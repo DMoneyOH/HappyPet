@@ -36,11 +36,11 @@ Cons:
 - Deep or old stains usually need repeat applications and patience
 - The spray trigger can feel slow when you need to saturate a large area
 
-### Nature's Miracle Advanced Stain and Odor Eliminator Dog Spray
+### [Nature's Miracle Advanced Stain and Odor Eliminator Dog Spray](https://www.amazon.com/dp/B0723HRWJW?tag=happypetdc-20)
 
 This advanced Nature's Miracle spray aims squarely at dog messes. Owners tend to reach for it for fresh accidents, where it lifts the stain quickly and cuts the smell with a quick soak. It works well for households that want a familiar name they can find in most stores. The downside: some owners find the scent strong, and older urine stains often need more than one pass before the odor fades.
 
-### Resolve Urine Destroyer Spray Pet Stain and Odor Remover
+### [Resolve Urine Destroyer Spray Pet Stain and Odor Remover](https://www.amazon.com/dp/B07FK2M4XG?tag=happypetdc-20)
 
 If the stain bothers you more than the smell, Resolve makes sense. It comes from the household cleaning aisle rather than the pet aisle, and many owners find it pulls discoloration out of carpet fibers fast, handy an hour before guests show up. Deep padding tells a different story. A quick spray may not reach urine that soaked through, where a dedicated enzyme soak does better, so spot-test it on dark or delicate fabric first.
 

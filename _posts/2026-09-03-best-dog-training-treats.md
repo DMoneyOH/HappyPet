@@ -37,11 +37,11 @@ The [Blue Buffalo Bits Beef Training Treats](https://www.amazon.com/dp/B08XY6CFF
 
 ### Buddy Biscuits Trainers training bites
 
-Buddy Biscuits Trainers Training Bites lean on a bacon flavor that grabs most dogs on the first sniff, which helps in a distracting spot like a park or a busy sidewalk. The bites stay soft and tear easily, so you can pinch off a smaller piece for a tiny dog or a fast reward. Owners tend to note the pouch empties quickly once daily sessions ramp up. The bacon scent lingers on your hands, which some owners find less pleasant than a milder treat.
+[Buddy Biscuits Trainers Training Bites](https://www.amazon.com/dp/B0D6KFWJLP?tag=happypetdc-20) lean on a bacon flavor that grabs most dogs on the first sniff, which helps in a distracting spot like a park or a busy sidewalk. The bites stay soft and tear easily, so you can pinch off a smaller piece for a tiny dog or a fast reward. Owners tend to note the pouch empties quickly once daily sessions ramp up. The bacon scent lingers on your hands, which some owners find less pleasant than a milder treat.
 
 ### Pupford freeze dried training treats
 
-Pupford Freeze Dried Training Treats keep the label short, with beef liver leading a three-ingredient recipe that suits dogs with touchy stomachs. The bites run tiny, so one bag stretches across a lot of reps and leaves almost no crumbs behind in your pocket. Most owners find the strong liver smell drives high food motivation, though that same smell clings to a treat pouch between washes. Some dogs need a session to warm up to the liver taste before it clicks.
+[Pupford Freeze Dried Training Treats](https://www.amazon.com/dp/B07LB88XF7?tag=happypetdc-20) keep the label short, with beef liver leading a three-ingredient recipe that suits dogs with touchy stomachs. The bites run tiny, so one bag stretches across a lot of reps and leaves almost no crumbs behind in your pocket. Most owners find the strong liver smell drives high food motivation, though that same smell clings to a treat pouch between washes. Some dogs need a session to warm up to the liver taste before it clicks.
 
 ## What to look for in a training treat
 
