@@ -23,7 +23,7 @@ You come home from a weekend away and find a fresh wet spot on the bath mat and 
 ## Quick picks
 
 - Featured pick for cats: FELIWAY Optimum Cat Calming Diffuser Kit, an all-in-one cat pheromone plug-in
-- Pick for dogs: ADAPTIL Calm Home Diffuser Kit for Dogs
+- Pick for dogs: ThunderEase Dog Calming Pheromone Diffuser Kit, Powered by ADAPTIL
 - Simpler cat option: FELIWAY Classic Cat Calming Pheromone Diffuser
 
 One thing to settle before you shop. Pheromone diffusers target a single species. A cat product does nothing for a dog, and a dog product does nothing for a cat. In a mixed household, you may need one of each.
@@ -44,9 +44,9 @@ Cons:
 - Results vary from cat to cat, and some owners see nothing
 - Works for cats only, so dogs in the home get no benefit
 
-### ADAPTIL Calm Home Diffuser Kit for Dogs
+### ThunderEase Dog Calming Pheromone Diffuser Kit, Powered by ADAPTIL
 
-The ADAPTIL Calm Home Diffuser Kit for Dogs covers the animal the FELIWAY products skip. Picture the dog that circles the couch every time the garbage truck rolls by, or the one that won't settle in a new apartment for the first week. Dog owners tend to describe it as a gentle background aid rather than a sedative, which sets fair expectations. Dogs with severe separation anxiety usually need training work alongside it, and owners hoping for overnight change often come away disappointed.
+The [ThunderEase Dog Calming Pheromone Diffuser Kit](https://www.amazon.com/dp/B072KP2TYK?tag=happypetdc-20) is the ADAPTIL diffuser for dogs. Amazon lists it under the ThunderEase brand, "Powered by ADAPTIL," so search for that name rather than ADAPTIL alone. It covers the animal the FELIWAY products skip. Picture the dog that circles the couch every time the garbage truck rolls by, or the one that won't settle in a new apartment for the first week. Dog owners tend to describe it as a gentle background aid rather than a sedative, which sets fair expectations. Dogs with severe separation anxiety usually need training work alongside it, and owners hoping for overnight change often come away disappointed.
 
 ### FELIWAY Classic Cat Calming Pheromone Diffuser
 
@@ -87,7 +87,7 @@ Watch the refill cost. Pheromone diffusers run on refills, and those keep coming
 | Product | Best For | Species |
 |---|---|---|
 | FELIWAY Optimum Cat Calming Diffuser Kit | Cats with several stress behaviors | Cats |
-| ADAPTIL Calm Home Diffuser Kit for Dogs | Dogs anxious at home or during noise | Dogs |
+| ThunderEase Dog Calming Pheromone Diffuser Kit, Powered by ADAPTIL | Dogs anxious at home or during noise | Dogs |
 | FELIWAY Classic Cat Calming Pheromone Diffuser | Single cat facing one stressor | Cats |
 
-No single plug-in covers every pet in a mixed home, and none replaces a vet check when behavior changes suddenly. For a cat that sprays or hides under stress, the featured kit makes the most sense as a first try: it costs $29.99, holds a 4.0 star rating (as of Jul 7, 2026), and lists the widest range of target behaviors of the three. Dog owners should skip it and pick up the ADAPTIL kit instead. If your cat fits the profile, give the [FELIWAY Optimum cat diffuser (cats only)](https://www.amazon.com/dp/B097W651NJ?tag=happypetdc-20) a full refill cycle in the room your cat uses most, then judge the results with a clear head. Your cat, and your bath mat, may thank you.
+No single plug-in covers every pet in a mixed home, and none replaces a vet check when behavior changes suddenly. For a cat that sprays or hides under stress, the featured kit makes the most sense as a first try: it costs $29.99, holds a 4.0 star rating (as of Jul 7, 2026), and lists the widest range of target behaviors of the three. Dog owners should skip it and pick up the ThunderEase diffuser (Powered by ADAPTIL) instead. If your cat fits the profile, give the [FELIWAY Optimum cat diffuser (cats only)](https://www.amazon.com/dp/B097W651NJ?tag=happypetdc-20) a full refill cycle in the room your cat uses most, then judge the results with a clear head. Your cat, and your bath mat, may thank you.
