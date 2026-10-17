@@ -37,7 +37,7 @@ The [Blue Buffalo Bits Beef Training Treats](https://www.amazon.com/dp/B08XY6CFF
 
 ### Buddy Biscuits Trainers training bites
 
-[Buddy Biscuits Trainers Training Bites](https://www.amazon.com/dp/B0D6KFWJLP?tag=happypetdc-20) lean on a bacon flavor that grabs most dogs on the first sniff, which helps in a distracting spot like a park or a busy sidewalk. The bites stay soft and tear easily, so you can pinch off a smaller piece for a tiny dog or a fast reward. Owners tend to note the pouch empties quickly once daily sessions ramp up. The bacon scent lingers on your hands, which some owners find less pleasant than a milder treat.
+[Buddy Biscuits Trainers Training Bites](https://www.amazon.com/dp/B0D6KFWJLP?tag=happypetdc-20) (bacon, 10 oz, sold as a 2-pack) lean on a bacon flavor that grabs most dogs on the first sniff, which helps in a distracting spot like a park or a busy sidewalk. The bites stay soft and tear easily, so you can pinch off a smaller piece for a tiny dog or a fast reward. Owners tend to note the pouch empties quickly once daily sessions ramp up. The bacon scent lingers on your hands, which some owners find less pleasant than a milder treat.
 
 ### Pupford freeze dried training treats
 
@@ -60,7 +60,7 @@ The table sums up where each of these best dog training treats earns its spot in
 | Product | Best for | Price range | Flavor |
 |---|---|---|---|
 | Blue Buffalo Bits Beef Soft & Chewy | Puppies and long daily sessions | $ | Real beef |
-| Buddy Biscuits Trainers Training Bites | Distracting outdoor spots | $ | Bacon |
+| Buddy Biscuits Trainers Training Bites (2-pack) | Distracting outdoor spots | $ | Bacon |
 | Pupford Freeze Dried Training Treats | Sensitive stomachs and clean pockets | $ | Beef liver |
 
 Good training comes down to reps, and reps come easier when the reward is fast and easy on your dog's stomach. The [Blue Buffalo Bits](https://www.amazon.com/dp/B08XY6CFFW?tag=happypetdc-20) cover both at a price that lets you train often, which is why they lead this list. Buddy Biscuits gives you a bacon option for tough outdoor sessions, and Pupford suits a sensitive stomach with its short ingredient list. Any of these best dog training treats can carry a full session, so pick the flavor and texture your dog works hardest for and keep the pouch stocked.
