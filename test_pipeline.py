@@ -5619,6 +5619,86 @@ class TestBuyPanelNamesThePick(unittest.TestCase):
         self.assertIn("-webkit-line-clamp: 2", m.group(1))
 
 
+class TestForDogsButton(unittest.TestCase):
+    """Phase 4.2: a roundup whose pick is for cats can carry a second, species-
+    labelled button for dogs, so a dog owner who lands on the purchase panel is not
+    left with a cats-only link. A post opts in with a front-matter `dog_url`.
+    Text-level pins on post.html and the front matter; the real render is
+    build-check.yml's Jekyll build."""
+
+    SLUG = "best-calming-diffusers-pets"
+    THUNDEREASE = "https://www.amazon.com/dp/B072KP2TYK?tag=happypetdc-20"
+
+    @classmethod
+    def setUpClass(cls):
+        cls.layout = (REPO / "_layouts" / "post.html").read_text(encoding="utf-8")
+        cls.panel = cls.layout[cls.layout.index('<div class="verdict">'):
+                               cls.layout.index('<div class="reading">')]
+        start = cls.layout.index('<div class="buybar">')
+        cls.buybar = cls.layout[start:cls.layout.index("</div>", start)]
+        cls.css = (REPO / "assets" / "css" / "style.css").read_text(encoding="utf-8")
+        cls.posts = {p.name: p.read_text(encoding="utf-8")
+                     for p in sorted((REPO / "_posts").glob("*.md"))}
+        cls.verified = json.loads(VERIFIED_PRODUCTS.read_text(encoding="utf-8"))
+
+    def _front_matter(self, slug):
+        (name,) = [n for n in self.posts if _post_slug(n) == slug]
+        return _post_parts(self.posts[name])[0]
+
+    def test_the_panel_renders_the_dog_button_inside_the_buy_row_when_dog_url_is_set(self):
+        row = self.panel[self.panel.index('<div class="buy-row">'):]
+        m = re.search(r'\{%-?\s*if page\.dog_url\s*-?%\}\s*'
+                      r'<a class="buy buy--dogs" href="\{\{ page\.dog_url \}\}" target="_blank" '
+                      r'rel="sponsored nofollow noopener">For dogs: check price on Amazon</a>\s*'
+                      r'\{%-?\s*endif\s*-?%\}', row)
+        self.assertIsNotNone(m, "no dog_url-guarded 'For dogs' button in the buy row")
+        self.assertLess(m.start(), row.index("</div>"), "the button is outside the buy row")
+
+    def test_a_post_with_no_dog_url_renders_nothing_extra(self):
+        # The only way the button appears is the guarded block above.
+        self.assertEqual(self.layout.count("buy--dogs"), 1)
+        self.assertEqual(self.layout.count("page.dog_url"), 2)  # the guard and the href
+
+    def test_the_sticky_bar_keeps_its_single_pick_button(self):
+        self.assertNotIn("dog_url", self.buybar)
+        self.assertNotIn("buy--dogs", self.buybar)
+
+    def test_the_button_is_styled(self):
+        self.assertRegex(self.css, r"\.buy--dogs\b[^{]*\{")
+
+    def test_the_calming_diffusers_post_links_thunderease_for_dogs(self):
+        fm = self._front_matter(self.SLUG)
+        self.assertRegex(fm, rf'(?m)^dog_url: "{re.escape(self.THUNDEREASE)}"$')
+
+    def test_every_dog_url_is_a_tagged_listed_product_on_a_post_that_covers_dogs(self):
+        found = []
+        for name, text in self.posts.items():
+            fm = _post_parts(text)[0]
+            if not re.search(r"(?m)^dog_url:", fm):
+                continue
+            found.append(name)
+            link = _links(_AMAZON_LINK_RE, _front_matter_value(fm, "dog_url"))
+            self.assertEqual(len(link), 1, f"{name}: dog_url is not one Amazon link")
+            key = _amazon_link_key(link[0])
+            self.assertIsNotNone(key, f"{name}: dog_url is not an amazon.com /dp/ link")
+            self.assertEqual(key[0], "asin", name)
+            self.assertTrue(link[0].group(0).endswith("?tag=happypetdc-20"), name)
+            listed = {e.get("asin") for e in self.verified.get(_post_slug(name), [])}
+            self.assertIn(key[1], listed, f"{name}: dog_url product is not on its verified list")
+            self.assertRegex(fm, r"(?m)^species: both$", f"{name}: a dog button on a one-species post")
+        self.assertEqual(found, ["2026-10-01-best-calming-diffusers-pets.md"],
+                         "the guard saw a different set of posts than expected")
+
+    def test_an_unlisted_dog_url_is_caught_by_the_corpus_guard(self):
+        """The front-matter link must not be a way around the verified list."""
+        post = ('---\nlayout: post\naffiliate_url: "https://www.amazon.com/dp/B09S8WMJY9?tag=happypetdc-20"\n'
+                'dog_url: "https://www.amazon.com/dp/B0UNLISTED?tag=happypetdc-20"\n---\nBody.\n')
+        found = unverified_amazon_links({"2026-04-04-best-automatic-cat-feeder.md": post},
+                                        {"best-automatic-cat-feeder": [{"asin": "B09S8WMJY9", "name": "a"}]})
+        self.assertEqual(len(found), 1, found)
+        self.assertIn("B0UNLISTED", found[0])
+
+
 class TestPublishedPostsNameTheirPick(unittest.TestCase):
     """Every published post with a buy panel carries product_short, so the panel
     and buybar never fall back to the article title on a live page -- except a

@@ -1163,8 +1163,8 @@ a.creed-num:focus-visible span { text-decoration: underline; }
 }
 .buy--amazon { background: var(--accent); color: var(--on-accent); }
 .buy--amazon:hover { background: var(--accent-deep); }
-.buy--chewy { background: transparent; color: var(--ink); }
-.buy--chewy:hover { background: var(--ink); color: var(--paper); }
+.buy--chewy, .buy--dogs { background: transparent; color: var(--ink); }
+.buy--chewy:hover, .buy--dogs:hover { background: var(--ink); color: var(--paper); }
 
 .reading { position: relative; }
 
