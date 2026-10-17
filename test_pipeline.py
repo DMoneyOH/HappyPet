@@ -7108,6 +7108,9 @@ class TestPinJsonPayload(unittest.TestCase):
             (qdir / f"{slug}.json").write_text(json.dumps(queue), encoding="utf-8")
             for name in fired:
                 (qdir / ".fired" / name).write_text("t", encoding="utf-8")
+            # An empty no-repeat ledger: main() refuses to run without one once
+            # sentinels exist.
+            (qdir / ".fired" / self.pp.LEDGER_NAME).write_text("{}", encoding="utf-8")
             with patch.object(self.pp, "REPO_DIR", Path(tmp)), \
                  patch.object(self.pp, "LOG_PATH", Path(tmp) / "t.log"), \
                  patch.object(self.pp, "brain_get_secret", return_value="k"), \
@@ -7280,7 +7283,8 @@ class TestPinJsonPayload(unittest.TestCase):
         calls, left = self._drive_main("t", {"species": "both"})
         self.assertEqual([ev for ev, _ in calls],
                          ["happypet_pin_dogs", "happypet_pin_cats", "happypet_pin_food"])
-        self.assertEqual(left, ["t.fired", "t.happypet_pin_cats.fired",
+        # LEDGER_NAME is the no-repeat ledger (pin_ledger.py), kept beside the sentinels.
+        self.assertEqual(left, [self.pp.LEDGER_NAME, "t.fired", "t.happypet_pin_cats.fired",
                                 "t.happypet_pin_dogs.fired", "t.happypet_pin_food.fired"])
 
     def test_a_half_fired_slug_does_not_re_pin_its_finished_boards(self):

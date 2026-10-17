@@ -16,6 +16,17 @@ Dedup contract (single-owner markers):
   _pin_queue/.fired/{slug}.{event}.fired  -> that one webhook succeeded (partial-failure retry)
   _pin_queue/sent/                        -> owned by push_pins_to_sheets.py (FB-queued marker);
                                              this script must NEVER move files there.
+  _pin_queue/.fired/.pinned.json          -> no-repeat ledger (pin_ledger.py): every board each
+                                             (slug, image) pair has gone out on. A board is
+                                             recorded BEFORE its webhook fires and un-recorded if
+                                             the fire fails, so nothing live is ever missing from
+                                             it. A recorded board is never fired again with that
+                                             image, even under --force or with sentinels cleared.
+                                             A slug refused on every board counts as refused, and
+                                             the run exits 6 when something was refused and
+                                             nothing failed or went missing (1 outranks it). A new
+                                             image (a new path) for the same post is a new pin.
+                                             Missing while pin history exists = exit 1.
 
 Board routing -- species board(s) plus exactly one category board:
   species=cat/both -> happypet_pin_cats
@@ -61,6 +72,7 @@ from pathlib import Path
 
 REPO_DIR  = Path(__file__).parent.resolve()
 import sys as _sys; _sys.path.insert(0, str(REPO_DIR))
+import pin_ledger
 try:
     from brain_secrets import (get_secret as _vault_get_secret,
                                BrainSecretsUnavailable)
@@ -94,6 +106,11 @@ def brain_get_secret(key, project="HappyPet"):
 
 LOG_PATH  = REPO_DIR / "LOGS" / f"HappyPet_{_dt.date.today().isoformat()}.log"
 LOG_PATH.parent.mkdir(exist_ok=True)
+
+# The no-repeat ledger, inside _pin_queue/.fired so the sentinel commit below
+# carries it. Dot-named: refill_cli.taken_slugs skips dotfiles, and a top-level
+# _pin_queue/*.json would be read as a queue file.
+LEDGER_NAME = ".pinned.json"
 
 MAKER_URL = "https://maker.ifttt.com/trigger/{event}/json/with/key/{key}"
 
@@ -323,7 +340,9 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--slugs",   default="", help="Comma-separated slugs (empty = all queued)")
     parser.add_argument("--dry-run", action="store_true")
-    parser.add_argument("--force",   action="store_true", help="Re-fire even if already in sent/")
+    parser.add_argument("--force",   action="store_true",
+                        help="Pin a slug whose .fired sentinels exist. Boards already pinned "
+                             "with the same image are still refused; re-pin with a new image path.")
     args = parser.parse_args()
 
     maker_key = (brain_get_secret("IFTTT_MAKER_KEY", "global") or "").strip()
@@ -340,6 +359,20 @@ def main():
     queue_dir.mkdir(exist_ok=True)
     sent_dir.mkdir(exist_ok=True)
     fired_dir.mkdir(exist_ok=True)
+
+    # The no-repeat ledger. Absent with pin history on disk, it has been lost,
+    # not never written: reading it as empty would let every past pin repeat.
+    ledger_path = fired_dir / LEDGER_NAME
+    has_history = any(fired_dir.glob("*.fired")) or any(sent_dir.glob("*.json"))
+    if has_history and not ledger_path.exists():
+        log(f"ABORT: no-repeat ledger {ledger_path.name} is missing but pins have gone out "
+            f"before -- nothing fired. Restore it from git history.", "ERROR")
+        sys.exit(1)
+    try:
+        ledger = pin_ledger.load(ledger_path)
+    except Exception as exc:
+        log(f"ABORT: no-repeat ledger {ledger_path.name} is unreadable ({exc}) -- nothing fired", "ERROR")
+        sys.exit(1)
 
     queue_files = sorted(queue_dir.glob("*.json"))
     if slug_filter:
@@ -368,6 +401,7 @@ def main():
     captions = load_pin_captions()
     processed = 0
     failed    = 0
+    refused   = 0
 
     for qf in queue_files:
         try:
@@ -404,7 +438,19 @@ def main():
             # that duplicated pins on every retry.
             def _ev_sentinel(event):
                 return fired_dir / f"{qf.stem}.{event}.fired"
-            pending_events = events if args.force else [e for e in events if not _ev_sentinel(e).exists()]
+            unfired = events if args.force else [e for e in events if not _ev_sentinel(e).exists()]
+
+            # The no-repeat guard, per board and blind to sentinels and --force:
+            # a board this image already went out on is never fired again.
+            repeats = [e for e in unfired if pin_ledger.already_pinned(ledger, slug, image_url, e)]
+            pending_events = [e for e in unfired if e not in repeats]
+            if repeats:
+                log(f"REFUSED (repeat): {slug} already went out with this image on {repeats} "
+                    f"({image_url[:80]}) -- a re-pin needs a new image path",
+                    "WARN" if pending_events else "ERROR")
+            if repeats and not pending_events:
+                refused += 1
+                continue
 
             log(f"PIN [{slug}] -> {events} (to fire: {pending_events or 'none, finalizing'})")
             log(f"  image: {image_url[:80]}")
@@ -429,12 +475,35 @@ def main():
                     continue
 
             pin_ok = True
+            fired_now = 0
+            today = _dt.date.today().isoformat()
             for event in pending_events:
-                ok = fire_webhook(event, payload, maker_key)
-                if ok:
+                # Write-ahead: the board is recorded before the webhook fires, so a
+                # live pin can never be missing from the ledger. If the record
+                # cannot be saved, nothing more fires for this slug.
+                try:
+                    pin_ledger.save(ledger_path, pin_ledger.add(ledger, slug, image_url, event, today))
+                except Exception as record_failure:
+                    pin_ledger.discard(ledger, slug, image_url, event)
+                    log(f"  ERROR: could not record {event} in {LEDGER_NAME} "
+                        f"({type(record_failure).__name__}: {record_failure}) -- not fired", "ERROR")
+                    pin_ok = False
+                    break
+                if fire_webhook(event, payload, maker_key):
+                    fired_now += 1
                     _ev_sentinel(event).write_text(_dt.datetime.now(_dt.timezone.utc).isoformat())
                 else:
                     pin_ok = False
+                    # Un-record the board so a retry can still fire it.
+                    try:
+                        pin_ledger.save(ledger_path, pin_ledger.discard(ledger, slug, image_url, event))
+                    except Exception as record_failure:
+                        # The file still holds the board; keep memory in step so a
+                        # later save in this run does not quietly drop it.
+                        pin_ledger.add(ledger, slug, image_url, event, today)
+                        log(f"  ERROR: {event} failed but stays recorded in {LEDGER_NAME} "
+                            f"({type(record_failure).__name__}) -- it will not retry with this "
+                            f"image; remove that board from the file or use a new image", "ERROR")
                 time.sleep(RPM_SLEEP)
 
             if pin_ok:
@@ -466,18 +535,24 @@ def main():
                     log(f"  WARN: could not commit .fired sentinel: {_fe}", "WARN")
                 processed += 1
             else:
-                log(f"  PARTIAL failure for {slug} -- fired events recorded, will retry the rest", "WARN")
+                log(f"  INCOMPLETE: {slug} -- {fired_now} of {len(pending_events)} board(s) fired "
+                    f"and recorded; the rest can retry", "WARN")
                 failed += 1
 
         except Exception as exc:
             log(f"FAIL: {qf.name} -- {exc}", "ERROR")
             failed += 1
 
-    log(f"DONE -- {processed} pinned, {failed} failed, {len(missing)} missing")
+    log(f"DONE -- {processed} pinned, {failed} failed, {len(missing)} missing, "
+        f"{refused} refused as repeats")
     # Nonzero so pin.yml's run goes red and its failure email fires; pin.yml
     # sets continue-on-error on this step so the Sheets and consume steps still run.
+    # Exit 6 when a slug was refused on every board and nothing failed or went
+    # missing; a failed or missing pin outranks it, being the one that needs a retry.
     if failed or missing:
         sys.exit(1)
+    if refused:
+        sys.exit(pin_ledger.REPEAT_REFUSED_EXIT_CODE)
 
 
 if __name__ == "__main__":

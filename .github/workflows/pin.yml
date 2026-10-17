@@ -12,7 +12,7 @@ on:
         required: false
         default: ''
       force:
-        description: 'Re-fire already-sent pins (true/false)'
+        description: 'Pin slugs that were pinned before (true/false). A board that already has the same image is still refused; give the post a new image path first.'
         required: false
         default: 'false'
 
@@ -128,9 +128,13 @@ jobs:
       - name: Post pins via IFTTT Maker webhooks
         id: post
         if: steps.resolve.outputs.nothing_to_pin != 'true'
-        # post_pins.py exits 1 on a failed or missing pin. continue-on-error lets
-        # the Sheets and consume steps below still run; the assert step after
-        # them fails the job on this step's outcome, so the alert issue opens.
+        # post_pins.py exits 1 on a failed or missing pin, and 6 when a slug was
+        # refused on every board (that image already went out there) and nothing
+        # failed or went missing: nothing to retry.
+        # The code is kept as the `rc` output so the steps below can say which.
+        # continue-on-error lets the Sheets and consume steps below still run; the
+        # assert step after them fails the job on this step's outcome, so the
+        # alert issue opens.
         continue-on-error: true
         env:
           IFTTT_MAKER_KEY:          ${{ secrets.IFTTT_MAKER_KEY }}
@@ -144,7 +148,11 @@ jobs:
         run: |
           FORCE_FLAG=""
           if [ "${{ github.event.inputs.force }}" = "true" ]; then FORCE_FLAG="--force"; fi
+          set +e
           python3 post_pins.py --slugs "${{ steps.resolve.outputs.slugs }}" $FORCE_FLAG
+          rc=$?
+          echo "rc=${rc}" >> "$GITHUB_OUTPUT"
+          exit "$rc"
 
       - name: Push pins to Google Sheets
         if: steps.resolve.outputs.nothing_to_pin != 'true'
@@ -179,7 +187,11 @@ jobs:
       - name: Fail the job if posting pins failed
         if: steps.post.outcome == 'failure'
         run: |
-          echo "::error::post_pins.py exited nonzero (failed or missing pin) -- see the post step's log"
+          if [ "${{ steps.post.outputs.rc }}" = "6" ]; then
+            echo "::error::post_pins.py refused a repeat (exit 6): that image already went out on those boards, so nothing was fired and there is nothing to retry. To pin the post again, give it a new image path."
+          else
+            echo "::error::post_pins.py exited nonzero (failed or missing pin) -- see the post step's log"
+          fi
           exit 1
 
       - name: Upload logs as artifact
@@ -198,10 +210,18 @@ jobs:
           SLUGS: ${{ steps.resolve.outputs.slugs }}
           LIVE: ${{ steps.liveness.outputs.live }}
           POSTED: ${{ steps.post.outcome }}
+          RC: ${{ steps.post.outputs.rc }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           DAY=$(TZ=America/New_York date +%F)
           TITLE="⚠️ Pins failed on ${DAY}: ${SLUGS:-no slugs resolved}"
+          LEAD="Stage 3 (pin.yml) failed for"
+          TODO="What to do: read the failed step's log and fix the cause, then run pin.yml by hand with these slugs. Boards that already have the pin are skipped. Close this issue once the pins are out."
+          if [ "$POSTED" = "failure" ] && [ "$RC" = "6" ]; then
+            TITLE="⚠️ Pin repeat refused on ${DAY}: ${SLUGS:-no slugs resolved}"
+            LEAD="Stage 3 (pin.yml) refused a repeat for"
+            TODO="What to do: nothing to retry; running again with the same image is refused again. To pin the post again, give it a new image path, then run pin.yml with these slugs and force set to true. Close this issue once done, or now if no re-pin is wanted."
+          fi
           # One issue per day and slug list. If the listing fails, open the issue
           # anyway. So too if a matching open issue lies beyond the first 200 listed
           # (--limit): it is missed and a duplicate is opened, by policy better than
@@ -214,6 +234,8 @@ jobs:
           fi
           if [ "$LIVE" = "false" ]; then
             WHAT="The articles or their pin images were not live after 30 minutes, so no pins were posted."
+          elif [ "$POSTED" = "failure" ] && [ "$RC" = "6" ]; then
+            WHAT="post_pins.py found that image already on its boards and fired nothing for it (exit 6)."
           elif [ "$POSTED" = "failure" ]; then
             WHAT="post_pins.py reported a failed or missing pin."
           else
@@ -221,12 +243,12 @@ jobs:
           fi
           REPORTED=$(TZ=America/New_York date '+%a %b %-d, %Y %-I:%M %p %Z')
           BODY=$(printf '%s\n' \
-            "Stage 3 (pin.yml) failed for: ${SLUGS:-no slugs resolved}. ${WHAT}" \
+            "${LEAD}: ${SLUGS:-no slugs resolved}. ${WHAT}" \
             "" \
             "Reported: ${REPORTED}" \
             "Run: ${RUN_URL}" \
             "" \
-            "What to do: read the failed step's log and fix the cause, then run pin.yml by hand with these slugs. Pins already sent are skipped; set force to true only to re-fire one. Close this issue once the pins are out." \
+            "${TODO}" \
             "" \
             "_Auto-generated by pin.yml_")
           gh issue create \
