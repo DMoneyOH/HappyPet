@@ -13,6 +13,11 @@ affiliate_url: "https://www.amazon.com/dp/B0866S3D82?tag=happypetdc-20"
 product_short: "TP-Link Tapo C100 Pet Camera"
 ---
 
+**Quick pick:** For checking on your dog from work, on a budget, start with the [TP-Link Tapo C100 Pet Camera on Amazon](https://www.amazon.com/dp/B0866S3D82?tag=happypetdc-20).
+{: .quick-pick}
+
+**Good gift for:** the dog owner who checks on the dog from work.
+
 Most pet owners know the feeling: you’re heading out the door, giving your beloved dog one last scratch behind the ears, and a tiny pang of guilt hits. What are they *really* doing when you're gone? Are they napping peacefully, staring out the window, or perhaps staging a one-dog rebellion against the couch cushions? For dog owners, peace of mind while away from home is invaluable, and that's exactly where a good pet camera steps in.
 
 At Happy Pet Product Reviews, every penny counts. That's why hours went into researching and comparing the best budget-friendly pet cameras on the market, focusing on features that truly matter without breaking the bank. From simple monitors to advanced devices that let you interact with your pup, that research turned up options that bring you closer to your dog, even when you're miles apart. No more wondering – just clear, real-time insights into your dog's day, often complete with two-way audio and even the ability to toss them a treat. Here's what it found, so you can pick the perfect watchful eye for your home.
@@ -78,12 +83,12 @@ The Petcube Play 2 is designed for dog owners who want to not only watch their d
 
 ## Comparison Table
 
-| Product | Best For | Price Range | Rating |
-| :------------------------------- | :------------------------------------- | :------------ | :--------- |
-| TP-Link Tapo 1080P Indoor Camera | Budget-friendly essential monitoring | $ | High |
-| Furbo 360° Dog Camera | Interactive treat dispensing & 360° view | $150 - $200 | High |
-| Wyze Cam v3 Pro | High-quality video on a budget | Under $60 | High |
-| Petcube Play 2 | Interactive play & engagement | $100 - $150 | High |
+| Product | Best For | Price Range | Rating | Check price |
+| :------------------------------- | :------------------------------------- | :------------ | :--------- | --- |
+| TP-Link Tapo 1080P Indoor Camera | Budget-friendly essential monitoring | $ | High | [On Amazon](https://www.amazon.com/dp/B0866S3D82?tag=happypetdc-20) |
+| Furbo 360° Dog Camera | Interactive treat dispensing & 360° view | $150 - $200 | High | - |
+| Wyze Cam v3 Pro | High-quality video on a budget | Under $60 | High | - |
+| Petcube Play 2 | Interactive play & engagement | $100 - $150 | High | - |
 
 ## Buying Guide: What to Look for in a Pet Camera
 

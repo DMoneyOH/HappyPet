@@ -14,17 +14,20 @@ chewy_url: "https://chewy.sjv.io/c/7160344/3054490/32975?u=https%3A%2F%2Fwww.che
 image: "https://m.media-amazon.com/images/I/71gSvAen4NL._AC_SX425_.jpg"
 ---
 
+**Quick pick:** For a dog with daily stress, start with the [NaturVet Quiet Moments Calming Chews on Amazon](https://www.amazon.com/dp/B075SSR5CG?th=1&tag=happypetdc-20).
+{: .quick-pick}
+
 Thunder rolls in on a rainy Tuesday and a Labrador is glued to the window, whining every time a car passes, ears flattened and tail twitching. A quick walk, a soothing voice, even a favorite toy does nothing, and the stress lingers. That is the night many owners start searching for something that offers a gentle, natural calm without a prescription. Calming treats are the usual first stop, and it is worth knowing up front what vets say about them: for mild, short‑lived stress they may take the edge off, few have been through rigorous trials, and none is a substitute for training or veterinary treatment of real anxiety. Below is a roundup of the **best calming treats for dogs** that owners rate most highly for stormy days, fireworks nights, and vet visits, chosen on ingredients, dosing and what buyers consistently report.
 
 ## Quick Picks  
 
-| Product | Best For | Price Range | Chew Time |
-|---|---|---|---|
-| **[NaturVet Quiet Moments Calming Chews](https://www.amazon.com/dp/B075SSR5CG?th=1&tag=happypetdc-20)** | Overall calm, daily stress | $$ | Quick |
-| Zylk Labs Stress Relief Chews | Sensitive stomachs | $ | Moderate |
-| VetriScience Composure® Chews | High-energy anxiety | $$ | Quick |
-| PetHonesty Calming Bites | First-time users | $ | Moderate |
-| Four Paws Herbal Calm Chews | Travel & fireworks | $$ | Long |
+| Product | Best For | Price Range | Chew Time | Check price |
+|---|---|---|---|---|
+| **[NaturVet Quiet Moments Calming Chews](https://www.amazon.com/dp/B075SSR5CG?th=1&tag=happypetdc-20)** | Overall calm, daily stress | $$ | Quick | [On Amazon](https://www.amazon.com/dp/B075SSR5CG?th=1&tag=happypetdc-20) |
+| Zylk Labs Stress Relief Chews | Sensitive stomachs | $ | Moderate | - |
+| VetriScience Composure® Chews | High-energy anxiety | $$ | Quick | - |
+| PetHonesty Calming Bites | First-time users | $ | Moderate | - |
+| Four Paws Herbal Calm Chews | Travel & fireworks | $$ | Long | - |
 
 ### Featured Pick: NaturVet Quiet Moments Calming Dog Supplement, Soft Chews, 180 Count  
 

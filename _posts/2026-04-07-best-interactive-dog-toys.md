@@ -17,6 +17,11 @@ chewy_url: "https://chewy.sjv.io/c/7160344/3054490/32975?u=https%3A%2F%2Fwww.che
 image: "https://images-na.ssl-images-amazon.com/images/P/B000F4AVPA.01.LZZZZZZZ.jpg"
 ---
 
+**Quick pick:** For an active dog who lives for fetch, start with the [Chuckit! Ultra Ball (2-pack) on Amazon](https://www.amazon.com/dp/B000F4AVPA?th=1&tag=happypetdc-20).
+{: .quick-pick}
+
+**Good gift for:** the dog who drops a ball at your feet every five minutes.
+
 A bored dog can chew through a couch cushion in the time it takes to sit one 45-minute Zoom call. That is the kind of day that prompts a serious look at interactive toys. Not every toy lives up to its promise, plenty are either too easy, too fragile, or just get ignored after five minutes. So this guide sorts the options by what owners report holds a dog's attention.
 
 Interactive dog toys work best when they match how your dog actually plays. A puzzle feeder that suits a methodical Lab is going to frustrate a high-energy Border Collie. A fetch toy that works brilliantly outside does nothing for a rainy afternoon indoors. Keep that in mind as you read through the picks, there's no single "best" option, just the right fit for your dog.
@@ -161,16 +166,16 @@ Technically a chew toy, but the hollow center takes treats, peanut butter or fro
 
 ## Comparison
 
-| Product | Best For | Independent Play? | Durability |
-|---|---|---|---|
-| [Chuckit! Ultra Ball](https://www.amazon.com/dp/B000F4AVPA?th=1&tag=happypetdc-20) | Outdoor fetch, active dogs | No, needs you | High |
-| Kong Wobbler | Treat-motivated dogs, slow feeders | Yes | High |
-| PetSafe Tug-A-Jug | Dogs who like to tug | Partial | Medium |
-| Frisco Hide and Seek | Gentle dogs, scent play | Yes | Low |
-| Outward Hound Hide-A-Squirrel | Plush-loving dogs, scent play | Yes, once loaded | Medium |
-| Nina Ottosson Dog Tornado | Puzzle solvers who like rotating challenges | Yes, once loaded | Medium |
-| Trixie Activity Flip Board | Beginner problem-solvers | Partial, watch chewers | Low with strong chewers |
-| KONG Classic (medium) | Chewers who also need mental work | Yes, once stuffed | High |
+| Product | Best For | Independent Play? | Durability | Check price |
+|---|---|---|---|---|
+| [Chuckit! Ultra Ball](https://www.amazon.com/dp/B000F4AVPA?th=1&tag=happypetdc-20) | Outdoor fetch, active dogs | No, needs you | High | [On Amazon](https://www.amazon.com/dp/B000F4AVPA?th=1&tag=happypetdc-20) |
+| Kong Wobbler | Treat-motivated dogs, slow feeders | Yes | High | - |
+| PetSafe Tug-A-Jug | Dogs who like to tug | Partial | Medium | - |
+| Frisco Hide and Seek | Gentle dogs, scent play | Yes | Low | - |
+| Outward Hound Hide-A-Squirrel | Plush-loving dogs, scent play | Yes, once loaded | Medium | [On Amazon](https://www.amazon.com/dp/B005VS9WO6?tag=happypetdc-20) |
+| Nina Ottosson Dog Tornado | Puzzle solvers who like rotating challenges | Yes, once loaded | Medium | [On Amazon](https://www.amazon.com/dp/B07239T47Y?tag=happypetdc-20) |
+| Trixie Activity Flip Board | Beginner problem-solvers | Partial, watch chewers | Low with strong chewers | [On Amazon](https://www.amazon.com/dp/B0054Q9TMA?tag=happypetdc-20) |
+| KONG Classic (medium) | Chewers who also need mental work | Yes, once stuffed | High | [On Amazon](https://www.amazon.com/dp/B000AYN7LU?tag=happypetdc-20) |
 
 ## What to Actually Look For
 

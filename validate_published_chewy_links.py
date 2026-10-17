@@ -102,6 +102,11 @@ _GENERIC_ANCHOR_RE = re.compile(
     r"^\s*(buy|shop|check|view|see|get|order|click|read)\b|^\s*(here|this|link)\s*$",
     re.IGNORECASE)
 
+# A store suffix is not part of the product name. Every post opens with a
+# quick-pick line, "[ChomChom Pet Hair Roller on Amazon](...)", and a bare
+# "[On Amazon](...)" is a check-price table cell, which names no product at all.
+_STORE_SUFFIX_RE = re.compile(r"(?:^|\s+)on\s+amazon\s*$", re.IGNORECASE)
+
 # Every status this job can report. DEFERRED is the one that keeps the throttle
 # honest: a post whose API check is queued for a later run is not OK and is not
 # a skip, and saying so is the whole difference from the gap above.
@@ -215,7 +220,7 @@ def extract_featured_product_name(body: str, affiliate_url: str) -> str:
     if not affiliate_url:
         return ""
     for anchor in re.findall(r"\[([^\]\n]+)\]\(" + re.escape(affiliate_url) + r"\)", body):
-        text = anchor.strip()
+        text = _STORE_SUFFIX_RE.sub("", anchor).strip()
         if text and not _GENERIC_ANCHOR_RE.match(text):
             return text
     return ""

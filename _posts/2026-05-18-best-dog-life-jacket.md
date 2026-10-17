@@ -17,6 +17,9 @@ image: "https://m.media-amazon.com/images/I/81U9aJGoUiL._AC_SY450_.jpg"
 pin_image: "https://happypetproductreviews.com/assets/images/pins/best-dog-life-jacket.jpg?v=20260518"
 ---
 
+**Quick pick:** For a medium dog (about 30 to 55 lb) near the water, start with the [VIVAGLORY Dog Life Vest on Amazon](https://www.amazon.com/dp/B01K4TUIBM?th=1&tag=happypetdc-20).
+{: .quick-pick}
+
 It only takes a few seconds at the water's edge for a confident retriever to turn into a struggling one. A game of fetch at the lake can go sideways the moment the current pulls back and the dog finds himself bobbing helplessly a few feet from the dock. A quick grab of the collar saves the day -- but it leaves every owner determined to find a safer solution before the next outing. Across the vests compared for this guide, the **[VIVAGLORY Dog Life Vest](https://www.amazon.com/dp/B01K4TUIBM?th=1&tag=happypetdc-20)** stands out as the most dependable choice for water-loving dogs. Here's an in-depth look at why it earns the title of best dog life jacket for safe swimming and water adventures.
 
 ## Product Overview

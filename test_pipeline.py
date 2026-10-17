@@ -5424,6 +5424,7 @@ console.log(JSON.stringify({ calls, prevented: ev.defaultPrevented,
         cases = {
             "panel": ([self.ARTICLE, "div.verdict", "div.verdict-body", "div.buy-row"], False),
             "buybar": ([self.ARTICLE, "div.reading", "div.buybar"], False),
+            "quickpick": ([self.ARTICLE, "div.reading", "div.prose", "p.quick-pick"], False),
             "heading": ([self.ARTICLE, "div.prose", "h3"], False),
             "table": ([self.ARTICLE, "div.prose", "table", "tbody", "tr", "td"], False),
             "list": ([self.ARTICLE, "div.prose", "ul", "li"], False),
@@ -5556,6 +5557,20 @@ console.log(JSON.stringify({ calls, prevented: ev.defaultPrevented,
 
     def test_post_content_renders_inside_prose(self):
         self.assertRegex(self.layout, r'<div class="prose">\s*\{\{ content \}\}\s*</div>')
+
+    def test_every_quick_pick_line_carries_the_class_the_script_keys_on(self):
+        # Without `{: .quick-pick}` on the next line kramdown emits a bare <p>,
+        # the click reports "inline", and the quick-pick line can't be read on its own.
+        found, missing = 0, []
+        for post in sorted((REPO / "_posts").glob("*.md")):
+            lines = post.read_text(encoding="utf-8").splitlines()
+            for i, line in enumerate(lines):
+                if line.startswith("**Quick pick:**"):
+                    found += 1
+                    if i + 1 >= len(lines) or lines[i + 1].strip() != "{: .quick-pick}":
+                        missing.append(post.name)
+        self.assertGreater(found, 0, "no quick-pick lines found - the guard would pass vacuously")
+        self.assertEqual(missing, [])
 
     def test_post_slug_comes_from_the_page_as_a_json_string(self):
         # jsonify, not a bare {{ page.slug }}: the value lands in JavaScript.
@@ -8667,6 +8682,23 @@ class TestPublishedChewyLinkCoverage(unittest.TestCase):
         by_slug = {e["slug"]: e for e in self.entries}
         self.assertEqual(by_slug["best-dog-probiotic-supplements"]["product_name"],
                          "Purina Pro Plan FortiFlora")
+
+    def test_a_store_suffix_is_not_part_of_the_product_name(self):
+        """Posts open with a quick-pick line whose anchor ends "on Amazon", and
+        check-price cells read just "On Amazon"; neither is the product's name."""
+        url = "https://www.amazon.com/dp/B0SUFFIX01?tag=happypetdc-20"
+        cases = {
+            f"[ChomChom Pet Hair Roller on Amazon]({url})": "ChomChom Pet Hair Roller",
+            f"[KONG Classic ON  AMAZON]({url})": "KONG Classic",
+            f"[On Amazon]({url}) then [Real Product Name]({url})": "Real Product Name",
+            f"[Buy on Amazon]({url}) then [Real Product Name]({url})": "Real Product Name",
+            # Only a trailing store name goes: "Amazon Basics" is a brand.
+            f"[Amazon Basics Puppy Training Pads]({url})": "Amazon Basics Puppy Training Pads",
+            f"[Ride On Amazon Trail Pack]({url})": "Ride On Amazon Trail Pack",
+        }
+        for body, want in cases.items():
+            with self.subTest(body=body):
+                self.assertEqual(self.v.extract_featured_product_name(body, url), want)
 
     def test_post_entry_reads_the_body_after_the_front_matter_bom_or_not(self):
         """D-3: Jekyll ignores a UTF-8 byte-order mark. post_entry has to as

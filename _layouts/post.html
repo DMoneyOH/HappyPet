@@ -186,9 +186,11 @@ layout: default
   GA4 `affiliate_click` on every Amazon/Chewy outbound click, so conversion
   changes can be judged by page and position. One delegated listener, no
   per-link markup: link_position is read from where the link sits (.verdict
-  panel, .buybar, or the .prose heading/table/list/last block/paragraph it is
-  in; a trailing "Rating: x/5" line does not count as the last block). It only
-  reports; it never cancels or delays the click. Retailer is matched on the
+  panel, .buybar, or the .prose quick-pick line/heading/table/list/last
+  block/paragraph it is in; the quick-pick line is the paragraph kramdown gives
+  class="quick-pick" via `{: .quick-pick}`; a trailing "Rating: x/5" line does
+  not count as the last block). It only reports; it never cancels or delays
+  the click. Retailer is matched on the
   link's hostname; Chewy links were confirmed to stay on chewy.sjv.io on the
   live site, 2026-10-12. Chewy product_id is Impact's prodsku= when present
   (the id Impact order reports use), else the /dp/ id.
@@ -220,6 +222,7 @@ layout: default
       if (a.closest('.buybar')) return 'buybar';
       var prose = a.closest('.prose');
       if (!prose) return 'other';
+      if (a.closest('.quick-pick')) return 'quickpick';
       if (a.closest('h1, h2, h3, h4, h5, h6')) return 'heading';
       if (a.closest('table')) return 'table';
       if (a.closest('li')) return 'list';

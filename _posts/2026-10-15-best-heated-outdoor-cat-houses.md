@@ -12,6 +12,11 @@ image: "https://m.media-amazon.com/images/I/81r09hTCRNL._AC_SX679_.jpg"
 pin_image: "https://happypetproductreviews.com/assets/images/pins/best-heated-outdoor-cat-houses.jpg?v=20261015"
 ---
 
+**Quick pick:** For a single colony cat on a porch, start with the [K&H Heated Cat House on Amazon](https://www.amazon.com/dp/B07HMPRTXF?tag=happypetdc-20).
+{: .quick-pick}
+
+**Good gift for:** the neighbor who looks after outdoor or community cats all winter.
+
 You step outside at 6 a.m. to fill the food bowl, and the water dish next to it has a skin of ice on top. The orange tom who shows up every morning hangs back under the deck, fur puffed out, waiting for you to leave. Feral and community cats can handle a lot, but a long cold snap wears them down fast, and a cardboard box with a towel inside soaks through after one wet night. A heated shelter gives them a dry spot that stays warm without you running outside every few hours. This roundup compares the best heated outdoor cat house options for caretakers of colony cats and porch regulars, based on retailer specs and what owner reviews repeatedly mention. Nobody here has set one up in a yard, so treat this as a side-by-side comparison you can check against your own yard and your own cats.
 
 ## Quick picks
@@ -60,10 +65,10 @@ When spring comes, unplug the pad and clean the shelter out. Caretakers who also
 
 ## Comparison table
 
-| Product | Best For | Heating Setup |
-|---|---|---|
-| K&H Heated Cat House, Outdoor Kitty Shelter, Safety Listed | Most porches and single colony cats | Built-in heated pad, safety listed |
-| K&H Heated Cat House Extra-Wide | Bonded pairs or one large cat | Heated, wider floor |
-| Indestructible Heated Cat House for Outdoor Cats | Spots with wildlife or rough handling | Heated, check listing for details |
+| Product | Best For | Heating Setup | Check price |
+|---|---|---|---|
+| K&H Heated Cat House, Outdoor Kitty Shelter, Safety Listed | Most porches and single colony cats | Built-in heated pad, safety listed | [On Amazon](https://www.amazon.com/dp/B07HMPRTXF?tag=happypetdc-20) |
+| K&H Heated Cat House Extra-Wide | Bonded pairs or one large cat | Heated, wider floor | - |
+| Indestructible Heated Cat House for Outdoor Cats | Spots with wildlife or rough handling | Heated, check listing for details | - |
 
 Choosing the best heated outdoor cat house comes down to where you can plug it in and how many cats need it, more than any single feature. For a single cat or a small porch setup, the [K&H Heated Cat House](https://www.amazon.com/dp/B07HMPRTXF?tag=happypetdc-20) makes a sensible first pick, with a 4.6 star rating, a safety-listed heated pad and a $89.98 price (as of Sep 25, 2026). Set it on a raised base near a covered outlet, turn the door away from the wind, and leave a little food near the entrance for the first few nights. Shy cats usually move in once they learn the floor stays warm, and that gives them a far better shot at getting through the coldest weeks of the year.

@@ -15,6 +15,11 @@ chewy_url: "https://chewy.sjv.io/c/7160344/3054490/32975?u=https%3A%2F%2Fwww.che
 image: "https://m.media-amazon.com/images/I/81nV6St3lYL._AC_SX425_.jpg"
 pin_image: "https://happypetproductreviews.com/assets/images/pins/best-dog-backpack-carrier.jpg?v=20260504"
 ---
+**Quick pick:** For a small dog who can't cover the whole hike on foot, start with the [PetAmi Dog Backpack Carrier on Amazon](https://www.amazon.com/dp/B07B61HMRT?th=1&tag=happypetdc-20).
+{: .quick-pick}
+
+**Good gift for:** a small-dog owner who hikes or travels.
+
 A dog backpack carrier answers a narrow problem: a small dog who cannot cover the whole distance on foot, and hands you need for something other than a leash. On a trail that narrows, a leashed small dog is a snag risk rather than a companion; at an airport, a carrier is usually what the airline asks for before the dog goes any further. The pick below is judged on ventilation, how the weight sits on the shoulders, and whether it packs down for travel.  
 
 ### PetAmi Ventilated Dog Backpack – **the top pick**  

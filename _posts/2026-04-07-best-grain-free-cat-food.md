@@ -14,6 +14,9 @@ product_short: "Blue Buffalo Wilderness Grain-Free Cat Food"
 chewy_url: "https://chewy.sjv.io/c/7160344/3054490/32975?u=https%3A%2F%2Fwww.chewy.com%2Fblue-buffalo-wilderness-chicken%2Fdp%2F32098&intsrc=APIG_24727"
 ---
 
+**Quick pick:** For most cats making the switch to grain-free, start with the [Blue Buffalo Wilderness Grain-Free Cat Food on Amazon](https://www.amazon.com/dp/B002UT92EY?tag=happypetdc-20).
+{: .quick-pick}
+
 Grain-free food fills a whole aisle, and plenty of owners switch hoping it will settle a sensitive stomach or an itchy, dull coat. Many owners report their cats do well on a grain-free diet, and brands pitch it as mirroring a cat's ancestral diet more closely, though vets are clear that true grain allergies in cats are rare, and there is no general evidence that dropping grains beats a conventional complete diet. But with so many options out there, how do you choose the best grain-free cat food without breaking the bank?
 
 That's where this guide comes in. It scours the market, reads countless labels, and digs into what owners report about how real cats (and their discerning palates) actually respond to the most popular brands. The aim is to help you find your way through the often-confusing world of pet nutrition and find a high-quality, grain-free option that suits both your cat's needs and your wallet. Every cat deserves to feel their best, and you deserve peace of mind knowing you're feeding them well without spending a fortune. Let’s dive into the top picks for the best grain-free cat food!
@@ -86,12 +89,12 @@ Wellness CORE is another strong contender in the grain-free cat food arena, and 
 
 ## Comparison Table
 
-| Product | Best For | Price Range | Rating |
-| :-------------------------------------------- | :------------------------------------------- | :---------- | :--------- |
-| Blue Buffalo Wilderness Grain-Free Dry Cat Food | Overall best, sensitive stomachs, active cats | $$ | ⭐⭐⭐⭐⭐ |
-| Merrick Purrfect Bistro Grain-Free Dry Cat Food | Picky eaters, digestive support, diverse proteins | $$ | ⭐⭐⭐⭐ |
-| Taste of the Wild Rocky Mountain Grain-Free Dry Cat Food | Unique protein needs, strong immune system | $$ | ⭐⭐⭐⭐ |
-| Wellness CORE Grain-Free Dry Cat Food | Weight management, urinary health, lean muscle | $$$ | ⭐⭐⭐⭐ |
+| Product | Best For | Price Range | Rating | Check price |
+| :-------------------------------------------- | :------------------------------------------- | :---------- | :--------- | --- |
+| Blue Buffalo Wilderness Grain-Free Dry Cat Food | Overall best, sensitive stomachs, active cats | $$ | ⭐⭐⭐⭐⭐ | [On Amazon](https://www.amazon.com/dp/B002UT92EY?tag=happypetdc-20) |
+| Merrick Purrfect Bistro Grain-Free Dry Cat Food | Picky eaters, digestive support, diverse proteins | $$ | ⭐⭐⭐⭐ | - |
+| Taste of the Wild Rocky Mountain Grain-Free Dry Cat Food | Unique protein needs, strong immune system | $$ | ⭐⭐⭐⭐ | - |
+| Wellness CORE Grain-Free Dry Cat Food | Weight management, urinary health, lean muscle | $$$ | ⭐⭐⭐⭐ | - |
 
 ## Buying Guide: Choosing the Right Grain-Free Cat Food
 

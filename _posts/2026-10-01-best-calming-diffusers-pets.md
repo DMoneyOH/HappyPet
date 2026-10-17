@@ -18,6 +18,9 @@ image: "https://m.media-amazon.com/images/I/71j6M4KW9xL._AC_SX679_.jpg"
 pin_image: "https://happypetproductreviews.com/assets/images/pins/best-calming-diffusers-pets.jpg?v=20261001"
 ---
 
+**Quick pick:** For a cat who sprays or hides under stress (cats only), start with the [FELIWAY Optimum Cat Diffuser Kit on Amazon](https://www.amazon.com/dp/B097W651NJ?tag=happypetdc-20).
+{: .quick-pick}
+
 You come home from a weekend away and find a fresh wet spot on the bath mat and a dog pacing the hallway like it owes someone money. Nothing in the house changed except your absence and a new neighbor's leaf blower. Stress shows up in pets through behavior long before it shows up anywhere else, and owners often reach for a calming diffuser for pets as the first, lowest-effort fix. A plug-in diffuser asks nothing of your pet. No pills to hide in cheese, no collar to tolerate. It sits in an outlet and works in the background. This roundup compares three plug-in options, explains which animal each one targets, and flags where owner reviews point to limits. After the diffusers, it covers three calming options for cats that work without an outlet.
 
 ## Quick picks
@@ -84,10 +87,10 @@ Watch the refill cost. Pheromone diffusers run on refills, and those keep coming
 
 ## Comparison table
 
-| Product | Best For | Species |
-|---|---|---|
-| FELIWAY Optimum Cat Calming Diffuser Kit | Cats with several stress behaviors | Cats |
-| ThunderEase Dog Calming Pheromone Diffuser Kit, Powered by ADAPTIL | Dogs anxious at home or during noise | Dogs |
-| FELIWAY Classic Cat Calming Pheromone Diffuser | Single cat facing one stressor | Cats |
+| Product | Best For | Species | Check price |
+|---|---|---|---|
+| FELIWAY Optimum Cat Calming Diffuser Kit | Cats with several stress behaviors | Cats | [On Amazon](https://www.amazon.com/dp/B097W651NJ?tag=happypetdc-20) |
+| ThunderEase Dog Calming Pheromone Diffuser Kit, Powered by ADAPTIL | Dogs anxious at home or during noise | Dogs | [On Amazon](https://www.amazon.com/dp/B072KP2TYK?tag=happypetdc-20) |
+| FELIWAY Classic Cat Calming Pheromone Diffuser | Single cat facing one stressor | Cats | [On Amazon](https://www.amazon.com/dp/B01AVIIFRA?tag=happypetdc-20) |
 
 No single plug-in covers every pet in a mixed home, and none replaces a vet check when behavior changes suddenly. For a cat that sprays or hides under stress, the featured kit makes the most sense as a first try: it costs $29.99, holds a 4.0 star rating (as of Jul 7, 2026), and lists the widest range of target behaviors of the three. Dog owners should skip it and pick up the ThunderEase diffuser (Powered by ADAPTIL) instead. If your cat fits the profile, give the [FELIWAY Optimum cat diffuser (cats only)](https://www.amazon.com/dp/B097W651NJ?tag=happypetdc-20) a full refill cycle in the room your cat uses most, then judge the results with a clear head. Your cat, and your bath mat, may thank you.
