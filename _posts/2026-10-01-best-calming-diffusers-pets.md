@@ -13,6 +13,8 @@ tags: [calming diffuser for pets]
 description: "Stressed cat spraying or hiding, or a dog that won't settle? 3 plug-in diffusers compared, plus a supplement, chews and a spray for cats."
 affiliate_url: "https://www.amazon.com/dp/B097W651NJ?tag=happypetdc-20"
 product_short: "FELIWAY Optimum Cat Diffuser Kit"
+dog_url: "https://www.amazon.com/dp/B072KP2TYK?tag=happypetdc-20"
+dog_name: "ThunderEase (ADAPTIL)"
 chewy_url: "https://chewy.sjv.io/c/7160344/3054490/32975?prodsku=315171&u=https%3A%2F%2Fwww.chewy.com%2Ffeliway-optimum-enhanced-calming-30%2Fdp%2F341463%3Futm_source%3Dgoogle-product%26utm_medium%3Dorganic%26utm_content%3DFeliway&intsrc=APIG_24727"
 image: "https://m.media-amazon.com/images/I/71j6M4KW9xL._AC_SX679_.jpg"
 pin_image: "https://happypetproductreviews.com/assets/images/pins/best-calming-diffusers-pets.jpg?v=20261001"
