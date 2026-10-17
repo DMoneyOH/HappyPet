@@ -10,7 +10,7 @@ redirect_from:
   - /cat-health/best-cat-calming-products/
 species: both
 tags: [calming diffuser for pets]
-description: "Stressed cat spraying or hiding, or a dog that won't settle? 3 plug-in diffusers compared, plus a supplement, chews, a collar, a spray and a liquid for cats."
+description: "Stressed cat spraying or hiding, or a dog that won't settle? 3 plug-in diffusers compared, plus a supplement, chews and a spray for cats."
 affiliate_url: "https://www.amazon.com/dp/B097W651NJ?tag=happypetdc-20"
 product_short: "FELIWAY Optimum Cat Diffuser Kit"
 chewy_url: "https://chewy.sjv.io/c/7160344/3054490/32975?prodsku=315171&u=https%3A%2F%2Fwww.chewy.com%2Ffeliway-optimum-enhanced-calming-30%2Fdp%2F341463%3Futm_source%3Dgoogle-product%26utm_medium%3Dorganic%26utm_content%3DFeliway&intsrc=APIG_24727"
@@ -18,7 +18,7 @@ image: "https://m.media-amazon.com/images/I/71j6M4KW9xL._AC_SX679_.jpg"
 pin_image: "https://happypetproductreviews.com/assets/images/pins/best-calming-diffusers-pets.jpg?v=20261001"
 ---
 
-You come home from a weekend away and find a fresh wet spot on the bath mat and a dog pacing the hallway like it owes someone money. Nothing in the house changed except your absence and a new neighbor's leaf blower. Stress shows up in pets through behavior long before it shows up anywhere else, and owners often reach for a calming diffuser for pets as the first, lowest-effort fix. A plug-in diffuser asks nothing of your pet. No pills to hide in cheese, no collar to tolerate. It sits in an outlet and works in the background. This roundup compares three plug-in options, explains which animal each one targets, and flags where owner reviews point to limits. After the diffusers, it covers five calming options for cats that work without an outlet.
+You come home from a weekend away and find a fresh wet spot on the bath mat and a dog pacing the hallway like it owes someone money. Nothing in the house changed except your absence and a new neighbor's leaf blower. Stress shows up in pets through behavior long before it shows up anywhere else, and owners often reach for a calming diffuser for pets as the first, lowest-effort fix. A plug-in diffuser asks nothing of your pet. No pills to hide in cheese, no collar to tolerate. It sits in an outlet and works in the background. This roundup compares three plug-in options, explains which animal each one targets, and flags where owner reviews point to limits. After the diffusers, it covers three calming options for cats that work without an outlet.
 
 ## Quick picks
 
@@ -54,23 +54,17 @@ The [FELIWAY Classic Cat Calming Pheromone Diffuser](https://www.amazon.com/dp/B
 
 ## Beyond the plug-in: other calming options for cats
 
-A diffuser covers one room and needs an outlet. When the stress comes with a carrier ride, a vet visit or a thunderstorm, or your cat won't spend time in the room with the plug-in, these five options work another way. None of them is a diffuser, and all five are for cats.
+A diffuser covers one room and needs an outlet. When the stress comes with a carrier ride, a vet visit or a thunderstorm, or your cat won't spend time in the room with the plug-in, these three options work another way. None of them is a diffuser, and all three are for cats.
 
 | Product | Type | When it helps |
 |---|---|---|
 | [Purina Pro Plan Calming Care](https://www.amazon.com/dp/B0BGVF6PGW?tag=happypetdc-20) | Daily supplement | Daily anxiety, travel, vet visits |
-| [VetriScience Composure Chews](https://www.amazon.com/dp/B003KV7XVA?tag=happypetdc-20) | Chew supplement | Mild to moderate anxiety, grooming stress |
-| ThunderEase Calming Collar | Calming collar | Thunderstorms, fireworks, sudden bangs |
+| [VetriScience Composure Calm & Confident Chews](https://www.amazon.com/dp/B003KV7XVA?tag=happypetdc-20) | Chew supplement | Mild to moderate anxiety, grooming stress |
 | [Pet Remedy Calming Spray](https://www.amazon.com/dp/B09RLTCGS6?tag=happypetdc-20) | Spray | Spot treatment during vet trips or carrier rides |
-| NaturVet Calming Aid (Liquid) | Oral liquid | Cats that dislike chews or have dental issues |
 
-**Supplements and chews** (Purina Pro Plan Calming Care, a powder you sprinkle on food; VetriScience Composure Chews) suit everyday nervousness, travel and vet trips, and they fit into a meal routine. Some cats reject the texture.
-
-**The collar** (ThunderEase) goes wherever the cat goes, which makes it the pick when noise like thunder or fireworks is the trigger. It has to be fitted correctly, and its scent may fade with heavy wear.
+**Supplements and chews** (Purina Pro Plan Calming Care, a powder you sprinkle on food; VetriScience Composure Calm & Confident Chews) suit everyday nervousness, travel and vet trips, and they fit into a meal routine. Some cats reject the texture.
 
 **The spray** (Pet Remedy) is for spot treatment: the carrier, the bedding, the exam room. It needs reapplying, and the scent can be strong for sensitive noses.
-
-**The liquid** (NaturVet) suits a cat that refuses chews or has dental issues, since it mixes into food. Measuring the dose can be fiddly.
 
 Dosing differs by product and by a cat's weight, so follow the label on the package you buy, and ask your vet before starting any supplement, especially if your cat has health issues or takes medication.
 

@@ -42,7 +42,7 @@ This advanced Nature's Miracle spray aims squarely at dog messes. Owners tend to
 
 ### [Resolve Urine Destroyer Spray Pet Stain and Odor Remover](https://www.amazon.com/dp/B07FK2M4XG?tag=happypetdc-20)
 
-If the stain bothers you more than the smell, Resolve makes sense. It comes from the household cleaning aisle rather than the pet aisle, and many owners find it pulls discoloration out of carpet fibers fast, handy an hour before guests show up. Deep padding tells a different story. A quick spray may not reach urine that soaked through, where a dedicated enzyme soak does better, so spot-test it on dark or delicate fabric first.
+If the stain bothers you more than the smell, Resolve makes sense. This is an enzyme cleaner spray from the household cleaning aisle rather than the pet aisle, and many owners find it pulls discoloration out of carpet fibers fast, handy an hour before guests show up. Deep padding tells a different story. A quick spray may not reach urine that soaked through, where a thorough, patient soak does better, so spot-test it on dark or delicate fabric first.
 
 ## Buying guide
 
@@ -64,6 +64,6 @@ Finally, match bottle size to your household. A multi-pet home or a new puppy go
 |---|---|---|
 | Rocco and Roxie Supply Co. Stain and Strong Odor Eliminator | Set-in urine odor on carpet | Enzyme formula, clear spray |
 | Nature's Miracle Advanced Stain and Odor Eliminator Dog Spray | Fresh dog accidents | Enzyme-based spray |
-| Resolve Urine Destroyer Spray Pet Stain and Odor Remover | Visible stains before company arrives | Household stain spray |
+| Resolve Urine Destroyer Spray Pet Stain and Odor Remover | Visible stains before company arrives | Enzyme cleaner spray |
 
 If urine smell keeps pulling your pet back to the same corner, a surface cleaner won't break that cycle. An enzyme spray that you let soak gives the smell a real chance to disappear instead of hiding under perfume. For most homes with carpet, the Rocco and Roxie formula makes a sensible first pet stain odor eliminator to keep on hand. It carries a 4.4-star rating and costs $23.92 (as of Jul 7, 2026) for 32 ounces. Owners who let it sit tend to report the strongest results. Pick up the [Rocco & Roxie Stain & Odor Eliminator](https://www.amazon.com/dp/B00CKFL93K?tag=happypetdc-20) and keep it under the sink for the next surprise behind the couch.
