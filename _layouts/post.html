@@ -118,8 +118,14 @@ layout: default
           {%- if page.chewy_url %}
           <a class="buy buy--chewy" href="{{ page.chewy_url }}" target="_blank" rel="sponsored nofollow noopener">Check price on Chewy</a>
           {%- endif %}
+          {%- comment -%}
+            dog_url is a secondary button only: this block sits inside the
+            affiliate_url / chewy_url condition above, so it renders alongside
+            a primary pick and never on its own. dog_name names the product;
+            without it the label falls back to "check price".
+          {%- endcomment -%}
           {%- if page.dog_url %}
-          <a class="buy buy--dogs" href="{{ page.dog_url }}" target="_blank" rel="sponsored nofollow noopener">For dogs: check price on Amazon</a>
+          <a class="buy buy--dogs" href="{{ page.dog_url | escape }}" target="_blank" rel="sponsored nofollow noopener">For dogs: {{ page.dog_name | default: "check price" | escape }} on Amazon</a>
           {%- endif %}
         </div>
         {%- endif %}

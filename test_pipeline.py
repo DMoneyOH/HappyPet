@@ -5645,26 +5645,65 @@ class TestForDogsButton(unittest.TestCase):
         (name,) = [n for n in self.posts if _post_slug(n) == slug]
         return _post_parts(self.posts[name])[0]
 
+    BUTTON = (r'\{%-?\s*if page\.dog_url\s*-?%\}\s*'
+              r'<a class="buy buy--dogs" href="\{\{ page\.dog_url \| escape \}\}" target="_blank" '
+              r'rel="sponsored nofollow noopener">For dogs: '
+              r'\{\{ page\.dog_name \| default: "check price" \| escape \}\} on Amazon</a>\s*'
+              r'\{%-?\s*endif\s*-?%\}')
+
     def test_the_panel_renders_the_dog_button_inside_the_buy_row_when_dog_url_is_set(self):
         row = self.panel[self.panel.index('<div class="buy-row">'):]
-        m = re.search(r'\{%-?\s*if page\.dog_url\s*-?%\}\s*'
-                      r'<a class="buy buy--dogs" href="\{\{ page\.dog_url \}\}" target="_blank" '
-                      r'rel="sponsored nofollow noopener">For dogs: check price on Amazon</a>\s*'
-                      r'\{%-?\s*endif\s*-?%\}', row)
+        m = re.search(self.BUTTON, row)
         self.assertIsNotNone(m, "no dog_url-guarded 'For dogs' button in the buy row")
         self.assertLess(m.start(), row.index("</div>"), "the button is outside the buy row")
 
-    def test_a_post_with_no_dog_url_renders_nothing_extra(self):
-        # The only way the button appears is the guarded block above.
+    def test_the_button_names_the_dog_product_and_falls_back_to_check_price(self):
+        # Same rule as the primary pick (TestBuyPanelNamesThePick): the label names
+        # the product, and a missing name degrades to "check price", never a blank.
+        self.assertRegex(self.panel, r'\{\{ page\.dog_name \| default: "check price" \| escape \}\}')
+        self.assertRegex(self._front_matter(self.SLUG), r'(?m)^dog_name: "ThunderEase \(ADAPTIL\)"$')
+
+    def test_every_dog_url_post_carries_a_dog_name(self):
+        found = [n for n, t in self.posts.items() if re.search(r"(?m)^dog_url:", _post_parts(t)[0])]
+        self.assertTrue(found, "no dog_url posts - the guard would pass vacuously")
+        for n in found:
+            self.assertRegex(_post_parts(self.posts[n])[0], r'(?m)^dog_name: "[^"\s][^"]*"$', n)
+
+    def test_the_href_and_the_name_are_html_escaped(self):
+        # Template pins: the unescaped forms must not come back.
+        self.assertNotIn('href="{{ page.dog_url }}"', self.layout)
+        self.assertNotIn("{{ page.dog_name }}", self.layout)
+        self.assertIn('href="{{ page.dog_url | escape }}"', self.layout)
+        # What the pinned filter does with a breakout: Liquid's `escape` is
+        # CGI.escapeHTML, so no raw quote or angle bracket survives into the attribute.
+        import html
+        payload = 'https://x.test/?a=1" onmouseover="alert(1)" data-x="<script>'
+        rendered = html.escape(payload, quote=True)
+        for raw in ('"', "<", ">"):
+            self.assertNotIn(raw, rendered)
+
+    def test_the_dog_button_is_one_guarded_block_inside_the_primary_pick_condition(self):
         self.assertEqual(self.layout.count("buy--dogs"), 1)
-        self.assertEqual(self.layout.count("page.dog_url"), 2)  # the guard and the href
+        outer = self.panel.index("{%- if page.affiliate_url or page.chewy_url %}")
+        button = self.panel.index("buy--dogs")
+        self.assertLess(outer, button)
+        self.assertLess(button, self.panel.index("</div>", self.panel.index('<div class="buy-row">')))
+        # The template says so, next to the guard.
+        self.assertRegex(self.panel[:button], r"(?s)dog_url is a secondary button only.*endcomment")
 
     def test_the_sticky_bar_keeps_its_single_pick_button(self):
         self.assertNotIn("dog_url", self.buybar)
         self.assertNotIn("buy--dogs", self.buybar)
 
     def test_the_button_is_styled(self):
-        self.assertRegex(self.css, r"\.buy--dogs\b[^{]*\{")
+        rules = re.findall(r"([^{}]+)\{([^}]*)\}", self.css)
+        resting = [body for sel, body in rules
+                   if ".buy--dogs" in [s.strip() for s in sel.split(",")]]
+        hover = [body for sel, body in rules
+                 if ".buy--dogs:hover" in [s.strip() for s in sel.split(",")]]
+        self.assertTrue(resting, "no resting-state .buy--dogs rule")
+        self.assertTrue(any("background" in b and "color" in b for b in resting))
+        self.assertTrue(hover, "no .buy--dogs:hover rule")
 
     def test_the_calming_diffusers_post_links_thunderease_for_dogs(self):
         fm = self._front_matter(self.SLUG)
