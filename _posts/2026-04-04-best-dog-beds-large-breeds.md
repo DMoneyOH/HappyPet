@@ -11,7 +11,7 @@ species: dog
 tags: [dog beds large breeds]
 description: "Big dogs need real support. This orthopedic bed is built to last and actually holds its shape."
 product_name: "Barker Beds Large Orthopedic Dog Bed 7in Memory Foam"
-rating: 4.5
+rating: 4.7
 affiliate_url: "https://www.amazon.com/dp/B0GRBXBPXH?th=1&tag=happypetdc-20"
 product_short: "Barker Beds Orthopedic Dog Bed"
 image: "https://bigbarker.com/cdn/shop/files/HeadRest_7inch-Giant_CharcoalGrey_100_20_9ebbc3e7-d8a3-49bb-8db6-ea1d0d41a8bd.jpg"
@@ -78,4 +78,4 @@ Finally, if you're an owner who values **easy cleaning and hygiene**, the remova
 
 After weighing the build details against what owners report, the [Barker Beds Orthopedic Dog Bed](https://www.amazon.com/dp/B0GRBXBPXH?th=1&tag=happypetdc-20) stands out as a premium option for large dog breeds requiring superior orthopedic support. While it represents an investment, its exceptional comfort, robust construction, and intelligent design features like the waterproof liner and washable cover make it a truly worthwhile purchase. For any pet parent witnessing their large dog struggle with discomfort, or simply wanting to proactively support their joint health, this bed offers a tangible solution. It's more than just a place to sleep; it's a foundation for better health and happier, more comfortable days for your beloved companion. If you're searching for dog beds large breeds can truly thrive on, look no further than this supportive sanctuary.
 
-**Rating: 4.5/5**
+**Rating: 4.7/5** (as of Oct 17, 2026)

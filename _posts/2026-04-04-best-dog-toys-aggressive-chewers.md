@@ -89,10 +89,10 @@ For the ultimate in safety and durability, the GoughNuts Original Ring Dog Toy i
 
 | Product                                       | Best For                                     | Price Range | Rating | Check price |
 | :-------------------------------------------- | :------------------------------------------- | :---------- | :--------- | --- |
-| [KONG Extreme Dog Toy Large](https://www.amazon.com/dp/B0002AR0II?th=1&tag=happypetdc-20) | All-around durability, treat stuffing, fetch | \$\$        | 5/5        | [On Amazon](https://www.amazon.com/dp/B0002AR0II?th=1&tag=happypetdc-20) |
+| [KONG Extreme Dog Toy Large](https://www.amazon.com/dp/B0002AR0II?th=1&tag=happypetdc-20) | All-around durability, treat stuffing, fetch | \$\$        | 4.6/5 (as of Oct 17, 2026) | [On Amazon](https://www.amazon.com/dp/B0002AR0II?th=1&tag=happypetdc-20) |
 | Nylabone Power Chew Durable Dog Toy           | Dental health, long-lasting chewing         | \$          | 4.5/5      | - |
-| West Paw Zogoflex Hurley Dog Bone             | Water play, flexible durability, safety      | \$\$        | 4.5/5      | - |
-| GoughNuts Original Ring Dog Toy               | Ultimate safety, extreme chewers             | \$\$\$      | 5/5        | - |
+| West Paw Zogoflex Hurley Dog Bone             | Water play, flexible durability, safety      | \$\$        | 4.4/5 (as of Oct 17, 2026) | - |
+| GoughNuts Original Ring Dog Toy               | Ultimate safety, extreme chewers             | \$\$\$      | 4.1/5 (as of Oct 17, 2026) | - |
 
 ## Buying Guide: Choosing the Right Toy for Your Power Chewer
 

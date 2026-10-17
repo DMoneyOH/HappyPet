@@ -76,8 +76,8 @@ For dog owners keen on understanding their dog's genetic predispositions to spec
 
 | Product | Best For | Price Range | Rating | Check price |
 | :------------------------------------------ | :------------------------------------------------- | :------------ | :--------- | --- |
-| Embark Breed Identification Dog DNA Test Kit | Most comprehensive breed & health insights | $$$$ | 5/5 | [On Amazon](https://www.amazon.com/dp/B07HHF1VLH?th=1&tag=happypetdc-20) |
-| Wisdom Panel Essential Dog DNA Test Kit | Budget-friendly breed identification & basic health | $$ | 4/5 | - |
+| Embark Breed Identification Dog DNA Test Kit | Most comprehensive breed & health insights | $$$$ | 4.6/5 (as of Oct 17, 2026) | [On Amazon](https://www.amazon.com/dp/B07HHF1VLH?th=1&tag=happypetdc-20) |
+| Wisdom Panel Essential Dog DNA Test Kit | Budget-friendly breed identification & basic health | $$ | 4.6/5 (as of Oct 17, 2026) | - |
 | Orivet Genetic Pet Care Dog DNA Test Kit | Genetic health screening & breed-specific concerns | $$$ | 4/5 | - |
 
 *Price Range Key: \$ = Under \$50, \$\$ = \$50-\$100, \$\$\$ = \$100-\$150, \$\$\$\$ = Over \$150*

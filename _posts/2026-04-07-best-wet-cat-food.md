@@ -92,8 +92,8 @@ If you're looking for a step up in targeted nutrition while still keeping an eye
 | Product | Best For | Price Range | Rating | Check price |
 | :------------------------------------------ | :------------------------------------------- | :---------------- | :--------- | --- |
 | Sheba Perfect Portions Variety Pack | Picky eaters, portion control, convenience | \$\$\$ | 4.7/5 (as of Apr 8, 2026) | [On Amazon](https://www.amazon.com/s?k=Sheba+Perfect+Portions+Variety+Pack&tag=happypetdc-20) |
-| Fancy Feast Classic Pate Wet Cat Food | Pâté lovers, budget-conscious, classic taste | \$\$ | 4.6/5 | - |
-| Friskies Pate Wet Cat Food | Extreme budget, multi-cat homes, broad appeal| \$ | 4.5/5 | - |
+| Fancy Feast Classic Pate Wet Cat Food | Pâté lovers, budget-conscious, classic taste | \$\$ | 4.7/5 (as of Oct 17, 2026) | - |
+| Friskies Pate Wet Cat Food | Extreme budget, multi-cat homes, broad appeal| \$ | 4.6/5 (as of Oct 17, 2026) | - |
 | Purina Pro Plan Wet Cat Food | Targeted nutrition, specific dietary needs | \$\$\$ | 4.7/5 | - |
 
 ## Buying Guide: How to Choose the Best Wet Cat Food

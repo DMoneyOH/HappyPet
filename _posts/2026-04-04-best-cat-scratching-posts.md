@@ -12,7 +12,7 @@ species: cat
 tags: [cat scratching post]
 description: "Most scratching posts wobble and get ignored. These are the ones cats actually use and owners swear by."
 product_name: "SmartCat Ultimate Scratching Post"
-rating: 4.8
+rating: 4.7
 affiliate_url: "https://www.amazon.com/dp/B07W865K8N?th=1&tag=happypetdc-20"
 product_short: "SmartCat Ultimate Scratching Post"
 chewy_url: "https://chewy.sjv.io/c/7160344/3054490/32975?u=https%3A%2F%2Fwww.chewy.com%2Fsmartcat-ultimate-32-in-sisal-cat%2Fdp%2F49134&intsrc=APIG_24727"
@@ -94,4 +94,4 @@ The [SmartCat Ultimate Scratching Post](https://www.amazon.com/dp/B07W865K8N?th=
 
 Weighed against countless owner reviews, the build quality says the [SmartCat Ultimate Scratching Post](https://www.amazon.com/dp/B07W865K8N?th=1&tag=happypetdc-20) lives up to its "Ultimate" name. It’s an investment, yes, but one that truly pays off in durability, effectiveness, and peace of mind. This cat scratching post provides the ideal scratching surface and height for cats of all sizes, ensuring they can stretch fully and satisfy their natural instincts without resorting to your upholstery. If you’re at your wit's end with shredded furniture and flimsy scratchers, and you're ready to bring a long-lasting solution into your home, the [SmartCat Ultimate Scratching Post](https://www.amazon.com/dp/B07W865K8N?th=1&tag=happypetdc-20) earns a wholehearted recommendation. It’s a game-changer for protecting your home and keeping your feline friend happy and healthy.
 
-**Rating: 4.8/5**
+**Rating: 4.7/5** (as of Oct 17, 2026)
