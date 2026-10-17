@@ -88,10 +88,10 @@ For those seeking a straightforward, budget-friendly dog crate that gets the job
 
 | Product | Best For | Price Range | Rating | Check price |
 | :------------------------------------------------ | :---------------------------- | :---------- | :--------- | --- |
-| MidWest Homes for Pets New World Dog Crate | Overall Value & Versatility | \$\$-$$$ | 5/5 | [On Amazon](https://www.amazon.com/dp/B01DLS2EX8?th=1&tag=happypetdc-20) |
+| MidWest Homes for Pets New World Dog Crate | Overall Value & Versatility | \$\$-$$$ | 4.7/5 (as of Oct 17, 2026) | [On Amazon](https://www.amazon.com/dp/B01DLS2EX8?th=1&tag=happypetdc-20) |
 | Frisco Fold & Carry Double Door Collapsible Crate | Portability & Everyday Use | \$\$ | 4.5/5 | - |
-| PetSafe Happy Ride Collapsible Travel Crate | Travel & Cozy Den | \$\$\$ | 4.5/5 | - |
-| Amazon Basics Single-Door Folding Metal Dog Crate | Budget-Friendly & Basic Needs | \$ | 4/5 | - |
+| PetSafe Happy Ride Collapsible Travel Crate | Travel & Cozy Den | \$\$\$ | 4.5/5 (as of Oct 17, 2026) | - |
+| Amazon Basics Single-Door Folding Metal Dog Crate | Budget-Friendly & Basic Needs | \$ | 4.7/5 (as of Oct 17, 2026) | - |
 
 ## Buying Guide: Choosing the Perfect Dog Crate
 

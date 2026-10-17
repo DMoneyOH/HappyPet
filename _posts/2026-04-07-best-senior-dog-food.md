@@ -94,9 +94,9 @@ Royal Canin takes a highly specific approach to pet nutrition, and their Canine 
 
 | Product | Best For | Price Range | Rating | Check price |
 | :----------------------------------------------------- | :------------------------------------------- | :---------- | :--------- | --- |
-| Hill's Science Diet Adult 7+ Senior Dry Dog Food | All-around senior health support | $$$ | 5/5 | [On Amazon](https://www.amazon.com/dp/B009B87TKG?th=1&tag=happypetdc-20) |
-| Purina Pro Plan Bright Mind Adult 7+ Chicken & Rice | Cognitive function and mental alertness | $$$ | 4.5/5 | - |
-| Blue Buffalo Life Protection Formula Senior | Natural ingredients & joint support | $$ | 4/5 | - |
+| Hill's Science Diet Adult 7+ Senior Dry Dog Food | All-around senior health support | $$$ | 4.7/5 (as of Oct 17, 2026) | [On Amazon](https://www.amazon.com/dp/B009B87TKG?th=1&tag=happypetdc-20) |
+| Purina Pro Plan Bright Mind Adult 7+ Chicken & Rice | Cognitive function and mental alertness | $$$ | 4.7/5 (as of Oct 17, 2026) | - |
+| Blue Buffalo Life Protection Formula Senior | Natural ingredients & joint support | $$ | 4.7/5 (as of Oct 17, 2026) | - |
 | Royal Canin Canine Health Nutrition Senior 7+ | Specific nutrient needs & kidney health | $$$$ | 4.5/5 | - |
 
 *Price Range Key: \$ = Budget-friendly, \$\$ = Mid-range, \$\$\$ = Premium, \$\$\$\$ = Luxury*

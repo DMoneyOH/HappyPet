@@ -72,9 +72,9 @@ When you need serious cat litter odor control that goes the extra mile, Arm & Ha
 
 | Product                                                  | Best For                  | Price Range | Rating | Check price |
 | :------------------------------------------------------- | :------------------------ | :---------- | :--------- | --- |
-| [Fresh Step Multi-Cat Litter](https://www.amazon.com/dp/B000VDR8LA?th=1&tag=happypetdc-20) | Overall Best Odor Control | $$          | 4.8/5      | [On Amazon](https://www.amazon.com/dp/B000VDR8LA?th=1&tag=happypetdc-20) |
-| Dr. Elsey's Ultra Premium Clumping Cat Litter            | Low-Dust & Unscented      | $$          | 4.7/5      | - |
-| Arm & Hammer Clump & Seal Multi-Cat Litter               | Extreme Odor Elimination  | $$          | 4.6/5      | - |
+| [Fresh Step Multi-Cat Litter](https://www.amazon.com/dp/B000VDR8LA?th=1&tag=happypetdc-20) | Overall Best Odor Control | $$          | 4.6/5 (as of Oct 17, 2026) | [On Amazon](https://www.amazon.com/dp/B000VDR8LA?th=1&tag=happypetdc-20) |
+| Dr. Elsey's Ultra Premium Clumping Cat Litter            | Low-Dust & Unscented      | $$          | 4.3/5 (as of Oct 17, 2026) | - |
+| Arm & Hammer Clump & Seal Multi-Cat Litter               | Extreme Odor Elimination  | $$          | 4.6/5 (as of Oct 17, 2026) | - |
 
 ## Buying Guide
 

@@ -84,9 +84,9 @@ Sometimes, simplicity and affordability are exactly what you need, and the Frisc
 
 | Product                                                  | Best For                                     | Price Range | Rating | Check price |
 | :------------------------------------------------------- | :------------------------------------------- | :---------- | :--------- | --- |
-| [Blueberry Florence Nylon Collar](https://www.amazon.com/dp/B00HWQNFF2?th=1&tag=happypetdc-20) | Everyday wear, style, and comfort            | $           | 4.8/5      | [On Amazon](https://www.amazon.com/dp/B00HWQNFF2?th=1&tag=happypetdc-20) |
-| KONG Comfort Padded Dog Collar                           | Sensitive necks, added comfort, night walks  | $$          | 4.6/5      | - |
-| PetSafe KeepSafe Break-Away Collar                       | Safety in multi-dog homes, unsupervised play | $           | 4.5/5      | - |
+| [Blueberry Florence Nylon Collar](https://www.amazon.com/dp/B00HWQNFF2?th=1&tag=happypetdc-20) | Everyday wear, style, and comfort            | $           | 4.4/5 (as of Oct 17, 2026) | [On Amazon](https://www.amazon.com/dp/B00HWQNFF2?th=1&tag=happypetdc-20) |
+| KONG Comfort Padded Dog Collar                           | Sensitive necks, added comfort, night walks  | $$          | 4.6/5 (as of Oct 17, 2026) | - |
+| PetSafe KeepSafe Break-Away Collar                       | Safety in multi-dog homes, unsupervised play | $           | 4.4/5 (as of Oct 17, 2026) | - |
 | Frisco Basic Nylon Dog Collar                            | Budget-friendly, no-frills, everyday use     | $           | 4.2/5      | - |
 
 ## Buying Guide: Choosing the Best Collar for Your Small Dog
