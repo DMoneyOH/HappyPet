@@ -128,8 +128,9 @@ jobs:
       - name: Post pins via IFTTT Maker webhooks
         id: post
         if: steps.resolve.outputs.nothing_to_pin != 'true'
-        # post_pins.py exits 1 on a failed or missing pin, and 6 when it refused a
-        # repeat (that image already went out on that board; nothing to retry).
+        # post_pins.py exits 1 on a failed or missing pin, and 6 when a slug was
+        # refused on every board (that image already went out there) and nothing
+        # failed or went missing: nothing to retry.
         # The code is kept as the `rc` output so the steps below can say which.
         # continue-on-error lets the Sheets and consume steps below still run; the
         # assert step after them fails the job on this step's outcome, so the
@@ -187,7 +188,7 @@ jobs:
         if: steps.post.outcome == 'failure'
         run: |
           if [ "${{ steps.post.outputs.rc }}" = "6" ]; then
-            echo "::error::post_pins.py refused a repeat (exit 6): that image already went out on that board. Nothing failed and there is nothing to retry; to pin the post again, give it a new image path."
+            echo "::error::post_pins.py refused a repeat (exit 6): that image already went out on those boards, so nothing was fired and there is nothing to retry. To pin the post again, give it a new image path."
           else
             echo "::error::post_pins.py exited nonzero (failed or missing pin) -- see the post step's log"
           fi
@@ -214,9 +215,11 @@ jobs:
         run: |
           DAY=$(TZ=America/New_York date +%F)
           TITLE="⚠️ Pins failed on ${DAY}: ${SLUGS:-no slugs resolved}"
+          LEAD="Stage 3 (pin.yml) failed for"
           TODO="What to do: read the failed step's log and fix the cause, then run pin.yml by hand with these slugs. Boards that already have the pin are skipped. Close this issue once the pins are out."
           if [ "$POSTED" = "failure" ] && [ "$RC" = "6" ]; then
             TITLE="⚠️ Pin repeat refused on ${DAY}: ${SLUGS:-no slugs resolved}"
+            LEAD="Stage 3 (pin.yml) refused a repeat for"
             TODO="What to do: nothing to retry; running again with the same image is refused again. To pin the post again, give it a new image path, then run pin.yml with these slugs and force set to true. Close this issue once done, or now if no re-pin is wanted."
           fi
           # One issue per day and slug list. If the listing fails, open the issue
@@ -232,7 +235,7 @@ jobs:
           if [ "$LIVE" = "false" ]; then
             WHAT="The articles or their pin images were not live after 30 minutes, so no pins were posted."
           elif [ "$POSTED" = "failure" ] && [ "$RC" = "6" ]; then
-            WHAT="post_pins.py refused to re-pin an image that already went out on its boards (exit 6). Nothing failed."
+            WHAT="post_pins.py found that image already on its boards and fired nothing for it (exit 6)."
           elif [ "$POSTED" = "failure" ]; then
             WHAT="post_pins.py reported a failed or missing pin."
           else
@@ -240,7 +243,7 @@ jobs:
           fi
           REPORTED=$(TZ=America/New_York date '+%a %b %-d, %Y %-I:%M %p %Z')
           BODY=$(printf '%s\n' \
-            "Stage 3 (pin.yml) failed for: ${SLUGS:-no slugs resolved}. ${WHAT}" \
+            "${LEAD}: ${SLUGS:-no slugs resolved}. ${WHAT}" \
             "" \
             "Reported: ${REPORTED}" \
             "Run: ${RUN_URL}" \

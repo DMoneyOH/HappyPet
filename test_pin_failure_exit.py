@@ -184,8 +184,9 @@ DOGS, FOOD = "happypet_pin_dogs", "happypet_pin_food"     # QUEUE's two boards
 
 class TestNoRepeatGuard(unittest.TestCase):
     """A board a (post, image) pair has gone out on is never fired again with that
-    image, with or without --force or the .fired sentinels. A run whose every
-    board was refused exits 6; a failed or missing pin (exit 1) outranks it."""
+    image, with or without --force or the .fired sentinels. A slug refused on
+    every board counts as refused; the run exits 6 when something was refused
+    and nothing failed or went missing (exit 1 outranks it)."""
 
     _run = TestPostPinsExitCode._run
 
@@ -250,6 +251,19 @@ class TestNoRepeatGuard(unittest.TestCase):
         self.assertEqual((code, calls), (1, []))
         self.assertEqual(out[0], {})
         self.assertIn("DONE -- 0 pinned, 1 failed", log)
+        self.assertNotIn("fired events recorded", log, "nothing fired; the log must not say so")
+        self.assertIn("INCOMPLETE: a -- 0 of 2 board(s) fired", log)
+
+    def test_a_partial_refusal_is_a_warning_and_a_full_one_an_error(self):
+        dogs_only = {"a": {"x/a.jpg": {DOGS: "2026-10-01"}}}
+        code, calls, log = self._run_logged(["--slugs", "a", "--force"], queued=["a"],
+                                            pinned=dogs_only)
+        self.assertEqual((code, calls), (0, [FOOD]))
+        self.assertIn("[WARN]  REFUSED (repeat): a", log)
+        code, calls, log = self._run_logged(["--slugs", "a", "--force"], queued=["a"],
+                                            pinned=PINNED_A)
+        self.assertEqual((code, calls), (6, []))
+        self.assertIn("[ERROR]  REFUSED (repeat): a", log)
 
     def test_a_save_failure_mid_publish_stops_it_and_a_later_force_reposts_nothing(self):
         out = []
@@ -329,7 +343,7 @@ class TestNoRepeatGuard(unittest.TestCase):
 
 # pin_ledger.py is mirrored byte-for-byte in a second pin pipeline whose tests pin
 # the same digest (line endings normalized). Change both copies and both digests.
-PIN_LEDGER_SHA256 = "e381ef56f743862a6a26515f7dba7bbb613237b7ddd7cfd4ca42cff2b4e58f8e"
+PIN_LEDGER_SHA256 = "288d21901159c7fc9f8b4920ffff350318ddb078df70b848736a537c04287372"
 
 
 class TestPinLedger(unittest.TestCase):
@@ -385,6 +399,13 @@ class TestPinLedger(unittest.TestCase):
                 with self.subTest(post=post, img=img, board=board), self.assertRaises(ValueError):
                     pin_ledger.record(path, post, img, board, "2026-10-17")
             self.assertFalse(path.exists())
+
+    def test_add_refuses_an_image_key_that_load_would_reject(self):
+        """Whatever add() accepts, load() must accept."""
+        for url in ("Pins/x.png", "Shop/pins/a.png", "https://[::1]/x.png",
+                    "http://[2001:db8::1]:8080/x.png"):
+            with self.subTest(url=url), self.assertRaises(ValueError):
+                pin_ledger.add({}, "p", url, "b", "2026-10-17")
 
     def test_record_round_trips_and_discard_prunes(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -470,16 +491,23 @@ class TestPinWorkflowWiring(unittest.TestCase):
 
     def test_assert_step_tells_a_refusal_from_a_failure(self):
         block = self.steps[self._assert_step()]
-        self.assertIn('if [ "${{ steps.post.outputs.rc }}" = "6" ]; then', block)
-        self.assertIn("refused a repeat (exit 6)", block)
+        rc = pin_ledger.REPEAT_REFUSED_EXIT_CODE
+        self.assertIn('if [ "${{ steps.post.outputs.rc }}" = "%d" ]; then' % rc, block)
+        self.assertIn("refused a repeat (exit %d)" % rc, block)
         self.assertIn("failed or missing pin", block)
         self.assertIn("new image path", block)
 
     def test_alert_words_a_refusal_as_nothing_to_retry(self):
         block = self.steps["Alert on failure"]
         self.assertIn("RC: ${{ steps.post.outputs.rc }}", block)
-        self.assertIn('elif [ "$POSTED" = "failure" ] && [ "$RC" = "6" ]; then', block)
+        rc = pin_ledger.REPEAT_REFUSED_EXIT_CODE
+        self.assertIn('elif [ "$POSTED" = "failure" ] && [ "$RC" = "%d" ]; then' % rc, block)
+        self.assertIn('if [ "$POSTED" = "failure" ] && [ "$RC" = "%d" ]; then' % rc, block)
         self.assertIn("Pin repeat refused on", block)
+        # The body's lead names a refusal as a refusal, never "failed for".
+        self.assertIn('LEAD="Stage 3 (pin.yml) refused a repeat for"', block)
+        self.assertIn('"${LEAD}: ${SLUGS:-no slugs resolved}. ${WHAT}"', block)
+        self.assertNotIn("Nothing failed", block)
         self.assertIn("nothing to retry", block)
         self.assertIn("new image path", block)
         self.assertNotIn("set force to true only to re-fire", block)

@@ -21,8 +21,10 @@ Dedup contract (single-owner markers):
                                              recorded BEFORE its webhook fires and un-recorded if
                                              the fire fails, so nothing live is ever missing from
                                              it. A recorded board is never fired again with that
-                                             image, even under --force or with sentinels cleared;
-                                             a run whose every board was refused exits 6. A new
+                                             image, even under --force or with sentinels cleared.
+                                             A slug refused on every board counts as refused, and
+                                             the run exits 6 when something was refused and
+                                             nothing failed or went missing (1 outranks it). A new
                                              image (a new path) for the same post is a new pin.
                                              Missing while pin history exists = exit 1.
 
@@ -444,7 +446,8 @@ def main():
             pending_events = [e for e in unfired if e not in repeats]
             if repeats:
                 log(f"REFUSED (repeat): {slug} already went out with this image on {repeats} "
-                    f"({image_url[:80]}) -- a re-pin needs a new image path", "ERROR")
+                    f"({image_url[:80]}) -- a re-pin needs a new image path",
+                    "WARN" if pending_events else "ERROR")
             if repeats and not pending_events:
                 refused += 1
                 continue
@@ -472,6 +475,7 @@ def main():
                     continue
 
             pin_ok = True
+            fired_now = 0
             today = _dt.date.today().isoformat()
             for event in pending_events:
                 # Write-ahead: the board is recorded before the webhook fires, so a
@@ -486,6 +490,7 @@ def main():
                     pin_ok = False
                     break
                 if fire_webhook(event, payload, maker_key):
+                    fired_now += 1
                     _ev_sentinel(event).write_text(_dt.datetime.now(_dt.timezone.utc).isoformat())
                 else:
                     pin_ok = False
@@ -530,7 +535,8 @@ def main():
                     log(f"  WARN: could not commit .fired sentinel: {_fe}", "WARN")
                 processed += 1
             else:
-                log(f"  PARTIAL failure for {slug} -- fired events recorded, will retry the rest", "WARN")
+                log(f"  INCOMPLETE: {slug} -- {fired_now} of {len(pending_events)} board(s) fired "
+                    f"and recorded; the rest can retry", "WARN")
                 failed += 1
 
         except Exception as exc:
@@ -541,7 +547,8 @@ def main():
         f"{refused} refused as repeats")
     # Nonzero so pin.yml's run goes red and its failure email fires; pin.yml
     # sets continue-on-error on this step so the Sheets and consume steps still run.
-    # A failed or missing pin outranks a refusal: it is the one that needs a retry.
+    # Exit 6 when a slug was refused on every board and nothing failed or went
+    # missing; a failed or missing pin outranks it, being the one that needs a retry.
     if failed or missing:
         sys.exit(1)
     if refused:

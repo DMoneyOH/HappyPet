@@ -26,6 +26,13 @@ What follows from keying on the URL:
     place, at the same URL, is still the same image here and is refused.
   * The same picture uploaded again under a different path is NOT detected.
 
+WRITE-AHEAD, AND ITS ONE RISK. A caller should record a board BEFORE firing
+it and remove the record if the fire fails, so a live pin is never missing
+from the ledger. The reverse risk remains: if the process dies between the
+record and the fire, that board stays recorded but was never pinned, and the
+guard refuses it from then on. Recovery is a hand edit of the ledger file or
+a new image path.
+
 FAILURE POSTURE: data, not instrumentation. A missing file reads as empty; a
 caller that knows pins went out before should refuse to run without one. A file
 that will not parse, has the wrong shape, or holds keys that are not in
@@ -115,6 +122,11 @@ def add(ledger: dict, post, image_url, board, date: str) -> dict:
     if key is None or image is None or where is None:
         raise ValueError(f"cannot record a pin without a post, an image and a board "
                          f"({post!r}, {image_url!r}, {board!r})")
+    # The same test load() applies: a key that does not survive the round trip
+    # (a scheme-less URL whose first segment is capitalized, an IPv6 host)
+    # would write a ledger that every later load refuses.
+    if not _is_normalized_image_key(image):
+        raise ValueError(f"cannot record {image_url!r}: its key {image!r} would not load back")
     ledger.setdefault(key, {}).setdefault(image, {})[where] = date
     return ledger
 
