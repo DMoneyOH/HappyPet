@@ -16,6 +16,9 @@ chewy_url: "https://chewy.sjv.io/c/7160344/3054490/32975?u=https%3A%2F%2Fwww.che
 image: "https://images-na.ssl-images-amazon.com/images/P/B000FLETX8.01.LZZZZZZZ.jpg"
 ---
 
+**Quick pick:** For vet visits and trips with your cat, start with the [Sherpa Original Deluxe Travel Pet Carrier on Amazon](https://www.amazon.com/dp/B000FLETX8?th=1&tag=happypetdc-20).
+{: .quick-pick}
+
 Bringing your feline friend anywhere outside the home can feel like a mission. Whether it's a routine vet visit, a cross-country move, or even just a short trip to the groomer, the right cat carrier isn't just a convenience – it's a necessity for their safety and your peace of mind. For many cats, the carrier itself can be a source of stress, turning a simple journey into a harrowing experience. That's why the Happy Pet Product Reviews team are here to guide you through the maze of options.
 
 Choosing the best cat carrier for travel isn't a decision to take lightly. A poorly chosen carrier can lead to escape attempts, injuries, excessive anxiety for your cat, and a major headache for you. On the other hand, a well-chosen, comfortable, and secure carrier can transform these necessary trips into much calmer events, making the whole process less stressful for everyone involved. Owners who travel with cats will tell you how much difference the right gear makes, and this guide is here to help you find the perfect match for your beloved companion's next adventure, big or small.

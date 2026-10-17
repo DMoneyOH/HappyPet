@@ -18,6 +18,11 @@ chewy_url: "https://chewy.sjv.io/c/7160344/3054490/32975?u=https%3A%2F%2Fwww.che
 image: "https://m.media-amazon.com/images/I/718yk3RUXAL._AC_SL1500_.jpg"
 ---
 
+**Quick pick:** For a multi-pet home, or a pet who prefers running water, start with the [PetSafe Drinkwell Platinum Pet Fountain 168oz on Amazon](https://www.amazon.com/dp/B000L3XYZ4?th=1&tag=happypetdc-20).
+{: .quick-pick}
+
+**Good gift for:** a multi-pet home, or a cat who ignores the water bowl.
+
 Most owners have been there: staring at a full water bowl while the pet sniffs it disdainfully and wanders off. Or maybe you’re constantly refilling multiple bowls for a bustling multi-pet household, only to find the water evaporated or mysteriously empty again. It’s a common frustration, and one that often leads to worries about the pets’ hydration, especially if they’re prone to urinary issues or simply aren't keen on still water. Every owner wants a healthy, happy pet, and proper hydration is a cornerstone of that. That’s where a good quality pet water fountain comes into play, transforming stagnant water into an enticing, fresh-flowing stream that encourages even the pickiest drinkers. For many pet owners, the hunt for a reliable, large-capacity fountain ends with models like the [PetSafe Drinkwell Platinum Pet Fountain 168oz](https://www.amazon.com/dp/B000L3XYZ4?th=1&tag=happypetdc-20), a popular choice worth a close look to see whether it lives up to the hype for budget-conscious buyers.
 
 ## Product Overview

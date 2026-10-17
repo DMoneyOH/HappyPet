@@ -14,18 +14,21 @@ chewy_url: "https://chewy.sjv.io/c/7160344/3054490/32975?u=https%3A%2F%2Fwww.che
 image: "https://images-na.ssl-images-amazon.com/images/P/B0DQYK8MP3.01.LZZZZZZZ.jpg"
 ---
 
+**Quick pick:** For a small-breed puppy (under 20 lb), start with the [Royal Canin Small Puppy Dry Food on Amazon](https://www.amazon.com/dp/B0DQYK8MP3?th=1&tag=happypetdc-20).
+{: .quick-pick}
+
 Bringing a new puppy home is a whirlwind of excitement, sleepless nights, and endless questions about the right diet. One morning, while a tiny Labrador retriever was busy turning his bowl upside down, his owner realized he had been eating the same kibble as the older dog. The result? A few extra wrinkles around his eyes and a noticeable dip in his energy. That moment is a reminder of how crucial it is to match a puppy’s unique nutritional needs with the *best puppy food* on the market.  
 
 In the next few minutes, this guide walks you through the top picks, compare key features, and share a buying guide that helps you choose a diet that supports healthy bones, bright eyes, and a shiny coat—without emptying your wallet.
 
 ## Quick Picks  
 
-| Product | Best For | Price Range | Chew Time |
-|---|---|---|---|
-| **Royal Canin Size Health Nutrition Small Puppy Dry Dog Food, 4 lb** | Small‑breed puppies (under 20 lb) | $$ | Quick |
-| Blue Buffalo Life Protection Puppy | Large‑breed puppies | $$ | Moderate |
-| Wellness Complete Health Puppy | Sensitive stomachs | $ | Quick |
-| NutriSource Puppy Food | Budget‑friendly starter | $ | Moderate |
+| Product | Best For | Price Range | Chew Time | Check price |
+|---|---|---|---|---|
+| **Royal Canin Size Health Nutrition Small Puppy Dry Dog Food, 4 lb** | Small‑breed puppies (under 20 lb) | $$ | Quick | [On Amazon](https://www.amazon.com/dp/B0DQYK8MP3?th=1&tag=happypetdc-20) |
+| Blue Buffalo Life Protection Puppy | Large‑breed puppies | $$ | Moderate | - |
+| Wellness Complete Health Puppy | Sensitive stomachs | $ | Quick | - |
+| NutriSource Puppy Food | Budget‑friendly starter | $ | Moderate | - |
 
 ### Featured Pick: Royal Canin Size Health Nutrition Small Puppy Dry Dog Food, 4 lb  
 

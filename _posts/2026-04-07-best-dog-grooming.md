@@ -14,6 +14,11 @@ chewy_url: "https://chewy.sjv.io/c/7160344/3054490/32975?u=https%3A%2F%2Fwww.che
 image: "https://images-na.ssl-images-amazon.com/images/P/B07MZDTG76.01.LZZZZZZZ.jpg"
 ---
 
+**Quick pick:** For a double-coated dog that sheds its undercoat, start with the [FURminator Undercoat Deshedding Tool on Amazon](https://www.amazon.com/dp/B07MZDTG76?th=1&tag=happypetdc-20).
+{: .quick-pick}
+
+**Good gift for:** the owner of a double-coated dog who sheds by the handful.
+
 The most common grooming mistake isn't skipping baths, it's using the wrong brush. A slicker brush on a double-coated Husky moves surface hair around without touching the undercoat. A deshedding tool used on a Poodle can damage the curls. The tools matter, and they're not interchangeable.
 
 This guide covers brushes, clippers, and deshedders across different coat types, so the recommendations actually match the dog they're meant for. No single tool works for every breed, which is why it is organized around coat type rather than popularity rankings.
@@ -100,12 +105,12 @@ It won't make nail trimming fun, but it makes it easier. One limitation worth kn
 
 ## Comparison
 
-| Tool | Coat Type | Main Job | Replaces Regular Brushing? |
-|---|---|---|---|
-| [FURminator](https://www.amazon.com/dp/B07MZDTG76?th=1&tag=happypetdc-20) | Double coat | Undercoat removal | No, supplement, not replace |
-| Hertzko Slicker | Medium/long | Detangle, surface hair | Yes for daily maintenance |
-| KONG Pin Brush | Long/silky/curly | Daily brushing | Yes |
-| PetSafe Nail Clipper | All breeds | Nail trimming | N/A |
+| Tool | Coat Type | Main Job | Replaces Regular Brushing? | Check price |
+|---|---|---|---|---|
+| [FURminator](https://www.amazon.com/dp/B07MZDTG76?th=1&tag=happypetdc-20) | Double coat | Undercoat removal | No, supplement, not replace | [On Amazon](https://www.amazon.com/dp/B07MZDTG76?th=1&tag=happypetdc-20) |
+| Hertzko Slicker | Medium/long | Detangle, surface hair | Yes for daily maintenance | - |
+| KONG Pin Brush | Long/silky/curly | Daily brushing | Yes | - |
+| PetSafe Nail Clipper | All breeds | Nail trimming | N/A | - |
 
 ## Matching Tools to Coat Type
 

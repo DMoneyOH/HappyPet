@@ -14,6 +14,9 @@ image: "https://m.media-amazon.com/images/I/611T5GXwQXL._AC_SX466_.jpg"
 pin_image: "https://happypetproductreviews.com/assets/images/pins/best-odor-eliminators-pet-stains.jpg?v=20260924"
 ---
 
+**Quick pick:** For set-in urine odor on carpet, start with the [Rocco & Roxie Stain & Odor Eliminator on Amazon](https://www.amazon.com/dp/B00CKFL93K?tag=happypetdc-20).
+{: .quick-pick}
+
 You pull back the couch to vacuum and find a dried yellow ring on the carpet that nobody noticed. The smell hits a second later, sharp and stale, and you realize it explains why the living room has seemed off for a week. Regular carpet shampoo lifts the color and leaves the odor behind, and your cat or dog can still smell it, which invites a repeat visit to the same spot. A pet stain odor eliminator built around enzymes works differently. The enzymes break down the proteins and uric acid in urine instead of masking them with fragrance. This roundup covers one featured spray and two alternatives, plus what to look for before you buy one for your own floors.
 
 ## Quick picks
@@ -60,10 +63,10 @@ Finally, match bottle size to your household. A multi-pet home or a new puppy go
 
 ## Comparison table
 
-| Product | Best for | Cleaning approach |
-|---|---|---|
-| Rocco and Roxie Supply Co. Stain and Strong Odor Eliminator | Set-in urine odor on carpet | Enzyme formula, clear spray |
-| Nature's Miracle Advanced Stain and Odor Eliminator Dog Spray | Fresh dog accidents | Enzyme-based spray |
-| Resolve Urine Destroyer Spray Pet Stain and Odor Remover | Visible stains before company arrives | Enzyme cleaner spray |
+| Product | Best for | Cleaning approach | Check price |
+|---|---|---|---|
+| Rocco and Roxie Supply Co. Stain and Strong Odor Eliminator | Set-in urine odor on carpet | Enzyme formula, clear spray | [On Amazon](https://www.amazon.com/dp/B00CKFL93K?tag=happypetdc-20) |
+| Nature's Miracle Advanced Stain and Odor Eliminator Dog Spray | Fresh dog accidents | Enzyme-based spray | [On Amazon](https://www.amazon.com/dp/B0723HRWJW?tag=happypetdc-20) |
+| Resolve Urine Destroyer Spray Pet Stain and Odor Remover | Visible stains before company arrives | Enzyme cleaner spray | [On Amazon](https://www.amazon.com/dp/B07FK2M4XG?tag=happypetdc-20) |
 
 If urine smell keeps pulling your pet back to the same corner, a surface cleaner won't break that cycle. An enzyme spray that you let soak gives the smell a real chance to disappear instead of hiding under perfume. For most homes with carpet, the Rocco and Roxie formula makes a sensible first pet stain odor eliminator to keep on hand. It carries a 4.4-star rating and costs $23.92 (as of Jul 7, 2026) for 32 ounces. Owners who let it sit tend to report the strongest results. Pick up the [Rocco & Roxie Stain & Odor Eliminator](https://www.amazon.com/dp/B00CKFL93K?tag=happypetdc-20) and keep it under the sink for the next surprise behind the couch.
