@@ -7161,7 +7161,8 @@ class TestPinJsonPayload(unittest.TestCase):
         calls, left = self._drive_main("t", {"species": "both"})
         self.assertEqual([ev for ev, _ in calls],
                          ["happypet_pin_dogs", "happypet_pin_cats", "happypet_pin_food"])
-        self.assertEqual(left, ["t.fired", "t.happypet_pin_cats.fired",
+        # .pinned.json is the no-repeat ledger (pin_ledger.py), written beside the sentinels.
+        self.assertEqual(left, [".pinned.json", "t.fired", "t.happypet_pin_cats.fired",
                                 "t.happypet_pin_dogs.fired", "t.happypet_pin_food.fired"])
 
     def test_a_half_fired_slug_does_not_re_pin_its_finished_boards(self):

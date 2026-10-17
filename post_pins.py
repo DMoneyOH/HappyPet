@@ -16,6 +16,11 @@ Dedup contract (single-owner markers):
   _pin_queue/.fired/{slug}.{event}.fired  -> that one webhook succeeded (partial-failure retry)
   _pin_queue/sent/                        -> owned by push_pins_to_sheets.py (FB-queued marker);
                                              this script must NEVER move files there.
+  _pin_queue/.fired/.pinned.json          -> no-repeat ledger (pin_ledger.py): every (slug, image)
+                                             pair already pinned. A pinned pair is refused even
+                                             under --force or with its sentinels cleared; the run
+                                             then exits 6. A fresh image for the same post is a
+                                             new pin.
 
 Board routing -- species board(s) plus exactly one category board:
   species=cat/both -> happypet_pin_cats
@@ -59,6 +64,8 @@ import argparse, datetime as _dt, json, os, re, sys, time
 import urllib.error, urllib.parse, urllib.request
 from pathlib import Path
 
+import pin_ledger
+
 REPO_DIR  = Path(__file__).parent.resolve()
 import sys as _sys; _sys.path.insert(0, str(REPO_DIR))
 try:
@@ -94,6 +101,11 @@ def brain_get_secret(key, project="HappyPet"):
 
 LOG_PATH  = REPO_DIR / "LOGS" / f"HappyPet_{_dt.date.today().isoformat()}.log"
 LOG_PATH.parent.mkdir(exist_ok=True)
+
+# The no-repeat ledger, inside _pin_queue/.fired so the sentinel commit below
+# carries it. Dot-named: refill_cli.taken_slugs skips dotfiles, and a top-level
+# _pin_queue/*.json would be read as a queue file.
+LEDGER_NAME = ".pinned.json"
 
 MAKER_URL = "https://maker.ifttt.com/trigger/{event}/json/with/key/{key}"
 
@@ -341,6 +353,14 @@ def main():
     sent_dir.mkdir(exist_ok=True)
     fired_dir.mkdir(exist_ok=True)
 
+    ledger_path = fired_dir / LEDGER_NAME
+    try:
+        ledger = pin_ledger.load(ledger_path)
+    except Exception as exc:
+        # Read as empty, an unreadable ledger would let every past pin repeat.
+        log(f"ABORT: no-repeat ledger {ledger_path.name} is unreadable ({exc}) -- nothing fired", "ERROR")
+        sys.exit(1)
+
     queue_files = sorted(queue_dir.glob("*.json"))
     if slug_filter:
         # Exact stem match -- same semantics as push_pins_to_sheets.py, so one
@@ -368,6 +388,7 @@ def main():
     captions = load_pin_captions()
     processed = 0
     failed    = 0
+    refused   = 0
 
     for qf in queue_files:
         try:
@@ -385,6 +406,12 @@ def main():
             image_url   = build_pin_image_url_for_ifttt(data.get("image_url", ""))
             species     = data.get("species", "both")
             topical     = data.get("topical_sheet", "")
+
+            if pin_ledger.already_pinned(ledger, slug, image_url):
+                log(f"REFUSED (repeat): {slug} was already pinned with this image "
+                    f"({image_url[:80]}) -- a new pin needs a new image", "ERROR")
+                refused += 1
+                continue
 
             caption = captions.get(slug)
             if caption is None:
@@ -438,6 +465,16 @@ def main():
                 time.sleep(RPM_SLEEP)
 
             if pin_ok:
+                # Record the pair BEFORE the sentinel so the commit below carries
+                # both. A failure is loud but does not stop the sentinel: the pin is
+                # live, and the sentinel still blocks an ordinary re-run.
+                try:
+                    pin_ledger.save(ledger_path, pin_ledger.add(
+                        ledger, slug, image_url, _dt.date.today().isoformat()))
+                except Exception as _le:
+                    log(f"  ERROR: {slug} PIN IS LIVE but the no-repeat ledger was not saved "
+                        f"({type(_le).__name__}: {_le}) -- do not re-fire it", "ERROR")
+                    failed += 1
                 # Write the all-events sentinel and commit immediately -- survives
                 # GHA workspace recreation and prevents duplicate fires.
                 # NOTE: the queue JSON stays where it is. Moving it to sent/ is
@@ -473,11 +510,15 @@ def main():
             log(f"FAIL: {qf.name} -- {exc}", "ERROR")
             failed += 1
 
-    log(f"DONE -- {processed} pinned, {failed} failed, {len(missing)} missing")
+    log(f"DONE -- {processed} pinned, {failed} failed, {len(missing)} missing, "
+        f"{refused} refused as repeats")
     # Nonzero so pin.yml's run goes red and its failure email fires; pin.yml
     # sets continue-on-error on this step so the Sheets and consume steps still run.
+    # A failed or missing pin outranks a refusal: it is the one that needs a retry.
     if failed or missing:
         sys.exit(1)
+    if refused:
+        sys.exit(pin_ledger.REPEAT_REFUSED_EXIT_CODE)
 
 
 if __name__ == "__main__":
