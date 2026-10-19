@@ -42,7 +42,7 @@ Cons:
 
 ### Pet Gear Travel Lite Ramp
 
-The Pet Gear Travel Lite Ramp swaps the flat fold for a trifold that collapses shorter, which helps when trunk space runs tight. It sets up fast and tends to feel stable once the panels lock into place. Most owners find the textured deck reassuring for a dog that drifts toward the edge. The extra hinges add a little bulk, and a heavier dog may notice more flex across the middle than on a stiffer one-piece panel.
+The Pet Gear Travel Lite Ramp swaps the flat fold for a more compact fold that collapses shorter, which helps when trunk space runs tight. It sets up fast and tends to feel stable once the panels lock into place. Most owners find the textured deck reassuring for a dog that drifts toward the edge. The extra hinges add a little bulk, and a heavier dog may notice more flex across the middle than on a stiffer one-piece panel.
 
 ### PetSTEP Original Folding Pet Ramp
 
