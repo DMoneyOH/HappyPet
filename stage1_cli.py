@@ -67,6 +67,7 @@ def cmd_gate(args) -> int:
     # case a real em dash survives scrubbing.
     scrubbed = gp.scrub_typography(body)
     passed, flags = gp.authoritative_gate(scorecard, scrubbed)
+    product_name = ""
     # A link to a product with no record is read off the body here too, when the
     # slug is given. authoritative_gate itself cannot do it -- its signature
     # carries no product context, and the check is meaningless without the
@@ -78,6 +79,7 @@ def cmd_gate(args) -> int:
         if product is None:
             print(f"ERROR: unknown slug {args.slug!r}", file=sys.stderr)
             return 2
+        product_name = product.get("name", "")
         for link in gp.find_unbacked_affiliate_links(
                 scrubbed, product.get("affiliate_url", "")):
             passed = False
@@ -96,6 +98,12 @@ def cmd_gate(args) -> int:
             for figure in gp.find_unsourced_alternative_figures(scrubbed, runners_up):
                 passed = False
                 flags.append(f"unsourced_figure_on_alternative={figure!r}")
+    # The answer-first lead and question block, same reasoning again: staging
+    # holds without them, and a flag here gives the rewrite pass the chance to
+    # add them. The top-pick half needs --slug for the product name.
+    for problem in gp.find_question_block_problems(scrubbed, product_name):
+        passed = False
+        flags.append(f"question_block: {problem}")
     print(json.dumps({"passed": passed, "flags": flags, "scrubbed_body": scrubbed}))
     return 0
 
@@ -123,7 +131,8 @@ def cmd_stage(args) -> int:
             "review", body, args.slug,
             affiliate_url=product.get("affiliate_url", ""),
             runners_up=(product.get("runners_up", "")
-                        if product.get("format") == "roundup" else None))
+                        if product.get("format") == "roundup" else None),
+            product_name=product.get("name", ""))
     except gp.GenerationStageError as e:
         print(f"ERROR: content contract failed: {e}", file=sys.stderr)
         return 3

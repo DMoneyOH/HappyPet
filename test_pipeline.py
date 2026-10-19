@@ -50,7 +50,33 @@ SAMPLE_PRODUCT = {
 }
 
 # A well-formed article that should pass the output contract
-GOOD_ARTICLE = """
+# The question block every new article carries (generate_posts.QUESTION_BLOCK_RULE):
+# three question H2s, each answered in 40 to 80 words. Fixtures that pass the
+# post-review gate include it.
+QUESTION_BLOCK = """
+## How long should a dog work on a puzzle toy each day?
+
+A dog puzzle toy works best in short daily sessions of five to fifteen minutes.
+Shorter sessions keep a dog keen, and longer ones tend to end in frustration or a
+flipped board. If a dog walks away before finishing, drop to an easier level and
+build back up over the following week.
+
+## Are puzzle toys safe for dogs that chew hard?
+
+Most plastic puzzle toys are built for supervised play, not for chewing. A dog
+that destroys toys can crack the discs and swallow the pieces, so stay in the room
+during each session. For a strong chewer, pick a solid rubber feeder instead and
+put the plastic puzzle away between sessions.
+
+## When can a puppy start using a puzzle toy?
+
+Most puppies can start with a simple food puzzle at eight to ten weeks old. Begin
+with the easiest setting and a strong-smelling treat so the puppy learns that
+moving a piece pays off. Move to sliding or rotating designs once the puppy solves
+the first level without help.
+""".strip()
+
+GOOD_ARTICLE = ("""
 Puzzle toys have transformed how dog owners deal with boredom-driven destruction.
 Instead of a chewed sofa corner, you get a focused dog working through rotating discs
 and hidden compartments for twenty minutes straight.
@@ -137,12 +163,15 @@ Dogs that solve the same puzzle in under two minutes every session are ready
 for a harder challenge, not just a different treat placement. The Tornado's
 three-level system handles this internally, which is part of what makes it
 worth the cost compared to single-level alternatives in the same price bracket.
+
+""" + QUESTION_BLOCK + """
+
 ## Final Thoughts
 
 The [Outward Hound Nina Ottosson Dog Tornado](https://amzn.to/3TestABC) is the
 right starting point for most dogs who need daily mental engagement without a large investment. It is affordable, durable, and the multi-level
 design stays challenging longer than single-layer alternatives.
-""".strip()
+""").strip()
 
 # An article that fails: first-person voice, em dashes, no affiliate link
 BAD_ARTICLE = """
@@ -2708,7 +2737,7 @@ class TestFirsthandClaimGuard(unittest.TestCase):
 
     def test_a_clean_body_still_passes_both_gates(self):
         body = ("Owners report the harness sits well. " + "word " * 900 +
-                "https://amzn.to/3TestABC")
+                "https://amzn.to/3TestABC\n\n" + QUESTION_BLOCK)
         for stage in ("generate", "review"):
             with self.subTest(stage=stage):
                 self.gp.validate_output(stage, body, "slug",
@@ -2952,7 +2981,7 @@ class TestNamedTestimonialGuard(unittest.TestCase):
 
     def test_a_clean_body_still_passes_both_gates(self):
         body = ("Owners repeatedly mention that the vest calms car rides. " +
-                "word " * 900 + "https://amzn.to/3TestABC")
+                "word " * 900 + "https://amzn.to/3TestABC\n\n" + QUESTION_BLOCK)
         for stage in ("generate", "review"):
             with self.subTest(stage=stage):
                 self.gp.validate_output(stage, body, "slug",
@@ -3179,7 +3208,8 @@ class TestUnbackedAffiliateLinkGuard(unittest.TestCase):
                 self.assertIn("no record of", str(cm.exception))
 
     def test_a_clean_body_still_passes_both_gates(self):
-        body = ("Owners repeatedly mention the mesh panels. " + "word " * 900 + self.own)
+        body = ("Owners repeatedly mention the mesh panels. " + "word " * 900 + self.own
+                + "\n\n" + QUESTION_BLOCK)
         for stage in ("generate", "review"):
             with self.subTest(stage=stage):
                 self.gp.validate_output(stage, body, "slug", affiliate_url=self.own)
@@ -8548,7 +8578,7 @@ class TestAlternativeGateRunsOnBothPaths(unittest.TestCase):
             "### Featured pick: [TopMat](https://amzn.to/3TestABC)\n"
             "Verified 4.7 stars.\n\n"
             "### Invented Runner-Up Mat\nIt has a 4.5-star rating.\n\n"
-            "## Buying guide\nProse.\n")
+            "## Buying guide\nProse.\n\n" + QUESTION_BLOCK)
 
     def test_the_post_review_gate_holds_it(self):
         with self.assertRaises(self.gp.GenerationStageError) as ctx:
@@ -8603,6 +8633,150 @@ class TestAlternativeGateRunsOnBothPaths(unittest.TestCase):
         self.assertIn("find_unlisted_alternatives", source)
         self.assertIn("find_unsourced_alternative_figures", source)
         self.assertIn("runners_up=", source)
+
+
+class TestQuestionBlock(unittest.TestCase):
+    """Every new article opens with a paragraph that names the top pick, and
+    carries three question H2s answered in 40 to 80 words each. The prompts ask
+    for it; the post-review gate holds an article without it. Published posts
+    are not checked: they predate the rule."""
+
+    TOP = "Outward Hound Nina Ottosson Dog Tornado"
+    LEAD = f"The [{TOP}](https://amzn.to/3TestABC) is the pick: three levels keep a dog busy.\n\n"
+
+    def setUp(self):
+        import generate_posts as gp
+        self.gp = gp
+
+    def _qa(self, n_words, question="Is this a question?"):
+        return f"## {question}\n\n" + " ".join(["word"] * n_words) + "\n\n"
+
+    def _problems(self, body, name=TOP):
+        return self.gp.find_question_block_problems(body, name)
+
+    # --- the block ---------------------------------------------------------
+    def test_the_fixture_block_is_complete(self):
+        self.assertEqual(self._problems(self.LEAD + QUESTION_BLOCK), [])
+
+    def test_no_question_block_fails(self):
+        self.assertEqual(self._problems(self.LEAD + "## Buying guide\n\nProse here.\n"),
+                         ["0 question-shaped H2(s), need 3"])
+
+    def test_two_questions_fail_and_three_pass(self):
+        self.assertEqual(self._problems(self.LEAD + self._qa(50) * 2),
+                         ["2 question-shaped H2(s), need 3"])
+        self.assertEqual(self._problems(self.LEAD + self._qa(50) * 3), [])
+
+    def test_answer_length_is_40_to_80_words_inclusive(self):
+        for n, ok in ((39, False), (40, True), (80, True), (81, False)):
+            with self.subTest(words=n):
+                body = self.LEAD + self._qa(50) * 2 + self._qa(n, "Last one?")
+                problems = self._problems(body)
+                if ok:
+                    self.assertEqual(problems, [])
+                else:
+                    self.assertEqual(problems, [f"answer to 'Last one?' is {n} words, need 40-80"])
+
+    def test_a_question_followed_straight_by_a_subheading_has_no_answer(self):
+        body = self.LEAD + self._qa(50) * 2 + "## Last one?\n\n### Detail\n\n" + "word " * 50
+        self.assertEqual(self._problems(body), ["answer to 'Last one?' is 0 words, need 40-80"])
+
+    def test_link_anchors_count_and_urls_and_bare_markup_do_not(self):
+        answer = ("[three anchor words](https://www.amazon.com/dp/B000000001?tag=x-20) "
+                  "https://example.com/a/b - | ** " + "word " * 37)
+        body = self.LEAD + self._qa(50) * 2 + "## Last one?\n\n" + answer
+        self.assertEqual(self._problems(body), [])           # 3 + 37 = 40
+        self.assertEqual(self._problems(body.replace("three anchor words", "two words")),
+                         ["answer to 'Last one?' is 39 words, need 40-80"])
+
+    def test_only_h2_headings_ending_in_a_question_mark_count(self):
+        not_questions = ("### Is an H3 a question?\n\n" + "word " * 50 + "\n\n"
+                         "## Why size matters\n\n" + "word " * 120 + "\n\n"
+                         "#### Deep question?\n\n" + "word " * 50 + "\n\n")
+        self.assertEqual(self._problems(self.LEAD + not_questions + self._qa(50) * 2),
+                         ["2 question-shaped H2(s), need 3"])
+        # Trailing spaces after the mark are still a question heading.
+        self.assertEqual(self._problems(self.LEAD + self._qa(50, "Spaced?   ") * 3), [])
+
+    # --- the answer-first lead ---------------------------------------------
+    def test_a_body_that_opens_with_a_heading_or_a_list_has_no_lead(self):
+        self.assertEqual(self._problems(QUESTION_BLOCK),
+                         ["no paragraph before the first heading"])
+        self.assertEqual(self._problems(f"- [{self.TOP}](https://amzn.to/3TestABC)\n\n" + QUESTION_BLOCK),
+                         ["the first block is a list or table, not a paragraph"])
+
+    def test_the_lead_must_name_the_top_pick(self):
+        other = "Puzzle toys keep a bored dog busy for twenty minutes.\n\n"
+        self.assertEqual(self._problems(other + QUESTION_BLOCK),
+                         [f"the first paragraph does not name the top pick ({self.TOP!r})"])
+        # Only the FIRST paragraph counts; naming it later is not answer-first.
+        self.assertEqual(len(self._problems(other + self.LEAD + QUESTION_BLOCK)), 1)
+        # A shortened name passes: brand plus one more word of the name.
+        self.assertEqual(self._problems("The Outward Hound tornado wins for most dogs.\n\n"
+                                        + QUESTION_BLOCK), [])
+        # The brand alone, or the name's other words without the brand, do not.
+        for lead in ("Outward is the brand to buy.", "A dog tornado puzzle wins."):
+            with self.subTest(lead=lead):
+                self.assertEqual(len(self._problems(lead + "\n\n" + QUESTION_BLOCK)), 1)
+
+    def test_without_a_product_name_the_lead_is_not_matched(self):
+        self.assertEqual(self._problems("Puzzle toys help.\n\n" + QUESTION_BLOCK, ""), [])
+
+    # --- wiring --------------------------------------------------------------
+    def test_the_post_review_gate_holds_an_article_without_it(self):
+        body = GOOD_ARTICLE.replace(QUESTION_BLOCK, "")
+        with self.assertRaises(self.gp.GenerationStageError) as cm:
+            self.gp.validate_output("review", body, "slug",
+                                    affiliate_url="https://amzn.to/3TestABC")
+        self.assertIn("question block: 0 question-shaped", str(cm.exception))
+        with self.assertRaises(self.gp.GenerationStageError) as cm:
+            self.gp.validate_output("review", GOOD_ARTICLE, "slug",
+                                    affiliate_url="https://amzn.to/3TestABC",
+                                    product_name=self.TOP)
+        self.assertIn("does not name the top pick", str(cm.exception))
+
+    def test_the_generate_gate_does_not(self):
+        """The rewrite pass runs between the two gates and can add the block."""
+        self.gp.validate_output("generate", GOOD_ARTICLE.replace(QUESTION_BLOCK, ""), "slug",
+                                affiliate_url="https://amzn.to/3TestABC")
+
+    def test_a_question_with_pick_in_it_is_not_read_as_an_alternative(self):
+        """The block sits after the buying guide. A question H2 that says
+        "pick" must not reopen the alternative-pick scan."""
+        body = (self.LEAD + "Filler words to clear the length floor. " * 160 +
+                "\n\n## Quick picks\n\n### Featured pick: [TopMat](https://amzn.to/3TestABC)\n"
+                "Verified 4.7 stars.\n\n### MatA Cooling Pad\nIt stays cool.\n\n"
+                "## Buying guide\nProse.\n\n" + self._qa(50, "Which pick suits a 12 year old dog?") * 3)
+        self.gp.validate_output("review", body, "best-mats",
+                                affiliate_url="https://amzn.to/3TestABC",
+                                runners_up="MatA Cooling Pad", product_name=self.TOP)
+
+    def test_both_publish_paths_pass_the_product_name_to_the_review_gate(self):
+        gp_src = (REPO / "generate_posts.py").read_text(encoding="utf-8")
+        cli_src = (REPO / "stage1_cli.py").read_text(encoding="utf-8")
+        # Each call runs from validate_output( to the except that catches it.
+        main_call = re.search(r'validate_output\(\s*"review".*?except', gp_src, re.S)
+        self.assertIsNotNone(main_call)
+        self.assertIn('product_name=product.get("name", "")', main_call.group(0))
+        stage_call = re.search(r'gp\.validate_output\(\s*"review".*?except', cli_src, re.S)
+        self.assertIsNotNone(stage_call)
+        self.assertIn('product_name=product.get("name", "")', stage_call.group(0))
+        self.assertIn("find_question_block_problems(scrubbed, product_name)", cli_src)
+
+    def test_every_format_and_the_rewrite_prompt_carry_the_rule(self):
+        product = {"name": self.TOP, "affiliate_url": "https://amzn.to/3TestABC"}
+        for fmt in ("roundup", "single_review", "buying_guide"):
+            with self.subTest(fmt=fmt):
+                prompt = self.gp.make_prompt("Best toys", "dog toys", "best-x", fmt,
+                                             product, "", "")
+                self.assertIn(self.gp.QUESTION_BLOCK_RULE, prompt)
+                self.assertNotIn("FAQ (H2", prompt)
+        rewrite = self.gp.make_rewrite_prompt("T", "k", "body", "fix it")
+        self.assertIn(self.gp.QUESTION_BLOCK_RULE, rewrite)
+        # The system prompt points its opening rule at the lead, not at a scene.
+        self.assertIn("first paragraph is the answer-first lead",
+                      self.gp.GENERATOR_SYSTEM_PROMPT)
+        self.assertNotIn("when it fits, open with", self.gp.GENERATOR_SYSTEM_PROMPT)
 
 
 class TestChewyUrlShape(unittest.TestCase):
