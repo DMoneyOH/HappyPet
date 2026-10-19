@@ -12780,6 +12780,7 @@ class TestUpdatedDate(unittest.TestCase):
         sources += list((REPO / "scripts").rglob("*.py"))
         sources += list((REPO / ".github" / "workflows").glob("*.yml"))
         sources += list((REPO / ".claude").rglob("*.md"))
+        sources.append(REPO / "_config.yml")   # a front-matter default would set it on every post
         self.assertGreater(len(sources), 20, "the scan found too few files to mean anything")
         for path in sources:
             with self.subTest(path=path.relative_to(REPO).as_posix()):
