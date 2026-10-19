@@ -144,52 +144,40 @@
         </div>
 
         {%- comment -%}
-          Round 4. These were eight invented labels ("Beds & crates",
-          "Scratchers & trees") all pointing at /dogs/ or /cats/ — shelf
-          headings for a catalogue that does not exist, which is why they
-          read as arbitrary.
+          The two topic columns link the topic hub pages (hubs/*.md), one link
+          per hub. Labels are the topic labels in _data/categories.json.
 
-          These labels were picked in round 4 as the top species-prefixed
-          categories by post count (dog-health, dog-toys, dog-beds, dog-travel,
-          cat-litter, cat-food, cat-toys, cat-scratching). Since the 2026-10-05
-          restructure, posts carry species-neutral topics (_data/categories.json)
-          and these are search queries, not category names; each was rechecked
-          then against the title/tag filter and still returns 2+ reviews.
-          The 22 topics are the wrong source for a footer: most have one or two
-          posts per species.
+          These used to be eight /search/?q= links ("dog health", "cat
+          litter") under "For dogs" and "For cats". Their queries had to stay
+          exactly as written, because the search filter needed the species
+          word to return the right reviews. Hub URLs carry no query, so that
+          dependency is gone and these hrefs can change with the hubs. The
+          hubs are species-neutral, so the columns are grouped by topic, not
+          by species.
 
-          ROUND 5: the label is NO LONGER the query, and that separation is
-          the point. The labels used to repeat their own heading — "Dog
-          health" under "For dogs" — so the species was printed twice in
-          every line. The visible text is the bare category now; the heading
-          supplies the species.
-
-          The hrefs are UNCHANGED and must stay that way. /search/ reads ?q=
-          and its filter requires every 3+ character term to appear in a
-          post's title or tags, and detectSpecies pre-filters off-species
-          posts, so the species word in the query is load-bearing even though
-          it is no longer on screen. Dropping it from a href — "?q=health" —
-          would return cross-species results or none. Each of these eight
-          queries was checked against the real front matter in round 4 and
-          returns at least two reviews; changing a query without re-running
-          that check will quietly break it.
-
-          "Toys" appearing in both columns is correct, not a duplicate to
-          tidy: the two links go to different queries.
+          Each href must be a hub's permalink, and
+          test_pipeline.py::TestFooterHubLinks checks it. publish.yml writes a
+          new hub when a topic reaches three posts; that hub gets no footer link
+          until one is added here. A topic with no hub (scratching, supplements
+          and others) has no footer link. Its reviews stay reachable from the
+          Dogs and Cats pages and from search.
         {%- endcomment -%}
         <div>
-          <h3>For dogs</h3>
-          <a href="{{ site.baseurl }}/search/?q=dog+health">Health</a>
-          <a href="{{ site.baseurl }}/search/?q=dog+toys">Toys</a>
-          <a href="{{ site.baseurl }}/search/?q=dog+beds">Beds</a>
-          <a href="{{ site.baseurl }}/search/?q=dog+travel">Travel</a>
+          <h3>Care &amp; feeding</h3>
+          <a href="{{ site.baseurl }}/health/">Health</a>
+          <a href="{{ site.baseurl }}/calming/">Calming</a>
+          <a href="{{ site.baseurl }}/grooming/">Grooming</a>
+          <a href="{{ site.baseurl }}/litter/">Litter</a>
+          <a href="{{ site.baseurl }}/food/">Food</a>
+          <a href="{{ site.baseurl }}/feeding/">Feeding</a>
         </div>
         <div>
-          <h3>For cats</h3>
-          <a href="{{ site.baseurl }}/search/?q=cat+litter">Litter</a>
-          <a href="{{ site.baseurl }}/search/?q=cat+food">Food</a>
-          <a href="{{ site.baseurl }}/search/?q=cat+toys">Toys</a>
-          <a href="{{ site.baseurl }}/search/?q=cat+scratching">Scratching</a>
+          <h3>Gear</h3>
+          <a href="{{ site.baseurl }}/beds/">Beds</a>
+          <a href="{{ site.baseurl }}/toys/">Toys</a>
+          <a href="{{ site.baseurl }}/carriers/">Carriers</a>
+          <a href="{{ site.baseurl }}/travel/">Travel</a>
+          <a href="{{ site.baseurl }}/outdoor/">Outdoor</a>
         </div>
         <div>
           <h3>Site</h3>

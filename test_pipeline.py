@@ -12355,6 +12355,47 @@ class TestPublishWorkflowPins(unittest.TestCase):
                 self.assertNotIn("--sync", p.read_text(encoding="utf-8").lower())
 
 
+class TestFooterHubLinks(unittest.TestCase):
+    """The footer's topic links go to the topic hubs. They used to be
+    /search/?q= queries, which depended on the search filter's species logic.
+    A hub publish.yml adds later is not required here: that would turn CI red
+    on main after an unattended publish."""
+
+    SITE_PAGES = {"/", "/dogs/", "/cats/", "/search/", "/about/", "/contact/",
+                  "/privacy-policy/"}
+
+    @classmethod
+    def setUpClass(cls):
+        from validate_published_chewy_links import parse_frontmatter
+        layout = (REPO / "_layouts" / "default.html").read_text(encoding="utf-8")
+        footer = re.search(r'<footer class="colophon">.*?</footer>', layout, re.S)
+        assert footer, "default.html has no colophon footer"
+        cls.links = re.findall(r'<a href="\{\{ site\.baseurl \}\}([^"]*)">([^<]*)</a>',
+                               footer.group(0))
+        cls.hubs = {fm["permalink"]: fm["hub_topic"] for fm in
+                    (parse_frontmatter(p) for p in (REPO / "hubs").glob("*.md"))}
+        topics = json.loads((REPO / "_data" / "categories.json").read_text(encoding="utf-8"))
+        cls.labels = {t["slug"]: t["label"] for t in topics["topics"]}
+
+    def test_every_footer_link_is_a_hub_or_a_site_page(self):
+        self.assertGreater(len(self.links), len(self.SITE_PAGES))
+        for href, _ in self.links:
+            with self.subTest(href=href):
+                self.assertTrue(href in self.hubs or href in self.SITE_PAGES, href)
+
+    def test_hub_links_use_the_topic_label_and_appear_once(self):
+        hub_links = [(href, label) for href, label in self.links if href in self.hubs]
+        self.assertGreaterEqual(len(hub_links), 8)
+        self.assertEqual(len({h for h, _ in hub_links}), len(hub_links), "a hub is linked twice")
+        for href, label in hub_links:
+            with self.subTest(href=href):
+                self.assertEqual(label, self.labels[self.hubs[href]])
+
+    def test_no_search_query_links_remain(self):
+        layout = (REPO / "_layouts" / "default.html").read_text(encoding="utf-8")
+        self.assertEqual(re.findall(r'href="[^"]*\?q=[^"]*"', layout), [])
+
+
 class TestPublishWritesTheHub(unittest.TestCase):
     """Acceptance (Director-approved 2026-10-14): the publish that takes a topic
     to HUB_MIN posts commits the topic's hub, with Scarlett's copy. Runs
