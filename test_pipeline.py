@@ -11852,6 +11852,15 @@ class _MiniLiquid:
                 val = val if val not in (None, False, "") else args[0]
             elif name == "absolute_url":
                 val = _jekyll_absolute_url(val)
+            elif name == "date":
+                # Only the strftime codes the layouts use; %-d is Ruby's
+                # unpadded day, which Python's strftime lacks on Windows.
+                # The format is one quoted argument that may hold commas.
+                import datetime
+                day = datetime.date.fromisoformat(str(val)[:10])
+                fmt = self._value(argtext).replace("%-d", str(day.day))
+                assert not re.search(r"%[^BYmd]", fmt), f"unhandled date format {argtext!r}"
+                val = day.strftime(fmt)
             elif name == "escape":
                 val = ("" if val is None else str(val)).replace("&", "&amp;").replace(
                     "<", "&lt;").replace(">", "&gt;").replace('"', "&quot;").replace("'", "&#39;")
@@ -12741,6 +12750,66 @@ class TestSitemapInputs(unittest.TestCase):
         for url in self.GSC_EXAMPLES:
             with self.subTest(url=url):
                 self.assertIn(url, canonical)
+
+
+class TestUpdatedDate(unittest.TestCase):
+    """A post prints "Updated <date>" beside "Reviewed <date>" only when its
+    front matter sets last_modified_at, the field jekyll-sitemap reads for
+    <lastmod>. It is set by hand for a substantive edit, so nothing automated
+    may write it: a date that moves on every pipeline commit is noise."""
+
+    FIELD = "last_modified_at"
+
+    def _date_line(self, page):
+        layout = (REPO / "_layouts" / "post.html").read_text(encoding="utf-8")
+        m = re.search(r'<p class="piece-date">.*?</p>', layout)
+        self.assertIsNotNone(m, "post.html has no piece-date line")
+        return _MiniLiquid(m.group(0)).render({"page": page})
+
+    def test_reviewed_only_when_the_field_is_unset(self):
+        self.assertEqual(self._date_line({"date": "2026-10-05"}),
+                         '<p class="piece-date">Reviewed October 5, 2026</p>')
+
+    def test_updated_prints_beside_reviewed_when_set(self):
+        self.assertEqual(
+            self._date_line({"date": "2026-10-05", self.FIELD: "2026-10-20"}),
+            '<p class="piece-date">Reviewed October 5, 2026 &middot; Updated October 20, 2026</p>')
+
+    def test_no_pipeline_script_workflow_or_routine_writes_the_field(self):
+        sources = [p for p in REPO.glob("*.py") if not p.name.startswith("test_")]
+        sources += list((REPO / "scripts").rglob("*.py"))
+        sources += list((REPO / ".github" / "workflows").glob("*.yml"))
+        sources += list((REPO / ".claude").rglob("*.md"))
+        self.assertGreater(len(sources), 20, "the scan found too few files to mean anything")
+        for path in sources:
+            with self.subTest(path=path.relative_to(REPO).as_posix()):
+                self.assertNotIn(self.FIELD, path.read_text(encoding="utf-8"))
+
+    def test_generated_front_matter_does_not_carry_it(self):
+        import generate_posts as gp
+        fm = gp.front_matter("Best X", "best x", "https://amzn.to/3TestABC", "best-x",
+                             "dog", "toys", "A plain description.", "https://img/x.jpg",
+                             "https://img/pin.jpg", product_short="X")
+        self.assertNotIn(self.FIELD, fm)
+
+    def test_no_plugin_sets_it_from_git_history(self):
+        """jekyll-last-modified-at fills the field from each file's last commit,
+        which is exactly the every-commit date this rule exists to avoid."""
+        for name in ("Gemfile", "Gemfile.lock", "_config.yml"):
+            with self.subTest(file=name):
+                self.assertNotIn("jekyll-last-modified-at",
+                                 (REPO / name).read_text(encoding="utf-8"))
+
+    def test_a_post_that_sets_it_uses_a_date_on_or_after_its_review(self):
+        from validate_published_chewy_links import parse_frontmatter
+        import datetime
+        for p in sorted((REPO / "_posts").glob("[0-9]*.md")):
+            value = parse_frontmatter(p).get(self.FIELD)
+            if value is None:
+                continue
+            with self.subTest(post=p.name):
+                updated = datetime.date.fromisoformat(str(value).strip("'\"")[:10])
+                self.assertGreaterEqual(updated, datetime.date.fromisoformat(p.name[:10]))
 
 
 class TestOldPermalinksStillResolve(unittest.TestCase):
