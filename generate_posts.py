@@ -723,8 +723,9 @@ QUESTION_BLOCK_RULE = (
     "shopper would type, each ending in a question mark. Under each, write one "
     f"answer of {QUESTION_ANSWER_MIN} to {QUESTION_ANSWER_MAX} words that makes "
     "sense read on its own: name the product or the topic instead of \"it\" or "
-    "\"the pick above\", and use only facts given in this brief. Both are checked "
-    "in code, and an article without them is held."
+    "\"the pick above\", and use only facts given in this brief. No other H2 in "
+    "the article ends in a question mark. Both are checked in code, and an "
+    "article without them is held."
 )
 _HEADING_LINE_RE  = re.compile(r"^#{1,6}\s")
 _QUESTION_H2_RE   = re.compile(r"^##\s+(?!#)(.*\?)\s*$")
