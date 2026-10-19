@@ -27,7 +27,7 @@ permalink: /about/
       </ul>
 
       <h2>How we choose</h2>
-      <p>We don't test or handle the products we cover. Every guide compares products on their published specs, their owner ratings and the patterns that show up again and again in customer reviews, then weighs price against what you get. We only recommend products we would feel good putting in front of a fellow pet owner.</p>
+      <p>We don't test or handle the products we cover. Each guide starts from the products with the strongest owner ratings, compares them on their published specs, and weighs price against what you get. We only recommend products we'd feel good putting in front of a fellow pet owner.</p>
 
       <h2 id="affiliate-disclosure">Affiliate disclosure</h2>
       <p>To keep this site free, we take part in affiliate programs including Amazon Associates and Chewy. If you click a link and make a purchase, we may earn a small commission at no extra cost to you. This never influences our recommendations. Our goal is always to help you find the best product for your pet, full stop.</p>
