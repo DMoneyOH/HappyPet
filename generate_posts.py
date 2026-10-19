@@ -704,6 +704,111 @@ UNBACKED_PICK_RULE = (
 )
 
 
+# The answer-first lead and the question block. Long, specific shopper
+# questions are the search format this site wins, so every new article opens by
+# answering its own title and carries three question H2s whose answers stand
+# alone. One rule text for the writer, rewrite and gate, like the rules above.
+# The gate checks what code can check: a lead paragraph that names the pick,
+# and the question H2s with their answer lengths. Whether the lead also says
+# WHY is a prompt rule only. Published posts are not held to it.
+QUESTION_MIN_COUNT  = 3
+QUESTION_ANSWER_MIN = 40
+QUESTION_ANSWER_MAX = 80
+QUESTION_BLOCK_RULE = (
+    "Answer first: the article's first paragraph, before any heading, names the "
+    "featured product as the top pick and says in one or two sentences why it is "
+    "the pick. Question block: after the last section of the structure and "
+    "before the closing paragraph (in a single review, before the Verdict), write "
+    f"exactly {QUESTION_MIN_COUNT} H2 sections whose headings are questions a "
+    "shopper would type, each ending in a question mark. Under each, write one "
+    f"answer of {QUESTION_ANSWER_MIN} to {QUESTION_ANSWER_MAX} words that makes "
+    "sense read on its own: name the product or the topic instead of \"it\" or "
+    "\"the pick above\", and use only facts given in this brief. No other H2 in "
+    "the article ends in a question mark. Both are checked in code, and an "
+    "article without them is held."
+)
+_HEADING_LINE_RE  = re.compile(r"^#{1,6}\s")
+_QUESTION_H2_RE   = re.compile(r"^##\s+(?!#)(.*\?)\s*$")
+_LIST_OR_TABLE_RE = re.compile(r"^\s*(?:[-*+]\s|\d+[.)]\s|\|)")
+
+
+def _first_paragraph(content: str) -> str:
+    """The body's first block, ending at a blank line or a heading. Empty when
+    the body opens with a heading."""
+    lines = []
+    for line in (content or "").splitlines():
+        if not line.strip():
+            if lines:
+                break
+            continue
+        if _HEADING_LINE_RE.match(line):
+            break
+        lines.append(line)
+    return "\n".join(lines)
+
+
+def _answer_words(text: str) -> int:
+    """Words a reader sees: link anchors kept, URLs and bare markup dropped."""
+    prose = _BARE_URL_RE.sub(" ", _MD_LINK_RE.sub(r"\1", text or ""))
+    return sum(1 for w in prose.split() if re.search(r"[A-Za-z0-9]", w))
+
+
+def split_question_sections(content: str) -> list:
+    """Every question-shaped H2 as (heading, answer). The answer runs to the
+    next heading of any level, so an H2 followed straight by an H3 has none."""
+    sections, current = [], None
+    for line in (content or "").splitlines():
+        if _HEADING_LINE_RE.match(line):
+            m = _QUESTION_H2_RE.match(line)
+            current = [m.group(1).strip(), []] if m else None
+            if current:
+                sections.append(current)
+            continue
+        if current is not None:
+            current[1].append(line)
+    return [(heading, "\n".join(body)) for heading, body in sections]
+
+
+def _names_product(text: str, product_name: str) -> bool:
+    """True when `text` names the product: the first comparable word of its
+    short name (the brand, as in _matching_runner_up) plus one more of its
+    words. Looser than a heading match on purpose, because a lead sentence may
+    shorten the name ("the Petbobi tie-out"). A name with no comparable word
+    cannot be checked and passes."""
+    short = short_product_name(product_name) or product_name
+    name_tokens = _name_tokens(short)
+    if not name_tokens:
+        return True
+    text_tokens = _name_tokens(_MD_LINK_RE.sub(r"\1", text))
+    lead = next(t for t in re.split(r"[^A-Za-z0-9]+", short.lower()) if len(t) >= 3)
+    return lead in text_tokens and len(text_tokens & name_tokens) >= min(2, len(name_tokens))
+
+
+def find_question_block_problems(content: str, product_name: str = "") -> list:
+    """What the body lacks of the answer-first lead and the question block.
+    Empty list = complete. The top-pick check runs only when the caller passes
+    the product name. Used by validate_output and stage1_cli's gate."""
+    problems = []
+    lead = _first_paragraph(content)
+    if not lead:
+        problems.append("no paragraph before the first heading")
+    elif _LIST_OR_TABLE_RE.match(lead):
+        problems.append("the first block is a list or table, not a paragraph")
+    elif product_name and not _names_product(lead, product_name):
+        problems.append("the first paragraph does not name the top pick "
+                        f"({short_product_name(product_name) or product_name!r})")
+    questions = split_question_sections(content)
+    if len(questions) < QUESTION_MIN_COUNT:
+        problems.append(f"{len(questions)} question-shaped H2(s), "
+                        f"need {QUESTION_MIN_COUNT}")
+    for heading, answer in questions:
+        words = _answer_words(answer)
+        if not QUESTION_ANSWER_MIN <= words <= QUESTION_ANSWER_MAX:
+            problems.append(f"answer to {heading!r} is {words} words, need "
+                            f"{QUESTION_ANSWER_MIN}-{QUESTION_ANSWER_MAX}")
+    return problems
+
+
 # Pre-joined, quoted forms for embedding in both prompts (built once at import).
 _BANNED_WORDS_STR        = ", ".join(f'"{w}"' for w in BANNED_WORDS + BANNED_PHRASES)
 _BANNED_TRANSITIONS_STR  = ", ".join(f'"{t}"' for t in BANNED_TRANSITIONS)
@@ -1428,7 +1533,7 @@ def assert_alternatives_are_backed(stage: str, text: str, slug: str,
 
 
 def validate_output(stage: str, content: str, slug: str, affiliate_url: str = "",
-                    runners_up: str = None) -> None:
+                    runners_up: str = None, product_name: str = "") -> None:
     """
     Output contract gate. Raises GenerationStageError on violation.
     Called after each pipeline stage. GHA step captures non-zero exit.
@@ -1449,6 +1554,11 @@ def validate_output(stage: str, content: str, slug: str, affiliate_url: str = ""
     picks" since the roundup format existed; best-dog-backpack-carrier shipped
     three invented amzn.to shortcodes anyway and best-cat-calming-products
     shipped six literal amzn.to/xyzN placeholders.
+
+    At the post-review gate the answer-first lead and the question block must be
+    present (find_question_block_problems). Like the affiliate link, it is not
+    required at the generate gate, so the rewrite pass can still add it.
+    `product_name` enables the check that the lead names the top pick.
     """
     MIN_WORD_COUNT   = 700
     MIN_CHARS        = 2000
@@ -1470,6 +1580,11 @@ def validate_output(stage: str, content: str, slug: str, affiliate_url: str = ""
     # Affiliate link required only at Gate 2 (post-review); rewrite has a chance to inject it first
     if stage == "review":
         assert_alternatives_are_backed(stage, content, slug, runners_up)
+        problems = find_question_block_problems(content, product_name)
+        if problems:
+            raise GenerationStageError(
+                f"[{stage}] {slug}: question block: {'; '.join(problems)}"
+            )
         if affiliate_url:
             if affiliate_url not in content:
                 raise GenerationStageError(
@@ -1853,6 +1968,7 @@ REWRITE RULES:
   - {FIRSTHAND_CLAIM_RULE}
   - {NAMED_TESTIMONIAL_RULE}
   - {UNBACKED_PICK_RULE}
+  - {QUESTION_BLOCK_RULE}
   - NEVER invent numbers -- no percentages, review counts, prices, dates, or specs you were not given. If a number is not already in the article, do not add one.
 - Where the editor flagged generic or AI-patterned writing, replace with something SPECIFIC and concrete.
   A specific detail beats a fluent generality every time.
@@ -1897,7 +2013,7 @@ An automated reviewer rejects any article that breaks the rules in <writing_rule
 - Never use these words or phrases: {_BANNED_WORDS_STR}. Use "dog owner" or "cat owner".
 - Facts: only state specs given in the product data. When you lack a number, be concretely specific ("owners of large breeds", "on hardwood floors") rather than leaning on vague attributions ("experts say", "studies show", "research suggests"). NEVER invent dimensions, materials, weight, percentages, statistics, prices, review counts, or dates you were not given. Hedging an unverified claim ("owners tend to...", "works well for...") is fine; inventing a number is not.
 - Headings: sentence case, not Title Case. Never start a section with "In conclusion" or "In summary". Never use "Opening" or "Closing" as headings.
-- Opening moment: when it fits, open with a specific second-person moment the reader recognizes ("You step away for a 45-minute Zoom call and come back to a shredded couch cushion."). Show, don't tell. Never open with "We've all been there", "As a pet owner...", a generic fact, or a vague scenario before a product pitch. For purely practical topics, a direct factual opening is fine.
+- Opening moment: the first paragraph is the answer-first lead described in <question_block>. In the paragraph after it, when it fits, set a specific second-person moment the reader recognizes ("You step away for a 45-minute Zoom call and come back to a shredded couch cushion."). Show, don't tell. Never open with "We've all been there", "As a pet owner...", a generic fact, or a vague scenario before a product pitch. For purely practical topics, a direct factual opening is fine.
 - Use the focus keyword naturally 4-6 times.
 </writing_rules>
 
@@ -2072,7 +2188,7 @@ STRUCTURE:
   Closing (80+ words with affiliate link per LINKING RULE above, NO heading - begin prose directly)"""
     else:
         structure = f"""ARTICLE FORMAT: Buying guide -- {title}
-STRUCTURE: Opening (100+ words, NO heading - begin prose directly) | What to Look For (H2, 5-6 key factors) | Our Top Pick {product_name} (H2, 100 words, affiliate link) | Common Mistakes to Avoid (H2, 3-4 pitfalls) | FAQ (H2, 4-5 real questions) | Closing (80+ words with affiliate link, NO heading - begin prose directly)"""
+STRUCTURE: Opening (100+ words, NO heading - begin prose directly) | What to Look For (H2, 5-6 key factors) | Our Top Pick {product_name} (H2, 100 words, affiliate link) | Common Mistakes to Avoid (H2, 3-4 pitfalls) | Question block (see below) | Closing (80+ words with affiliate link, NO heading - begin prose directly)"""
     # A one-product roundup gets a lower word count, and this is load-bearing
     # rather than tidy. Asking for 950-1100 firm words about a single product,
     # in the same prompt that forbids naming a second one, leaves padding as the
@@ -2101,7 +2217,11 @@ Focus keyword: "{keyword}"
 
 <structure>
 {structure}
-</structure>{link}"""
+</structure>
+
+<question_block>
+{QUESTION_BLOCK_RULE}
+</question_block>{link}"""
 
 
 def _sanitize_factcheck_output(cleaned: str, original: str) -> str:
@@ -2827,7 +2947,8 @@ def main() -> None:
                         "review", content, slug,
                         affiliate_url=product.get("affiliate_url", ""),
                         runners_up=(product.get("runners_up", "")
-                                    if fmt == "roundup" else None))
+                                    if fmt == "roundup" else None),
+                        product_name=product.get("name", ""))
                 except GenerationStageError as e:
                     log(f"  HOLD {slug} -- post-review contract failed: {e}", "WARN")
                     held += 1; continue

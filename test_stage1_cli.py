@@ -56,9 +56,21 @@ def run_with_queue(entries, *args):
         return subprocess.run([PY, "-c", _WITH_QUEUE, str(queue), *args],
                               capture_output=True, text=True)
 
+# Three question H2s with 40-80 word answers: the block every article needs to
+# pass the gate (generate_posts.QUESTION_BLOCK_RULE).
+_ANSWER = ("Owners of small and large dogs both report that the cable stays untangled "
+           "when the stake sits at the center of the yard and the run is clear of "
+           "posts, chairs and low branches. Check the clip and the swivel every week, "
+           "and bring the dog inside during storms or very hot afternoons.")
+QUESTION_BLOCK = "".join(f"\n\n## {q}\n\n{_ANSWER}" for q in (
+    "How long should a dog tie-out cable be?",
+    "Where should the ground stake go?",
+    "Can a dog stay on a tie-out all day?"))
+
+
 def test_gate_passes_clean_on_standard_article():
     with tempfile.TemporaryDirectory() as td:
-        body = Path(td) / "body.md"; body.write_text("clean body text", encoding="utf-8")
+        body = Path(td) / "body.md"; body.write_text("clean body text" + QUESTION_BLOCK, encoding="utf-8")
         card = Path(td) / "card.json"
         card.write_text(json.dumps({"pass": False,
             "scores": {"human_voice": 4, "warmth": 4, "readability": 4, "accuracy": 4}}),
@@ -74,7 +86,7 @@ def test_gate_autofixes_em_dash_instead_of_holding():
     # and the scrubbed body (what staging writes) is clean. The raw-body backstop
     # is covered separately by TestAuthoritativeGate.test_real_em_dash_in_body_fails.
     with tempfile.TemporaryDirectory() as td:
-        body = Path(td) / "body.md"; body.write_text("has — dash", encoding="utf-8")
+        body = Path(td) / "body.md"; body.write_text("has — dash" + QUESTION_BLOCK, encoding="utf-8")
         card = Path(td) / "card.json"
         card.write_text(json.dumps({
             "scores": {"human_voice": 4, "warmth": 4, "readability": 4, "accuracy": 4}}),
@@ -114,7 +126,8 @@ def test_gate_does_not_flag_the_entrys_own_link():
     with tempfile.TemporaryDirectory() as td:
         body = Path(td) / "body.md"
         body.write_text("[Petbobi tie-out](https://www.amazon.com/dp/B07CXJGZY5?tag=happypetdc-20) tops the list, and "
-                        "[here it is again](https://www.amazon.com/dp/B07CXJGZY5?tag=happypetdc-20).", encoding="utf-8")
+                        "[here it is again](https://www.amazon.com/dp/B07CXJGZY5?tag=happypetdc-20)."
+                        + QUESTION_BLOCK, encoding="utf-8")
         card = Path(td) / "card.json"
         card.write_text(json.dumps({"pass": True,
             "scores": {"human_voice": 4, "warmth": 4, "readability": 4, "accuracy": 4}}),
@@ -131,8 +144,8 @@ def test_gate_without_a_slug_behaves_exactly_as_before():
     # get the old behaviour, not a silently different verdict.
     with tempfile.TemporaryDirectory() as td:
         body = Path(td) / "body.md"
-        body.write_text("[Invented Runner-Up](https://amzn.to/4Xy9ZkL) is second.",
-                        encoding="utf-8")
+        body.write_text("[Invented Runner-Up](https://amzn.to/4Xy9ZkL) is second."
+                        + QUESTION_BLOCK, encoding="utf-8")
         card = Path(td) / "card.json"
         card.write_text(json.dumps({"pass": True,
             "scores": {"human_voice": 4, "warmth": 4, "readability": 4, "accuracy": 4}}),
@@ -141,6 +154,40 @@ def test_gate_without_a_slug_behaves_exactly_as_before():
         out = json.loads(r.stdout)
         assert out["passed"] is True, out
         assert out["flags"] == [], out["flags"]
+
+
+def _gate(body_text, *slug_args):
+    with tempfile.TemporaryDirectory() as td:
+        body = Path(td) / "body.md"; body.write_text(body_text, encoding="utf-8")
+        card = Path(td) / "card.json"
+        card.write_text(json.dumps({"pass": True,
+            "scores": {"human_voice": 4, "warmth": 4, "readability": 4, "accuracy": 4}}),
+            encoding="utf-8")
+        r = run_with_queue([TIE_OUTS], "gate", "--body", str(body), "--scorecard", str(card),
+                           *slug_args)
+        assert r.returncode == 0, r.stderr
+        return json.loads(r.stdout)
+
+
+def test_gate_flags_a_missing_question_block_with_or_without_a_slug():
+    # A flag in the gate is what lets the rewrite pass add the block; without
+    # one the article reaches staging and is held there instead.
+    for slug_args in ((), ("--slug", "best-outdoor-dog-tie-outs")):
+        out = _gate("The Petbobi Dog Tie-Out Cable is the pick for most yards.", *slug_args)
+        assert out["passed"] is False, out
+        assert any(f.startswith("question_block:") and "0 question-shaped" in f
+                   for f in out["flags"]), out["flags"]
+
+
+def test_gate_with_a_slug_flags_a_lead_that_does_not_name_the_pick():
+    lead = "A tie-out keeps a dog in the yard while you garden."
+    out = _gate(lead + QUESTION_BLOCK, "--slug", "best-outdoor-dog-tie-outs")
+    assert out["passed"] is False, out
+    assert any("does not name the top pick" in f for f in out["flags"]), out["flags"]
+    # The same lead naming the pick passes.
+    out = _gate("The Petbobi tie-out cable is the pick: it resists tangles."
+                + QUESTION_BLOCK, "--slug", "best-outdoor-dog-tie-outs")
+    assert out["passed"] is True, out
 
 
 def test_gate_rejects_an_unknown_slug_instead_of_scoring_it_clean():
