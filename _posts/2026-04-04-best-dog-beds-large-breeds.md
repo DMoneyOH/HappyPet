@@ -66,7 +66,7 @@ The durability is also a frequently praised aspect, with many noting that the be
 
 The [Barker Beds Orthopedic Dog Bed](https://www.amazon.com/dp/B0GRBXBPXH?th=1&tag=happypetdc-20) is an ideal choice for specific pet owners and their canine companions.
 
-This bed is perfect for **senior dogs** who are experiencing age-related joint pain, arthritis, or stiffness. The deep, supportive memory foam will cradle their aching bodies and provide much-needed pressure relief, making their rest more comfortable and helping them rise with less discomfort.
+This bed is perfect for **senior dogs** who are experiencing age-related joint pain, arthritis, or stiffness. The deep, supportive memory foam will cradle their aching bodies and provide much-needed pressure relief, making their rest more comfortable and helping them rise with less discomfort. If you are also thinking about a joint supplement for an older dog, our [hip and joint supplements guide](/supplements/best-dog-joint-supplements/) sorts what the studies show from what the labels claim.
 
 It's also an excellent investment for **large and giant dog breeds** of all ages, even younger ones. Breeds like Great Danes, Irish Wolfhounds, Newfoundlands, Mastiffs, German Shepherds, Labradors, and Golden Retrievers are prone to hip and elbow dysplasia and other joint issues. Providing proper orthopedic support early on can help prevent or mitigate these problems, contributing to their long-term health. It's truly one of the top dog beds large breeds can benefit from.
 

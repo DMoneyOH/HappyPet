@@ -7070,8 +7070,9 @@ class TestPinJsonPayload(unittest.TestCase):
             "Cozy indoor cats swear by these lounge-worthy beds. Find the "
             "perfect spot for your whiskered napper!",
         "best-dog-joint-supplements":
-            "The joint supplements owners rate highest for mobility and hip "
-            "support, compared side by side.",
+            "4 hip and joint supplements for dogs compared, led by an omega-3, "
+            "the ingredient the research backs, plus what the studies do and "
+            "don't show.",
         "best-puppy-food":
             "Discover the top puppy food that fuels growth without breaking the bank.",
     }
