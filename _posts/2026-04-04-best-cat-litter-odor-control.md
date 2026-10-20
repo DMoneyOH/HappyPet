@@ -2,6 +2,7 @@
 layout: post
 title: "Best Cat Litter for Odor Control: 3 Picks Compared"
 date: 2026-04-04
+last_modified_at: 2026-10-19
 categories: [litter]
 redirect_from:
   - /cat-litter/best-cat-litter-odor-control/

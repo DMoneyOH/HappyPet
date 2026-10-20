@@ -2,6 +2,7 @@
 layout: post
 title: "Best Dog Ramps for Senior Dogs: Car and SUV"
 date: 2026-08-27
+last_modified_at: 2026-10-19
 categories: [health]
 redirect_from:
   - /dog-health/best-dog-ramps/
