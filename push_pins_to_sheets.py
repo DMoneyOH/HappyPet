@@ -354,6 +354,98 @@ def read_fb_queue_state(ws) -> tuple[set, _dt.date]:
     return queued_keys, next_date
 
 
+# --repost: queue an already-live review for Facebook again. The row is the
+# normal new-post row (main() below), with SchedDate set to the requested date.
+REPOST_MIN_GAP_DAYS = 7   # any two rows for one slug must be at least this far apart
+_SLUG_RE = re.compile(r'[a-z0-9]+(?:-[a-z0-9]+)*')
+
+
+def _url_slug(url: str) -> str:
+    """The last path segment of a col B URL. Matched on this, not _dedup_key(),
+    so a row written before the post changed category still counts."""
+    return urllib.parse.urlsplit(_page_url(url)).path.rstrip('/').rsplit('/', 1)[-1]
+
+
+def repost_row(slug: str, sched_date: _dt.date, today: str) -> list:
+    """The Facebook Queue row for a published post, built from its front matter."""
+    import generate_posts as gp
+    import categories
+    from validate_published_chewy_links import parse_frontmatter
+    if not _SLUG_RE.fullmatch(slug):
+        raise ValueError(f'{slug!r} is not a post slug')
+    posts = sorted((REPO_DIR / '_posts').glob(
+        f'[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]-{slug}.md'))
+    if not posts:
+        raise ValueError(f'{slug}: no published post in _posts/')
+    category = categories.post_category(posts[0])
+    if not category:
+        raise ValueError(f'{slug}: post has no category, so no URL')
+    fm = parse_frontmatter(posts[0])
+    title = fm.get('title') or slug
+    article_url = gp.build_url(slug, category=category)
+    return [title, _fb_url(article_url), _build_fb_message(slug, title, article_url),
+            product_image_url(slug), today, sched_date.isoformat(),
+            fm.get('species') or 'both', 'FALSE', '']
+
+
+def plan_reposts(rows: list, requests: list, today: str) -> list:
+    """Validate every (slug, YYYY-MM-DD) request against the sheet's rows and
+    return the rows to append. Raises ValueError on the first bad request, so a
+    batch is written whole or not at all. A request is refused when its date is
+    not after today, or when the slug already has a row (in the sheet or earlier
+    in this batch) less than REPOST_MIN_GAP_DAYS away, which covers the same
+    slug and date. Another post on the same day is allowed and logged."""
+    today_d = _dt.date.fromisoformat(today)
+    slug_dates: dict[str, list] = {}
+    for row in rows[1:]:  # skip header
+        if len(row) > 5 and row[1].strip():
+            try:
+                d = _dt.date.fromisoformat(row[5].strip())
+            except ValueError:
+                continue
+            slug_dates.setdefault(_url_slug(row[1]), []).append(d)
+    planned = []
+    for slug, raw in requests:
+        try:
+            d = _dt.date.fromisoformat(raw)
+        except ValueError:
+            raise ValueError(f'{slug}: {raw!r} is not a YYYY-MM-DD date') from None
+        if d <= today_d:
+            raise ValueError(f'{slug}: {d} is not after today ({today})')
+        near = [x for x in slug_dates.get(slug, []) if abs((d - x).days) < REPOST_MIN_GAP_DAYS]
+        if near:
+            raise ValueError(f'{slug}: already queued for {near[0]}, less than '
+                             f'{REPOST_MIN_GAP_DAYS} days from {d}')
+        if any(d in dates for dates in slug_dates.values()):
+            log(f'  {d} already has another post queued; {slug} will post the same day', 'WARN')
+        planned.append(repost_row(slug, d, today))
+        slug_dates.setdefault(slug, []).append(d)
+    return planned
+
+
+def queue_reposts(ws, requests: list, dry_run: bool) -> None:
+    """--repost: one sheet read, validate the whole batch, then append it."""
+    from refill_products import eastern_date
+    try:
+        rows = sheets_retry('get_all_values', ws.get_all_values)
+        planned = plan_reposts(rows, requests, eastern_date())
+    except Exception as exc:
+        log(f'REPOST refused, nothing written: {exc}', 'ERROR')
+        sys.exit(1)
+    for n, row in enumerate(planned):
+        if dry_run:
+            log(f'DRY RUN: would append SchedDate={row[5]} {row[1]}')
+            continue
+        try:
+            ws.append_row(row)   # never retried: see the sheets_retry docstring
+        except Exception as exc:
+            log(f'REPOST append failed at {row[1]} ({exc}); {n} of {len(planned)} '
+                f'appended before it -- check the sheet before re-running', 'ERROR')
+            sys.exit(1)
+        log(f'FB QUEUE: repost appended {row[1]} -> SchedDate={row[5]}')
+    log(f'DONE -- {len(planned)} repost(s) {"checked (dry run)" if dry_run else "appended"}')
+
+
 def product_image_url(slug: str) -> str:
     """The image the Facebook Queue row carries: the PRODUCT, never the pin.
 
@@ -381,10 +473,40 @@ def product_image_url(slug: str) -> str:
     return pick if re.match(r'[a-z][a-z0-9+.-]*://', pick, re.I) else gp.SITE_BASE + pick
 
 
+def open_fb_worksheet(gspread, fb_sheet_id: str):
+    """The Facebook Queue worksheet, or exit(1) with a logged reason."""
+    try:
+        creds = get_sheets_creds()
+        gc    = gspread.Client(auth=creds)
+    except Exception as creds_exc:
+        log(f"Sheets creds failed: {creds_exc} -- cannot append to FB Queue", "ERROR")
+        sys.exit(1)
+
+    # Retried and caught. Both of these used to sit bare: the 2026-08-20 503
+    # surfaced as a raw traceback, which reads as a code fault rather than the
+    # upstream outage it was, and skipped the "Sheets creds failed" style of
+    # message every other failure here produces.
+    try:
+        fb_sheet = sheets_retry('open_by_key', gc.open_by_key, fb_sheet_id)
+        return sheets_retry('get_worksheet', fb_sheet.get_worksheet, 0)
+    except Exception as open_exc:
+        log(f'Could not open the FB Queue sheet: {open_exc} -- aborting', 'ERROR')
+        sys.exit(1)
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--slugs', default='', help='Comma-separated slugs to process')
+    parser.add_argument('--repost', nargs=2, action='append', metavar=('SLUG', 'YYYY-MM-DD'),
+                        help='Queue a published post for Facebook again on that date. '
+                             'Repeat for more rows. Skips the pin queue entirely.')
+    parser.add_argument('--dry-run', action='store_true',
+                        help='With --repost: read the sheet and check, write nothing')
     args = parser.parse_args()
+    if args.repost and args.slugs:
+        parser.error('--repost and --slugs are separate runs')
+    if args.dry_run and not args.repost:
+        parser.error('--dry-run only applies to --repost')
     slug_filter = set(s.strip() for s in args.slugs.split(',') if s.strip())
 
     load_env()
@@ -401,6 +523,10 @@ def main():
         log('FACEBOOK_QUEUE_SHEET_ID not set -- cannot append to Facebook Queue', 'ERROR')
         sys.exit(1)
 
+    if args.repost:
+        queue_reposts(open_fb_worksheet(gspread, fb_sheet_id), args.repost, args.dry_run)
+        return
+
     queue_dir = REPO_DIR / '_pin_queue'
     sent_dir  = queue_dir / 'sent'
     queue_dir.mkdir(exist_ok=True)
@@ -414,23 +540,7 @@ def main():
         log('No queued pins found -- nothing to do')
         return
 
-    try:
-        creds = get_sheets_creds()
-        gc    = gspread.Client(auth=creds)
-    except Exception as creds_exc:
-        log(f"Sheets creds failed: {creds_exc} -- cannot append to FB Queue", "ERROR")
-        sys.exit(1)
-
-    # Retried and caught. Both of these used to sit bare: the 2026-08-20 503
-    # surfaced as a raw traceback, which reads as a code fault rather than the
-    # upstream outage it was, and skipped the "Sheets creds failed" style of
-    # message every other failure here produces.
-    try:
-        fb_sheet = sheets_retry('open_by_key', gc.open_by_key, fb_sheet_id)
-        fb_ws    = sheets_retry('get_worksheet', fb_sheet.get_worksheet, 0)
-    except Exception as open_exc:
-        log(f'Could not open the FB Queue sheet: {open_exc} -- aborting', 'ERROR')
-        sys.exit(1)
+    fb_ws = open_fb_worksheet(gspread, fb_sheet_id)
 
     # Dedup against the sheet itself, not against sent/ location. post_pins.py
     # used to move fired files into sent/ before this script ran, so the old
