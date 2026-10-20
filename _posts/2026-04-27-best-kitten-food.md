@@ -2,6 +2,7 @@
 layout: post
 title: "Top-Rated Kitten Food: The 4 Best Picks for Growth"
 date: 2026-04-27
+last_modified_at: 2026-10-19
 categories: [food]
 redirect_from:
   - /cat-food/best-kitten-food/

@@ -2,6 +2,7 @@
 layout: post
 title: "Best Hip and Joint Supplements for Dogs"
 date: 2026-04-23
+last_modified_at: 2026-10-19
 categories: [supplements]
 redirect_from:
   - /dog-health/best-dog-joint-supplements/
