@@ -1,0 +1,85 @@
+name: Repost to Facebook Queue
+
+# Manual only. Queues already-published reviews for Facebook again by running
+# push_pins_to_sheets.py --repost, which needs the Facebook Queue sheet's
+# credentials. Those exist only as Actions secrets, so this has to run here.
+#
+# Run it with dry_run left true first: that reads the sheet and runs every check
+# (date after today, no row for the slug within 7 days) and writes nothing.
+#
+# Both inputs reach the shell only through env: variables, never through
+# ${{ }} text inside a run: block. The list is checked by repost_args.py before
+# the step that holds the secrets runs.
+
+on:
+  workflow_dispatch:
+    inputs:
+      repost_list:
+        description: 'Comma-separated "slug YYYY-MM-DD" pairs, e.g. best-kitten-food 2026-10-24, best-cat-litter-odor-control 2026-10-27'
+        required: true
+        type: string
+      dry_run:
+        description: 'Check only: read the sheet, run every check, write nothing. Untick to append the rows.'
+        required: true
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+# One repost run at a time: the checks read the sheet, so two runs at once could
+# each pass a check the other is about to invalidate.
+concurrency:
+  group: happypet-fb-repost
+  cancel-in-progress: false
+
+jobs:
+  repost:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Check the repost list
+        env:
+          REPOST_LIST: ${{ inputs.repost_list }}
+        run: |
+          python3 repost_args.py > "$RUNNER_TEMP/repost-pairs.txt"
+          echo "Checked repost list:"
+          cat "$RUNNER_TEMP/repost-pairs.txt"
+
+      - name: Install Python dependencies
+        run: pip install --quiet -r requirements.txt
+
+      - name: Queue the reposts
+        env:
+          FACEBOOK_QUEUE_SHEET_ID:  ${{ secrets.FACEBOOK_QUEUE_SHEET_ID }}
+          GCP_SA_KEY_B64:           ${{ secrets.GCP_SA_KEY_B64 }}
+          DRY_RUN:                  ${{ inputs.dry_run }}
+        run: |
+          ARGS=()
+          while read -r slug day; do
+            ARGS+=(--repost "$slug" "$day")
+          done < "$RUNNER_TEMP/repost-pairs.txt"
+          if [ "${#ARGS[@]}" -eq 0 ]; then
+            echo "::error::No checked repost pairs to run"
+            exit 1
+          fi
+          # Only the exact string "false" writes; anything else stays a dry run.
+          if [ "$DRY_RUN" = "false" ]; then
+            echo "LIVE run: rows will be appended to the Facebook Queue"
+          else
+            echo "Dry run: nothing will be written"
+            ARGS+=(--dry-run)
+          fi
+          python3 push_pins_to_sheets.py "${ARGS[@]}"

@@ -4422,6 +4422,403 @@ class TestFacebookLinkTracking(unittest.TestCase):
         self.assertIn('data.get("image_url", "")', src)
 
 
+class TestFacebookRepost(unittest.TestCase):
+    """--repost SLUG DATE queues an already-live review for Facebook again: a
+    row of the same shape a new post gets, with SchedDate set to DATE. The sheet
+    is a fake; nothing here reaches Google. Expected values are literals."""
+
+    SLUG = "best-kitten-food"
+    LIVE = "https://happypetproductreviews.com/food/best-kitten-food/"
+    FB_URL = LIVE + "?utm_source=facebook&utm_medium=social&utm_campaign=post"
+    # The original row was written when the post lived under /cat-food/.
+    OLD_PIN = ("https://happypetproductreviews.com/cat-food/best-kitten-food/"
+               "?utm_source=pinterest&utm_medium=social&utm_campaign=pin")
+    IMAGE = "https://images-na.ssl-images-amazon.com/images/P/B0000AH3RP.01.LZZZZZZZ.jpg"
+    POST = ('---\nlayout: post\ntitle: "Top-Rated Kitten Food: The 4 Best Picks for Growth"\n'
+            'date: 2026-04-27\ncategories: [food]\nredirect_from:\n  - /cat-food/best-kitten-food/\n'
+            'species: cat\nimage: "' + IMAGE + '"\n---\n\nBody.\n')
+    TODAY = "2026-10-20"
+
+    @staticmethod
+    def _row(url, sched, title="t"):
+        return [title, url, "m", "i", "2026-04-27", sched, "cat", "TRUE", "123"]
+
+    def _run(self, argv, rows=(), posts=None, today=TODAY):
+        """Run main() against a fake sheet. Returns (ws, exit code, mocks, logs)."""
+        import shutil
+        import refill_products
+        import push_pins_to_sheets as pk
+        tmp = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
+        (tmp / "_posts").mkdir()
+        (tmp / "_pin_queue").mkdir()
+        (tmp / "_pin_queue" / "queued-article.json").write_text("{}", encoding="utf-8")
+        for name, text in ({"2026-04-27-" + self.SLUG + ".md": self.POST} if posts is None
+                           else posts).items():
+            (tmp / "_posts" / name).write_text(text, encoding="utf-8")
+        ws = MagicMock()
+        ws.get_all_values.return_value = [["Title", "URL"]] + [list(r) for r in rows]
+        gspread = types.ModuleType("gspread")
+        gspread.Client = MagicMock(return_value=MagicMock(
+            open_by_key=MagicMock(return_value=MagicMock(
+                get_worksheet=MagicMock(return_value=ws)))))
+        retire, unpub, logs = MagicMock(return_value=9), MagicMock(return_value=9), []
+        code = 0
+        with patch.dict(sys.modules, {"gspread": gspread}), \
+             patch.object(pk, "REPO_DIR", tmp), \
+             patch.object(pk, "log", lambda msg, level="INFO": logs.append((level, msg))), \
+             patch.object(pk, "load_env", lambda: None), \
+             patch.object(pk, "brain_get_secret", lambda *a, **k: "sheet-id"), \
+             patch.object(pk, "get_sheets_creds", lambda: "creds"), \
+             patch.object(pk, "retire_from_products", retire), \
+             patch.object(pk, "count_unpublished", unpub), \
+             patch.object(refill_products, "eastern_date", lambda: today), \
+             patch.object(sys, "argv", ["push_pins_to_sheets.py"] + argv):
+            try:
+                pk.main()
+            except SystemExit as exc:
+                code = exc.code
+        self.assertTrue((tmp / "_pin_queue" / "queued-article.json").is_file(),
+                        "repost mode must not touch the pin queue")
+        retire.assert_not_called()
+        unpub.assert_not_called()
+        return ws, code, logs
+
+    def _appended(self, ws):
+        return [c.args[0] for c in ws.append_row.call_args_list]
+
+    # -- the row ---------------------------------------------------------------
+    def test_the_row_is_a_normal_new_post_row_with_the_given_sched_date(self):
+        ws, code, _ = self._run(["--repost", self.SLUG, "2026-10-22"],
+                                rows=[self._row(self.OLD_PIN, "2026-04-28")])
+        self.assertEqual(code, 0)
+        self.assertEqual(self._appended(ws), [[
+            "Top-Rated Kitten Food: The 4 Best Picks for Growth",
+            self.FB_URL,
+            "\U0001f43e Give your kitten the best start -- top-rated food for growth, "
+            "immunity, and a shiny coat.\n" + self.FB_URL,
+            self.IMAGE, "2026-10-20", "2026-10-22", "cat", "FALSE", ""]])
+
+    def test_the_link_is_the_live_permalink_tagged_once_for_facebook(self):
+        ws, _, _ = self._run(["--repost", self.SLUG, "2026-10-22"],
+                             rows=[self._row(self.OLD_PIN, "2026-04-28")])
+        row = self._appended(ws)[0]
+        for text in (row[1], row[2]):
+            self.assertEqual(text.count("utm_source="), 1)
+            self.assertEqual(text.count("?"), 1)
+            self.assertNotIn("pinterest", text)
+            self.assertNotIn("/cat-food/", text)
+
+    def test_several_reposts_append_in_order(self):
+        litter = ('---\ntitle: "Best Cat Litter for Odor Control: 3 Picks Compared"\n'
+                  'categories: [litter]\nspecies: cat\n---\n')
+        ws, code, _ = self._run(
+            ["--repost", self.SLUG, "2026-10-22",
+             "--repost", "best-cat-litter-odor-control", "2026-10-24"],
+            posts={"2026-04-27-" + self.SLUG + ".md": self.POST,
+                   "2026-04-04-best-cat-litter-odor-control.md": litter})
+        self.assertEqual(code, 0)
+        rows = self._appended(ws)
+        self.assertEqual([(r[1], r[5]) for r in rows], [
+            (self.FB_URL, "2026-10-22"),
+            ("https://happypetproductreviews.com/litter/best-cat-litter-odor-control/"
+             "?utm_source=facebook&utm_medium=social&utm_campaign=post", "2026-10-24")])
+
+    def test_dry_run_reads_and_validates_but_writes_nothing(self):
+        ws, code, logs = self._run(["--repost", self.SLUG, "2026-10-22", "--dry-run"])
+        self.assertEqual(code, 0)
+        ws.get_all_values.assert_called_once()
+        ws.append_row.assert_not_called()
+        self.assertTrue(any("2026-10-22" in m and "DRY RUN" in m for _, m in logs))
+
+    def test_a_bad_request_anywhere_writes_nothing(self):
+        ws, code, _ = self._run(["--repost", self.SLUG, "2026-10-22",
+                                 "--repost", "no-such-post", "2026-10-29"])
+        self.assertEqual(code, 1)
+        ws.append_row.assert_not_called()
+
+    # -- duplicate and gap guards ------------------------------------------------
+    def test_the_same_slug_and_date_cannot_be_queued_twice(self):
+        for label, existing in (("tagged", self.FB_URL), ("old path, pin tag", self.OLD_PIN),
+                                ("clean", self.LIVE)):
+            with self.subTest(label):
+                ws, code, _ = self._run(["--repost", self.SLUG, "2026-10-22"],
+                                        rows=[self._row(existing, "2026-10-22")])
+                self.assertEqual(code, 1)
+                ws.append_row.assert_not_called()
+
+    def test_the_same_slug_and_date_twice_in_one_run_is_refused(self):
+        ws, code, _ = self._run(["--repost", self.SLUG, "2026-10-22",
+                                 "--repost", self.SLUG, "2026-10-22"])
+        self.assertEqual(code, 1)
+        ws.append_row.assert_not_called()
+
+    def test_min_gap_per_slug_against_the_sheet_both_directions(self):
+        # Existing row on 10-29: 7 days either side is allowed, 6 is not.
+        for target, ok in (("2026-11-04", False), ("2026-11-05", True),
+                           ("2026-10-22", True), ("2026-10-23", False)):
+            with self.subTest(target=target):
+                ws, code, _ = self._run(["--repost", self.SLUG, target],
+                                        rows=[self._row(self.FB_URL, "2026-10-29")])
+                self.assertEqual((code, ws.append_row.call_count), (0, 1) if ok else (1, 0))
+
+    def test_min_gap_applies_within_one_run(self):
+        for second, ok in (("2026-10-28", False), ("2026-10-29", True)):
+            with self.subTest(second=second):
+                ws, code, _ = self._run(["--repost", self.SLUG, "2026-10-22",
+                                         "--repost", self.SLUG, second])
+                self.assertEqual((code, ws.append_row.call_count), (0, 2) if ok else (1, 0))
+
+    def test_a_recategorized_original_row_still_counts_for_the_gap(self):
+        ws, code, _ = self._run(["--repost", self.SLUG, "2026-10-24"],
+                                rows=[self._row(self.OLD_PIN, "2026-10-21")])
+        self.assertEqual(code, 1)
+        ws.append_row.assert_not_called()
+
+    def test_other_articles_rows_never_block_the_slug(self):
+        for other in ("https://happypetproductreviews.com/food/best-kitten-food-wet/",
+                      "https://happypetproductreviews.com/food/x-best-kitten-food/",
+                      "https://happypetproductreviews.com/food/best-kitten/"):
+            with self.subTest(other=other):
+                ws, code, logs = self._run(["--repost", self.SLUG, "2026-10-22"],
+                                           rows=[self._row(other, "2026-10-22")])
+                self.assertEqual((code, ws.append_row.call_count), (0, 1))
+                # Another post already sits on that day: allowed, but said.
+                self.assertTrue(any(lv == "WARN" and "2026-10-22" in m for lv, m in logs))
+
+    def test_the_date_must_be_after_today(self):
+        for target, ok in (("2026-10-19", False), ("2026-10-20", False), ("2026-10-21", True)):
+            with self.subTest(target=target):
+                ws, code, _ = self._run(["--repost", self.SLUG, target])
+                self.assertEqual((code, ws.append_row.call_count), (0, 1) if ok else (1, 0))
+
+    def test_a_malformed_date_is_refused(self):
+        for target in ("10-22", "2026-13-01", "2026/10/22", "tomorrow", ""):
+            with self.subTest(target=target):
+                ws, code, _ = self._run(["--repost", self.SLUG, target])
+                self.assertEqual(code, 1)
+                ws.append_row.assert_not_called()
+
+    # -- which slugs are reposted ------------------------------------------------
+    def test_only_a_published_post_can_be_reposted(self):
+        cases = {"no post": ("no-such-post", None),
+                 "draft only": (self.SLUG, {"DRAFT-" + self.SLUG + ".md": self.POST}),
+                 "suffix of another post": ("kitten-food", None),
+                 "glob characters": ("best-*", None),
+                 "path characters": ("../best-kitten-food", None),
+                 "no category": (self.SLUG, {"2026-04-27-" + self.SLUG + ".md":
+                                             self.POST.replace("categories: [food]\n", "")})}
+        for label, (slug, posts) in cases.items():
+            with self.subTest(label):
+                ws, code, _ = self._run(["--repost", slug, "2026-10-22"], posts=posts)
+                self.assertEqual(code, 1)
+                ws.append_row.assert_not_called()
+
+    def test_repost_and_slugs_are_mutually_exclusive(self):
+        with open(os.devnull, "w") as dn, contextlib.redirect_stderr(dn):
+            ws, code, _ = self._run(["--repost", self.SLUG, "2026-10-22", "--slugs", self.SLUG])
+        self.assertEqual(code, 2)
+        ws.append_row.assert_not_called()
+
+    def test_dry_run_alone_is_refused(self):
+        with open(os.devnull, "w") as dn, contextlib.redirect_stderr(dn):
+            ws, code, _ = self._run(["--dry-run"])
+        self.assertEqual(code, 2)
+        ws.get_all_values.assert_not_called()
+
+
+class TestRepostArgs(unittest.TestCase):
+    """repost_args.py checks the fb-repost workflow's list before the step that
+    holds the Sheet secrets runs. Nothing here reaches Google."""
+
+    @staticmethod
+    def _parse(text):
+        import repost_args
+        return repost_args.parse_repost_list(text)
+
+    def test_the_directors_example_list_parses(self):
+        self.assertEqual(
+            self._parse("best-calming-diffusers-pets 2026-10-22, best-kitten-food 2026-10-24, "
+                        "best-cat-litter-odor-control 2026-10-27"),
+            [("best-calming-diffusers-pets", "2026-10-22"),
+             ("best-kitten-food", "2026-10-24"),
+             ("best-cat-litter-odor-control", "2026-10-27")])
+
+    def test_spacing_around_the_pairs_does_not_matter(self):
+        self.assertEqual(self._parse("  best-kitten-food\t2026-10-24 ,best-cat-bed   2026-10-27  "),
+                         [("best-kitten-food", "2026-10-24"), ("best-cat-bed", "2026-10-27")])
+
+    def test_a_bad_entry_is_refused(self):
+        bad = {
+            "empty": "",
+            "blank": "   ",
+            "trailing comma": "best-kitten-food 2026-10-24,",
+            "no date": "best-kitten-food",
+            "no slug": "2026-10-24",
+            "third word": "best-kitten-food 2026-10-24 now",
+            "newline instead of comma": "best-kitten-food 2026-10-24\nbest-cat-bed 2026-10-27",
+            "upper case slug": "Best-Kitten-Food 2026-10-24",
+            "underscore slug": "best_kitten_food 2026-10-24",
+            "path slug": "../best-kitten-food 2026-10-24",
+            "glob slug": "best-* 2026-10-24",
+            "trailing hyphen": "best-kitten- 2026-10-24",
+            "option as slug": "--dry-run 2026-10-24",
+            "short option as slug": "-f 2026-10-24",
+            "command substitution": "$(id) 2026-10-24",
+            "backtick": "`id` 2026-10-24",
+            "semicolon": "best-kitten-food; 2026-10-24",
+            "month 13": "best-kitten-food 2026-13-01",
+            "30 February": "best-kitten-food 2026-02-30",
+            "single digit month": "best-kitten-food 2026-1-24",
+            "compact date": "best-kitten-food 20261024",
+            "ISO week date": "best-kitten-food 2026-W43-3",
+            "full-width digits": "best-kitten-food ２０２６-10-24",
+            "date with time": "best-kitten-food 2026-10-24T09:00",
+            "one good one bad": "best-kitten-food 2026-10-24, nope",
+        }
+        for label, text in bad.items():
+            with self.subTest(label), self.assertRaises(ValueError):
+                self._parse(text)
+
+    def test_leap_day_is_a_real_date_only_in_a_leap_year(self):
+        self.assertEqual(self._parse("best-kitten-food 2028-02-29"),
+                         [("best-kitten-food", "2028-02-29")])
+        with self.assertRaises(ValueError):
+            self._parse("best-kitten-food 2027-02-29")
+
+    def test_the_script_run_prints_pairs_and_exits_zero(self):
+        out = self._run_script("best-kitten-food 2026-10-24, best-cat-bed 2026-10-27")
+        self.assertEqual((out.returncode, out.stdout),
+                         (0, "best-kitten-food 2026-10-24\nbest-cat-bed 2026-10-27\n"))
+
+    def test_a_bad_list_prints_nothing_to_stdout_and_exits_one(self):
+        out = self._run_script("best-kitten-food 2026-13-01")
+        self.assertEqual((out.returncode, out.stdout), (1, ""))
+        self.assertEqual(out.stderr.count("::error::"), 1)
+
+    def test_a_hostile_entry_cannot_inject_a_workflow_command(self):
+        """The error line quotes the bad entry. A newline in it must not start a
+        second line of its own, where the runner would read it as a command."""
+        out = self._run_script("best-kitten-food 2026-10-24\n::add-mask::secret")
+        self.assertEqual(out.returncode, 1)
+        lines = out.stderr.splitlines()
+        self.assertEqual(len(lines), 1)
+        self.assertTrue(lines[0].startswith("::error::"))
+
+    def test_an_unset_list_is_refused(self):
+        import subprocess
+        env = {k: v for k, v in os.environ.items() if k != "REPOST_LIST"}
+        out = subprocess.run([sys.executable, str(REPO / "repost_args.py")], env=env,
+                             capture_output=True, text=True, timeout=60)
+        self.assertEqual(out.returncode, 1)
+
+    @staticmethod
+    def _run_script(text):
+        import subprocess
+        return subprocess.run([sys.executable, str(REPO / "repost_args.py")],
+                              env={**os.environ, "REPOST_LIST": text},
+                              capture_output=True, text=True, timeout=60)
+
+    def test_the_slug_rule_is_the_repost_scripts_own(self):
+        import push_pins_to_sheets as pk
+        import repost_args
+        self.assertIs(repost_args._SLUG_RE, pk._SLUG_RE)
+
+
+class TestRepostWorkflowWiring(unittest.TestCase):
+    """Static checks of fb-repost.yml, in the style of the other workflow tests.
+    The facts it must share with pin.yml are read out of pin.yml, not retyped."""
+
+    @staticmethod
+    def _read(name):
+        return (REPO / ".github" / "workflows" / name).read_text(encoding="utf-8")
+
+    @classmethod
+    def _steps(cls, name):
+        """{step name: block text} for the 6-space-indented `- name:` steps."""
+        blocks = cls._read(name).split("\n      - name: ")[1:]
+        return {b.splitlines()[0].strip(): b for b in blocks}
+
+    @classmethod
+    def _run_blocks(cls, name):
+        """The text of every `run:` value, one-line or `|` block."""
+        lines, out, i = cls._read(name).splitlines(), [], 0
+        while i < len(lines):
+            m = re.match(r"^(\s*)(?:- )?run:(.*)$", lines[i])
+            if not m:
+                i += 1
+                continue
+            indent, body = len(m.group(1)), [m.group(2)]
+            i += 1
+            while i < len(lines) and (not lines[i].strip()
+                                      or len(lines[i]) - len(lines[i].lstrip()) > indent):
+                body.append(lines[i])
+                i += 1
+            out.append("\n".join(body))
+        return out
+
+    def test_the_only_trigger_is_a_manual_dispatch(self):
+        text = self._read("fb-repost.yml")
+        on_block = text.split("\non:\n", 1)[1].split("\npermissions:", 1)[0]
+        self.assertIn("  workflow_dispatch:", on_block)
+        for other in ("push:", "pull_request", "schedule:", "workflow_run:", "workflow_call:"):
+            self.assertNotIn(other, on_block)
+
+    def test_dry_run_is_a_boolean_that_defaults_to_true(self):
+        text = self._read("fb-repost.yml")
+        dry = text.split("\n      dry_run:\n", 1)[1].split("\npermissions:", 1)[0]
+        self.assertIn("\n        type: boolean\n", dry)
+        self.assertIn("\n        default: true\n", dry)
+
+    def test_permissions_are_contents_read_and_nothing_else(self):
+        text = self._read("fb-repost.yml")
+        self.assertEqual(text.count("permissions:"), 1)
+        self.assertIn("\npermissions:\n  contents: read\n\n", text)
+
+    def test_no_expression_reaches_a_run_block(self):
+        """Script injection: an input expanded inside run: becomes shell text. Env
+        variables carry the values instead, so no run: block may hold `${{`."""
+        blocks = self._run_blocks("fb-repost.yml")
+        self.assertEqual(len(blocks), 3)   # the helper itself must see every run:
+        for block in blocks:
+            self.assertNotIn("${{", block)
+
+    def test_inputs_are_read_only_as_env_assignments(self):
+        for line in self._read("fb-repost.yml").splitlines():
+            if "inputs." in line and "${{" in line:
+                self.assertRegex(line, r"^          [A-Z_]+:\s+\$\{\{ inputs\.[a-z_]+ \}\}$")
+
+    def test_secrets_match_pin_yml_s_push_step_and_only_the_last_step_has_them(self):
+        pin = self._steps("pin.yml")["Push pins to Google Sheets"]
+        expected = set(re.findall(r"\$\{\{ secrets\.(\w+) \}\}", pin))
+        self.assertEqual(expected, {"FACEBOOK_QUEUE_SHEET_ID", "GCP_SA_KEY_B64"})
+        steps = self._steps("fb-repost.yml")
+        for name, block in steps.items():
+            found = set(re.findall(r"\$\{\{ secrets\.(\w+) \}\}", block))
+            self.assertEqual(found, expected if name == "Queue the reposts" else set(), name)
+
+    def test_python_setup_matches_pin_yml(self):
+        pin, repost = self._steps("pin.yml"), self._steps("fb-repost.yml")
+        for name in ("Set up Python", "Install Python dependencies"):
+            self.assertEqual(repost[name].rstrip(), pin[name].rstrip(), name)
+
+    def test_the_list_is_checked_before_the_step_with_the_secrets(self):
+        names = list(self._steps("fb-repost.yml"))
+        self.assertLess(names.index("Check the repost list"), names.index("Queue the reposts"))
+        check = self._steps("fb-repost.yml")["Check the repost list"]
+        self.assertIn("python3 repost_args.py", check)
+        self.assertIn("REPOST_LIST: ${{ inputs.repost_list }}", check)
+
+    def test_only_the_exact_string_false_writes_to_the_sheet(self):
+        run = self._steps("fb-repost.yml")["Queue the reposts"]
+        self.assertIn('if [ "$DRY_RUN" = "false" ]; then', run)
+        self.assertIn("ARGS+=(--dry-run)", run.split("else", 1)[1])
+        self.assertIn('python3 push_pins_to_sheets.py "${ARGS[@]}"', run)
+
+    def test_the_workflow_cannot_force_a_repeat(self):
+        self.assertNotIn("--force", self._read("fb-repost.yml"))
+
+
 # ---------------------------------------------------------------------------
 # Category -> homepage topic-button mapping guard (recovery #45)
 #
