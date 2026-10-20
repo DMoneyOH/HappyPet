@@ -25,7 +25,7 @@ concurrency:
 jobs:
   regen:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 60   # a slug whose photo fetch times out on every fallback costs about a minute
 
     steps:
       - name: Checkout repo
