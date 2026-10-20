@@ -14077,5 +14077,97 @@ class TestOneAlertPath(unittest.TestCase):
         self.assertEqual(holders, ["generate.yml", "preflight.yml"])
 
 
+class TestRegenPinsWorkflow(unittest.TestCase):
+    """regen-pins.yml redraws the pin image of posts already published, by hand.
+    It may only be run by hand, its token is pinned, and a slug whose photo
+    can't be fetched keeps its old image instead of shipping a blank one."""
+
+    WORKFLOW = "regen-pins.yml"
+    STEP = "Redraw the pin images"
+    # A stand-in for generate_pin_images.py --slug: it overwrites the pin, as
+    # make_pin does before strict mode raises, then fails for slugs in $FAIL.
+    PY_STUB = ('python3() {\n'
+               '  local s="$3"\n'
+               '  printf "redrawn" > "assets/images/pins/${s}.jpg"\n'
+               '  case ",$FAIL," in *",${s},"*) return 1;; esac\n'
+               '  return 0\n}\n')
+
+    @classmethod
+    def setUpClass(cls):
+        cls.workflow = (WORKFLOWS / cls.WORKFLOW).read_text(encoding="utf-8")
+        found = _named_step(cls.workflow, cls.STEP)
+        cls.head, cls.script = found if found else (None, None)
+
+    def test_permissions_are_pinned(self):
+        self.assertEqual(_workflow_permissions(self.workflow),
+                         ({"contents": "write", "actions": "write"}, 1))
+
+    def test_it_runs_only_by_hand(self):
+        on = re.search(r"^on:\n((?:  .*\n|\n)*)", self.workflow, re.M).group(1)
+        self.assertEqual(re.findall(r"^  (\w+):", on, re.M), ["workflow_dispatch"])
+
+    def test_the_slugs_reach_bash_through_env_only(self):
+        self.assertIsNotNone(self.script, f"{self.WORKFLOW} has no step {self.STEP!r}")
+        self.assertNotIn("${{", self.script)
+        self.assertIn("          SLUGS: ${{ inputs.slugs }}\n", self.head)
+
+    def run_draw(self, slugs, fail=""):
+        """Run the draw step in a scratch repo holding two committed pins.
+        Returns (process, outputs, {slug: bytes on disk}, staged paths)."""
+        import subprocess
+        bash, why = _bash_for_workflow_steps()
+        if not bash:
+            self.skipTest(why)
+        with tempfile.TemporaryDirectory() as d:
+            pins = Path(d) / "assets" / "images" / "pins"
+            pins.mkdir(parents=True)
+            for s in ("good-post", "bad-post"):
+                (pins / f"{s}.jpg").write_text("old", encoding="utf-8")
+            git = lambda *a: subprocess.run(["git", "-C", d, *a], capture_output=True,
+                                            text=True, check=True).stdout
+            git("init", "-q")
+            git("-c", "user.name=t", "-c", "user.email=t@t", "add", ".")
+            git("-c", "user.name=t", "-c", "user.email=t@t", "commit", "-qm", "base")
+            out = Path(d) / "gh_out"
+            out.write_text("", encoding="utf-8")
+            env = dict(os.environ, SLUGS=slugs, FAIL=fail, GITHUB_OUTPUT=out.as_posix())
+            proc = subprocess.run([bash, "--noprofile", "--norc", "-eo", "pipefail", "-c",
+                                   self.PY_STUB + self.script],
+                                  cwd=d, capture_output=True, text=True, encoding="utf-8", env=env)
+            on_disk = {p.stem: p.read_text(encoding="utf-8") for p in pins.glob("*.jpg")}
+            staged = git("diff", "--cached", "--name-only").split()
+            return proc, _parse_github_output(out.read_text(encoding="utf-8")), on_disk, staged
+
+    def test_a_redrawn_pin_is_staged(self):
+        proc, outputs, on_disk, staged = self.run_draw("good-post")
+        self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+        self.assertEqual(on_disk["good-post"], "redrawn")
+        self.assertEqual(staged, ["assets/images/pins/good-post.jpg"])
+        self.assertEqual(outputs["failed"], "")
+
+    def test_a_failed_slug_keeps_its_old_image_and_the_rest_go_ahead(self):
+        proc, outputs, on_disk, staged = self.run_draw(" bad-post , good-post ", fail="bad-post")
+        self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+        self.assertEqual(on_disk, {"good-post": "redrawn", "bad-post": "old"})
+        self.assertEqual(staged, ["assets/images/pins/good-post.jpg"])
+        self.assertEqual(outputs["failed"], "bad-post")
+
+    def test_a_failed_slug_with_no_old_image_leaves_no_file(self):
+        proc, outputs, on_disk, staged = self.run_draw("new-post", fail="new-post")
+        self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+        self.assertNotIn("new-post", on_disk)
+        self.assertEqual(staged, [])
+        self.assertEqual(outputs["failed"], "new-post")
+
+    def test_anything_but_a_slug_stops_the_run_before_any_drawing(self):
+        for slugs in ("good-post,../x", "good-post,Bad-Post", "good-post,a;b",
+                      "good-post,a$(id)", "good-post,a/b", ",", ""):
+            with self.subTest(slugs=slugs):
+                proc, _, on_disk, staged = self.run_draw(slugs)
+                self.assertNotEqual(proc.returncode, 0)
+                self.assertEqual(on_disk["good-post"], "old")
+                self.assertEqual(staged, [])
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

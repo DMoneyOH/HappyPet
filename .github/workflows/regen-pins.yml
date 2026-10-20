@@ -1,0 +1,115 @@
+name: Regenerate pin images
+
+# Redraws the pin image of published posts from their current front matter.
+# publish.yml draws a pin once, when the post is published. Nothing redraws it
+# after the post is refiled or retitled, so its category chip and title go
+# stale. Run this by hand with the slugs to redraw.
+#
+# Only the image file on the site changes. Pins already on Pinterest keep the
+# image they were posted with, and nothing here posts a pin.
+on:
+  workflow_dispatch:
+    inputs:
+      slugs:
+        description: 'Comma-separated slugs of published posts whose pin image to redraw'
+        required: true
+
+permissions:
+  contents: write
+  actions: write   # dispatch deploy.yml (GITHUB_TOKEN pushes don't trigger workflows)
+
+concurrency:
+  group: happypet-regen-pins
+  cancel-in-progress: false
+
+jobs:
+  regen:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure git identity
+        run: |
+          git config user.name  "HappyPet Bot"
+          git config user.email "hello@happypetproductreviews.com"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Python dependencies
+        run: pip install --quiet -r requirements.txt
+
+      - name: Redraw the pin images
+        id: draw
+        env:
+          SLUGS: ${{ inputs.slugs }}
+        run: |
+          IFS=',' read -ra RAW <<< "$SLUGS"
+          LIST=()
+          for slug in "${RAW[@]}"; do
+            slug=$(echo "$slug" | tr -d '[:space:]')
+            [ -z "$slug" ] && continue
+            if ! [[ "$slug" =~ ^[a-z0-9-]+$ ]]; then
+              echo "::error::not a slug: ${slug}"
+              exit 1
+            fi
+            LIST+=("$slug")
+          done
+          if [ "${#LIST[@]}" -eq 0 ]; then
+            echo "::error::no slugs given"
+            exit 1
+          fi
+          # --slug is strict: a product photo that can't be fetched fails that
+          # slug. Its old image is put back and the others still go ahead.
+          FAILED=()
+          for slug in "${LIST[@]}"; do
+            pin="assets/images/pins/${slug}.jpg"
+            if python3 generate_pin_images.py --slug "$slug"; then
+              git add "$pin"
+            else
+              FAILED+=("$slug")
+              git checkout -- "$pin" 2>/dev/null || rm -f "$pin"
+            fi
+          done
+          echo "failed=$(IFS=','; echo "${FAILED[*]}")" >> "$GITHUB_OUTPUT"
+
+      - name: Commit and push
+        id: push
+        run: |
+          if git diff --cached --quiet; then
+            echo "No pin image changed -- nothing to commit"
+            echo "pushed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          git commit -m "Regenerate pin images" -m "$(git diff --cached --name-only)"
+          for attempt in 1 2 3 4 5; do
+            if git push origin main; then echo "Pushed (attempt ${attempt})"; break; fi
+            if [ "$attempt" = "5" ]; then echo "ERROR: push failed after 5 attempts"; exit 1; fi
+            echo "Push rejected -- rebasing and retrying (attempt ${attempt})"
+            git pull --rebase origin main
+            sleep 3
+          done
+          echo "pushed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Dispatch deploy (GITHUB_TOKEN pushes do not trigger workflows)
+        if: steps.push.outputs.pushed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh workflow run deploy.yml --repo "${{ github.repository }}"
+
+      - name: Fail the job if a slug failed
+        if: steps.draw.outputs.failed != ''
+        env:
+          FAILED: ${{ steps.draw.outputs.failed }}
+        run: |
+          echo "::error::these pin images were not redrawn and keep their old image: ${FAILED}"
+          exit 1
