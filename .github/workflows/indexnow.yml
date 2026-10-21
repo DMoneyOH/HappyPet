@@ -1,0 +1,40 @@
+name: IndexNow — submit full sitemap
+
+# One-off, by hand: submit every URL in the live sitemap.xml to IndexNow.
+# Routine submits run in deploy.yml's indexnow job after each deploy; this
+# workflow is for a first submit or a catch-up. It does not build or deploy
+# the site. Dry run by default: run it once to read the URL list in the log,
+# then again with dry_run unticked to send.
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'List the URLs without sending them'
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+jobs:
+  submit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Submit sitemap URLs to IndexNow
+        env:
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          if [ "$DRY_RUN" = "false" ]; then
+            python3 indexnow.py sitemap
+          else
+            python3 indexnow.py sitemap --dry-run
+          fi

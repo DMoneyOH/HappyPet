@@ -98,6 +98,36 @@ jobs:
             --repo "${{ github.repository }}" \
             --field slugs="${SLUGS}"
 
+  indexnow:
+    # Tell IndexNow (Bing and the engines that share it) which posts and pages
+    # this push changed, now that they are live. Push runs only: a manual run
+    # has no diff (indexnow.yml submits the whole sitemap by hand instead).
+    # indexnow.py logs a rejected or failed submit and exits 0; continue-on-error
+    # covers anything else, so this job never fails the deploy. Not in
+    # report-failure's needs on purpose.
+    runs-on: ubuntu-latest
+    needs: deploy
+    if: github.event_name == 'push'
+    continue-on-error: true
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout with history for the push diff
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Submit changed URLs to IndexNow
+        env:
+          BEFORE: ${{ github.event.before }}
+        run: python3 indexnow.py changed "$BEFORE" "$GITHUB_SHA"
+
   report-failure:
     # failure() is true when any job above failed, including when build failed
     # and deploy and trigger-pins were skipped because of it.
