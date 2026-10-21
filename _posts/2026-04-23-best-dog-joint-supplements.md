@@ -2,7 +2,7 @@
 layout: post
 title: "Best Hip and Joint Supplements for Dogs"
 date: 2026-04-23
-last_modified_at: 2026-10-19
+last_modified_at: 2026-10-21
 categories: [supplements]
 redirect_from:
   - /dog-health/best-dog-joint-supplements/
@@ -37,7 +37,7 @@ The strongest evidence so far finds no pain-relief effect from glucosamine and c
 |---|---|---|---|---|---|
 | Nutramax Welactin Canine Softgels | Owners who want the ingredient the research backs | Softgel capsule | Omega-3 fish oil: EPA and DHA | $$ | [On Amazon](https://www.amazon.com/dp/B001L1BM2W?th=1&tag=happypetdc-20) |
 | Nutramax Cosequin Joint Supplement for Dogs, Chewable Tablets, 132 ct (with MSM) | A simple glucosamine formula | Chewable tablet | Glucosamine, chondroitin, MSM | - | [On Amazon](https://www.amazon.com/dp/B003ULL1NQ?th=1&tag=happypetdc-20) |
-| Dasuquin With MSM | Owners who want more than the core three | Soft chew or chewable tablet | Glucosamine, chondroitin, MSM, ASU, Boswellia, green tea extract | - | - |
+| Dasuquin With MSM | Owners who want more than the core three | Soft chew or chewable tablet | Glucosamine, chondroitin, MSM, ASU, Boswellia, green tea extract | $49.99 (as of Oct 21, 2026) | [On Amazon](https://www.amazon.com/dp/B0041OOPK2?th=1&tag=happypetdc-20) |
 | Zesty Paws Hip & Joint Bites for Dogs | Dogs who refuse tablets | Chewable bite | Glucosamine, chondroitin, OptiMSM, vitamins E and C | - | - |
 
 ### Featured pick: Nutramax Welactin Canine Softgels
