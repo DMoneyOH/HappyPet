@@ -6190,15 +6190,13 @@ class TestPublishedPostsNameTheirPick(unittest.TestCase):
                           if self.SEARCH.search(fm) and "product_short:" in fm], [])
 
 
-class TestBuildCheckPathFilter(unittest.TestCase):
-    """build-check.yml must run on a published-post edit and never on a routine
-    Stage-1 or refill PR: automerge fires once, when "CI — Tests" completes, and
-    automerge_gate holds a PR while any other check is still pending. The filter
-    is evaluated the way GitHub documents it: patterns in order, the last match
-    decides, `*` stops at `/`, `**` does not; a PR runs if any one file is in."""
+class _PathFilter:
+    """A workflow's `paths:` filter, evaluated the way GitHub documents it:
+    patterns in order, the last match decides, `*` stops at `/`, `**` does not,
+    `[0-9]` is a character range; a run fires if any one file is in. Set WORKFLOW."""
 
     def _patterns(self):
-        lines = (REPO / ".github" / "workflows" / "build-check.yml").read_text(
+        lines = (REPO / ".github" / "workflows" / self.WORKFLOW).read_text(
             encoding="utf-8").splitlines()
         start = lines.index("    paths:") + 1
         pats = []
@@ -6212,8 +6210,9 @@ class TestBuildCheckPathFilter(unittest.TestCase):
 
     def _runs(self, files):
         def rx(p):
-            return re.compile("".join(".*" if t == "**" else "[^/]*" if t == "*" else re.escape(t)
-                                      for t in re.split(r"(\*\*|\*)", p)))
+            return re.compile("".join(".*" if t == "**" else "[^/]*" if t == "*"
+                                      else t if t.startswith("[") else re.escape(t)
+                                      for t in re.split(r"(\*\*|\*|\[[^\]]+\])", p)))
         rules = [(p.startswith("!"), rx(p.lstrip("!"))) for p in self._patterns()]
         def included(path):
             state = False
@@ -6222,6 +6221,14 @@ class TestBuildCheckPathFilter(unittest.TestCase):
                     state = not negated
             return state
         return any(included(f) for f in files)
+
+
+class TestBuildCheckPathFilter(_PathFilter, unittest.TestCase):
+    """build-check.yml must run on a published-post edit and never on a routine
+    Stage-1 or refill PR: automerge fires once, when "CI — Tests" completes, and
+    automerge_gate holds a PR while any other check is still pending."""
+
+    WORKFLOW = "build-check.yml"
 
     def test_the_diff_and_summary_steps_cannot_fail_the_job(self):
         """A non-empty diff reports and never fails: every diff and grep in the
@@ -6252,6 +6259,43 @@ class TestBuildCheckPathFilter(unittest.TestCase):
 
     def test_a_draft_alongside_a_layout_change_still_runs(self):
         self.assertTrue(self._runs(["_posts/DRAFT-x.md", "_layouts/post.html"]))
+
+
+class TestDeployPathFilter(_PathFilter, unittest.TestCase):
+    """deploy.yml's push filter covers every page indexnow.py submits, so a page
+    edit both deploys and reaches IndexNow, and no internal root doc deploys."""
+
+    WORKFLOW = "deploy.yml"
+    PAGES = {"index.md", "about.md", "cats.md", "dogs.md", "contact.md", "privacy-policy.md"}
+
+    def test_the_filter_is_pinned_to_the_pages_indexnow_submits(self):
+        import indexnow
+        candidates = [p for p in REPO.iterdir() if p.suffix in (".md", ".html")]
+        candidates += sorted((REPO / "hubs").glob("*.md"))
+        submitted = [p.relative_to(REPO).as_posix() for p in candidates
+                     if indexnow.url_for(p.relative_to(REPO).as_posix(), p.read_text(encoding="utf-8"))]
+        self.assertEqual({s for s in submitted if "/" not in s}, self.PAGES)
+        self.assertGreater(len([s for s in submitted if s.startswith("hubs/")]), 5)
+        for path in submitted:
+            with self.subTest(path=path):
+                self.assertTrue(self._runs([path]))
+        root_pages = {p for p in self._patterns() if p.endswith((".md", ".html")) and "/" not in p}
+        self.assertEqual(root_pages, self.PAGES)
+        self.assertIn("hubs/**", self._patterns())
+
+    def test_internal_docs_and_drafts_do_not_deploy(self):
+        for path in ("HANDOFF.md", "README.md", "CLAUDE.md", "AUDIT_FINDINGS.md",
+                     "search.md", "docs/superpowers/plans/plan.md", "_posts/DRAFT-x.md",
+                     "_pin_queue/x.json", "indexnow.py", "products.json"):
+            with self.subTest(path=path):
+                self.assertFalse(self._runs([path]))
+
+    def test_a_dated_post_and_the_site_furniture_still_deploy(self):
+        for path in ("_posts/2026-04-16-best-cat-litter.md", "assets/css/main.css",
+                     "_layouts/post.html", "_includes/head.html", "_data/categories.json",
+                     "_config.yml", "Gemfile"):
+            with self.subTest(path=path):
+                self.assertTrue(self._runs([path]))
 
 
 class TestAutoMergePublishWiring(unittest.TestCase):
@@ -13225,6 +13269,7 @@ class TestPublishedRootIsAllowlisted(unittest.TestCase):
         "favicon.ico", "favicon-16x16.png", "favicon-32x32.png",
         "apple-touch-icon.png", "assets",
         "hubs",  # topic hub pages; each sets its own /<topic>/ permalink
+        "9b8b0de3f2497b8a12b58d36b78a4f2e.txt",  # IndexNow key file (public by design)
     }
 
     @classmethod
@@ -14154,8 +14199,9 @@ class TestDeployFailureIssue(_AlertIssueStep, unittest.TestCase):
     def test_the_report_job_follows_every_job_and_fires_on_failure(self):
         jobs_text = self.workflow[self.workflow.index("\njobs:\n"):]
         jobs = re.findall(r"^  ([\w-]+):$", jobs_text, re.M)
-        self.assertEqual(jobs, ["build", "deploy", "trigger-pins", "report-failure"])
+        self.assertEqual(jobs, ["build", "deploy", "trigger-pins", "indexnow", "report-failure"])
         report = jobs_text[jobs_text.index("\n  report-failure:\n"):]
+        # indexnow is left out on purpose: a failed IndexNow submit is not a failed deploy.
         self.assertIn("\n    needs: [build, deploy, trigger-pins]\n", report)
         self.assertIn("\n    if: failure()\n", report)
         self.assertNotIn("uses:", report)   # no checkout: it reads nothing
@@ -14164,12 +14210,13 @@ class TestDeployFailureIssue(_AlertIssueStep, unittest.TestCase):
 
     def test_only_the_report_job_gains_issues_write(self):
         self.assertEqual(_workflow_permissions(self.workflow),
-                         ({"contents": "read", "pages": "write", "id-token": "write"}, 4))
+                         ({"contents": "read", "pages": "write", "id-token": "write"}, 5))
         self.assertEqual(_job_permissions(self.workflow, "report-failure"), {"issues": "write"})
         self.assertEqual(_job_permissions(self.workflow, "deploy"),
                          {"pages": "write", "id-token": "write"})
         self.assertEqual(_job_permissions(self.workflow, "trigger-pins"),
                          {"contents": "read", "actions": "write"})
+        self.assertEqual(_job_permissions(self.workflow, "indexnow"), {"contents": "read"})
         self.assertIsNone(_job_permissions(self.workflow, "build"))
         self.assertEqual(self.workflow.count("issues: write"), 1)
 
@@ -14472,6 +14519,335 @@ class TestOneAlertPath(unittest.TestCase):
                          if "GMAIL_" in p.read_text(encoding="utf-8")
                          or "smtplib" in p.read_text(encoding="utf-8"))
         self.assertEqual(holders, ["generate.yml", "preflight.yml"])
+
+
+class TestIndexNow(unittest.TestCase):
+    """indexnow.py: which live URLs a push changed, and the one POST that
+    reports them. Expected URLs are literals, never recomputed by the module's
+    own rule."""
+
+    KEY = "9b8b0de3f2497b8a12b58d36b78a4f2e"
+
+    @classmethod
+    def setUpClass(cls):
+        import indexnow
+        cls.ix = indexnow
+
+    def _post(self, front_matter):
+        return "---\n" + front_matter + "\n---\n\nBody text.\n"
+
+    def test_a_published_post_maps_to_its_live_permalink(self):
+        for name, url in (
+                ("2026-10-05-best-snuffle-mats-dogs.md",
+                 "https://happypetproductreviews.com/toys/best-snuffle-mats-dogs/"),
+                ("2026-10-19-new-kitten-checklist.md",
+                 "https://happypetproductreviews.com/food/new-kitten-checklist/"),
+                ("2026-08-27-best-dog-ramps.md",
+                 "https://happypetproductreviews.com/health/best-dog-ramps/")):
+            with self.subTest(post=name):
+                text = (REPO / "_posts" / name).read_text(encoding="utf-8")
+                self.assertEqual(self.ix.url_for(f"_posts/{name}", text), url)
+
+    def test_every_post_agrees_with_the_pipelines_category_reader(self):
+        import categories
+        posts = sorted((REPO / "_posts").glob("2*.md"))
+        self.assertGreater(len(posts), 50)
+        for p in posts:
+            with self.subTest(post=p.name):
+                slug = p.stem.split("-", 3)[3]
+                self.assertEqual(
+                    self.ix.url_for(f"_posts/{p.name}", p.read_text(encoding="utf-8")),
+                    f"https://happypetproductreviews.com/{categories.post_category(p)}/{slug}/")
+
+    def test_jekylls_permalink_rule_edge_cases(self):
+        path = "_posts/2026-11-02-best-dog-thing.md"
+        for fm, url in (
+                ('categories: ["toys"]', "/toys/best-dog-thing/"),
+                ("categories: [Dogs, Health]", "/dogs/health/best-dog-thing/"),
+                ("title: No category", "/best-dog-thing/"),
+                ("categories: [toys]\npermalink: /custom/path/", "/custom/path/")):
+            with self.subTest(front_matter=fm):
+                self.assertEqual(self.ix.url_for(path, self._post(fm)),
+                                 "https://happypetproductreviews.com" + url)
+        crlf = "---\r\ncategories: [beds]\r\n---\r\nBody\r\n"
+        self.assertEqual(self.ix.url_for(path, crlf),
+                         "https://happypetproductreviews.com/beds/best-dog-thing/")
+        for fm in ("categories: [toys]\npublished: false", "categories: [toys]\nsitemap: false"):
+            with self.subTest(front_matter=fm):
+                self.assertIsNone(self.ix.url_for(path, self._post(fm)))
+        self.assertIsNone(self.ix.url_for(path, "No front matter at all.\n"))
+
+    def test_files_that_publish_no_page_map_to_nothing(self):
+        text = self._post("categories: [toys]\npermalink: /x/")
+        for path in ("_posts/DRAFT-best-dog-thing.md", "_pin_queue/best-dog-thing.md",
+                     "assets/notes.md", "docs/superpowers/plans/plan.md", "generate_posts.py",
+                     "_posts/2026-11-02-best-dog-thing.json", "_layouts/post.html"):
+            with self.subTest(path=path):
+                self.assertIsNone(self.ix.url_for(path, text))
+        for path in ("notes.md", "hubs/new.md"):   # a page with no permalink: skipped, not guessed
+            with self.subTest(path=path):
+                self.assertIsNone(self.ix.url_for(path, self._post("title: Notes")))
+
+    def test_root_pages_and_hubs_map_to_their_own_permalinks(self):
+        for path, url in (("index.md", "https://happypetproductreviews.com/"),
+                          ("about.md", "https://happypetproductreviews.com/about/"),
+                          ("hubs/beds.md", "https://happypetproductreviews.com/beds/"),
+                          ("search.md", None),    # sitemap: false
+                          ("README.md", None), ("CLAUDE.md", None), ("HANDOFF.md", None)):
+            with self.subTest(path=path):
+                self.assertEqual(self.ix.url_for(path, (REPO / path).read_text(encoding="utf-8")), url)
+
+    def test_only_published_pages_ever_yield_a_url(self):
+        public = {n for n in TestPublishedRootIsAllowlisted.PUBLIC if n.endswith((".md", ".html"))}
+        public.discard("search.md")
+        candidates = [p for p in REPO.iterdir() if p.suffix in (".md", ".html")]
+        candidates += sorted((REPO / "hubs").glob("*.md"))
+        yielded = {p.relative_to(REPO).as_posix() for p in candidates
+                   if self.ix.url_for(p.relative_to(REPO).as_posix(), p.read_text(encoding="utf-8"))}
+        hubs = {f"hubs/{p.name}" for p in (REPO / "hubs").glob("*.md")}
+        self.assertEqual(yielded, public | hubs)
+
+    def _git_repo(self, tmp):
+        def git(*args):
+            import subprocess
+            subprocess.run(["git", "-c", "user.name=t", "-c", "user.email=t@example.invalid",
+                            "-c", "commit.gpgsign=false", "-c", "core.autocrlf=false", *args],
+                           cwd=tmp, check=True, capture_output=True)
+        return git
+
+    def test_changed_urls_from_a_real_diff(self):
+        """Modified, added, renamed and deleted posts and a page; files that are
+        not pages are ignored. Deleted and renamed-away files are read at the base."""
+        with tempfile.TemporaryDirectory() as tmp:
+            git = self._git_repo(tmp)
+            root = Path(tmp)
+            (root / "_posts").mkdir()
+            (root / "_pin_queue").mkdir()
+            files = {
+                "_posts/2026-01-01-best-kept.md": self._post("categories: [toys]"),
+                "_posts/2026-01-02-best-gone.md": self._post("categories: [beds]"),
+                "_posts/2026-01-03-best-old-name.md": self._post("categories: [food]\nnote: a"),
+                "about.md": self._post("permalink: /about/"),
+                "_pin_queue/q.md": "x\n",
+            }
+            for rel, text in files.items():
+                (root / rel).write_text(text, encoding="utf-8", newline="\n")
+            git("init", "-q")
+            git("add", "-A")
+            git("commit", "-q", "-m", "base")
+            (root / "_posts/2026-01-01-best-kept.md").write_text(
+                self._post("categories: [toys]\nlast_modified_at: 2026-02-01"), encoding="utf-8", newline="\n")
+            (root / "_posts/2026-01-02-best-gone.md").unlink()
+            git("mv", "_posts/2026-01-03-best-old-name.md", "_posts/2026-01-03-best-new-name.md")
+            (root / "_posts/2026-02-01-best-new.md").write_text(
+                self._post("categories: [Health]"), encoding="utf-8", newline="\n")
+            (root / "about.md").write_text(self._post("permalink: /about/\ntitle: About"),
+                                           encoding="utf-8", newline="\n")
+            (root / "_pin_queue/q.md").write_text("y\n", encoding="utf-8", newline="\n")
+            git("add", "-A")
+            git("commit", "-q", "-m", "head")
+            with patch.object(self.ix, "REPO", root):
+                urls = self.ix.changed_urls("HEAD~1", "HEAD")
+        site = "https://happypetproductreviews.com"
+        self.assertEqual(sorted(urls), sorted([
+            f"{site}/about/",
+            f"{site}/toys/best-kept/",
+            f"{site}/beds/best-gone/",
+            f"{site}/food/best-old-name/",
+            f"{site}/food/best-new-name/",
+            f"{site}/health/best-new/",
+        ]))
+
+    def test_sitemap_urls_keep_only_this_site(self):
+        xml = ("<urlset><url><loc>https://happypetproductreviews.com/</loc></url>\n"
+               "<url><loc>\n  https://happypetproductreviews.com/toys/best-x/\n</loc></url>"
+               "<url><loc>https://happypetproductreviews.com/toys/best-x/</loc></url>"
+               "<url><loc>https://example.com/toys/best-x/</loc></url>"
+               "<url><loc>https://happypetproductreviews.com.evil.test/a/</loc></url></urlset>")
+        self.assertEqual(self.ix.sitemap_urls(xml), [
+            "https://happypetproductreviews.com/",
+            "https://happypetproductreviews.com/toys/best-x/"])
+
+    def test_the_key_file_is_the_one_key(self):
+        self.assertEqual(self.ix.find_key(), self.KEY)
+        self.assertEqual((REPO / f"{self.KEY}.txt").read_text(encoding="utf-8"), self.KEY)
+        self.assertIn(f"{self.KEY}.txt", TestPublishedRootIsAllowlisted.PUBLIC)
+
+    def test_the_site_matches_config(self):
+        config = (REPO / "_config.yml").read_text(encoding="utf-8")
+        self.assertIn("url: 'https://happypetproductreviews.com'\n", config)
+        self.assertEqual(self.ix.SITE, "https://happypetproductreviews.com")
+
+    def test_the_post_permalink_matches_config(self):
+        # url_for hard-codes Jekyll's post rule; a new permalink must fail here first.
+        config = (REPO / "_config.yml").read_text(encoding="utf-8")
+        self.assertRegex(config, r"(?m)^permalink: /:categories/:title/\r?$")
+
+    def test_find_key_needs_exactly_one_key_file(self):
+        other = "0123456789abcdef0123456789abcdef"
+        for name, files, found in (
+                ("no key", {"README.md": "x", f"{other}.txt": "not its own name"}, 0),
+                ("two keys", {f"{self.KEY}.txt": self.KEY, f"{other}.txt": other}, 2)):
+            with self.subTest(name), tempfile.TemporaryDirectory() as tmp:
+                for fname, text in files.items():
+                    (Path(tmp) / fname).write_text(text, encoding="utf-8")
+                with patch.object(self.ix, "REPO", Path(tmp)), \
+                        self.assertRaises(SystemExit) as raised:
+                    self.ix.find_key()
+                self.assertEqual(str(raised.exception),
+                                 f"indexnow: expected one key file at the repo root, found {found}")
+
+    def test_fetch_sitemap_reads_the_live_sitemap_through_the_opener(self):
+        asked = []
+
+        def opener(url, timeout):
+            asked.append(url)
+            resp = MagicMock()
+            resp.read.return_value = (b"<urlset><url><loc>https://happypetproductreviews.com/a/</loc>"
+                                      b"</url><url><loc>https://example.com/b/</loc></url></urlset>")
+            resp.__enter__.return_value = resp
+            return resp
+
+        with patch("urllib.request.urlopen", side_effect=AssertionError("no network in tests")):
+            self.assertEqual(self.ix.fetch_sitemap(opener=opener),
+                             ["https://happypetproductreviews.com/a/"])
+        self.assertEqual(asked, ["https://happypetproductreviews.com/sitemap.xml"])
+
+    def test_main_sitemap_submits_the_sitemap_urls(self):
+        import io
+        urls = ["https://happypetproductreviews.com/", "https://happypetproductreviews.com/a/"]
+        with patch.object(self.ix, "fetch_sitemap", return_value=urls), \
+                patch.object(self.ix, "submit", return_value=True) as submit, \
+                contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(self.ix.main(["sitemap"]), 0)
+            submit.assert_called_once_with({
+                "host": "happypetproductreviews.com", "key": self.KEY,
+                "keyLocation": f"https://happypetproductreviews.com/{self.KEY}.txt",
+                "urlList": urls})
+            submit.reset_mock()
+            self.assertEqual(self.ix.main(["sitemap", "--dry-run"]), 0)
+            submit.assert_not_called()
+
+    def test_main_sitemap_logs_an_unreadable_sitemap_and_sends_nothing(self):
+        import io
+        import urllib.error
+        out = io.StringIO()
+        with patch.object(self.ix, "fetch_sitemap", side_effect=urllib.error.URLError("unreachable")), \
+                patch.object(self.ix, "submit") as submit, contextlib.redirect_stdout(out):
+            self.assertEqual(self.ix.main(["sitemap"]), 0)
+        submit.assert_not_called()
+        self.assertEqual(out.getvalue(),
+                         "indexnow: could not read the live sitemap: <urlopen error unreachable>\n")
+
+    def test_main_logs_a_failed_git_diff_and_sends_nothing(self):
+        import io
+        out = io.StringIO()
+        with tempfile.TemporaryDirectory() as tmp:
+            self._git_repo(tmp)("init", "-q")
+            with patch.object(self.ix, "REPO", Path(tmp)), \
+                    patch.object(self.ix, "submit") as submit, contextlib.redirect_stdout(out):
+                self.assertEqual(self.ix.main(["changed", "abc1234", "def5678"]), 0)
+        submit.assert_not_called()
+        self.assertTrue(out.getvalue().startswith("indexnow: git could not diff abc1234..def5678: "),
+                        out.getvalue())
+        self.assertIn("abc1234", out.getvalue().split(": ", 2)[2])
+
+    def test_the_payload(self):
+        self.assertEqual(self.ix.build_payload(self.KEY, ["https://happypetproductreviews.com/a/"]), {
+            "host": "happypetproductreviews.com",
+            "key": self.KEY,
+            "keyLocation": f"https://happypetproductreviews.com/{self.KEY}.txt",
+            "urlList": ["https://happypetproductreviews.com/a/"]})
+
+    def _response(self, status):
+        resp = MagicMock(status=status)
+        resp.read.return_value = b""
+        resp.__enter__.return_value = resp
+        return resp
+
+    def test_submit_posts_once_and_treats_200_and_202_as_success(self):
+        import io
+        payload = self.ix.build_payload(self.KEY, ["https://happypetproductreviews.com/a/"])
+        for status in (200, 202):
+            with self.subTest(status=status):
+                sent = []
+                opener = lambda req, timeout: sent.append(req) or self._response(status)
+                with contextlib.redirect_stdout(io.StringIO()):
+                    self.assertTrue(self.ix.submit(payload, opener=opener))
+                self.assertEqual(len(sent), 1)
+                self.assertEqual(sent[0].full_url, "https://api.indexnow.org/indexnow")
+                self.assertEqual(sent[0].get_method(), "POST")
+                self.assertEqual(sent[0].get_header("Content-type"), "application/json; charset=utf-8")
+                self.assertEqual(json.loads(sent[0].data), payload)
+
+    def test_submit_logs_every_other_answer_and_never_raises(self):
+        import io
+        import urllib.error
+        payload = self.ix.build_payload(self.KEY, ["https://happypetproductreviews.com/a/"])
+
+        def http_error(code):
+            def opener(req, timeout):
+                raise urllib.error.HTTPError(req.full_url, code, "no", {}, io.BytesIO(b"key not valid"))
+            return opener
+
+        def no_network(req, timeout):
+            raise urllib.error.URLError("unreachable")
+
+        for name, opener in (("204", lambda req, timeout: self._response(204)),
+                             ("403", http_error(403)), ("422", http_error(422)),
+                             ("429", http_error(429)), ("no network", no_network)):
+            with self.subTest(answer=name):
+                out = io.StringIO()
+                with contextlib.redirect_stdout(out):
+                    self.assertFalse(self.ix.submit(payload, opener=opener))
+                self.assertIn("indexnow:", out.getvalue())
+
+    def test_an_http_error_logs_its_status_and_body(self):
+        import io
+        import urllib.error
+        payload = self.ix.build_payload(self.KEY, ["https://happypetproductreviews.com/a/"])
+        for code in (403, 422, 429):
+            def opener(req, timeout):
+                raise urllib.error.HTTPError(req.full_url, code, "no", {}, io.BytesIO(b"key not valid"))
+            with self.subTest(code=code):
+                out = io.StringIO()
+                with contextlib.redirect_stdout(out):
+                    self.assertFalse(self.ix.submit(payload, opener=opener))
+                self.assertEqual(out.getvalue(),
+                                 f"indexnow: HTTP {code} (not accepted) for 1 URL(s): key not valid\n")
+
+    def test_main_never_fails_the_job(self):
+        import io
+        with patch.object(self.ix, "changed_urls", return_value=["https://happypetproductreviews.com/a/"]), \
+                patch.object(self.ix, "submit", return_value=False) as submit, \
+                contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(self.ix.main(["changed", "abc", "def"]), 0)
+            submit.assert_called_once()
+            submit.reset_mock()
+            self.assertEqual(self.ix.main(["changed", "abc", "def", "--dry-run"]), 0)
+            submit.assert_not_called()
+            self.assertEqual(self.ix.main(["changed", "0" * 40, "def"]), 0)   # first push: no base
+            submit.assert_not_called()
+
+    def test_the_sitemap_workflow_is_a_dry_run_unless_told_otherwise(self):
+        wf = (WORKFLOWS / "indexnow.yml").read_text(encoding="utf-8")
+        self.assertIn("      dry_run:\n", wf)
+        self.assertIn("        default: true\n", wf)
+        self.assertIn('          if [ "$DRY_RUN" = "false" ]; then\n'
+                      "            python3 indexnow.py sitemap\n"
+                      "          else\n"
+                      "            python3 indexnow.py sitemap --dry-run\n", wf)
+        self.assertEqual(_workflow_permissions(wf), ({"contents": "read"}, 1))
+
+    def test_the_deploy_job_runs_after_the_deploy_on_pushes_only(self):
+        wf = (WORKFLOWS / "deploy.yml").read_text(encoding="utf-8")
+        job = wf[wf.index("\n  indexnow:\n"):wf.index("\n  report-failure:\n")]
+        for line in ("    needs: deploy\n", "    if: github.event_name == 'push'\n",
+                     "    continue-on-error: true\n", "          fetch-depth: 0\n",
+                     "          BEFORE: ${{ github.event.before }}\n",
+                     '        run: python3 indexnow.py changed "$BEFORE" "$GITHUB_SHA"\n'):
+            with self.subTest(line=line):
+                self.assertIn(line, job)
 
 
 if __name__ == "__main__":
