@@ -3,6 +3,8 @@ name: Deploy HappyPet to GitHub Pages
 on:
   push:
     branches: [main]
+    # The root pages and hubs/** below are the pages indexnow.py submits, so a
+    # page edit both deploys and reaches IndexNow. test_pipeline.py pins the set.
     paths:
       - '_posts/[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]-*.md'
       - 'assets/**'
@@ -11,6 +13,13 @@ on:
       - '_data/**'
       - '_config.yml'
       - 'Gemfile'
+      - 'index.md'
+      - 'about.md'
+      - 'cats.md'
+      - 'dogs.md'
+      - 'contact.md'
+      - 'privacy-policy.md'
+      - 'hubs/**'
   workflow_dispatch:
   # NOTE: no workflow_run trigger. Stage 2's commit of the dated post already
   # matches the push filter above and fires this deploy once. A second
@@ -129,7 +138,7 @@ jobs:
         run: python3 indexnow.py changed "$BEFORE" "$GITHUB_SHA"
 
   report-failure:
-    # failure() is true when any job above failed, including when build failed
+    # failure() is true when any job in its `needs` failed, including when build failed
     # and deploy and trigger-pins were skipped because of it.
     needs: [build, deploy, trigger-pins]
     if: failure()

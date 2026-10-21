@@ -33,9 +33,9 @@ _POST = re.compile(r"^_posts/\d{4}-\d{2}-\d{2}-(.+)\.md$")
 _PAGE = re.compile(r"^(?:[^/]+\.(?:md|html)|hubs/[^/]+\.md)$")
 
 
-def find_key(repo: Path = REPO) -> str:
+def find_key() -> str:
     """The one root `<32 hex>.txt` file whose content is its own name."""
-    keys = [p.stem for p in repo.iterdir()
+    keys = [p.stem for p in REPO.iterdir()
             if _KEY_FILE.match(p.name) and p.read_text(encoding="utf-8").strip() == p.stem]
     if len(keys) != 1:
         raise SystemExit(f"indexnow: expected one key file at the repo root, found {len(keys)}")
@@ -81,12 +81,10 @@ def _git(*args) -> str:
                           capture_output=True, text=True, encoding="utf-8").stdout
 
 
-def changed_urls(base: str, head: str, show=None) -> list:
+def changed_urls(base: str, head: str) -> list:
     """URLs of the posts and pages changed between two commits. A deleted or
     renamed-away file is read at `base`, so its old URL is submitted too and
-    the engines learn it moved or is gone. `show(rev, path)` returns a file's
-    text at a commit; tests pass a fake."""
-    show = show or (lambda rev, p: _git("show", f"{rev}:{p}"))
+    the engines learn it moved or is gone."""
     diff = _git("diff", "--name-status", "-M", base, head)
     urls = []
     for line in diff.splitlines():
@@ -99,7 +97,7 @@ def changed_urls(base: str, head: str, show=None) -> list:
             old, new = None, paths[-1]
         for rev, path in ((base, old), (head, new)):
             if path and (_POST.match(path) or _PAGE.match(path)):
-                url = url_for(path, show(rev, path))
+                url = url_for(path, _git("show", f"{rev}:{path}"))
                 if url and url not in urls:
                     urls.append(url)
     return urls
@@ -112,6 +110,12 @@ def sitemap_urls(xml: str) -> list:
         if loc.startswith(SITE + "/") and loc not in urls:
             urls.append(loc)
     return urls
+
+
+def fetch_sitemap(opener=urllib.request.urlopen) -> list:
+    """Every URL in the live sitemap.xml. Raises if it cannot be read."""
+    with opener(f"{SITE}/sitemap.xml", timeout=30) as resp:
+        return sitemap_urls(resp.read().decode("utf-8"))
 
 
 def build_payload(key: str, urls: list) -> dict:
@@ -155,8 +159,7 @@ def main(argv) -> int:
             return 0
     elif args == ["sitemap"]:
         try:
-            with urllib.request.urlopen(f"{SITE}/sitemap.xml", timeout=30) as resp:
-                urls = sitemap_urls(resp.read().decode("utf-8"))
+            urls = fetch_sitemap()
         except Exception as e:
             print(f"indexnow: could not read the live sitemap: {e}")
             return 0

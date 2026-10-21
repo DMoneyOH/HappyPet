@@ -6190,15 +6190,13 @@ class TestPublishedPostsNameTheirPick(unittest.TestCase):
                           if self.SEARCH.search(fm) and "product_short:" in fm], [])
 
 
-class TestBuildCheckPathFilter(unittest.TestCase):
-    """build-check.yml must run on a published-post edit and never on a routine
-    Stage-1 or refill PR: automerge fires once, when "CI — Tests" completes, and
-    automerge_gate holds a PR while any other check is still pending. The filter
-    is evaluated the way GitHub documents it: patterns in order, the last match
-    decides, `*` stops at `/`, `**` does not; a PR runs if any one file is in."""
+class _PathFilter:
+    """A workflow's `paths:` filter, evaluated the way GitHub documents it:
+    patterns in order, the last match decides, `*` stops at `/`, `**` does not,
+    `[0-9]` is a character range; a run fires if any one file is in. Set WORKFLOW."""
 
     def _patterns(self):
-        lines = (REPO / ".github" / "workflows" / "build-check.yml").read_text(
+        lines = (REPO / ".github" / "workflows" / self.WORKFLOW).read_text(
             encoding="utf-8").splitlines()
         start = lines.index("    paths:") + 1
         pats = []
@@ -6212,8 +6210,9 @@ class TestBuildCheckPathFilter(unittest.TestCase):
 
     def _runs(self, files):
         def rx(p):
-            return re.compile("".join(".*" if t == "**" else "[^/]*" if t == "*" else re.escape(t)
-                                      for t in re.split(r"(\*\*|\*)", p)))
+            return re.compile("".join(".*" if t == "**" else "[^/]*" if t == "*"
+                                      else t if t.startswith("[") else re.escape(t)
+                                      for t in re.split(r"(\*\*|\*|\[[^\]]+\])", p)))
         rules = [(p.startswith("!"), rx(p.lstrip("!"))) for p in self._patterns()]
         def included(path):
             state = False
@@ -6222,6 +6221,14 @@ class TestBuildCheckPathFilter(unittest.TestCase):
                     state = not negated
             return state
         return any(included(f) for f in files)
+
+
+class TestBuildCheckPathFilter(_PathFilter, unittest.TestCase):
+    """build-check.yml must run on a published-post edit and never on a routine
+    Stage-1 or refill PR: automerge fires once, when "CI — Tests" completes, and
+    automerge_gate holds a PR while any other check is still pending."""
+
+    WORKFLOW = "build-check.yml"
 
     def test_the_diff_and_summary_steps_cannot_fail_the_job(self):
         """A non-empty diff reports and never fails: every diff and grep in the
@@ -6252,6 +6259,43 @@ class TestBuildCheckPathFilter(unittest.TestCase):
 
     def test_a_draft_alongside_a_layout_change_still_runs(self):
         self.assertTrue(self._runs(["_posts/DRAFT-x.md", "_layouts/post.html"]))
+
+
+class TestDeployPathFilter(_PathFilter, unittest.TestCase):
+    """deploy.yml's push filter covers every page indexnow.py submits, so a page
+    edit both deploys and reaches IndexNow, and no internal root doc deploys."""
+
+    WORKFLOW = "deploy.yml"
+    PAGES = {"index.md", "about.md", "cats.md", "dogs.md", "contact.md", "privacy-policy.md"}
+
+    def test_the_filter_is_pinned_to_the_pages_indexnow_submits(self):
+        import indexnow
+        candidates = [p for p in REPO.iterdir() if p.suffix in (".md", ".html")]
+        candidates += sorted((REPO / "hubs").glob("*.md"))
+        submitted = [p.relative_to(REPO).as_posix() for p in candidates
+                     if indexnow.url_for(p.relative_to(REPO).as_posix(), p.read_text(encoding="utf-8"))]
+        self.assertEqual({s for s in submitted if "/" not in s}, self.PAGES)
+        self.assertGreater(len([s for s in submitted if s.startswith("hubs/")]), 5)
+        for path in submitted:
+            with self.subTest(path=path):
+                self.assertTrue(self._runs([path]))
+        root_pages = {p for p in self._patterns() if p.endswith((".md", ".html")) and "/" not in p}
+        self.assertEqual(root_pages, self.PAGES)
+        self.assertIn("hubs/**", self._patterns())
+
+    def test_internal_docs_and_drafts_do_not_deploy(self):
+        for path in ("HANDOFF.md", "README.md", "CLAUDE.md", "AUDIT_FINDINGS.md",
+                     "search.md", "docs/superpowers/plans/plan.md", "_posts/DRAFT-x.md",
+                     "_pin_queue/x.json", "indexnow.py", "products.json"):
+            with self.subTest(path=path):
+                self.assertFalse(self._runs([path]))
+
+    def test_a_dated_post_and_the_site_furniture_still_deploy(self):
+        for path in ("_posts/2026-04-16-best-cat-litter.md", "assets/css/main.css",
+                     "_layouts/post.html", "_includes/head.html", "_data/categories.json",
+                     "_config.yml", "Gemfile"):
+            with self.subTest(path=path):
+                self.assertTrue(self._runs([path]))
 
 
 class TestAutoMergePublishWiring(unittest.TestCase):
@@ -14634,6 +14678,80 @@ class TestIndexNow(unittest.TestCase):
         self.assertIn("url: 'https://happypetproductreviews.com'\n", config)
         self.assertEqual(self.ix.SITE, "https://happypetproductreviews.com")
 
+    def test_the_post_permalink_matches_config(self):
+        # url_for hard-codes Jekyll's post rule; a new permalink must fail here first.
+        config = (REPO / "_config.yml").read_text(encoding="utf-8")
+        self.assertRegex(config, r"(?m)^permalink: /:categories/:title/\r?$")
+
+    def test_find_key_needs_exactly_one_key_file(self):
+        other = "0123456789abcdef0123456789abcdef"
+        for name, files, found in (
+                ("no key", {"README.md": "x", f"{other}.txt": "not its own name"}, 0),
+                ("two keys", {f"{self.KEY}.txt": self.KEY, f"{other}.txt": other}, 2)):
+            with self.subTest(name), tempfile.TemporaryDirectory() as tmp:
+                for fname, text in files.items():
+                    (Path(tmp) / fname).write_text(text, encoding="utf-8")
+                with patch.object(self.ix, "REPO", Path(tmp)), \
+                        self.assertRaises(SystemExit) as raised:
+                    self.ix.find_key()
+                self.assertEqual(str(raised.exception),
+                                 f"indexnow: expected one key file at the repo root, found {found}")
+
+    def test_fetch_sitemap_reads_the_live_sitemap_through_the_opener(self):
+        asked = []
+
+        def opener(url, timeout):
+            asked.append(url)
+            resp = MagicMock()
+            resp.read.return_value = (b"<urlset><url><loc>https://happypetproductreviews.com/a/</loc>"
+                                      b"</url><url><loc>https://example.com/b/</loc></url></urlset>")
+            resp.__enter__.return_value = resp
+            return resp
+
+        with patch("urllib.request.urlopen", side_effect=AssertionError("no network in tests")):
+            self.assertEqual(self.ix.fetch_sitemap(opener=opener),
+                             ["https://happypetproductreviews.com/a/"])
+        self.assertEqual(asked, ["https://happypetproductreviews.com/sitemap.xml"])
+
+    def test_main_sitemap_submits_the_sitemap_urls(self):
+        import io
+        urls = ["https://happypetproductreviews.com/", "https://happypetproductreviews.com/a/"]
+        with patch.object(self.ix, "fetch_sitemap", return_value=urls), \
+                patch.object(self.ix, "submit", return_value=True) as submit, \
+                contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(self.ix.main(["sitemap"]), 0)
+            submit.assert_called_once_with({
+                "host": "happypetproductreviews.com", "key": self.KEY,
+                "keyLocation": f"https://happypetproductreviews.com/{self.KEY}.txt",
+                "urlList": urls})
+            submit.reset_mock()
+            self.assertEqual(self.ix.main(["sitemap", "--dry-run"]), 0)
+            submit.assert_not_called()
+
+    def test_main_sitemap_logs_an_unreadable_sitemap_and_sends_nothing(self):
+        import io
+        import urllib.error
+        out = io.StringIO()
+        with patch.object(self.ix, "fetch_sitemap", side_effect=urllib.error.URLError("unreachable")), \
+                patch.object(self.ix, "submit") as submit, contextlib.redirect_stdout(out):
+            self.assertEqual(self.ix.main(["sitemap"]), 0)
+        submit.assert_not_called()
+        self.assertEqual(out.getvalue(),
+                         "indexnow: could not read the live sitemap: <urlopen error unreachable>\n")
+
+    def test_main_logs_a_failed_git_diff_and_sends_nothing(self):
+        import io
+        out = io.StringIO()
+        with tempfile.TemporaryDirectory() as tmp:
+            self._git_repo(tmp)("init", "-q")
+            with patch.object(self.ix, "REPO", Path(tmp)), \
+                    patch.object(self.ix, "submit") as submit, contextlib.redirect_stdout(out):
+                self.assertEqual(self.ix.main(["changed", "abc1234", "def5678"]), 0)
+        submit.assert_not_called()
+        self.assertTrue(out.getvalue().startswith("indexnow: git could not diff abc1234..def5678: "),
+                        out.getvalue())
+        self.assertIn("abc1234", out.getvalue().split(": ", 2)[2])
+
     def test_the_payload(self):
         self.assertEqual(self.ix.build_payload(self.KEY, ["https://happypetproductreviews.com/a/"]), {
             "host": "happypetproductreviews.com",
@@ -14683,6 +14801,20 @@ class TestIndexNow(unittest.TestCase):
                 with contextlib.redirect_stdout(out):
                     self.assertFalse(self.ix.submit(payload, opener=opener))
                 self.assertIn("indexnow:", out.getvalue())
+
+    def test_an_http_error_logs_its_status_and_body(self):
+        import io
+        import urllib.error
+        payload = self.ix.build_payload(self.KEY, ["https://happypetproductreviews.com/a/"])
+        for code in (403, 422, 429):
+            def opener(req, timeout):
+                raise urllib.error.HTTPError(req.full_url, code, "no", {}, io.BytesIO(b"key not valid"))
+            with self.subTest(code=code):
+                out = io.StringIO()
+                with contextlib.redirect_stdout(out):
+                    self.assertFalse(self.ix.submit(payload, opener=opener))
+                self.assertEqual(out.getvalue(),
+                                 f"indexnow: HTTP {code} (not accepted) for 1 URL(s): key not valid\n")
 
     def test_main_never_fails_the_job(self):
         import io
