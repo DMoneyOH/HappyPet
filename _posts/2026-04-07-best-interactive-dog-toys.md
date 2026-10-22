@@ -169,8 +169,8 @@ Technically a chew toy, but the hollow center takes treats, peanut butter or fro
 | Product | Best For | Independent Play? | Durability | Check price |
 |---|---|---|---|---|
 | [Chuckit! Ultra Ball](https://www.amazon.com/dp/B000F4AVPA?th=1&tag=happypetdc-20) | Outdoor fetch, active dogs | No, needs you | High | [On Amazon](https://www.amazon.com/dp/B000F4AVPA?th=1&tag=happypetdc-20) |
-| Kong Wobbler | Treat-motivated dogs, slow feeders | Yes | High | - |
-| PetSafe Tug-A-Jug | Dogs who like to tug | Partial | Medium | - |
+| Kong Wobbler | Treat-motivated dogs, slow feeders | Yes | High | [On Amazon](https://www.amazon.com/dp/B003ALMW0M?th=1&tag=happypetdc-20) |
+| PetSafe Tug-A-Jug | Dogs who like to tug | Partial | Medium | [On Amazon](https://www.amazon.com/dp/B000KV7ZGQ?th=1&tag=happypetdc-20) |
 | Frisco Hide and Seek | Gentle dogs, scent play | Yes | Low | - |
 | Outward Hound Hide-A-Squirrel | Plush-loving dogs, scent play | Yes, once loaded | Medium | [On Amazon](https://www.amazon.com/dp/B005VS9WO6?tag=happypetdc-20) |
 | Nina Ottosson Dog Tornado | Puzzle solvers who like rotating challenges | Yes, once loaded | Medium | [On Amazon](https://www.amazon.com/dp/B07239T47Y?tag=happypetdc-20) |

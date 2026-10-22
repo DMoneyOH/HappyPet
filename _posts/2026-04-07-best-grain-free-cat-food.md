@@ -2,6 +2,7 @@
 layout: post
 title: "Best Grain-Free Cat Food"
 date: 2026-04-07
+last_modified_at: 2026-10-21
 categories: [food]
 redirect_from:
   - /cat-food/best-grain-free-cat-food/
@@ -91,10 +92,10 @@ Wellness CORE is another strong contender in the grain-free cat food arena, and 
 
 | Product | Best For | Price Range | Rating | Check price |
 | :-------------------------------------------- | :------------------------------------------- | :---------- | :--------- | --- |
-| Blue Buffalo Wilderness Grain-Free Dry Cat Food | Overall best, sensitive stomachs, active cats | $$ | ⭐⭐⭐⭐⭐ | [On Amazon](https://www.amazon.com/dp/B002UT92EY?tag=happypetdc-20) |
-| Merrick Purrfect Bistro Grain-Free Dry Cat Food | Picky eaters, digestive support, diverse proteins | $$ | ⭐⭐⭐⭐ | - |
-| Taste of the Wild Rocky Mountain Grain-Free Dry Cat Food | Unique protein needs, strong immune system | $$ | ⭐⭐⭐⭐ | - |
-| Wellness CORE Grain-Free Dry Cat Food | Weight management, urinary health, lean muscle | $$$ | ⭐⭐⭐⭐ | - |
+| Blue Buffalo Wilderness Grain-Free Dry Cat Food | Overall best, sensitive stomachs, active cats | $$ | 4.7/5 (as of Oct 21, 2026) | [On Amazon](https://www.amazon.com/dp/B002UT92EY?tag=happypetdc-20) |
+| Merrick Purrfect Bistro Grain-Free Dry Cat Food | Picky eaters, digestive support, diverse proteins | $$ | 4.6/5 (as of Oct 21, 2026) | [On Amazon](https://www.amazon.com/dp/B0GKB61TMZ?tag=happypetdc-20) |
+| Taste of the Wild Rocky Mountain Grain-Free Dry Cat Food | Unique protein needs, strong immune system | $$ | 4.7/5 (as of Oct 21, 2026) | [On Amazon](https://www.amazon.com/dp/B07KNF5SPY?tag=happypetdc-20) |
+| Wellness CORE Grain-Free Dry Cat Food | Weight management, urinary health, lean muscle | $$$ | 4.4/5 (as of Oct 21, 2026) | [On Amazon](https://www.amazon.com/dp/B06XB1Y6NV?tag=happypetdc-20) |
 
 ## Buying Guide: Choosing the Right Grain-Free Cat Food
 

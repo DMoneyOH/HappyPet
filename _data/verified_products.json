@@ -95,6 +95,18 @@
     {
       "asin": "B002UT92EY",
       "name": "Blue Buffalo Wilderness Grain-Free Cat Food"
+    },
+    {
+      "asin": "B07KNF5SPY",
+      "name": "Taste of the Wild Rocky Mountain Grain-Free Dry Cat Food"
+    },
+    {
+      "asin": "B06XB1Y6NV",
+      "name": "Wellness CORE Grain-Free Dry Cat Food"
+    },
+    {
+      "asin": "B0GKB61TMZ",
+      "name": "Merrick Purrfect Bistro Grain-Free Dry Cat Food"
     }
   ],
   "best-interactive-cat-toys": [
@@ -123,6 +135,14 @@
     {
       "asin": "B000AYN7LU",
       "name": "KONG Classic (medium)"
+    },
+    {
+      "asin": "B003ALMW0M",
+      "name": "Kong Wobbler"
+    },
+    {
+      "asin": "B000KV7ZGQ",
+      "name": "PetSafe Busy Buddy Tug-A-Jug"
     }
   ],
   "best-pet-cameras": [
@@ -212,6 +232,14 @@
     {
       "asin": "B003ULL1NQ",
       "name": "Cosequin Joint Chews for Dogs"
+    },
+    {
+      "asin": "B0041OOPK2",
+      "name": "Dasuquin With MSM"
+    },
+    {
+      "asin": "B07RM62JYB",
+      "name": "Zesty Paws Hip & Joint Bites for Dogs"
     }
   ],
   "best-dog-anxiety-vest": [
@@ -272,6 +300,14 @@
       "asin": null,
       "search": "Purina Pro Plan Veterinary Supplements FortiFlora Daily Probiotics for Dogs, 30 ct",
       "name": "Purina Pro Plan Veterinary Supplements FortiFlora Daily Probiotics for Dogs, 30 ct"
+    },
+    {
+      "asin": "B0050JM626",
+      "name": "Nutramax Proviable 30 Capsules"
+    },
+    {
+      "asin": "B01N17VJF7",
+      "name": "Zesty Paws Probiotics DE111 Pumpkin 90ct"
     }
   ],
   "best-cat-harness-leash": [
@@ -374,6 +410,14 @@
     {
       "asin": "B07KHPLFMS",
       "name": "Texsens Bubble Backpack Carrier"
+    },
+    {
+      "asin": "B09YYKFLMQ",
+      "name": "Lekebobor Expandable Pet Carrier"
+    },
+    {
+      "asin": "B0F7XJHX9L",
+      "name": "Pecute Large Space Carrier"
     }
   ],
   "best-dog-ramps": [

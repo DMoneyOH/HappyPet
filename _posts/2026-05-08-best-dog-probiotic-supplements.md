@@ -70,8 +70,8 @@ This high-count bottle suits owners looking for a longer-term daily supplement w
 | Product | Best For | Price Range | Form | Check price |
 |---|---|---|---|---|
 | Purina FortiFlora Daily Probiotics 30ct | Acute diarrhea, immune support, daily use | $$ | Powder sachet | [On Amazon](https://www.amazon.com/s?k=Purina+Pro+Plan+FortiFlora&tag=happypetdc-20) |
-| Nutramax Proviable 30 Capsules | Post-antibiotic recovery, multi-strain support | $$ | Capsule | - |
-| Zesty Paws Probiotics DE111 Pumpkin 90ct | Picky eaters, mild ongoing digestive support | $$ | Soft chew | - |
+| Nutramax Proviable 30 Capsules | Post-antibiotic recovery, multi-strain support | $$ | Capsule | [On Amazon](https://www.amazon.com/dp/B0050JM626?tag=happypetdc-20) |
+| Zesty Paws Probiotics DE111 Pumpkin 90ct | Picky eaters, mild ongoing digestive support | $$ | Soft chew | [On Amazon](https://www.amazon.com/dp/B01N17VJF7?tag=happypetdc-20) |
 | Probiotics Dogs Gut Health 120ct | Daily maintenance, multi-dog households | $ | Capsule/tablet | - |
 
 A probiotic sits alongside consistent nutrition, regular exercise and routine veterinary care. It does not replace any of them.
