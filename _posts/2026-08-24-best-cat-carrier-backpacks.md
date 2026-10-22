@@ -2,7 +2,6 @@
 layout: post
 title: "Best Cat Carrier Backpacks for Safe, Hands-Free Adventures"
 date: 2026-08-24
-last_modified_at: 2026-10-21
 categories: [carriers]
 redirect_from:
   - /cat-carriers/best-cat-carrier-backpacks/

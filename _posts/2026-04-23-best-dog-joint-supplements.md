@@ -36,9 +36,9 @@ The strongest evidence so far finds no pain-relief effect from glucosamine and c
 | Product | Best for | Form | Main ingredients | Price range | Check price |
 |---|---|---|---|---|---|
 | Nutramax Welactin Canine Softgels | Owners who want the ingredient the research backs | Softgel capsule | Omega-3 fish oil: EPA and DHA | $$ | [On Amazon](https://www.amazon.com/dp/B001L1BM2W?th=1&tag=happypetdc-20) |
-| Nutramax Cosequin Joint Supplement for Dogs, Chewable Tablets, 132 ct (with MSM) | A simple glucosamine formula | Chewable tablet | Glucosamine, chondroitin, MSM | - | [On Amazon](https://www.amazon.com/dp/B003ULL1NQ?th=1&tag=happypetdc-20) |
-| Dasuquin With MSM | Owners who want more than the core three | Soft chew or chewable tablet | Glucosamine, chondroitin, MSM, ASU, Boswellia, green tea extract | $49.99 (as of Oct 21, 2026) | [On Amazon](https://www.amazon.com/dp/B0041OOPK2?th=1&tag=happypetdc-20) |
-| Zesty Paws Hip & Joint Bites for Dogs | Dogs who refuse tablets | Chewable bite | Glucosamine, chondroitin, OptiMSM, vitamins E and C | - | - |
+| Nutramax Cosequin Joint Supplement for Dogs, Chewable Tablets, 132 ct (with MSM) | A simple glucosamine formula | Chewable tablet | Glucosamine, chondroitin, MSM | $$ | [On Amazon](https://www.amazon.com/dp/B003ULL1NQ?th=1&tag=happypetdc-20) |
+| Dasuquin With MSM | Owners who want more than the core three | Soft chew or chewable tablet | Glucosamine, chondroitin, MSM, ASU, Boswellia, green tea extract | $$$ | [On Amazon](https://www.amazon.com/dp/B0041OOPK2?th=1&tag=happypetdc-20) |
+| Zesty Paws Hip & Joint Bites for Dogs | Dogs who refuse tablets | Chewable bite | Glucosamine, chondroitin, OptiMSM, vitamins E and C | - | [On Amazon](https://www.amazon.com/dp/B07RM62JYB?th=1&tag=happypetdc-20) |
 
 ### Featured pick: Nutramax Welactin Canine Softgels
 
@@ -56,7 +56,7 @@ If you and your vet decide to try a joint supplement, start with [Nutramax Welac
 
 ### The glucosamine option: Nutramax Cosequin Joint Supplement for Dogs, Chewable Tablets, 132 ct (with MSM)
 
-Cosequin carries a **4.7/5** rating on Amazon from **80,241 ratings** (as of Oct 19, 2026). Each chewable tablet pairs glucosamine, chondroitin and MSM. It is the simplest glucosamine formula on this page: the three standard joint ingredients, with nothing extra to sort through.
+Cosequin carries a **4.7/5** rating on Amazon from **80,241 ratings** (as of Oct 19, 2026). It costs $34.91 (as of Oct 21, 2026). Each chewable tablet pairs glucosamine, chondroitin and MSM. It is the simplest glucosamine formula on this page: the three standard joint ingredients, with nothing extra to sort through.
 
 **Pros**
 - A short, clear ingredient label
@@ -71,7 +71,7 @@ If you and your vet want a glucosamine supplement instead, start with [Nutramax 
 
 #### Dasuquin With MSM
 
-Dasuquin comes as soft chews and as chewable tablets, so check which one you are buying. Alongside glucosamine, chondroitin and MSM, it adds avocado/soybean unsaponifiables (ASU), Boswellia serrata extract and green tea extract. The tablets come in separate strengths for small-to-medium dogs and for large dogs. Those extra ingredients are the main difference from Cosequin. Omega-3, the ingredient with the best evidence above, is not on its list.
+Dasuquin comes as soft chews and as chewable tablets, so check which one you are buying. Alongside glucosamine, chondroitin and MSM, it adds avocado/soybean unsaponifiables (ASU), Boswellia serrata extract and green tea extract. The tablets come in separate strengths for small-to-medium dogs and for large dogs. Those extra ingredients are the main difference from Cosequin. Omega-3, the ingredient with the best evidence above, is not on its list. The Amazon listing in the table costs $49.99 (as of Oct 21, 2026).
 
 #### Zesty Paws Hip & Joint Bites for Dogs
 

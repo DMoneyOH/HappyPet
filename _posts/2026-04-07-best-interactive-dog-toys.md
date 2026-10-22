@@ -2,7 +2,6 @@
 layout: post
 title: "Best Interactive Dog Toys to Keep Your Pup Busy"
 date: 2026-04-07
-last_modified_at: 2026-10-21
 categories: [toys]
 redirect_from:
   - /dog-toys/best-interactive-dog-toys/

@@ -2,7 +2,6 @@
 layout: post
 title: "Best Dog Probiotic Supplements for Gut Health and Digestion"
 date: 2026-05-08
-last_modified_at: 2026-10-21
 categories: [supplements]
 redirect_from:
   - /dog-health/best-dog-probiotic-supplements/
