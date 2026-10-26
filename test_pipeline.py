@@ -13252,6 +13252,40 @@ class TestPublishWritesTheHub(unittest.TestCase):
         self.assertEqual(sorted(set(re.findall(r"\bgh (\w+ \w+)", script))),
                          ["issue create", "issue list"])
 
+    def test_a_pin_article_url_adds_no_line_to_the_step_outputs(self):
+        """The dating step writes its own four outputs and nothing else: a
+        newline inside a pin JSON article_url must not add or override a line
+        in GITHUB_OUTPUT."""
+        import shlex
+        import subprocess
+        bash, why = _bash_for_workflow_steps()
+        if not bash:
+            self.skipTest(why)
+        with tempfile.TemporaryDirectory() as d:
+            tmp = Path(d)
+            _scratch_site_with_posts(tmp, {"treats": 1}, drafts=["treats"])
+            (tmp / "_pin_queue").mkdir()
+            (tmp / "_pin_queue" / "best-treats-new.json").write_text(
+                json.dumps({"article_url": "https://example.invalid/a/\nslugs=injected"}),
+                encoding="utf-8")
+            for args in (["init", "-q"], ["add", "-A"], ["commit", "-q", "-m", "fixture"]):
+                subprocess.run(["git", "-c", "core.autocrlf=false", "-c", "user.name=t",
+                                "-c", "user.email=t@example.invalid", *args],
+                               cwd=tmp, capture_output=True, check=True)
+            python = shlex.quote(Path(sys.executable).as_posix())
+            _, date_step = self._step("Find and date unpublished posts")
+            script = (date_step.replace("${{ steps.cap.outputs.cap }}", "1")
+                      .replace("python3 ", python + " "))
+            output = tmp / "github_output"
+            run = subprocess.run([bash, "--noprofile", "--norc", "-eo", "pipefail", "-c", script],
+                                 cwd=tmp, capture_output=True, text=True, encoding="utf-8",
+                                 env=dict(os.environ, GITHUB_OUTPUT=output.as_posix(),
+                                          GIT_CONFIG_PARAMETERS="'core.autocrlf=false'"))
+            self.assertEqual(run.returncode, 0, run.stdout + run.stderr)
+            lines = output.read_text(encoding="utf-8").splitlines()
+        self.assertEqual(lines, ["nothing_to_publish=false", "slugs=best-treats-new",
+                                 "publish_count=1", "remaining=0"])
+
 
 class TestPublishedRootIsAllowlisted(unittest.TestCase):
     """Jekyll publishes every root file and folder that is not underscore- or
