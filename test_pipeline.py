@@ -8127,10 +8127,12 @@ class TestProductReviewStructuredData(unittest.TestCase):
         price fails Search Console validation. A review alone keeps the page
         eligible for Product snippets. Checked against the JSON-LD block with
         Liquid comments stripped, so the note explaining the decision does not
-        itself trip the guard."""
+        itself trip the guard. Matched case-insensitively, so lowPrice,
+        priceCurrency, OfferShippingDetails and MerchantReturnPolicy are caught
+        along with brand and gtin."""
         emitted = re.sub(r"\{%-?\s*comment\s*-?%\}.*?\{%-?\s*endcomment\s*-?%\}",
-                         "", self._block(), flags=re.S)
-        for needle in ("offers", "Offer", "price"):
+                         "", self._block(), flags=re.S).lower()
+        for needle in ("offer", "price", "brand", "gtin", "shipping", "returnpolicy"):
             with self.subTest(needle=needle):
                 self.assertNotIn(needle, emitted)
 
