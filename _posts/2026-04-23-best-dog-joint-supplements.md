@@ -2,7 +2,7 @@
 layout: post
 title: "Best Hip and Joint Supplements for Dogs"
 date: 2026-04-23
-last_modified_at: 2026-10-21
+last_modified_at: 2026-10-27
 categories: [supplements]
 redirect_from:
   - /dog-health/best-dog-joint-supplements/
@@ -12,6 +12,16 @@ description: "4 hip and joint supplements for dogs compared, led by an omega-3, 
 affiliate_url: "https://www.amazon.com/dp/B001L1BM2W?th=1&tag=happypetdc-20"
 product_short: "Nutramax Welactin Canine Softgels"
 image: "https://images-na.ssl-images-amazon.com/images/P/B001L1BM2W.01.LZZZZZZZ.jpg"
+answer: "For dogs with osteoarthritis, the research favors omega-3 fish oil over glucosamine for pain relief. A 2022 review of dog and cat osteoarthritis trials found a pain-relief benefit from omega-3 and did not find one from glucosamine and chondroitin. Our pick is Nutramax Welactin Canine Softgels, which list their EPA and DHA per softgel. Ask your vet about dosing."
+faq:
+  - q: "How long does a joint supplement take to work in dogs?"
+    a: "A 2007 trial of 35 dogs with osteoarthritis found vet-rated pain scores improving by day 70 on glucosamine and chondroitin. It compared the supplement with the drug carprofen, not a placebo, and a 2022 review of dog and cat trials did not find a pain-relief benefit from those two. Agree a trial period with your vet, decide how to judge it, and stop if nothing changes."
+  - q: "Is fish oil good for a dog's joints?"
+    a: "For dogs with osteoarthritis, omega-3 fatty acids, which fish oil supplies, are the ingredient with the best evidence on this page. A 2022 review of dog and cat trials found a pain-relief benefit. A 2012 review of nutraceutical trials in horses, dogs and cats rated the evidence low for all of them except omega-3 fatty acids in dogs."
+  - q: "Do expensive dog joint supplements work better?"
+    a: "Nothing in the research on this page suggests a pricier formula works better. Pay for a clear label that lists each ingredient's amount per dose, and treat claims like 'clinically proven' as marketing unless the brand names a study that tested that formula."
+  - q: "What if my dog won't take a supplement tablet?"
+    a: "Joint supplements come in several forms, including softgels and soft chews. A supplement your dog refuses can't help much, so choose a form your dog accepts. This guide lists Zesty Paws Hip & Joint Bites for dogs that refuse tablets."
 ---
 
 **Quick pick:** The strongest research favors omega-3 fatty acids over glucosamine. Our pick is [Nutramax Welactin Canine Softgels on Amazon](https://www.amazon.com/dp/B001L1BM2W?th=1&tag=happypetdc-20), an omega-3 fish oil softgel with its EPA and DHA on the label. Ask your vet about the dose before you start.
@@ -27,7 +37,7 @@ The strongest evidence so far finds no pain-relief effect from glucosamine and c
 
 **An earlier review pointed the same way.** It covered controlled trials in horses, dogs and cats and judged the evidence for most nutraceuticals poor. The exception was diets supplemented with omega-3 fatty acids in dogs. (Vandeweerd et al., *Journal of Veterinary Internal Medicine*, 2012, [doi:10.1111/j.1939-1676.2012.00901.x](https://doi.org/10.1111/j.1939-1676.2012.00901.x))
 
-**One trial found a benefit, with real limits.** 35 dogs with hip or elbow osteoarthritis got glucosamine/chondroitin or carprofen, an anti-inflammatory pain medication vets use for arthritis. Vet-rated pain, weight-bearing and severity improved by day 70, more slowly than with carprofen. There was no placebo group, and a later appraisal flagged non-random allocation, a subjective outcome, dropouts and manufacturer funding. (McCarthy et al., *The Veterinary Journal*, 2007, [doi:10.1016/j.tvjl.2006.02.015](https://doi.org/10.1016/j.tvjl.2006.02.015))
+**One trial found a benefit, with real limits.** 35 dogs with hip or elbow osteoarthritis got glucosamine/chondroitin or carprofen, an anti-inflammatory pain medication vets use for arthritis. Vet-rated pain, weight-bearing and severity improved by day 70, more slowly than with carprofen. There was no placebo group. (McCarthy et al., *The Veterinary Journal*, 2007, [doi:10.1016/j.tvjl.2006.02.015](https://doi.org/10.1016/j.tvjl.2006.02.015))
 
 **What this means for your dog:** if your dog is stiff, talk to your vet about omega-3 first. Treat a glucosamine supplement as an optional extra, not a treatment.
 
@@ -80,11 +90,11 @@ You may still see this one sold as Mobility Bites. It is a chewable, treat-style
 ## How to choose a joint supplement for your dog
 
 1. **Start with your vet.** Stiffness has more than one cause, and your vet can check for the ones a supplement cannot reach and talk you through pain relief.
-2. **Ask about omega-3 first.** In the research above, omega-3 diets and supplements had the clearest evidence. Some senior dog foods already include an omega-3, and our [senior dog food guide](/food/best-senior-dog-food/) lists a formula with EPA. If you add a supplement, look for EPA and DHA amounts per dose, like the ones on our featured pick.
+2. **Ask about omega-3 first.** In the research above, omega-3 diets and supplements had the clearest evidence for dogs with osteoarthritis. Some senior dog foods already include an omega-3, and our [senior dog food guide](/food/best-senior-dog-food/) lists a formula with EPA. If you add a supplement, look for EPA and DHA amounts per dose, like the ones on our featured pick.
 3. **Read the label, not the claims.** Look for each ingredient's amount per tablet or chew, and a dose chart by weight. Treat words like "vet-approved" or "clinically proven" as marketing unless the brand names the study and the study tested that formula.
-4. **Pick a form your dog will take.** Softgels, chewable tablets, soft chews and treat-style bites all exist. A supplement your dog refuses does nothing.
+4. **Pick a form your dog will take.** Softgels, chewable tablets, soft chews and treat-style bites all exist. A supplement your dog refuses can't help much.
 5. **Pay for a clear label, not a promise.** Nothing in the research above suggests a pricier formula works better.
-6. **Set a trial with your vet.** In the one positive trial, changes showed by day 70. Agree up front on how you will judge it, and stop if nothing changes.
+6. **Set a trial with your vet.** A 2007 trial of 35 dogs with osteoarthritis found vet-rated pain scores improving by day 70 on glucosamine and chondroitin. It compared the supplement with the drug carprofen, not a placebo. Agree up front on how you will judge it, and stop if nothing changes.
 
 ## The bottom line
 
