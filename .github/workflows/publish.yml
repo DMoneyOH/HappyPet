@@ -157,10 +157,23 @@ jobs:
           echo "nothing_to_publish=false" >> "$GITHUB_OUTPUT"
           SELECTED=("${ALL_NEW[@]:0:$CAP}")
           SLUGS=()
-          URLS=()
           for p in "${SELECTED[@]}"; do
             fname=$(basename "$p" .md)
             slug="${fname#DRAFT-}"
+            # The slug goes to GITHUB_OUTPUT and into later steps' scripts, so it
+            # must be a post slug. git ls-files C-quotes a name holding a newline,
+            # a quote or a non-ASCII letter, and the quote marks fail this too.
+            if ! [[ "$slug" =~ ^[a-z0-9]+(-[a-z0-9]+)*$ ]]; then
+              echo "::error::${p} is not DRAFT-<post slug>.md (lowercase letters, digits, single hyphens); rename it"
+              exit 1
+            fi
+            # A pin JSON that does not parse stops the publish here: its pin
+            # would fail after the post went out.
+            pin_json="_pin_queue/${slug}.json"
+            if [ -f "$pin_json" ] && ! python3 -c 'import json, sys; d = json.load(open(sys.argv[1], encoding="utf-8")); sys.exit(not (isinstance(d, dict) and isinstance(d.get("article_url", ""), str)))' "$pin_json"; then
+              echo "::error::${pin_json} is not a pin JSON object with a text article_url"
+              exit 1
+            fi
             SLUGS+=("$slug")
             new_path="_posts/${TODAY}-${slug}.md"
             git rm --cached "$p" -q 2>/dev/null || true
@@ -169,17 +182,9 @@ jobs:
             git add "$new_path"
             pin_img="assets/images/pins/${slug}.jpg"
             [ -f "$pin_img" ] && git add "$pin_img" && echo "  STAGED pin: $pin_img"
-            pin_json="_pin_queue/${slug}.json"
-            if [ -f "$pin_json" ]; then
-              art_url=$(python3 -c "import json; d=json.load(open('${pin_json}')); print(d.get('article_url','').split('?')[0].rstrip('/')+'/')")
-              URLS+=("$art_url")
-              echo "  URL: $art_url"
-            fi
           done
           SLUGS_CSV=$(IFS=','; echo "${SLUGS[*]}")
-          URLS_CSV=$(IFS=','; echo "${URLS[*]}")
           echo "slugs=${SLUGS_CSV}" >> "$GITHUB_OUTPUT"
-          echo "urls=${URLS_CSV}"   >> "$GITHUB_OUTPUT"
           echo "publish_count=${#SELECTED[@]}" >> "$GITHUB_OUTPUT"
           REMAINING=$(( TOTAL - ${#SELECTED[@]} ))
           echo "remaining=${REMAINING}" >> "$GITHUB_OUTPUT"

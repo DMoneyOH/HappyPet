@@ -6335,6 +6335,13 @@ class TestAutoMergePublishWiring(unittest.TestCase):
         self.assertIn("pull_request:", ci)
         self.assertIn("test_pipeline.py", ci)
 
+    def test_ci_runs_every_file_pytest_ini_names(self):
+        """A file in pytest.ini's testpaths runs locally; CI must run it too."""
+        ini = (REPO / "pytest.ini").read_text(encoding="utf-8")
+        local = re.search(r"^testpaths\s*=\s*(.+)$", ini, re.M).group(1).split()
+        ci = re.search(r"python3 -m pytest (.+) -q$", self._wf("test.yml"), re.M).group(1).split()
+        self.assertEqual(sorted(ci), sorted(local))
+
 
 class TestPinPhotoGuard(unittest.TestCase):
     """The cloud container can't reach Amazon image hosts, so a routine-generated
@@ -8127,10 +8134,15 @@ class TestProductReviewStructuredData(unittest.TestCase):
         price fails Search Console validation. A review alone keeps the page
         eligible for Product snippets. Checked against the JSON-LD block with
         Liquid comments stripped, so the note explaining the decision does not
-        itself trip the guard."""
+        itself trip the guard. Matched case-insensitively, so lowPrice,
+        priceCurrency, OfferShippingDetails and MerchantReturnPolicy are caught
+        along with brand and gtin. JSON \\u escapes are decoded first, since a
+        JSON reader takes "\\u006fffers" as "offers"."""
         emitted = re.sub(r"\{%-?\s*comment\s*-?%\}.*?\{%-?\s*endcomment\s*-?%\}",
                          "", self._block(), flags=re.S)
-        for needle in ("offers", "Offer", "price"):
+        emitted = re.sub(r"\\u([0-9a-fA-F]{4})", lambda m: chr(int(m.group(1), 16)),
+                         emitted).lower()
+        for needle in ("offer", "price", "brand", "gtin", "shipping", "returnpolicy"):
             with self.subTest(needle=needle):
                 self.assertNotIn(needle, emitted)
 
@@ -12639,6 +12651,31 @@ def _bash_for_workflow_steps():
     return None, "no bash 4+ (publish.yml uses mapfile) outside WSL"
 
 
+def _git_fixture_repo(tmp):
+    """Make tmp a git repo with everything in it committed, line endings as
+    written. Returns git(*args), which returns git's stdout."""
+    import subprocess
+
+    def git(*args):
+        return subprocess.run(["git", "-c", "core.autocrlf=false", "-c", "user.name=t",
+                               "-c", "user.email=t@example.invalid", *args],
+                              cwd=tmp, capture_output=True, text=True, check=True).stdout
+    git("init", "-q")
+    git("add", "-A")
+    git("commit", "-q", "-m", "fixture")
+    return git
+
+
+def _publish_date_script():
+    """publish.yml's dating step as the runner gets it on a cap-1 day, with
+    `python3` pointed at this interpreter."""
+    import shlex
+    _, script = _named_step((WORKFLOWS / "publish.yml").read_text(encoding="utf-8"),
+                            "Find and date unpublished posts")
+    return (script.replace("${{ steps.cap.outputs.cap }}", "1")
+            .replace("python3 ", shlex.quote(Path(sys.executable).as_posix()) + " "))
+
+
 # The hub layout's intro and how-we-choose markup, as rendered, per front-matter field.
 HUB_FIELD_MARKUP = {"intro": '<p class="standfirst">{}</p>',
                     "how_we_choose": '<p class="hub-method"><b>How we choose:</b> {}</p>'}
@@ -13076,16 +13113,8 @@ class TestPublishWritesTheHub(unittest.TestCase):
         _scratch_site_with_posts(tmp, {"treats": earlier_posts}, hub_copy=hub_copy,
                                  drafts=["treats"])
         (tmp / "runner_temp").mkdir()
-
-        def git(*args):
-            return subprocess.run(["git", "-c", "core.autocrlf=false", "-c", "user.name=t",
-                                   "-c", "user.email=t@example.invalid", *args],
-                                  cwd=tmp, capture_output=True, text=True, check=True).stdout
-        git("init", "-q")
-        git("add", "-A")
-        git("commit", "-q", "-m", "fixture")
+        git = _git_fixture_repo(tmp)
         python = shlex.quote(Path(sys.executable).as_posix())
-        _, date_step = self._step("Find and date unpublished posts")
         _, hub_step = self._step(self.HUB_STEP)
         _, issue_step = self._step(self.ISSUE_STEP)
         env = dict(os.environ, GITHUB_OUTPUT=(tmp / "github_output").as_posix(),
@@ -13098,8 +13127,7 @@ class TestPublishWritesTheHub(unittest.TestCase):
             return subprocess.run([bash, "--noprofile", "--norc", "-eo", "pipefail", "-c", script],
                                   cwd=tmp, capture_output=True, text=True, encoding="utf-8",
                                   env=env)
-        steps = run(date_step.replace("${{ steps.cap.outputs.cap }}", "1")
-                    + hub_step.replace("python3 ", python + " "))
+        steps = run(_publish_date_script() + hub_step.replace("python3 ", python + " "))
         issue = None
         if steps.returncode != 0:
             stub = ('gh() {\n'
@@ -13249,6 +13277,80 @@ class TestPublishWritesTheHub(unittest.TestCase):
         self.assertEqual(_workflow_permissions(self.workflow)[0], PUBLISH_PERMISSIONS)
         self.assertEqual(sorted(set(re.findall(r"\bgh (\w+ \w+)", script))),
                          ["issue create", "issue list"])
+
+
+class TestPublishDatingStep(unittest.TestCase):
+    """publish.yml's "Find and date unpublished posts" step, run in bash on a
+    scratch git repo. Its slugs go to GITHUB_OUTPUT and into later steps'
+    scripts, so a DRAFT name that is not a post slug stops the publish. So
+    does a pin JSON that does not parse: its pin would fail after the post
+    went out."""
+
+    def _date(self, tmp, pin=None, drafts=("treats",), index_only=()):
+        """Run the step on a scratch site with one dated treats post and a
+        DRAFT-best-<topic>-new.md per topic in `drafts`. `pin` is the text of
+        best-treats-new's pin JSON. `index_only` names DRAFT paths put in git's
+        index only, for names this file system cannot hold. Returns
+        (process, GITHUB_OUTPUT lines)."""
+        _scratch_site_with_posts(tmp, {"treats": 1}, drafts=drafts)
+        if pin is not None:
+            (tmp / "_pin_queue").mkdir()
+            (tmp / "_pin_queue" / "best-treats-new.json").write_text(pin, encoding="utf-8")
+        git = _git_fixture_repo(tmp)
+        for name in index_only:
+            blob = git("hash-object", "-w", "_posts/2026-01-01-best-treats-0.md").strip()
+            # Git for Windows refuses such a name unless told it need not
+            # hold on NTFS; the runner's Linux git takes it as is.
+            git("-c", "core.protectNTFS=false",
+                "update-index", "--add", "--cacheinfo", f"100644,{blob},{name}")
+        output = tmp / "github_output"
+        proc, _ = _run_alert_step(self, _publish_date_script(),
+                                  {"GITHUB_OUTPUT": output.as_posix(),
+                                   "GIT_CONFIG_PARAMETERS": "'core.autocrlf=false'"}, tmp)
+        lines = output.read_text(encoding="utf-8").splitlines() if output.exists() else []
+        return proc, lines
+
+    def test_the_step_writes_its_four_outputs_and_nothing_else(self):
+        """A newline inside a pin JSON's article_url is valid JSON, and it adds
+        no line to GITHUB_OUTPUT."""
+        pin = json.dumps({"article_url": "https://example.invalid/a/\nslugs=injected"})
+        with tempfile.TemporaryDirectory() as d:
+            proc, lines = self._date(Path(d), pin=pin)
+        self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+        self.assertEqual(lines, ["nothing_to_publish=false", "slugs=best-treats-new",
+                                 "publish_count=1", "remaining=0"])
+
+    def test_a_pin_json_that_does_not_parse_stops_the_publish(self):
+        for label, pin in (("not JSON", "{not json"),
+                           ("not an object", "[]"),
+                           ("article_url not text", json.dumps({"article_url": 5}))):
+            with self.subTest(pin=label), tempfile.TemporaryDirectory() as d:
+                tmp = Path(d)
+                proc, lines = self._date(tmp, pin=pin)
+                self.assertNotEqual(proc.returncode, 0, proc.stdout)
+                self.assertIn("::error::_pin_queue/best-treats-new.json", proc.stdout)
+                self.assertEqual(lines, ["nothing_to_publish=false"])
+                self.assertTrue((tmp / "_posts" / "DRAFT-best-treats-new.md").exists())
+
+    def test_a_draft_name_that_is_not_a_post_slug_stops_the_publish(self):
+        """Checked before the post is moved, so nothing is dated. git ls-files
+        C-quotes a name holding a newline or a non-ASCII letter, and the
+        quote marks fail the check too."""
+        for label, kw in (("command substitution", {"drafts": ("$(touch pwned)",)}),
+                          ("backticks", {"drafts": ("`touch pwned`",)}),
+                          ("a space", {"drafts": ("dog treats",)}),
+                          ("uppercase", {"drafts": ("Treats",)}),
+                          ("non-ASCII, C-quoted", {"drafts": ("tr\u00e9ats",)}),
+                          ("a newline, C-quoted",
+                           {"drafts": (), "index_only": ("_posts/DRAFT-best-a\nslugs=x.md",)})):
+            with self.subTest(name=label), tempfile.TemporaryDirectory() as d:
+                tmp = Path(d)
+                proc, lines = self._date(tmp, **kw)
+                self.assertNotEqual(proc.returncode, 0, proc.stdout)
+                self.assertIn("is not DRAFT-<post slug>.md", proc.stdout)
+                self.assertEqual(lines, ["nothing_to_publish=false"])
+                posts = [p.name for p in (tmp / "_posts").iterdir()]
+                self.assertTrue(all(n.startswith(("2026-01-", "DRAFT-")) for n in posts), posts)
 
 
 class TestPublishedRootIsAllowlisted(unittest.TestCase):
@@ -13861,7 +13963,7 @@ def _parse_github_output(text):
 
 def _run_alert_step(testcase, script, env, cwd, open_issues=(), list_fails=False,
                     create_fails=False):
-    """Run an issue step's script in bash the way the runner does (-eo pipefail)
+    """Run a step's script in bash the way the runner does (-eo pipefail)
     with `gh` stubbed. Returns (completed process, gh calls as lists of args)."""
     import subprocess
     bash, why = _bash_for_workflow_steps()
@@ -14274,6 +14376,70 @@ class TestPinFailureIssue(_AlertIssueStep, unittest.TestCase):
         self.assertTrue(title.endswith(": no slugs resolved"), title)
 
 
+class TestPinResolveSlugs(unittest.TestCase):
+    """pin.yml's "Resolve slugs" step. Its list goes to GITHUB_OUTPUT and into
+    later steps' scripts, so whitespace in it is dropped, as deploy.yml drops
+    it when it dispatches, and a list of anything but post slugs stops the run."""
+
+    def _resolve(self, pending=None, dispatched=""):
+        """Run the step with `pending` (bytes) as _pin_queue/.pending-slugs, if
+        given, and `dispatched` as the workflow_dispatch input, which the step
+        reads from env. Returns (process, GITHUB_OUTPUT lines, names of the
+        files left in the working directory)."""
+        head, script = _named_step((WORKFLOWS / "pin.yml").read_text(encoding="utf-8"),
+                                   "Resolve slugs")
+        # deploy.yml dispatches .pending-slugs' content as the input, so the
+        # input must reach the step as data, never as script text.
+        self.assertIn("          INPUT_SLUGS: ${{ github.event.inputs.slugs }}\n", head)
+        self.assertNotIn("${{", script)
+        with tempfile.TemporaryDirectory() as d:
+            tmp = Path(d)
+            if pending is not None:
+                (tmp / "_pin_queue").mkdir()
+                (tmp / "_pin_queue" / ".pending-slugs").write_bytes(pending)
+            output = tmp / "github_output"
+            proc, _ = _run_alert_step(
+                self, script, {"GITHUB_OUTPUT": output.as_posix(), "INPUT_SLUGS": dispatched}, tmp)
+            lines = output.read_text(encoding="utf-8").splitlines() if output.exists() else []
+            files = sorted(p.name for p in tmp.iterdir())
+        return proc, lines, files
+
+    def test_a_slug_list_resolves_without_its_whitespace(self):
+        for label, kw in (("pending file", {"pending": b"best-a,best-b\n"}),
+                          ("CRLF pending file", {"pending": b"best-a,best-b\r\n"}),
+                          ("dispatch input", {"dispatched": "best-a, best-b"}),
+                          ("input over file", {"pending": b"best-c\n",
+                                               "dispatched": "best-a,best-b"})):
+            with self.subTest(source=label):
+                proc, lines, _ = self._resolve(**kw)
+                self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+                self.assertEqual(lines, ["slugs=best-a,best-b", "nothing_to_pin=false"])
+
+    def test_no_slugs_means_nothing_to_pin(self):
+        for label, kw in (("no file", {}), ("empty file", {"pending": b""}),
+                          ("blank file", {"pending": b" \r\n\n"})):
+            with self.subTest(source=label):
+                proc, lines, _ = self._resolve(**kw)
+                self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+                self.assertEqual(lines, ["slugs=", "nothing_to_pin=true"])
+
+    def test_a_list_of_anything_but_post_slugs_stops_the_run(self):
+        """A newline cannot add an output line, and shell text runs nowhere:
+        not here, and not in the later steps' scripts."""
+        hostile = 'best-a";touch${IFS}pwned;echo"'
+        for label, kw in (("a newline before an output", {"pending": b"best-a\nnothing_to_pin=true\n"}),
+                          ("a newline before a second slugs", {"pending": b"best-a\nslugs=best-z\n"}),
+                          ("command substitution", {"pending": b"best-a,$(touch pwned)\n"}),
+                          ("a quote", {"pending": b'best-a"; touch pwned; echo "\n'}),
+                          ("a quote, dispatched as deploy.yml does", {"dispatched": hostile})):
+            with self.subTest(source=label):
+                proc, lines, files = self._resolve(**kw)
+                self.assertNotEqual(proc.returncode, 0, proc.stdout)
+                self.assertIn("::error::", proc.stdout)
+                self.assertEqual(lines, [])
+                self.assertNotIn("pwned", files)
+
+
 class TestFacebookTokenIssue(_AlertIssueStep, unittest.TestCase):
     """refresh-facebook-token.yml: a failed monthly check opens one issue."""
 
@@ -14478,6 +14644,14 @@ class TestChewyValidationIssue(_AlertIssueStep, unittest.TestCase):
     def scenario_env(self):
         """ISSUE_BODY as the workflow's own "Build issue body" step writes it to
         GITHUB_ENV, from a validation report with one flagged link."""
+        issue_body = self._github_env([
+            {"slug": "best-a", "status": "MISMATCH", "detail": "wrong brand"},
+            {"slug": "best-b", "status": "OK", "detail": ""}])["ISSUE_BODY"]
+        return {"REPO": self.ISSUE_REPO, "ISSUE_BODY": issue_body}
+
+    def _github_env(self, results):
+        """GITHUB_ENV as the "Build issue body" step writes it from a validation
+        report holding `results`, parsed the way the runner reads it."""
         import shlex
         import subprocess
         bash, why = _bash_for_workflow_steps()
@@ -14486,16 +14660,21 @@ class TestChewyValidationIssue(_AlertIssueStep, unittest.TestCase):
         _, build = _named_step(self.workflow, "Build issue body")
         build = build.replace("python3 ", shlex.quote(Path(sys.executable).as_posix()) + " ")
         with tempfile.TemporaryDirectory() as d:
-            report = {"date": "2026-10-11", "results": [
-                {"slug": "best-a", "status": "MISMATCH", "detail": "wrong brand"},
-                {"slug": "best-b", "status": "OK", "detail": ""}]}
+            report = {"date": "2026-10-11", "results": results}
             (Path(d) / "chewy_link_validation_2026-10-11.json").write_text(json.dumps(report), encoding="utf-8")
             env_file = Path(d) / "github_env"
             subprocess.run([bash, "--noprofile", "--norc", "-eo", "pipefail", "-c", build], cwd=d,
                            env=dict(os.environ, GITHUB_ENV=env_file.as_posix()), check=True,
                            capture_output=True)
-            issue_body = _parse_github_output(env_file.read_text(encoding="utf-8"))["ISSUE_BODY"]
-        return {"REPO": self.ISSUE_REPO, "ISSUE_BODY": issue_body}
+            return _parse_github_output(env_file.read_text(encoding="utf-8"))
+
+    def test_a_detail_cannot_end_the_body_and_set_a_variable(self):
+        """A report line is data: a detail line reading BODY_EOF does not close
+        ISSUE_BODY, so the line after it sets no environment variable."""
+        detail = "x\nBODY_EOF\nEVIL=1"
+        env = self._github_env([{"slug": "best-a", "status": "ERROR", "detail": detail}])
+        self.assertEqual(list(env), ["ISSUE_BODY"])
+        self.assertIn(detail, env["ISSUE_BODY"])
 
     def test_the_trigger_and_token_are_unchanged(self):
         self.assertIn("        if: steps.validate.outputs.validation_failed == 'true'\n", self.head)

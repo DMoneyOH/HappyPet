@@ -51,18 +51,21 @@ jobs:
 
       - name: Resolve slugs
         id: resolve
+        env:
+          # deploy.yml dispatches .pending-slugs' content as this input, so it
+          # comes in through env, never as script text.
+          INPUT_SLUGS: ${{ github.event.inputs.slugs }}
         run: |
           # Manual trigger: use input if provided, else fall back to .pending-slugs
           # Automatic trigger (workflow_run): always read .pending-slugs
-          INPUT_SLUGS="${{ github.event.inputs.slugs }}"
           PENDING="_pin_queue/.pending-slugs"
 
           if [ -n "$INPUT_SLUGS" ]; then
             SLUGS="$INPUT_SLUGS"
-            echo "Slugs from workflow_dispatch input: ${SLUGS}"
+            echo "Slugs from workflow_dispatch input"
           elif [ -f "$PENDING" ]; then
             SLUGS=$(cat "$PENDING")
-            echo "Slugs from .pending-slugs: ${SLUGS}"
+            echo "Slugs from .pending-slugs"
           else
             echo "No slugs from input or .pending-slugs — nothing to pin"
             echo "slugs=" >> "$GITHUB_OUTPUT"
@@ -70,11 +73,21 @@ jobs:
             exit 0
           fi
 
+          # The list goes to GITHUB_OUTPUT and into later steps' scripts, so
+          # whitespace (a newline included) is dropped, as deploy.yml drops it
+          # when it dispatches, and anything but post slugs stops the run.
+          SLUGS=$(printf '%s' "$SLUGS" | tr -d '[:space:]')
+
           if [ -z "$SLUGS" ]; then
             echo "Empty slug list — nothing to pin"
             echo "slugs=" >> "$GITHUB_OUTPUT"
             echo "nothing_to_pin=true" >> "$GITHUB_OUTPUT"
             exit 0
+          fi
+
+          if ! [[ "$SLUGS" =~ ^[a-z0-9]+(-[a-z0-9]+)*(,[a-z0-9]+(-[a-z0-9]+)*)*$ ]]; then
+            echo "::error::The slug list is not comma-separated post slugs: ${SLUGS}"
+            exit 1
           fi
 
           echo "slugs=${SLUGS}" >> "$GITHUB_OUTPUT"

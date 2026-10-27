@@ -59,7 +59,7 @@ jobs:
         if: steps.validate.outputs.validation_failed == 'true'
         run: |
           python3 - <<'PYEOF'
-          import json, os
+          import json, os, secrets
           from pathlib import Path
           report = sorted(Path('.').glob('chewy_link_validation_*.json'))
           if not report:
@@ -72,10 +72,12 @@ jobs:
                   lines.append(f"- **{m['slug']}** [{m['status']}]: {m['detail']}")
               lines += ['', 'MISMATCH = wrong-brand link (safe to --fix). ERROR = lookup/API failure (fix creds/outage first, do NOT --fix).']
               body = '\n'.join(lines)
+          # A random delimiter, so no line of the report can end the value early.
+          delim = f'BODY_EOF_{secrets.token_hex(16)}'
           with open(os.environ['GITHUB_ENV'], 'a') as f:
-              f.write('ISSUE_BODY<<BODY_EOF\n')
+              f.write(f'ISSUE_BODY<<{delim}\n')
               f.write(body + '\n')
-              f.write('BODY_EOF\n')
+              f.write(f'{delim}\n')
           PYEOF
 
       - name: Create GitHub issue on mismatch
