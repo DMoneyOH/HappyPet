@@ -27,7 +27,7 @@ faq:
 **Quick pick:** The strongest research favors omega-3 fatty acids over glucosamine. Our pick is [Nutramax Welactin Canine Softgels on Amazon](https://www.amazon.com/dp/B001L1BM2W?th=1&tag=happypetdc-20), an omega-3 fish oil softgel with its EPA and DHA on the label. Ask your vet about the dose before you start.
 {: .quick-pick}
 
-Your dog takes the stairs slower than she used to, and you want to help. A joint supplement is the first thing most owners reach for, and most of them rest on the same three ingredients: glucosamine, chondroitin and MSM. A 2022 review of dog and cat studies found no pain-relief effect from glucosamine and chondroitin, and a clear one from omega-3 fatty acids. Below is that research, then four widely sold joint supplements, starting with an omega-3, for owners who decide with their vet to try one.
+Your dog takes the stairs slower than she used to, and you want to help. Three of the four supplements in this guide rest on the same three ingredients: glucosamine, chondroitin and MSM. A 2022 review of dog and cat studies found no pain-relief effect from glucosamine and chondroitin, and a clear one from omega-3 fatty acids. Below is that research, then four widely sold joint supplements, starting with an omega-3, for owners who decide with their vet to try one.
 
 ## Does glucosamine work for dogs? What the research shows
 
@@ -48,7 +48,7 @@ The strongest evidence so far finds no pain-relief effect from glucosamine and c
 | Nutramax Welactin Canine Softgels | Owners who want the ingredient the research backs | Softgel capsule | Omega-3 fish oil: EPA and DHA | $$ | [On Amazon](https://www.amazon.com/dp/B001L1BM2W?th=1&tag=happypetdc-20) |
 | Nutramax Cosequin Joint Supplement for Dogs, Chewable Tablets, 132 ct (with MSM) | A simple glucosamine formula | Chewable tablet | Glucosamine, chondroitin, MSM | $$ | [On Amazon](https://www.amazon.com/dp/B003ULL1NQ?th=1&tag=happypetdc-20) |
 | Dasuquin With MSM | Owners who want more than the core three | Soft chew or chewable tablet | Glucosamine, chondroitin, MSM, ASU, Boswellia, green tea extract | $$$ | [On Amazon](https://www.amazon.com/dp/B0041OOPK2?th=1&tag=happypetdc-20) |
-| Zesty Paws Hip & Joint Bites for Dogs | Dogs who refuse tablets | Chewable bite | Glucosamine, chondroitin, OptiMSM, vitamins E and C | - | [On Amazon](https://www.amazon.com/dp/B07RM62JYB?th=1&tag=happypetdc-20) |
+| Zesty Paws Hip & Joint Bites for Dogs | Dogs who refuse tablets | Chewable bite | Glucosamine, chondroitin, OptiMSM, vitamins E and C | See listing | [On Amazon](https://www.amazon.com/dp/B07RM62JYB?th=1&tag=happypetdc-20) |
 
 ### Featured pick: Nutramax Welactin Canine Softgels
 

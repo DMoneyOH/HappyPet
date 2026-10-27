@@ -12,7 +12,7 @@ species: cat
 tags: [cat litter odor control]
 description: "Fresh Step, Dr. Elsey's and Arm & Hammer compared on clumping, dust and scent, with an unscented pick for sensitive cats and a winner for multi-cat homes."
 affiliate_url: "https://www.amazon.com/dp/B000VDR8LA?th=1&tag=happypetdc-20"
-product_short: "Fresh Step Multi-Cat Litter"
+product_short: "Fresh Step Odor Shield Multi Cat Clumping Cat Litter"
 image: "https://images-na.ssl-images-amazon.com/images/P/B000VDR8LA.01.LZZZZZZZ.jpg"
 answer: "For a multi-cat home, our pick for odor control is Fresh Step Odor Shield Multi Cat Clumping Cat Litter (formerly Multi-Cat). The maker says it pairs carbon with Febreze freshness and forms tight clumps. For one cat, or a cat that avoids perfume, Dr. Elsey's Ultra Premium Clumping Cat Litter is hard clumping and unscented."
 faq:
@@ -26,18 +26,18 @@ faq:
     a: "Clay litters absorb moisture and clump. Silica gel litters are absorbent, and brands often say they last longer between changes. This guide does not rank one type over the other. Dr. Elsey's Ultra Premium Clumping Cat Litter is made from natural clay."
 ---
 
-**Quick pick:** For a multi-cat home where odor is the main complaint, start with the [Fresh Step Multi-Cat Litter on Amazon](https://www.amazon.com/dp/B000VDR8LA?th=1&tag=happypetdc-20).
+**Quick pick:** For a multi-cat home where odor is the main complaint, start with the [Fresh Step Odor Shield Multi Cat Clumping Cat Litter on Amazon](https://www.amazon.com/dp/B000VDR8LA?th=1&tag=happypetdc-20).
 {: .quick-pick}
 
-The litter decides how fast litter box odor gets locked away. Whether a litter controls odor or only covers it comes down to how hard it clumps, whether it absorbs odor or leans on fragrance, and how much dust it throws when you pour and scoop. This guide compares three clumping litters on those three points, using their listing specs. Fresh Step Multi-Cat is the pick for a busy box, Dr. Elsey's Ultra Premium Clumping Cat Litter is the unscented choice for a cat that avoids perfume, and Arm & Hammer Clump & Seal Platinum Multi-Cat is the alternative for heavy multi-cat use.
+The litter decides how fast litter box odor gets locked away. Whether a litter controls odor or only covers it comes down to how hard it clumps, whether it absorbs odor or leans on fragrance, and how much dust it throws when you pour and scoop. This guide compares three clumping litters on those three points, using their listing specs. Fresh Step Odor Shield is the pick for a busy box, Dr. Elsey's Ultra Premium Clumping Cat Litter is the unscented choice for a cat that avoids perfume, and Arm & Hammer Clump & Seal is the alternative for heavy multi-cat use.
 
 ## Quick Picks
 
-If you're in a hurry to banish those stubborn litter box odors, here are the top recommendations. For multi-cat households or particularly potent smells, [Fresh Step Multi-Cat Litter](https://www.amazon.com/dp/B000VDR8LA?th=1&tag=happypetdc-20) is our pick, pairing carbon with Febreze freshness, the maker says. For those seeking a low-dust, reliable option, Dr. Elsey's Ultra Premium Clumping Cat Litter delivers consistent performance. And if you need a scented multi-cat clumping litter, Arm & Hammer Clump & Seal Platinum Multi-Cat Litter is a fantastic choice.
+If you're in a hurry to banish those stubborn litter box odors, here are the top recommendations. For multi-cat households or particularly potent smells, [Fresh Step Odor Shield Multi Cat Clumping Cat Litter](https://www.amazon.com/dp/B000VDR8LA?th=1&tag=happypetdc-20) is our pick, pairing carbon with Febreze freshness, the maker says. For those seeking a low-dust, reliable option, Dr. Elsey's Ultra Premium Clumping Cat Litter delivers consistent performance. And if you need a scented multi-cat clumping litter, Arm & Hammer Clump & Seal is a fantastic choice.
 
-### Featured Pick: [Fresh Step Multi-Cat Litter](https://www.amazon.com/dp/B000VDR8LA?th=1&tag=happypetdc-20)
+### Featured Pick: [Fresh Step Odor Shield Multi Cat Clumping Cat Litter](https://www.amazon.com/dp/B000VDR8LA?th=1&tag=happypetdc-20)
 
-For many cat parents, especially those with multiple furry residents, odor control is paramount. [Fresh Step Multi-Cat Litter](https://www.amazon.com/dp/B000VDR8LA?th=1&tag=happypetdc-20) is our pick for a busy box. The maker pairs carbon with Febreze freshness. It forms incredibly tight, hard clumps that are easy to scoop, preventing lingering waste from breaking apart and contributing to further odor. This means less mess and more effective removal of the source of the smell. For consistent, reliable cat litter odor control, this is the pick for a busy box.
+For many cat parents, especially those with multiple furry residents, odor control is paramount. [Fresh Step Odor Shield](https://www.amazon.com/dp/B000VDR8LA?th=1&tag=happypetdc-20) is our pick for a busy box. The maker pairs carbon with Febreze freshness. It forms incredibly tight, hard clumps that are easy to scoop, preventing lingering waste from breaking apart and contributing to further odor. This means less mess and more effective removal of the source of the smell.
 
 **Pros:**
 *   Excellent odor control, even in multi-cat homes
@@ -63,9 +63,9 @@ Dr. Elsey's Ultra Premium Clumping Cat Litter is a long-standing favorite among 
 *   Can be heavier to lift compared to some alternatives
 *   Price point is slightly higher than basic clay litters
 
-### Arm & Hammer Clump & Seal Platinum Multi-Cat Litter
+### Arm & Hammer Clump & Seal
 
-When you need serious cat litter odor control that goes the extra mile, Arm & Hammer Clump & Seal Platinum Multi-Cat Litter is an exceptional contender. This litter boasts a unique formula that includes baking soda, a well-known natural deodorizer, along with powerful moisture-activated micro-granules that form a tight seal around waste. The fresh scent also helps keep things pleasant without being too overpowering.
+When you need serious cat litter odor control that goes the extra mile, Arm & Hammer Clump & Seal is an exceptional contender. This litter boasts a unique formula that includes baking soda, a well-known natural deodorizer, along with powerful moisture-activated micro-granules that form a tight seal around waste. The fresh scent also helps keep things pleasant without being too overpowering.
 
 **Pros:**
 *   Scented clumping litter
@@ -81,9 +81,9 @@ When you need serious cat litter odor control that goes the extra mile, Arm & Ha
 
 | Product                                                  | Best For                  | Price Range | Rating | Check price |
 | :------------------------------------------------------- | :------------------------ | :---------- | :--------- | --- |
-| [Fresh Step Multi-Cat Litter](https://www.amazon.com/dp/B000VDR8LA?th=1&tag=happypetdc-20) | Our pick for a busy box | $$          | 4.6/5 (as of Oct 17, 2026) | [On Amazon](https://www.amazon.com/dp/B000VDR8LA?th=1&tag=happypetdc-20) |
+| [Fresh Step Odor Shield Multi Cat Clumping Cat Litter](https://www.amazon.com/dp/B000VDR8LA?th=1&tag=happypetdc-20) | Our pick for a busy box | $$          | 4.6/5 (as of Oct 17, 2026) | [On Amazon](https://www.amazon.com/dp/B000VDR8LA?th=1&tag=happypetdc-20) |
 | [Dr. Elsey's Ultra Premium Clumping Cat Litter](https://www.amazon.com/dp/B0009X0QSY?th=1&tag=happypetdc-20) | Low-Dust & Unscented      | $$          | 4.3/5 (as of Oct 17, 2026) | [On Amazon](https://www.amazon.com/dp/B0009X0QSY?th=1&tag=happypetdc-20) |
-| [Arm & Hammer Clump & Seal Platinum Multi-Cat Litter](https://www.amazon.com/dp/B09P32SSRL?th=1&tag=happypetdc-20) | Scented multi-cat clumping | $$          | 4.6/5 (as of Oct 17, 2026) | [On Amazon](https://www.amazon.com/dp/B09P32SSRL?th=1&tag=happypetdc-20) |
+| [Arm & Hammer Clump & Seal](https://www.amazon.com/dp/B09P32SSRL?th=1&tag=happypetdc-20) | Scented multi-cat clumping | $$          | 4.6/5 (as of Oct 17, 2026) | [On Amazon](https://www.amazon.com/dp/B09P32SSRL?th=1&tag=happypetdc-20) |
 
 ## Buying Guide
 
@@ -111,4 +111,4 @@ If you share your home with more than one cat, opting for a multi-cat formula is
 
 ## Closing
 
-Pick the litter your cat accepts and that you can scoop easily.
+Pick the litter your cat accepts and that you can scoop easily. See [Fresh Step Odor Shield on Amazon](https://www.amazon.com/dp/B000VDR8LA?th=1&tag=happypetdc-20).

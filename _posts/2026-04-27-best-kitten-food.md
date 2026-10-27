@@ -17,7 +17,7 @@ pin_image: "https://happypetproductreviews.com/assets/images/pins/best-kitten-fo
 answer: "Look for a kitten food or an all-life-stages formula, and read the AAFCO statement on the label. Our checklist also looks for a named animal protein first in the ingredient list. Our dry pick is Purina ONE High Protein Kitten Food, rated 4.8/5 on Amazon as of Apr 16, 2026. Consider adding wet food if your kitten drinks little."
 faq:
   - q: "Is dry or wet food better for kittens?"
-    a: "Canned food is at least 75 percent water. Dry food is about 6 to 10 percent water. Canned food is generally the most expensive type, according to the Cornell Feline Health Center. Mixing the two is an option, and it gives a kitten both textures."
+    a: "Dry food is about 6 to 10 percent water. Canned food is at least 75 percent water and is generally the most expensive type, according to the Cornell Feline Health Center. Mixing the two is an option, and it gives a kitten both textures."
   - q: "How often should a kitten eat?"
     a: "This guide prefers feeding on a schedule to refilling a bowl. Until about six months old, kittens usually do best on three meals a day, according to the Cornell Feline Health Center. For some cats, a bowl that is always full can lead to overeating."
   - q: "Can kittens eat adult cat food?"
@@ -57,7 +57,7 @@ The smaller bag of the same idea, which suits a one-kitten household or a first 
 
 ### Purina Fancy Feast Wet Kitten Variety 24pk
 
-Canned food is at least 75 percent water, and a variety pack gives a young cat several textures early. Single-serve cans also make portioning obvious. The drawbacks are the ones every wet food carries: it costs more per meal, it cannot sit out for a shift, and the empties pile up faster than most owners expect.
+Canned food is at least 75 percent water, and a variety pack gives a young cat several textures early. Single-serve cans also make portioning obvious. The drawbacks are the ones every wet food carries: it costs more per meal, it cannot sit out for a shift, and the empties pile up.
 
 ### Tiki Cat Baby Shreds Variety 12pk
 
