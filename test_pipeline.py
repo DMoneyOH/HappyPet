@@ -12641,6 +12641,31 @@ def _bash_for_workflow_steps():
     return None, "no bash 4+ (publish.yml uses mapfile) outside WSL"
 
 
+def _git_fixture_repo(tmp):
+    """Make tmp a git repo with everything in it committed, line endings as
+    written. Returns git(*args), which returns git's stdout."""
+    import subprocess
+
+    def git(*args):
+        return subprocess.run(["git", "-c", "core.autocrlf=false", "-c", "user.name=t",
+                               "-c", "user.email=t@example.invalid", *args],
+                              cwd=tmp, capture_output=True, text=True, check=True).stdout
+    git("init", "-q")
+    git("add", "-A")
+    git("commit", "-q", "-m", "fixture")
+    return git
+
+
+def _publish_date_script():
+    """publish.yml's dating step as the runner gets it on a cap-1 day, with
+    `python3` pointed at this interpreter."""
+    import shlex
+    _, script = _named_step((WORKFLOWS / "publish.yml").read_text(encoding="utf-8"),
+                            "Find and date unpublished posts")
+    return (script.replace("${{ steps.cap.outputs.cap }}", "1")
+            .replace("python3 ", shlex.quote(Path(sys.executable).as_posix()) + " "))
+
+
 # The hub layout's intro and how-we-choose markup, as rendered, per front-matter field.
 HUB_FIELD_MARKUP = {"intro": '<p class="standfirst">{}</p>',
                     "how_we_choose": '<p class="hub-method"><b>How we choose:</b> {}</p>'}
@@ -13078,16 +13103,8 @@ class TestPublishWritesTheHub(unittest.TestCase):
         _scratch_site_with_posts(tmp, {"treats": earlier_posts}, hub_copy=hub_copy,
                                  drafts=["treats"])
         (tmp / "runner_temp").mkdir()
-
-        def git(*args):
-            return subprocess.run(["git", "-c", "core.autocrlf=false", "-c", "user.name=t",
-                                   "-c", "user.email=t@example.invalid", *args],
-                                  cwd=tmp, capture_output=True, text=True, check=True).stdout
-        git("init", "-q")
-        git("add", "-A")
-        git("commit", "-q", "-m", "fixture")
+        git = _git_fixture_repo(tmp)
         python = shlex.quote(Path(sys.executable).as_posix())
-        _, date_step = self._step("Find and date unpublished posts")
         _, hub_step = self._step(self.HUB_STEP)
         _, issue_step = self._step(self.ISSUE_STEP)
         env = dict(os.environ, GITHUB_OUTPUT=(tmp / "github_output").as_posix(),
@@ -13100,8 +13117,7 @@ class TestPublishWritesTheHub(unittest.TestCase):
             return subprocess.run([bash, "--noprofile", "--norc", "-eo", "pipefail", "-c", script],
                                   cwd=tmp, capture_output=True, text=True, encoding="utf-8",
                                   env=env)
-        steps = run(date_step.replace("${{ steps.cap.outputs.cap }}", "1")
-                    + hub_step.replace("python3 ", python + " "))
+        steps = run(_publish_date_script() + hub_step.replace("python3 ", python + " "))
         issue = None
         if steps.returncode != 0:
             stub = ('gh() {\n'
@@ -13252,39 +13268,79 @@ class TestPublishWritesTheHub(unittest.TestCase):
         self.assertEqual(sorted(set(re.findall(r"\bgh (\w+ \w+)", script))),
                          ["issue create", "issue list"])
 
-    def test_a_pin_article_url_adds_no_line_to_the_step_outputs(self):
-        """The dating step writes its own four outputs and nothing else: a
-        newline inside a pin JSON article_url must not add or override a line
-        in GITHUB_OUTPUT."""
-        import shlex
-        import subprocess
-        bash, why = _bash_for_workflow_steps()
-        if not bash:
-            self.skipTest(why)
-        with tempfile.TemporaryDirectory() as d:
-            tmp = Path(d)
-            _scratch_site_with_posts(tmp, {"treats": 1}, drafts=["treats"])
+
+class TestPublishDatingStep(unittest.TestCase):
+    """publish.yml's "Find and date unpublished posts" step, run in bash on a
+    scratch git repo. Its slugs go to GITHUB_OUTPUT and into later steps'
+    scripts, so a DRAFT name that is not a post slug stops the publish. So
+    does a pin JSON that does not parse: its pin would fail after the post
+    went out."""
+
+    def _date(self, tmp, pin=None, drafts=("treats",), index_only=()):
+        """Run the step on a scratch site with one dated treats post and a
+        DRAFT-best-<topic>-new.md per topic in `drafts`. `pin` is the text of
+        best-treats-new's pin JSON. `index_only` names DRAFT paths put in git's
+        index only, for names this file system cannot hold. Returns
+        (process, GITHUB_OUTPUT lines)."""
+        _scratch_site_with_posts(tmp, {"treats": 1}, drafts=drafts)
+        if pin is not None:
             (tmp / "_pin_queue").mkdir()
-            (tmp / "_pin_queue" / "best-treats-new.json").write_text(
-                json.dumps({"article_url": "https://example.invalid/a/\nslugs=injected"}),
-                encoding="utf-8")
-            for args in (["init", "-q"], ["add", "-A"], ["commit", "-q", "-m", "fixture"]):
-                subprocess.run(["git", "-c", "core.autocrlf=false", "-c", "user.name=t",
-                                "-c", "user.email=t@example.invalid", *args],
-                               cwd=tmp, capture_output=True, check=True)
-            python = shlex.quote(Path(sys.executable).as_posix())
-            _, date_step = self._step("Find and date unpublished posts")
-            script = (date_step.replace("${{ steps.cap.outputs.cap }}", "1")
-                      .replace("python3 ", python + " "))
-            output = tmp / "github_output"
-            run = subprocess.run([bash, "--noprofile", "--norc", "-eo", "pipefail", "-c", script],
-                                 cwd=tmp, capture_output=True, text=True, encoding="utf-8",
-                                 env=dict(os.environ, GITHUB_OUTPUT=output.as_posix(),
-                                          GIT_CONFIG_PARAMETERS="'core.autocrlf=false'"))
-            self.assertEqual(run.returncode, 0, run.stdout + run.stderr)
-            lines = output.read_text(encoding="utf-8").splitlines()
+            (tmp / "_pin_queue" / "best-treats-new.json").write_text(pin, encoding="utf-8")
+        git = _git_fixture_repo(tmp)
+        for name in index_only:
+            blob = git("hash-object", "-w", "_posts/2026-01-01-best-treats-0.md").strip()
+            # Git for Windows refuses such a name unless told it need not
+            # hold on NTFS; the runner's Linux git takes it as is.
+            git("-c", "core.protectNTFS=false",
+                "update-index", "--add", "--cacheinfo", f"100644,{blob},{name}")
+        output = tmp / "github_output"
+        proc, _ = _run_alert_step(self, _publish_date_script(),
+                                  {"GITHUB_OUTPUT": output.as_posix(),
+                                   "GIT_CONFIG_PARAMETERS": "'core.autocrlf=false'"}, tmp)
+        lines = output.read_text(encoding="utf-8").splitlines() if output.exists() else []
+        return proc, lines
+
+    def test_the_step_writes_its_four_outputs_and_nothing_else(self):
+        """A newline inside a pin JSON's article_url is valid JSON, and it adds
+        no line to GITHUB_OUTPUT."""
+        pin = json.dumps({"article_url": "https://example.invalid/a/\nslugs=injected"})
+        with tempfile.TemporaryDirectory() as d:
+            proc, lines = self._date(Path(d), pin=pin)
+        self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
         self.assertEqual(lines, ["nothing_to_publish=false", "slugs=best-treats-new",
                                  "publish_count=1", "remaining=0"])
+
+    def test_a_pin_json_that_does_not_parse_stops_the_publish(self):
+        for label, pin in (("not JSON", "{not json"),
+                           ("not an object", "[]"),
+                           ("article_url not text", json.dumps({"article_url": 5}))):
+            with self.subTest(pin=label), tempfile.TemporaryDirectory() as d:
+                tmp = Path(d)
+                proc, lines = self._date(tmp, pin=pin)
+                self.assertNotEqual(proc.returncode, 0, proc.stdout)
+                self.assertIn("::error::_pin_queue/best-treats-new.json", proc.stdout)
+                self.assertEqual(lines, ["nothing_to_publish=false"])
+                self.assertTrue((tmp / "_posts" / "DRAFT-best-treats-new.md").exists())
+
+    def test_a_draft_name_that_is_not_a_post_slug_stops_the_publish(self):
+        """Checked before the post is moved, so nothing is dated. git ls-files
+        C-quotes a name holding a newline or a non-ASCII letter, and the
+        quote marks fail the check too."""
+        for label, kw in (("command substitution", {"drafts": ("$(touch pwned)",)}),
+                          ("backticks", {"drafts": ("`touch pwned`",)}),
+                          ("a space", {"drafts": ("dog treats",)}),
+                          ("uppercase", {"drafts": ("Treats",)}),
+                          ("non-ASCII, C-quoted", {"drafts": ("tr\u00e9ats",)}),
+                          ("a newline, C-quoted",
+                           {"drafts": (), "index_only": ("_posts/DRAFT-best-a\nslugs=x.md",)})):
+            with self.subTest(name=label), tempfile.TemporaryDirectory() as d:
+                tmp = Path(d)
+                proc, lines = self._date(tmp, **kw)
+                self.assertNotEqual(proc.returncode, 0, proc.stdout)
+                self.assertIn("is not DRAFT-<post slug>.md", proc.stdout)
+                self.assertEqual(lines, ["nothing_to_publish=false"])
+                posts = [p.name for p in (tmp / "_posts").iterdir()]
+                self.assertTrue(all(n.startswith(("2026-01-", "DRAFT-")) for n in posts), posts)
 
 
 class TestPublishedRootIsAllowlisted(unittest.TestCase):
@@ -13897,7 +13953,7 @@ def _parse_github_output(text):
 
 def _run_alert_step(testcase, script, env, cwd, open_issues=(), list_fails=False,
                     create_fails=False):
-    """Run an issue step's script in bash the way the runner does (-eo pipefail)
+    """Run a step's script in bash the way the runner does (-eo pipefail)
     with `gh` stubbed. Returns (completed process, gh calls as lists of args)."""
     import subprocess
     bash, why = _bash_for_workflow_steps()
@@ -14308,6 +14364,62 @@ class TestPinFailureIssue(_AlertIssueStep, unittest.TestCase):
     def test_no_slugs_still_names_the_failure(self):
         title, body = self.opened(SLUGS="")
         self.assertTrue(title.endswith(": no slugs resolved"), title)
+
+
+class TestPinResolveSlugs(unittest.TestCase):
+    """pin.yml's "Resolve slugs" step. Its list goes to GITHUB_OUTPUT and into
+    later steps' scripts, so whitespace in it is dropped, as deploy.yml drops
+    it when it dispatches, and a list of anything but post slugs stops the run."""
+
+    def _resolve(self, pending=None, dispatched=""):
+        """Run the step with `pending` (bytes) as _pin_queue/.pending-slugs, if
+        given, and `dispatched` as the workflow_dispatch input. Returns
+        (process, GITHUB_OUTPUT lines)."""
+        _, script = _named_step((WORKFLOWS / "pin.yml").read_text(encoding="utf-8"),
+                                "Resolve slugs")
+        with tempfile.TemporaryDirectory() as d:
+            tmp = Path(d)
+            if pending is not None:
+                (tmp / "_pin_queue").mkdir()
+                (tmp / "_pin_queue" / ".pending-slugs").write_bytes(pending)
+            output = tmp / "github_output"
+            proc, _ = _run_alert_step(
+                self, script.replace("${{ github.event.inputs.slugs }}", dispatched),
+                {"GITHUB_OUTPUT": output.as_posix()}, tmp)
+            lines = output.read_text(encoding="utf-8").splitlines() if output.exists() else []
+        return proc, lines
+
+    def test_a_slug_list_resolves_without_its_whitespace(self):
+        for label, kw in (("pending file", {"pending": b"best-a,best-b\n"}),
+                          ("CRLF pending file", {"pending": b"best-a,best-b\r\n"}),
+                          ("dispatch input", {"dispatched": "best-a, best-b"}),
+                          ("input over file", {"pending": b"best-c\n",
+                                               "dispatched": "best-a,best-b"})):
+            with self.subTest(source=label):
+                proc, lines = self._resolve(**kw)
+                self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+                self.assertEqual(lines, ["slugs=best-a,best-b", "nothing_to_pin=false"])
+
+    def test_no_slugs_means_nothing_to_pin(self):
+        for label, kw in (("no file", {}), ("empty file", {"pending": b""}),
+                          ("blank file", {"pending": b" \r\n\n"})):
+            with self.subTest(source=label):
+                proc, lines = self._resolve(**kw)
+                self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+                self.assertEqual(lines, ["slugs=", "nothing_to_pin=true"])
+
+    def test_a_list_of_anything_but_post_slugs_stops_the_run(self):
+        """A newline cannot add an output line, and shell text never reaches
+        the later steps' scripts."""
+        for label, pending in (("a newline before an output", b"best-a\nnothing_to_pin=true\n"),
+                               ("a newline before a second slugs", b"best-a\nslugs=best-z\n"),
+                               ("command substitution", b"best-a,$(touch pwned)\n"),
+                               ("a quote", b'best-a"; touch pwned; echo "\n')):
+            with self.subTest(pending=label):
+                proc, lines = self._resolve(pending=pending)
+                self.assertNotEqual(proc.returncode, 0, proc.stdout)
+                self.assertIn("::error::", proc.stdout)
+                self.assertEqual(lines, [])
 
 
 class TestFacebookTokenIssue(_AlertIssueStep, unittest.TestCase):
