@@ -6335,6 +6335,13 @@ class TestAutoMergePublishWiring(unittest.TestCase):
         self.assertIn("pull_request:", ci)
         self.assertIn("test_pipeline.py", ci)
 
+    def test_ci_runs_every_file_pytest_ini_names(self):
+        """A file in pytest.ini's testpaths runs locally; CI must run it too."""
+        ini = (REPO / "pytest.ini").read_text(encoding="utf-8")
+        local = re.search(r"^testpaths\s*=\s*(.+)$", ini, re.M).group(1).split()
+        ci = re.search(r"python3 -m pytest (.+) -q$", self._wf("test.yml"), re.M).group(1).split()
+        self.assertEqual(sorted(ci), sorted(local))
+
 
 class TestPinPhotoGuard(unittest.TestCase):
     """The cloud container can't reach Amazon image hosts, so a routine-generated
@@ -8129,9 +8136,12 @@ class TestProductReviewStructuredData(unittest.TestCase):
         Liquid comments stripped, so the note explaining the decision does not
         itself trip the guard. Matched case-insensitively, so lowPrice,
         priceCurrency, OfferShippingDetails and MerchantReturnPolicy are caught
-        along with brand and gtin."""
+        along with brand and gtin. JSON \\u escapes are decoded first, since a
+        JSON reader takes "\\u006fffers" as "offers"."""
         emitted = re.sub(r"\{%-?\s*comment\s*-?%\}.*?\{%-?\s*endcomment\s*-?%\}",
-                         "", self._block(), flags=re.S).lower()
+                         "", self._block(), flags=re.S)
+        emitted = re.sub(r"\\u([0-9a-fA-F]{4})", lambda m: chr(int(m.group(1), 16)),
+                         emitted).lower()
         for needle in ("offer", "price", "brand", "gtin", "shipping", "returnpolicy"):
             with self.subTest(needle=needle):
                 self.assertNotIn(needle, emitted)
@@ -14626,6 +14636,14 @@ class TestChewyValidationIssue(_AlertIssueStep, unittest.TestCase):
     def scenario_env(self):
         """ISSUE_BODY as the workflow's own "Build issue body" step writes it to
         GITHUB_ENV, from a validation report with one flagged link."""
+        issue_body = self._github_env([
+            {"slug": "best-a", "status": "MISMATCH", "detail": "wrong brand"},
+            {"slug": "best-b", "status": "OK", "detail": ""}])["ISSUE_BODY"]
+        return {"REPO": self.ISSUE_REPO, "ISSUE_BODY": issue_body}
+
+    def _github_env(self, results):
+        """GITHUB_ENV as the "Build issue body" step writes it from a validation
+        report holding `results`, parsed the way the runner reads it."""
         import shlex
         import subprocess
         bash, why = _bash_for_workflow_steps()
@@ -14634,16 +14652,21 @@ class TestChewyValidationIssue(_AlertIssueStep, unittest.TestCase):
         _, build = _named_step(self.workflow, "Build issue body")
         build = build.replace("python3 ", shlex.quote(Path(sys.executable).as_posix()) + " ")
         with tempfile.TemporaryDirectory() as d:
-            report = {"date": "2026-10-11", "results": [
-                {"slug": "best-a", "status": "MISMATCH", "detail": "wrong brand"},
-                {"slug": "best-b", "status": "OK", "detail": ""}]}
+            report = {"date": "2026-10-11", "results": results}
             (Path(d) / "chewy_link_validation_2026-10-11.json").write_text(json.dumps(report), encoding="utf-8")
             env_file = Path(d) / "github_env"
             subprocess.run([bash, "--noprofile", "--norc", "-eo", "pipefail", "-c", build], cwd=d,
                            env=dict(os.environ, GITHUB_ENV=env_file.as_posix()), check=True,
                            capture_output=True)
-            issue_body = _parse_github_output(env_file.read_text(encoding="utf-8"))["ISSUE_BODY"]
-        return {"REPO": self.ISSUE_REPO, "ISSUE_BODY": issue_body}
+            return _parse_github_output(env_file.read_text(encoding="utf-8"))
+
+    def test_a_detail_cannot_end_the_body_and_set_a_variable(self):
+        """A report line is data: a detail line reading BODY_EOF does not close
+        ISSUE_BODY, so the line after it sets no environment variable."""
+        detail = "x\nBODY_EOF\nEVIL=1"
+        env = self._github_env([{"slug": "best-a", "status": "ERROR", "detail": detail}])
+        self.assertEqual(list(env), ["ISSUE_BODY"])
+        self.assertIn(detail, env["ISSUE_BODY"])
 
     def test_the_trigger_and_token_are_unchanged(self):
         self.assertIn("        if: steps.validate.outputs.validation_failed == 'true'\n", self.head)
