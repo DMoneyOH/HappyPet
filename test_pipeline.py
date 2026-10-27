@@ -14383,10 +14383,15 @@ class TestPinResolveSlugs(unittest.TestCase):
 
     def _resolve(self, pending=None, dispatched=""):
         """Run the step with `pending` (bytes) as _pin_queue/.pending-slugs, if
-        given, and `dispatched` as the workflow_dispatch input. Returns
-        (process, GITHUB_OUTPUT lines)."""
-        _, script = _named_step((WORKFLOWS / "pin.yml").read_text(encoding="utf-8"),
-                                "Resolve slugs")
+        given, and `dispatched` as the workflow_dispatch input, which the step
+        reads from env. Returns (process, GITHUB_OUTPUT lines, names of the
+        files left in the working directory)."""
+        head, script = _named_step((WORKFLOWS / "pin.yml").read_text(encoding="utf-8"),
+                                   "Resolve slugs")
+        # deploy.yml dispatches .pending-slugs' content as the input, so the
+        # input must reach the step as data, never as script text.
+        self.assertIn("          INPUT_SLUGS: ${{ github.event.inputs.slugs }}\n", head)
+        self.assertNotIn("${{", script)
         with tempfile.TemporaryDirectory() as d:
             tmp = Path(d)
             if pending is not None:
@@ -14394,10 +14399,10 @@ class TestPinResolveSlugs(unittest.TestCase):
                 (tmp / "_pin_queue" / ".pending-slugs").write_bytes(pending)
             output = tmp / "github_output"
             proc, _ = _run_alert_step(
-                self, script.replace("${{ github.event.inputs.slugs }}", dispatched),
-                {"GITHUB_OUTPUT": output.as_posix()}, tmp)
+                self, script, {"GITHUB_OUTPUT": output.as_posix(), "INPUT_SLUGS": dispatched}, tmp)
             lines = output.read_text(encoding="utf-8").splitlines() if output.exists() else []
-        return proc, lines
+            files = sorted(p.name for p in tmp.iterdir())
+        return proc, lines, files
 
     def test_a_slug_list_resolves_without_its_whitespace(self):
         for label, kw in (("pending file", {"pending": b"best-a,best-b\n"}),
@@ -14406,7 +14411,7 @@ class TestPinResolveSlugs(unittest.TestCase):
                           ("input over file", {"pending": b"best-c\n",
                                                "dispatched": "best-a,best-b"})):
             with self.subTest(source=label):
-                proc, lines = self._resolve(**kw)
+                proc, lines, _ = self._resolve(**kw)
                 self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
                 self.assertEqual(lines, ["slugs=best-a,best-b", "nothing_to_pin=false"])
 
@@ -14414,22 +14419,25 @@ class TestPinResolveSlugs(unittest.TestCase):
         for label, kw in (("no file", {}), ("empty file", {"pending": b""}),
                           ("blank file", {"pending": b" \r\n\n"})):
             with self.subTest(source=label):
-                proc, lines = self._resolve(**kw)
+                proc, lines, _ = self._resolve(**kw)
                 self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
                 self.assertEqual(lines, ["slugs=", "nothing_to_pin=true"])
 
     def test_a_list_of_anything_but_post_slugs_stops_the_run(self):
-        """A newline cannot add an output line, and shell text never reaches
-        the later steps' scripts."""
-        for label, pending in (("a newline before an output", b"best-a\nnothing_to_pin=true\n"),
-                               ("a newline before a second slugs", b"best-a\nslugs=best-z\n"),
-                               ("command substitution", b"best-a,$(touch pwned)\n"),
-                               ("a quote", b'best-a"; touch pwned; echo "\n')):
-            with self.subTest(pending=label):
-                proc, lines = self._resolve(pending=pending)
+        """A newline cannot add an output line, and shell text runs nowhere:
+        not here, and not in the later steps' scripts."""
+        hostile = 'best-a";touch${IFS}pwned;echo"'
+        for label, kw in (("a newline before an output", {"pending": b"best-a\nnothing_to_pin=true\n"}),
+                          ("a newline before a second slugs", {"pending": b"best-a\nslugs=best-z\n"}),
+                          ("command substitution", {"pending": b"best-a,$(touch pwned)\n"}),
+                          ("a quote", {"pending": b'best-a"; touch pwned; echo "\n'}),
+                          ("a quote, dispatched as deploy.yml does", {"dispatched": hostile})):
+            with self.subTest(source=label):
+                proc, lines, files = self._resolve(**kw)
                 self.assertNotEqual(proc.returncode, 0, proc.stdout)
                 self.assertIn("::error::", proc.stdout)
                 self.assertEqual(lines, [])
+                self.assertNotIn("pwned", files)
 
 
 class TestFacebookTokenIssue(_AlertIssueStep, unittest.TestCase):

@@ -51,10 +51,13 @@ jobs:
 
       - name: Resolve slugs
         id: resolve
+        env:
+          # deploy.yml dispatches .pending-slugs' content as this input, so it
+          # comes in through env, never as script text.
+          INPUT_SLUGS: ${{ github.event.inputs.slugs }}
         run: |
           # Manual trigger: use input if provided, else fall back to .pending-slugs
           # Automatic trigger (workflow_run): always read .pending-slugs
-          INPUT_SLUGS="${{ github.event.inputs.slugs }}"
           PENDING="_pin_queue/.pending-slugs"
 
           if [ -n "$INPUT_SLUGS" ]; then
