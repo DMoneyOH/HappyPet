@@ -8181,6 +8181,253 @@ class TestProductReviewStructuredData(unittest.TestCase):
                     self.assertIsNone(declared, "front matter rating with nothing shown on the page")
 
 
+class TestFaqStructuredData(unittest.TestCase):
+    """post.html renders a post's `faq:` list twice: once as visible
+    <details>/<summary> items under "Questions owners ask", and once as
+    FAQPage JSON-LD. The two must say the same thing word for word, because
+    structured data that disagrees with the visible page is what Google's
+    rules forbid. These render the layout's FAQ block for each post and
+    compare the two halves.
+
+    HONEST LIMIT, the same one TestProductReviewStructuredData states: there
+    is no Ruby or Jekyll on the build box, so this does NOT prove Jekyll
+    renders the template. It renders the FAQ block's text lifted out of
+    post.html through a tiny Liquid subset (one for loop, escape, jsonify,
+    unless forloop.last). Any other Liquid construct in the block fails the
+    test rather than being skipped. The real build is the build-check and
+    deploy workflows' `bundle exec jekyll build`.
+
+    Front matter is read with a narrow parser for the fixed shape the five
+    posts use (`answer:` and `faq:` with `- q:` / `a:` double-quoted strings),
+    since PyYAML is not a dependency. A double-quoted YAML string with no
+    backslash reads the same as a JSON string, so each value goes through
+    json.loads, and a backslash fails the test instead of being guessed at.
+    """
+
+    # Section A of the 2026-10-27 FAQ change. Section B posts are a comparison
+    # group and must stay without a faq: until that read is done.
+    FAQ_POSTS = {
+        "2026-04-23-best-dog-joint-supplements.md",
+        "2026-04-04-best-cat-litter-odor-control.md",
+        "2026-04-27-best-kitten-food.md",
+        "2026-08-24-best-cat-carrier-backpacks.md",
+        "2026-04-07-best-grain-free-cat-food.md",
+    }
+    GUARD = "{%- if page.faq %}"
+
+    @staticmethod
+    def _yaml_string(token):
+        assert token.startswith('"') and token.endswith('"'), token
+        assert "\\" not in token, f"backslash in front matter string: {token}"
+        return json.loads(token)
+
+    @classmethod
+    def setUpClass(cls):
+        cls.layout = (REPO / "_layouts" / "post.html").read_text(encoding="utf-8")
+        cls.posts = {}
+        for p in sorted((REPO / "_posts").glob("*.md")):
+            raw = p.read_text(encoding="utf-8")
+            fm = raw.split("---", 2)[1]
+            body = raw.split("---", 2)[2]
+            entry = {"body": body, "answer": None, "faq": None}
+            m = re.search(r"^answer:\s*(.+)$", fm, re.M)
+            if m:
+                entry["answer"] = cls._yaml_string(m.group(1).strip())
+            block = re.search(r"^faq:\s*\n((?:[ \t]+.*\n?)*)", fm, re.M)
+            if block:
+                lines = [ln for ln in block.group(1).splitlines() if ln.strip()]
+                items = []
+                for ln in lines:
+                    q = re.fullmatch(r"\s+- q:\s*(.+)", ln)
+                    a = re.fullmatch(r"\s+a:\s*(.+)", ln)
+                    if q:
+                        items.append({"q": cls._yaml_string(q.group(1).strip())})
+                    elif a and items and "a" not in items[-1]:
+                        items[-1]["a"] = cls._yaml_string(a.group(1).strip())
+                    else:
+                        raise AssertionError(f"{p.name}: unexpected faq line {ln!r}")
+                entry["faq"] = items
+            cls.posts[p.name] = entry
+        assert cls.posts, "no posts found - the guard would pass vacuously"
+
+    # -- the FAQ block and a Liquid subset for it -----------------------------
+    def _faq_block(self):
+        start = self.layout.find(self.GUARD)
+        self.assertNotEqual(start, -1, "the FAQ block is gone from post.html")
+        end = self.layout.find("{%- endif %}", start)
+        self.assertGreater(end, start)
+        return self.layout[start:end + len("{%- endif %}")]
+
+    @staticmethod
+    def _liquid_escape(s):
+        # Liquid's `escape`: & < > " ' become entities.
+        return (s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+                 .replace('"', "&quot;").replace("'", "&#39;"))
+
+    def _render(self, faq):
+        block = self._faq_block()
+        inner = block[len(self.GUARD):-len("{%- endif %}")]
+
+        def loop(m):
+            out = []
+            for i, item in enumerate(faq):
+                part = m.group(1)
+                part = re.sub(r"\{%-?\s*unless forloop\.last\s*-?%\}(.*?)\{%-?\s*endunless\s*-?%\}",
+                              lambda u: "" if i == len(faq) - 1 else u.group(1), part, flags=re.S)
+
+                def var(v):
+                    key, filt = v.group(1), v.group(2)
+                    value = item[key]
+                    if filt == "escape":
+                        return self._liquid_escape(value)
+                    if filt == "jsonify":
+                        return json.dumps(value)
+                    raise AssertionError(f"unhandled filter {filt!r}")
+                part = re.sub(r"\{\{\s*item\.(q|a)\s*\|\s*(\w+)\s*\}\}", var, part)
+                out.append(part)
+            return "".join(out)
+
+        out = re.sub(r"\{%-?\s*for item in page\.faq\s*-?%\}(.*?)\{%-?\s*endfor\s*-?%\}",
+                     loop, inner, flags=re.S)
+        self.assertNotIn("{{", out, "unrendered Liquid output tag in the FAQ block")
+        self.assertNotIn("{%", out, "unrendered Liquid tag in the FAQ block")
+        return out
+
+    @staticmethod
+    def _visible(rendered):
+        from html.parser import HTMLParser
+
+        class Collect(HTMLParser):
+            def __init__(self):
+                super().__init__(convert_charrefs=True)
+                self.summaries, self.answers, self.details = [], [], 0
+                self._tag, self._buf = None, []
+
+            def handle_starttag(self, tag, attrs):
+                if tag == "details":
+                    self.details += 1
+                if tag in ("summary", "p"):
+                    self._tag, self._buf = tag, []
+
+            def handle_endtag(self, tag):
+                if tag == self._tag:
+                    text = "".join(self._buf)
+                    (self.summaries if tag == "summary" else self.answers).append(text)
+                    self._tag = None
+
+            def handle_data(self, data):
+                if self._tag:
+                    self._buf.append(data)
+
+        c = Collect()
+        c.feed(rendered)
+        return c
+
+    def _faq_posts(self):
+        return {n: e for n, e in self.posts.items() if e["faq"] is not None}
+
+    # -- tests ----------------------------------------------------------------
+    def test_exactly_the_section_a_posts_carry_an_faq_and_answer(self):
+        self.assertEqual(set(self._faq_posts()), self.FAQ_POSTS)
+        answered = {n for n, e in self.posts.items() if e["answer"] is not None}
+        self.assertEqual(answered, self.FAQ_POSTS)
+        for name in self.FAQ_POSTS:
+            with self.subTest(post=name):
+                faq = self.posts[name]["faq"]
+                self.assertTrue(3 <= len(faq) <= 5, f"{len(faq)} questions")
+                for item in faq:
+                    self.assertEqual(set(item), {"q", "a"}, f"incomplete item {item}")
+
+    def test_faq_jsonld_matches_the_visible_questions_and_answers(self):
+        for name, entry in self._faq_posts().items():
+            with self.subTest(post=name):
+                faq = entry["faq"]
+                rendered = self._render(faq)
+                scripts = re.findall(r'<script type="application/ld\+json">(.*?)</script>',
+                                     rendered, re.S)
+                self.assertEqual(len(scripts), 1, "expected exactly one FAQPage script")
+                data = json.loads(scripts[0])          # raises on malformed JSON
+                self.assertEqual(data["@context"], "https://schema.org")
+                self.assertEqual(data["@type"], "FAQPage")
+                entities = data["mainEntity"]
+
+                shown = self._visible(rendered)
+                self.assertEqual(shown.details, len(faq))
+                self.assertEqual(len(shown.summaries), len(faq))
+                self.assertEqual(len(shown.answers), len(faq))
+                self.assertEqual(len(entities), len(faq))
+                for i, item in enumerate(faq):
+                    ent = entities[i]
+                    self.assertEqual(ent["@type"], "Question")
+                    self.assertEqual(ent["acceptedAnswer"]["@type"], "Answer")
+                    # schema == visible text == front matter, item by item
+                    self.assertEqual(ent["name"], shown.summaries[i])
+                    self.assertEqual(ent["acceptedAnswer"]["text"], shown.answers[i])
+                    self.assertEqual(ent["name"], item["q"])
+                    self.assertEqual(ent["acceptedAnswer"]["text"], item["a"])
+
+    def test_ampersand_is_escaped_in_html_and_plain_in_json(self):
+        """A known literal, so the escape half cannot drift with the parser:
+        'Arm & Hammer' must reach the HTML as &amp; and the JSON as &."""
+        faq = [{"q": "Q & A?", "a": "Arm & Hammer, Dr. Elsey's."}]
+        rendered = self._render(faq)
+        self.assertIn("<summary>Q &amp; A?</summary>", rendered)
+        self.assertIn("<p>Arm &amp; Hammer, Dr. Elsey&#39;s.</p>", rendered)
+        self.assertIn('"text": "Arm & Hammer, Dr. Elsey\'s."', rendered)
+
+    def test_a_post_without_faq_renders_no_faq_markup(self):
+        """Everything FAQ-shaped sits inside the one `if page.faq` guard, so a
+        post without the field renders exactly as before. Liquid comments are
+        stripped first, so the note describing the block does not count."""
+        outside = self.layout.replace(self._faq_block(), "")
+        outside = re.sub(r"\{%-?\s*comment\s*-?%\}.*?\{%-?\s*endcomment\s*-?%\}",
+                         "", outside, flags=re.S)
+        for needle in ("FAQPage", "faq-item", "<details", "Questions owners ask"):
+            with self.subTest(needle=needle):
+                self.assertFalse(needle in outside, f"{needle!r} renders outside the faq guard")
+
+    def test_answer_line_replaces_the_description_under_the_title(self):
+        head = self.layout[self.layout.find('<header class="piece-head">'):
+                           self.layout.find("</header>")]
+        self.assertLess(head.find("<h1>"), head.find("{%- if page.answer %}"))
+        self.assertIn("{{ page.answer | escape }}", head)
+        self.assertIn("{%- elsif page.description %}", head)
+        self.assertLess(head.find("{%- if page.answer %}"), head.find('class="piece-date"'))
+
+    def test_answer_lines_and_faq_copy_follow_the_copy_rules(self):
+        """40 to 60 word answer lines, plain text with no links, no em or en
+        dash and no spaced hyphen."""
+        for name, entry in self._faq_posts().items():
+            strings = [entry["answer"]] + [s for it in entry["faq"] for s in (it["q"], it["a"])]
+            with self.subTest(post=name):
+                words = len(entry["answer"].split())
+                self.assertTrue(40 <= words <= 60, f"answer line is {words} words")
+                for s in strings:
+                    self.assertNotRegex(s, r"https?://|\]\(|<a\b")
+                    self.assertNotRegex(s, r"[\u2012-\u2015]|(?:^|\s)-(?:\s|$)")
+
+    def test_no_faq_question_also_shows_as_a_body_heading(self):
+        """The litter post's old markdown Q&A moved into faq:, so nothing may
+        show twice on the page."""
+        for name, entry in self._faq_posts().items():
+            headings = {h.strip().lower() for h in
+                        re.findall(r"^#{2,6}\s+(.+)$", entry["body"], re.M)}
+            with self.subTest(post=name):
+                for item in entry["faq"]:
+                    self.assertNotIn(item["q"].lower(), headings)
+
+    def test_css_never_hides_a_faq_answer(self):
+        """Collapsed answers are hidden by the browser's closed state only. A
+        display:none rule on the FAQ would remove them from what crawlers read
+        and break the match with the FAQPage markup."""
+        css = (REPO / "assets" / "css" / "style.css").read_text(encoding="utf-8")
+        css = re.sub(r"/\*.*?\*/", "", css, flags=re.S)
+        for selector, body in re.findall(r"([^{}]+)\{([^{}]*)\}", css):
+            if re.search(r"\bfaq\b|faq-|details|summary", selector):
+                with self.subTest(selector=selector.strip()):
+                    self.assertNotRegex(body, r"display\s*:\s*none|visibility\s*:\s*hidden")
+
+
 class TestPublishedPostsVoiceIntegrity(unittest.TestCase):
     """Guards the published bodies against the substitution damage that commit
     fde8937 and its 30 siblings ("fix: third-person voice - <slug>") left behind.
