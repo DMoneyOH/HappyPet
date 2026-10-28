@@ -43,7 +43,7 @@ def cmd_next_topic(args) -> int:
 
 def cmd_review_prompt(args) -> int:
     body = _read(args.body)
-    title, keyword, verified = args.title, args.keyword, ""
+    title, keyword, verified, summary_block = args.title, args.keyword, "", ""
     if args.slug:
         product = gp.load_products().get(args.slug)
         if product is None:
@@ -52,8 +52,15 @@ def cmd_review_prompt(args) -> int:
         title = title or product.get("title", "")
         keyword = keyword or product.get("keyword", "")
         verified = gp.build_verified_facts(product)
-    print(gp.make_review_prompt(title, keyword, body, verified))
+        summary_block = _summary_block(product)
+    print(gp.make_review_prompt(title, keyword, body, verified,
+                                summary_block=summary_block))
     return 0
+
+
+def _summary_block(product: dict) -> str:
+    return gp.customer_summary_block(product.get("customer_summary"),
+                                     product.get("customer_summary_read_on"))
 
 
 def cmd_gate(args) -> int:
@@ -66,7 +73,18 @@ def cmd_gate(args) -> int:
     # The em-dash hard-check inside authoritative_gate is a backstop for the rare
     # case a real em dash survives scrubbing.
     scrubbed = gp.scrub_typography(body)
-    passed, flags = gp.authoritative_gate(scorecard, scrubbed)
+    product = None
+    if args.slug:
+        product = gp.load_products().get(args.slug)
+        if product is None:
+            print(f"ERROR: unknown slug {args.slug!r}", file=sys.stderr)
+            return 2
+    # Buyer feedback is judged against the entry's customer summary; with no
+    # --slug there is none, so every customer attribution is flagged.
+    passed, flags = gp.authoritative_gate(
+        scorecard, scrubbed,
+        customer_summary=(product or {}).get("customer_summary", ""),
+        customer_summary_read_on=(product or {}).get("customer_summary_read_on", ""))
     product_name = ""
     # A link to a product with no record is read off the body here too, when the
     # slug is given. authoritative_gate itself cannot do it -- its signature
@@ -74,11 +92,7 @@ def cmd_gate(args) -> int:
     # entry's own link to compare against. Staging holds the article regardless
     # (validate_output + stage_article); flagging it here is what lets the
     # rewrite pass fix it instead of hitting the hold.
-    if args.slug:
-        product = gp.load_products().get(args.slug)
-        if product is None:
-            print(f"ERROR: unknown slug {args.slug!r}", file=sys.stderr)
-            return 2
+    if product is not None:
         product_name = product.get("name", "")
         for link in gp.find_unbacked_affiliate_links(
                 scrubbed, product.get("affiliate_url", "")):
@@ -111,9 +125,17 @@ def cmd_gate(args) -> int:
 def cmd_rewrite_prompt(args) -> int:
     body = _read(args.body)
     instructions = _read(args.instructions)
+    summary_block = ""
+    if args.slug:
+        product = gp.load_products().get(args.slug)
+        if product is None:
+            print(f"ERROR: unknown slug {args.slug!r}", file=sys.stderr)
+            return 2
+        summary_block = _summary_block(product)
     print(gp.make_rewrite_prompt(args.title, args.keyword, body, instructions,
                                  affiliate_url=args.affiliate_url,
-                                 product_name=args.product_name))
+                                 product_name=args.product_name,
+                                 summary_block=summary_block))
     return 0
 
 
@@ -132,7 +154,9 @@ def cmd_stage(args) -> int:
             affiliate_url=product.get("affiliate_url", ""),
             runners_up=(product.get("runners_up", "")
                         if product.get("format") == "roundup" else None),
-            product_name=product.get("name", ""))
+            product_name=product.get("name", ""),
+            customer_summary=product.get("customer_summary", ""),
+            customer_summary_read_on=product.get("customer_summary_read_on", ""))
     except gp.GenerationStageError as e:
         print(f"ERROR: content contract failed: {e}", file=sys.stderr)
         return 3
@@ -164,6 +188,7 @@ def build_parser() -> argparse.ArgumentParser:
     rw.add_argument("--title", default=""); rw.add_argument("--keyword", default="")
     rw.add_argument("--affiliate-url", dest="affiliate_url", default="")
     rw.add_argument("--product-name", dest="product_name", default="")
+    rw.add_argument("--slug", default="")  # supplies the entry's customer summary
     rw.set_defaults(func=cmd_rewrite_prompt)
 
     st = sub.add_parser("stage")
