@@ -8183,7 +8183,7 @@ class TestProductReviewStructuredData(unittest.TestCase):
 
 class TestFaqStructuredData(unittest.TestCase):
     """post.html renders a post's `faq:` list twice: once as visible
-    <details>/<summary> items under "Questions owners ask", and once as
+    <details>/<summary> items under "Common questions", and once as
     FAQPage JSON-LD. The two must say the same thing word for word, because
     structured data that disagrees with the visible page is what Google's
     rules forbid. These render the layout's FAQ block for each post and
@@ -8382,7 +8382,7 @@ class TestFaqStructuredData(unittest.TestCase):
         outside = self.layout.replace(self._faq_block(), "")
         outside = re.sub(r"\{%-?\s*comment\s*-?%\}.*?\{%-?\s*endcomment\s*-?%\}",
                          "", outside, flags=re.S)
-        for needle in ("FAQPage", "faq-item", "<details", "Questions owners ask"):
+        for needle in ("FAQPage", "faq-item", "<details", "Common questions"):
             with self.subTest(needle=needle):
                 self.assertFalse(needle in outside, f"{needle!r} renders outside the faq guard")
 

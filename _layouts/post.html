@@ -160,7 +160,7 @@ layout: default
     </div>
 
     {%- comment -%}
-      Questions owners ask: one `faq:` list in front matter, rendered once as
+      Common questions: one `faq:` list in front matter, rendered once as
       visible text and once as FAQPage JSON-LD, so the markup always matches
       the page word for word. Each answer opens on tap through native
       <details>/<summary>, with no JavaScript. A collapsed answer stays in the
@@ -170,7 +170,7 @@ layout: default
     {%- endcomment -%}
     {%- if page.faq %}
     <section class="faq" aria-labelledby="faq-title">
-      <h2 id="faq-title">Questions owners ask</h2>
+      <h2 id="faq-title">Common questions</h2>
       {%- for item in page.faq %}
       <details class="faq-item">
         <summary>{{ item.q | escape }}</summary>

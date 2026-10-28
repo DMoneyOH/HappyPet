@@ -1245,7 +1245,7 @@ a.creed-num:focus-visible span { text-decoration: underline; }
   border-bottom-color: var(--rule-hard);
 }
 
-/* Questions owners ask (post.html, from front matter `faq:`). Native
+/* Common questions (post.html, from front matter `faq:`). Native
    <details>/<summary> and no script. A closed answer is hidden by the
    browser's own closed state only, never by a display:none rule here, so it
    stays in the DOM and matches the FAQPage markup. The h2 matches .prose h2,
