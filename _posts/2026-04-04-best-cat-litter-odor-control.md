@@ -33,7 +33,7 @@ A litter box smells when used litter stays in it. That's why this guide puts clu
 
 ## Quick Picks
 
-For a multi-cat home or a box that gets heavy use, our pick is [Fresh Step Odor Shield Multi Cat Clumping Cat Litter](https://www.amazon.com/dp/B000VDR8LA?th=1&tag=happypetdc-20). If you want a litter that is unscented, go with Dr. Elsey's Ultra Unscented, a hard-clumping clay litter. Arm & Hammer Clump & Seal is the other scented litter here, and the one to weigh against Fresh Step.
+For a multi-cat home or a box that gets heavy use, our pick is [Fresh Step Odor Shield Multi Cat Clumping Cat Litter](https://www.amazon.com/dp/B000VDR8LA?th=1&tag=happypetdc-20). If you want a litter that is unscented, go with Dr. Elsey's Ultra Unscented, a hard-clumping clay litter.
 
 ### Featured Pick: [Fresh Step Odor Shield Multi Cat Clumping Cat Litter](https://www.amazon.com/dp/B000VDR8LA?th=1&tag=happypetdc-20)
 
@@ -59,7 +59,7 @@ As the name says, Dr. Elsey's Ultra Unscented is unscented. Its listing says it 
 
 ### Arm & Hammer Clump & Seal
 
-Arm & Hammer Clump & Seal is the other scented clumping litter here. We picked Fresh Step for a busy box; this is the one to compare it against if you want a scented litter and a second option. If your cat starts to hesitate at the box after the switch, that's your answer: go back to unscented.
+Arm & Hammer Clump & Seal is the other scented clumping litter here. We picked Fresh Step for a busy box; this is the one to compare it against if you want a scented litter and a second option.
 
 **Pros:**
 *   Clumping litter with an added scent

@@ -13,7 +13,7 @@ permalink: /about/
     <div class="prose">
       <h2>Why we exist</h2>
       <p>Shopping for pet products should not feel like a guessing game. With thousands of dog and cat products flooding the market, it is hard to know what is actually worth your money and what is just pretty packaging.</p>
-      <p>Happy Pet Product Reviews was built to cut through the noise. Our guides lay out what the makers publish, such as materials, sizing, ingredients and price, so you can compare products for the pet you love.</p>
+      <p>Happy Pet Product Reviews was built to cut through the noise and help you decide what suits the pet you love.</p>
 
       <h2>What we cover</h2>
       <p>We publish reviews and buying guides in pet product categories including:</p>
@@ -27,7 +27,7 @@ permalink: /about/
       </ul>
 
       <h2>How our guides are put together</h2>
-      <p>Our guides compare popular products side by side on what their makers publish, such as specs, ingredients and price, and on how buyers rate them on Amazon.</p>
+      <p>Our guides look at what makers publish, such as specs, ingredients and price, along with what buyer reviews say.</p>
 
       <h2 id="affiliate-disclosure">Affiliate disclosure</h2>
       <p>To keep this site free, we take part in affiliate programs including Amazon Associates and Chewy. If you click a link and make a purchase, we may earn a small commission at no extra cost to you.</p>

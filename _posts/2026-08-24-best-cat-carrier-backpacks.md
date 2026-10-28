@@ -40,7 +40,7 @@ The best cat carrier backpack for your household depends on your cat's size and 
 
 The [Texsens Bubble Backpack Carrier](https://www.amazon.com/dp/B07KHPLFMS?tag=happypetdc-20) earns a 4.6 out of 5 rating (as of Oct 28, 2026). At $27.99 (as of Oct 28, 2026), it's a low-cost way to find out whether your cat will ride in a backpack at all before you spend more.
 
-A rating tells you how buyers scored the bag, not whether it fits your cat. Measure your cat first and compare it with the listing's size and weight limits. While you're on the listing, check how the straps are padded and how the shell is built.
+On the listing, check how the straps are padded and how the shell is built.
 
 **Pros:**
 - Bubble window, for a cat that likes to watch
@@ -55,7 +55,7 @@ The Lekebobor Cat Carrier Backpack Expandable Pet Carrier is an expandable bag r
 
 ### Pecute cat backpack carrier large space
 
-Despite "Large Space" in the name, the Pecute Cat Backpack Carrier is listed for cats under 13.2 lb, and its listing says pets around 6.6 to 8.8 lb will find it more comfortable. It's a bubble backpack like the Texsens, so we'd look at it for a smaller cat who likes to watch. The listing also notes locking zippers, a built-in safety leash and an ergonomic EVA backplate. For a bigger cat, go with the Texsens or the Lekebobor, both listed to 18 lb.
+Despite "Large Space" in the name, the Pecute Cat Backpack Carrier is listed for cats under 13.2 lb, and its listing says pets around 6.6 to 8.8 lb will find it more comfortable. It's a bubble backpack like the Texsens, so we'd look at it for a smaller cat who likes to watch. The listing also notes locking zippers, a built-in safety leash and an ergonomic EVA backplate.
 
 ## What to look for in a carrier backpack
 
@@ -65,7 +65,7 @@ Size matters. A cat needs enough room to stand and turn, but a bag that swallows
 
 Check the straps. If you'll carry the bag for more than a short walk, look for padded shoulder straps and a chest or waist clip on the listing.
 
-Look for an internal leash clip, which is there to help keep a startled cat from bolting when you open a zipper, and for zippers that lock.
+Look for an internal leash clip and zippers that lock.
 
 Give your cat time to adjust. Leave the bag open at home for several days or longer so it smells familiar before the first trip. A rushed introduction can turn a good carrier into a fight.
 
