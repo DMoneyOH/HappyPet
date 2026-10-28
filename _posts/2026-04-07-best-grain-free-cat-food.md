@@ -16,7 +16,7 @@ chewy_url: "https://chewy.sjv.io/c/7160344/3054490/32975?u=https%3A%2F%2Fwww.che
 answer: "If you are moving your cat to grain-free, our pick is Blue Buffalo Wilderness Grain-Free Dry Cat Food. Check the label first. Before you switch, know that food allergies in pets are uncommon, and a Tufts veterinary nutritionist writes that allergies to grains are even rarer. Ask your vet whether grains are the problem."
 faq:
   - q: "Which grain-free cat foods are most popular?"
-    a: "This guide compares four grain-free dry cat foods. On Amazon, Blue Buffalo Wilderness and Taste of the Wild Rocky Mountain are both rated 4.7/5, Merrick Purrfect Bistro 4.6/5 and Wellness CORE 4.4/5 (as of Oct 21, 2026). Ratings show how buyers scored each food, not how many were sold. Our pick is Blue Buffalo Wilderness."
+    a: "This guide compares four grain-free dry cat foods. On Amazon, Blue Buffalo Wilderness and Taste of the Wild Rocky Mountain are both rated 4.7/5, Merrick Purrfect Bistro 4.5/5 and Wellness CORE 4.4/5 (as of Oct 28, 2026). Ratings show how buyers scored each food, not how many were sold. Our pick is Blue Buffalo Wilderness."
   - q: "Is grain-free cat food better for cats?"
     a: "Beef, fish and chicken are the most commonly reported food allergens in cats, according to a 2016 veterinary review. A Tufts veterinary nutritionist writes that food allergies in pets are uncommon and allergies to grains are even rarer. The same nutritionist calls 'grain-free' a marketing concept and says there is no reliable evidence that feeding grains to dogs or cats is harmful. Your vet can confirm whether grains are the problem."
   - q: "What should I look for on a grain-free cat food label?"
@@ -41,7 +41,7 @@ It is listed on Amazon as grain-free, and it is a chicken recipe. It comes with 
 **Pros:**
 * Includes LifeSource Bits
 * No artificial flavors or preservatives
-* Rated 4.7/5 on Amazon (as of Oct 21, 2026)
+* Rated 4.7/5 on Amazon (as of Oct 28, 2026)
 
 **Cons:**
 * A chicken recipe, and chicken is a commonly reported food allergen in cats
@@ -61,7 +61,7 @@ Merrick Purrfect Bistro is rated 4.5/5 on Amazon (as of Oct 28, 2026). Merrick s
 
 ### Additional Pick: Taste of the Wild Rocky Mountain Grain-Free Dry Cat Food
 
-Taste of the Wild's Rocky Mountain formula features roasted venison and smoke-flavored salmon, and it includes probiotics, prebiotics and antioxidants. It shares the top Amazon rating on this page, 4.7/5 (as of Oct 21, 2026).
+Taste of the Wild's Rocky Mountain formula features roasted venison and smoke-flavored salmon, and it includes probiotics, prebiotics and antioxidants. It shares the top Amazon rating on this page, 4.7/5 (as of Oct 28, 2026).
 
 **Pros:**
 * Roasted venison and smoke-flavored salmon
@@ -79,16 +79,16 @@ This line lists deboned turkey and chicken meal as its main ingredients, plus cr
 * Includes cranberries
 
 **Cons:**
-* The lowest Amazon rating of the four, 4.4/5 (as of Oct 21, 2026)
+* The lowest Amazon rating of the four, 4.4/5 (as of Oct 28, 2026)
 
 ## Comparison Table
 
 | Product | Best For | Rating | Check price |
 | :-------------------------------------------- | :------------------------------------------- | :--------- | --- |
-| Blue Buffalo Wilderness Grain-Free Dry Cat Food | Our pick | 4.7/5 (as of Oct 21, 2026) | [On Amazon](https://www.amazon.com/dp/B002UT92EY?tag=happypetdc-20) |
+| Blue Buffalo Wilderness Grain-Free Dry Cat Food | Our pick | 4.7/5 (as of Oct 28, 2026) | [On Amazon](https://www.amazon.com/dp/B002UT92EY?tag=happypetdc-20) |
 | Merrick Purrfect Bistro Grain-Free Dry Cat Food | Several recipe options | 4.5/5 (as of Oct 28, 2026) | [On Amazon](https://www.amazon.com/dp/B0GKB61TMZ?tag=happypetdc-20) |
-| Taste of the Wild Rocky Mountain Grain-Free Dry Cat Food | Venison and salmon recipe | 4.7/5 (as of Oct 21, 2026) | [On Amazon](https://www.amazon.com/dp/B07KNF5SPY?tag=happypetdc-20) |
-| Wellness CORE Grain-Free Dry Cat Food | Turkey and chicken recipe | 4.4/5 (as of Oct 21, 2026) | [On Amazon](https://www.amazon.com/dp/B06XB1Y6NV?tag=happypetdc-20) |
+| Taste of the Wild Rocky Mountain Grain-Free Dry Cat Food | Venison and salmon recipe | 4.7/5 (as of Oct 28, 2026) | [On Amazon](https://www.amazon.com/dp/B07KNF5SPY?tag=happypetdc-20) |
+| Wellness CORE Grain-Free Dry Cat Food | Turkey and chicken recipe | 4.4/5 (as of Oct 28, 2026) | [On Amazon](https://www.amazon.com/dp/B06XB1Y6NV?tag=happypetdc-20) |
 
 ## Buying Guide: Choosing the Right Grain-Free Cat Food
 

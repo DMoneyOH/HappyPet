@@ -14,7 +14,7 @@ product_short: "Purina ONE High Protein Kitten Food"
 chewy_url: "https://chewy.sjv.io/c/7160344/3054490/32975?u=https%3A%2F%2Fwww.chewy.com%2Fpurina-one-plus-healthy-kitten%2Fdp%2F119151&intsrc=APIG_24727"
 image: "https://images-na.ssl-images-amazon.com/images/P/B0000AH3RP.01.LZZZZZZZ.jpg"
 pin_image: "https://happypetproductreviews.com/assets/images/pins/best-kitten-food.jpg?v=20260427"
-answer: "Look for a kitten food or an all-life-stages formula, and read the AAFCO statement on the label. Our checklist also looks for a named animal protein first in the ingredient list. Our dry pick is Purina ONE High Protein Kitten Food, rated 4.8/5 on Amazon as of Apr 16, 2026. Consider adding wet food if your kitten drinks little."
+answer: "Look for a kitten food or an all-life-stages formula, and read the AAFCO statement on the label. Our checklist also looks for a named animal protein first in the ingredient list. Our dry pick is Purina ONE High Protein Kitten Food, rated 4.8/5 on Amazon as of Oct 28, 2026. Consider adding wet food if your kitten drinks little."
 faq:
   - q: "Is dry or wet food better for kittens?"
     a: "Dry food is about 6 to 10 percent water. Canned food is at least 75 percent water and is generally the most expensive type, according to the Cornell Feline Health Center. Mixing the two is an option, and it gives a kitten both textures."
@@ -60,14 +60,14 @@ Canned food is at least 75 percent water, which is the gap dry food leaves open.
 
 ### Tiki Cat Baby Shreds Variety 12pk
 
-Shreds, so a different texture from pate. If your kitten turns its nose up at pate, this is the one we'd try. It comes in a smaller pack than the Fancy Feast, which makes it an easier way to see whether your kitten likes shreds before you buy a case.
+Tiki Cat Baby Shreds is a shredded wet food, so its texture differs from pate. If your kitten turns its nose up at pate, this is the one we'd try. It comes in a smaller pack than the Fancy Feast, which makes it an easier way to see whether your kitten likes shreds before you buy a case.
 
 ## What makes kitten food high quality?
 
 Run these on any bag before you buy it.
 
 1. **Read the AAFCO statement first.** For a kitten, look for a statement that names growth or all life stages. Adult maintenance food is not kitten food, whatever the bag shows.
-2. **Look for a named animal protein first in the ingredients.** "Chicken" or "salmon" tells you exactly what the protein is. Our checklist wants a named animal protein at the top of the list.
+2. **Look for a named animal protein first in the ingredients.** "Chicken" or "salmon" tells you exactly what the protein is.
 3. **Plan the moisture.** Dry kibble is about 6 to 10 percent water, so pair it with wet food if your kitten drinks little from a bowl.
 
 ## Which kitten food brands are top rated?

@@ -13,7 +13,7 @@ affiliate_url: "https://www.amazon.com/dp/B07KHPLFMS?tag=happypetdc-20"
 product_short: "Texsens Bubble Backpack Carrier"
 image: "https://m.media-amazon.com/images/I/61tatOQzdLL._AC_SX679_.jpg"
 pin_image: "https://happypetproductreviews.com/assets/images/pins/best-cat-carrier-backpacks.jpg?v=20260824"
-answer: "For most first-time owners, our pick is the Texsens Bubble Backpack Carrier, rated 4.6 out of 5 on Amazon as of Jul 7, 2026. A rating tells you how buyers scored a bag, not whether it fits your cat. Before you buy, measure your cat and compare it with the listing's size and weight limits."
+answer: "For most first-time owners, our pick is the Texsens Bubble Backpack Carrier, rated 4.6 out of 5 on Amazon as of Oct 28, 2026. A rating tells you how buyers scored a bag, not whether it fits your cat. Before you buy, measure your cat and compare it with the listing's size and weight limits."
 faq:
   - q: "Are cat backpack carriers safe?"
     a: "They can be, if the bag fits your cat and stays secure. In our checklist, look for mesh on at least two sides, an internal leash clip and zippers that lock. The leash clip is there to help keep a startled cat from bolting when you open a zipper."
@@ -69,10 +69,10 @@ Give your cat time to adjust. Leave the bag open at home for several days or lon
 
 ## How the picks compare
 
-| Product | May suit, in our judgment | Price (as of Oct 28, 2026) | Ventilation | Check price |
+| Product | May suit, in our judgment | Price | Ventilation | Check price |
 | --- | --- | --- | --- | --- |
-| Texsens Innovative Traveler Bubble Backpack | Calm cats who like to watch | $27.99 | See listing | [On Amazon](https://www.amazon.com/dp/B07KHPLFMS?tag=happypetdc-20) |
-| Lekebobor Expandable Pet Carrier | Restless cats who dislike tight quarters | $35.99 | See listing | [On Amazon](https://www.amazon.com/dp/B09YYKFLMQ?tag=happypetdc-20) |
-| Pecute Large Space Carrier | Smaller cats (listed under 13.2 lb) | $39.99 | See listing | [On Amazon](https://www.amazon.com/dp/B0F7XJHX9L?tag=happypetdc-20) |
+| Texsens Innovative Traveler Bubble Backpack | Calm cats who like to watch | $27.99 (as of Oct 28, 2026) | See listing | [On Amazon](https://www.amazon.com/dp/B07KHPLFMS?tag=happypetdc-20) |
+| Lekebobor Expandable Pet Carrier | Restless cats who dislike tight quarters | $35.99 (as of Oct 28, 2026) | See listing | [On Amazon](https://www.amazon.com/dp/B09YYKFLMQ?tag=happypetdc-20) |
+| Pecute Large Space Carrier | Smaller cats (listed under 13.2 lb) | $39.99 (as of Oct 28, 2026) | See listing | [On Amazon](https://www.amazon.com/dp/B0F7XJHX9L?tag=happypetdc-20) |
 
 We'd choose on your cat's size and temperament before any single feature. A calm cat who likes to watch may suit a bubble design, and a restless cat may want room to shift and stretch. For most owners starting out, the [Texsens Bubble Backpack Carrier](https://www.amazon.com/dp/B07KHPLFMS?tag=happypetdc-20) is our pick for a first-timer. Pair it with a slow introduction at home. For more gear that travels well, see this guide to [cat carrier travel](https://happypetproductreviews.com/carriers/best-cat-carrier-travel/).

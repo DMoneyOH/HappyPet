@@ -46,13 +46,13 @@ The best evidence so far finds no pain-relief effect from glucosamine and chondr
 | Product | Best for | Form | Main ingredients | Check price |
 |---|---|---|---|---|
 | Nutramax Welactin Canine Softgels | Owners who want the ingredient the research backs | Softgel capsule | Omega-3 fish oil: EPA and DHA | [On Amazon](https://www.amazon.com/dp/B001L1BM2W?th=1&tag=happypetdc-20) |
-| Nutramax Cosequin Joint Supplement for Dogs, Chewable Tablets, 132 ct (with MSM) | A simple glucosamine formula | Chewable tablet | Glucosamine, chondroitin, MSM | [On Amazon](https://www.amazon.com/dp/B003ULL1NQ?th=1&tag=happypetdc-20) |
+| Nutramax Cosequin Joint Supplement for Dogs, Chewable Tablets, 132ct | A simple glucosamine formula | Chewable tablet | Glucosamine, chondroitin, MSM | [On Amazon](https://www.amazon.com/dp/B003ULL1NQ?th=1&tag=happypetdc-20) |
 | Dasuquin With MSM | Owners who want more than the core three | Soft chew | Glucosamine, chondroitin, MSM, ASU, Boswellia, green tea extract | [On Amazon](https://www.amazon.com/dp/B0041OOPK2?th=1&tag=happypetdc-20) |
 | Zesty Paws Hip & Joint Bites for Dogs | Dogs who refuse tablets | See listing | Glucosamine, chondroitin, OptiMSM, vitamins E and C | [On Amazon](https://www.amazon.com/dp/B07RM62JYB?th=1&tag=happypetdc-20) |
 
 ### Featured pick: Nutramax Welactin Canine Softgels
 
-Welactin carries a **4.6/5** rating on Amazon from **5,239 ratings** (as of Oct 19, 2026). Each softgel holds 300 mg of omega-3 fatty acids, including 155 mg of EPA and 100 mg of DHA. Omega-3 is the ingredient with the best evidence in the research above, and the label tells you exactly how much your dog gets in each softgel.
+Welactin carries a **4.6/5** rating on Amazon from **5,241 ratings** (as of Oct 28, 2026). Each softgel holds 300 mg of omega-3 fatty acids, including 155 mg of EPA and 100 mg of DHA. Omega-3 is the ingredient with the best evidence in the research above, and the label tells you exactly how much your dog gets in each softgel.
 
 **Pros**
 - Omega-3, the ingredient the research above backs most
@@ -63,9 +63,9 @@ Welactin carries a **4.6/5** rating on Amazon from **5,239 ratings** (as of Oct 
 
 If you and your vet decide to try a joint supplement, start with [Nutramax Welactin Canine Softgels](https://www.amazon.com/dp/B001L1BM2W?th=1&tag=happypetdc-20).
 
-### The glucosamine option: Nutramax Cosequin Joint Supplement for Dogs, Chewable Tablets, 132 ct (with MSM)
+### The glucosamine option: Nutramax Cosequin Joint Supplement for Dogs, Chewable Tablets, 132ct
 
-Cosequin carries a **4.7/5** rating on Amazon from **80,241 ratings** (as of Oct 19, 2026). It costs $34.91 (as of Oct 21, 2026). Each chewable tablet pairs glucosamine, chondroitin and MSM. Of the three glucosamine formulas here, it has the shortest list: the three standard joint ingredients and nothing extra to sort through.
+Cosequin carries a **4.7/5** rating on Amazon from **80,345 ratings** (as of Oct 28, 2026). It costs $34.91 (as of Oct 28, 2026). Each chewable tablet pairs glucosamine, chondroitin and MSM. Of the three glucosamine formulas here, it has the shortest list: the three standard joint ingredients and nothing extra to sort through.
 
 **Pros**
 - A short, clear ingredient label
@@ -74,13 +74,13 @@ Cosequin carries a **4.7/5** rating on Amazon from **80,241 ratings** (as of Oct
 **Cons**
 - It rests on glucosamine and chondroitin, the ingredients with the weakest evidence in the research above
 
-If you and your vet want a glucosamine supplement instead, start with [Nutramax Cosequin Joint Supplement for Dogs, Chewable Tablets, 132 ct (with MSM)](https://www.amazon.com/dp/B003ULL1NQ?th=1&tag=happypetdc-20).
+If you and your vet want a glucosamine supplement instead, start with [Nutramax Cosequin Joint Supplement for Dogs, Chewable Tablets, 132ct](https://www.amazon.com/dp/B003ULL1NQ?th=1&tag=happypetdc-20).
 
 ### Additional picks
 
 #### Dasuquin With MSM
 
-Alongside glucosamine, chondroitin and MSM, it adds avocado/soybean unsaponifiables (ASU), Boswellia serrata extract and green tea extract. Those extra ingredients are the main difference from Cosequin. The Amazon listing in the table is a soft chew and costs $49.99 (as of Oct 21, 2026).
+Dasuquin adds avocado/soybean unsaponifiables (ASU), Boswellia serrata extract and green tea extract to glucosamine, chondroitin and MSM. Those extra ingredients are the main difference from Cosequin. The Amazon listing in the table is a soft chew and costs $49.99 (as of Oct 28, 2026).
 
 #### Zesty Paws Hip & Joint Bites for Dogs
 
@@ -97,4 +97,4 @@ This is the one this guide lists for a dog that spits out tablets. The listing n
 
 ## Where to start
 
-A joint supplement is one small part of caring for an older dog. In our view, weight control, regular gentle exercise and your vet's advice on pain relief come first. Small changes at home help too: a [dog ramp for the car](/health/best-dog-ramps/) saves the jump at the tailgate, and a [supportive orthopedic bed](/beds/best-dog-beds-large-breeds/) gives sore joints a softer place to rest. If you and your vet still want to add a supplement, start with omega-3: [Nutramax Welactin Canine Softgels](https://www.amazon.com/dp/B001L1BM2W?th=1&tag=happypetdc-20) list their EPA and DHA on the label. For a glucosamine formula, [Nutramax Cosequin Joint Supplement for Dogs, Chewable Tablets, 132 ct (with MSM)](https://www.amazon.com/dp/B003ULL1NQ?th=1&tag=happypetdc-20) is the simplest of the three glucosamine formulas.
+A joint supplement is one small part of caring for an older dog. In our view, weight control, regular gentle exercise and your vet's advice on pain relief come first. Small changes at home help too: a [dog ramp for the car](/health/best-dog-ramps/) saves the jump at the tailgate, and a [supportive orthopedic bed](/beds/best-dog-beds-large-breeds/) gives sore joints a softer place to rest. If you and your vet still want to add a supplement, start with omega-3: [Nutramax Welactin Canine Softgels](https://www.amazon.com/dp/B001L1BM2W?th=1&tag=happypetdc-20) list their EPA and DHA on the label. For a glucosamine formula, [Nutramax Cosequin Joint Supplement for Dogs, Chewable Tablets, 132ct](https://www.amazon.com/dp/B003ULL1NQ?th=1&tag=happypetdc-20) is the simplest of the three glucosamine formulas.

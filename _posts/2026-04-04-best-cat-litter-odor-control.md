@@ -54,6 +54,9 @@ As the name says, Dr. Elsey's Ultra Unscented is unscented. Its listing says it 
 *   Unscented
 *   Hard clumping, the maker says
 
+**Cons:**
+*   Unscented, so it's the wrong pick if you want a litter with a scent
+
 ### Arm & Hammer Clump & Seal
 
 Arm & Hammer Clump & Seal is the other scented clumping litter here. We picked Fresh Step for a busy box; this is the one to compare it against if you want a scented litter and a second option. If your cat starts to hesitate at the box after the switch, that's your answer: go back to unscented.
@@ -70,21 +73,21 @@ Arm & Hammer Clump & Seal is the other scented clumping litter here. We picked F
 
 | Product                                                  | Best For                  | Rating | Check price |
 | :------------------------------------------------------- | :------------------------ | :--------- | --- |
-| [Fresh Step Odor Shield Multi Cat Clumping Cat Litter](https://www.amazon.com/dp/B000VDR8LA?th=1&tag=happypetdc-20) | Our pick for a busy box | 4.6/5 (as of Oct 17, 2026) | [On Amazon](https://www.amazon.com/dp/B000VDR8LA?th=1&tag=happypetdc-20) |
-| [Dr. Elsey's Ultra Unscented Clumping Clay Cat Litter](https://www.amazon.com/dp/B0009X0QSY?th=1&tag=happypetdc-20) | Unscented, one-cat homes      | 4.3/5 (as of Oct 17, 2026) | [On Amazon](https://www.amazon.com/dp/B0009X0QSY?th=1&tag=happypetdc-20) |
-| [Arm & Hammer Clump & Seal](https://www.amazon.com/dp/B09P32SSRL?th=1&tag=happypetdc-20) | Scented multi-cat clumping | 4.6/5 (as of Oct 17, 2026) | [On Amazon](https://www.amazon.com/dp/B09P32SSRL?th=1&tag=happypetdc-20) |
+| [Fresh Step Odor Shield Multi Cat Clumping Cat Litter](https://www.amazon.com/dp/B000VDR8LA?th=1&tag=happypetdc-20) | Our pick for a busy box | 4.6/5 (as of Oct 28, 2026) | [On Amazon](https://www.amazon.com/dp/B000VDR8LA?th=1&tag=happypetdc-20) |
+| [Dr. Elsey's Ultra Unscented Clumping Clay Cat Litter](https://www.amazon.com/dp/B0009X0QSY?th=1&tag=happypetdc-20) | Unscented, one-cat homes      | 4.3/5 (as of Oct 28, 2026) | [On Amazon](https://www.amazon.com/dp/B0009X0QSY?th=1&tag=happypetdc-20) |
+| [Arm & Hammer Clump & Seal](https://www.amazon.com/dp/B09P32SSRL?th=1&tag=happypetdc-20) | Scented multi-cat clumping | 4.6/5 (as of Oct 28, 2026) | [On Amazon](https://www.amazon.com/dp/B09P32SSRL?th=1&tag=happypetdc-20) |
 
 ## Buying Guide
 
 Five things to check on any bag, in the order we'd check them.
 
-### 1. Litter Type and Material
-
-Clay litters absorb moisture and clump. Silica gel litters are absorbent, and brands often say they last longer between changes. Pine, corn and wheat litters are another option; check the bag to see whether a given one clumps. We don't rank one material over another for odor. All three picks here are clumping litters, and Dr. Elsey's is clay. If your cat already uses its box happily, weigh that before you change the texture under its paws.
-
-### 2. Clumping Ability
+### 1. Clumping Ability
 
 This is the one we'd never compromise on. Clumps that hold together come out whole, so less used litter stays in the box giving off smell. Look for "hard clumping" or "strong clumping" on the packaging. Pair a hard-clumping litter with a box that is easy to scoop: our [litter box guide](/litter/best-cat-litter-boxes/) compares boxes built for easy cleaning and odor control.
+
+### 2. Litter Type and Material
+
+Clay litters absorb moisture and clump. Silica gel litters are absorbent, and brands often say they last longer between changes. Pine, corn and wheat litters are another option; check the bag to see whether a given one clumps. We don't rank one material over another for odor. All three picks here are clumping litters, and Dr. Elsey's is clay. If your cat already uses its box happily, weigh that before you change the texture under its paws.
 
 ### 3. Scented vs. Unscented
 
