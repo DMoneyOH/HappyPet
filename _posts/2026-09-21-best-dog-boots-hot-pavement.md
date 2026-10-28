@@ -2,6 +2,7 @@
 layout: post
 title: "Pawsitively Protected: The Best Dog Boots for Hot Pavement"
 date: 2026-09-21
+last_modified_at: 2026-10-28
 categories: [outdoor]
 redirect_from:
   - /dog-health/best-dog-boots-hot-pavement/
@@ -27,7 +28,7 @@ Three sets earned a spot here, chosen for fit and grip on scorching sidewalks. T
 
 The [QUMY Dog Boots (4-pack)](https://www.amazon.com/dp/B0D2WVJR7X?tag=happypetdc-20) carries a 4.0 out of 5 star rating and sells for $21.99 (as of Jul 7, 2026), which lands it squarely in budget territory for a set of four. The mesh upper lets air move through the boot, so paws stay cooler than they would inside a sealed rubber shell. A soft anti-slip rubber sole handles the actual job of keeping hot ground away from the pad while adding traction on slick hardwood indoors.
 
-Fit is where small-dog boots live or die, and owners of tiny breeds tend to praise how snugly the Size 2 sits once the straps cinch down. Measure your dog's paw before ordering, since the small sizing runs close and a loose boot walks right off.
+Fit is where small-dog boots live or die, and Amazon's summary of customer reviews says buyers split here: some report a secure fit, while others say the boots don't stay on. The same summary says buyers find them easy to put on, with good traction and protection on hot pavement, and that durability reports are mixed (Amazon review summary, as of Oct 28, 2026). Measure your dog's paw before ordering, since the small sizing runs close and a loose boot walks right off.
 
 Pros:
 
@@ -43,11 +44,11 @@ Cons:
 
 ### Breathable Dog Boots for Medium Large Dogs
 
-Breathable Dog Boots for Medium Large Dogs Non-Slip Summer Hot Pavement steps in where the QUMY set runs out of room. The wider cut fits medium and large paws that would never squeeze into a Size 2, and the ventilated build aims at the same summer heat problem. Most owners find the non-slip sole grips well on sidewalks, though a few report that getting the boots onto a squirming dog the first few times takes patience. Break them in at home before a long walk.
+Breathable Dog Boots for Medium Large Dogs Non-Slip Summer Hot Pavement steps in where the QUMY set runs out of room. The wider cut fits medium and large paws that would never squeeze into a Size 2, and the ventilated build aims at the same summer heat problem. Break them in at home before a long walk.
 
 ### SlowTon Dog Shoes for Large Small Medium Dogs
 
-SlowTon Dog Shoes for Large Small Medium Dogs Breathable Summer Boots spreads its sizing across the whole range, which helps if your household mixes a couple of different breeds. The breathable panels work well for warm-weather outings, and owners tend to like the adjustable straps for dialing in a secure hold. The trade-off shows up in durability: heavy chewers or dogs that drag their feet may wear through the softer material faster than a stiffer boot would.
+SlowTon Dog Shoes for Large Small Medium Dogs Breathable Summer Boots spreads its sizing across the whole range, which helps if your household mixes a couple of different breeds. The breathable panels work well for warm-weather outings, and adjustable straps help dial in a secure hold. The trade-off shows up in durability: heavy chewers or dogs that drag their feet may wear through the softer material faster than a stiffer boot would.
 
 ## Buying guide
 

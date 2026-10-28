@@ -1,7 +1,8 @@
 ---
 layout: post
-title: "Best Dog Training Treats Trainers Reach For Again and Again"
+title: "Best Dog Training Treats: 3 Picks Compared"
 date: 2026-09-03
+last_modified_at: 2026-10-28
 categories: [treats]
 redirect_from:
   - /dog-food/best-dog-training-treats/
@@ -26,7 +27,7 @@ Here are the best dog training treats that held up, ranked by how they perform o
 
 ### Blue Buffalo Bits beef soft and chewy dog treats
 
-The [Blue Buffalo Bits Beef Training Treats](https://www.amazon.com/dp/B08XY6CFFW?tag=happypetdc-20) earn a 4.8/5 rating (as of Jul 3, 2026) on Amazon, and the reason shows up fast once you open the bag. Each piece runs small and stays soft, so your dog chews once and looks back for the next cue instead of crunching away for ten seconds. Real beef sits first on the label, and the bites carry added DHA, which owners of puppies tend to value during the early training months. At $14.99 (as of Jul 3, 2026) a bag, the price stays low enough that you can hand them out freely across a long session rather than doling out one at a time. Dogs that shrug off drier biscuits often perk up for these, which makes them a dependable choice for a stubborn or easily bored trainee.
+The [Blue Buffalo Bits Beef Training Treats](https://www.amazon.com/dp/B08XY6CFFW?tag=happypetdc-20) earn a 4.8/5 rating (as of Jul 3, 2026) on Amazon, and the reason shows up fast once you open the bag. Each piece runs small and stays soft, so your dog chews once and looks back for the next cue instead of crunching away for ten seconds. Real beef sits first on the label, and the bites carry added DHA. At $14.99 (as of Jul 3, 2026) a bag, the price stays low enough that you can hand them out freely across a long session rather than doling out one at a time. Amazon's summary of customer reviews says buyers find them effective for training and like the soft, chewy texture, though some dogs refuse them and several customers mention a strong beefy smell (Amazon review summary, as of Oct 28, 2026).
 
 - Small, soft bites your dog can eat fast without breaking focus
 - Real beef listed as the first ingredient on the label
@@ -40,11 +41,11 @@ The [Blue Buffalo Bits Beef Training Treats](https://www.amazon.com/dp/B08XY6CFF
 
 ### Buddy Biscuits Trainers training bites
 
-[Buddy Biscuits Trainers Training Bites](https://www.amazon.com/dp/B0D6KFWJLP?tag=happypetdc-20) (bacon, 10 oz, sold as a 2-pack) lean on a bacon flavor that grabs most dogs on the first sniff, which helps in a distracting spot like a park or a busy sidewalk. The bites stay soft and tear easily, so you can pinch off a smaller piece for a tiny dog or a fast reward. Owners tend to note the pouch empties quickly once daily sessions ramp up. The bacon scent lingers on your hands, which some owners find less pleasant than a milder treat.
+[Buddy Biscuits Trainers Training Bites](https://www.amazon.com/dp/B0D6KFWJLP?tag=happypetdc-20) (bacon, 10 oz, sold as a 2-pack) lean on a bacon flavor meant to hold attention in a distracting spot like a park or a busy sidewalk. The bites stay soft and tear easily, so you can pinch off a smaller piece for a tiny dog or a fast reward. Their own Amazon review summary says customers find them effective for training, a good size and good value, though some dogs refuse them. Opinions on the smell split, from fantastic to horrible.
 
 ### Pupford freeze dried training treats
 
-[Pupford Freeze Dried Training Treats](https://www.amazon.com/dp/B07LB88XF7?tag=happypetdc-20) keep the label short, with beef liver leading a three-ingredient recipe that suits dogs with touchy stomachs. The bites run tiny, so one bag stretches across a lot of reps and leaves almost no crumbs behind in your pocket. Most owners find the strong liver smell drives high food motivation, though that same smell clings to a treat pouch between washes. Some dogs need a session to warm up to the liver taste before it clicks.
+[Pupford Freeze Dried Training Treats](https://www.amazon.com/dp/B07LB88XF7?tag=happypetdc-20) keep the label short, with beef liver leading a three-ingredient recipe that suits dogs with touchy stomachs. The bites run tiny, so one bag stretches across a lot of reps and leaves almost no crumbs behind in your pocket. Customers who bought the Pupford bites call them effective, especially for crate training, and a good size for sessions, and say dogs go crazy for them, going by this product's Amazon review summary. It also notes they run pricey and that opinions on taste are mixed.
 
 ## What to look for in a training treat
 

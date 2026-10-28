@@ -2,6 +2,7 @@
 layout: post
 title: "Elevate Their Ride: The Best Dog Car Booster Seats for Safety and Views"
 date: 2026-10-12
+last_modified_at: 2026-10-28
 categories: [travel]
 species: dog
 tags: [best dog car booster seats]
@@ -27,9 +28,9 @@ You pull out of the driveway, and within a minute your small dog has climbed off
 
 ### Featured pick: Amazon Basics Dog Car Seat Booster for Small Dogs up to 25lb
 
-The [Amazon Basics Dog Car Booster Seat](https://www.amazon.com/dp/B0735GGXGK?tag=happypetdc-20) holds a 4.6 out of 5 star rating on Amazon and sells for $61.81 (as of Sep 25, 2026). A rating that high suggests most buyers got what they expected. The weight limit appears right in the name, so check your dog on a bathroom scale before you order. A dog near the top of that range will fill the seat, and a heavier one needs something else.
+The [Amazon Basics Dog Car Booster Seat](https://www.amazon.com/dp/B0735GGXGK?tag=happypetdc-20) holds a 4.6 out of 5 star rating on Amazon and sells for $61.81 (as of Sep 25, 2026). The weight limit appears right in the name, so check your dog on a bathroom scale before you order. A dog near the top of that range will fill the seat, and a heavier one needs something else.
 
-A booster like this one keeps a small dog in one place and lifts it closer to the side window. Many owners of small dogs report calmer rides once the dog stops pacing between seats. Fit can cause trouble, since some back seats sit at an angle that makes any booster tilt, and the straps take some fiddling the first time.
+A booster like this one keeps a small dog in one place and lifts it closer to the side window. Amazon's summary of customer reviews says buyers find it comfortable and secure, like how it tethers to the seat belt, and say dogs can see out the window easily. Reports are mixed on stability, with some saying the seat stays put when strapped in and others saying it tilts forward and back (Amazon review summary, as of Oct 28, 2026).
 
 Pros:
 - Lifts a small dog to window height, which tends to cut down on whining
@@ -39,7 +40,7 @@ Pros:
 
 Cons:
 - Built only for dogs up to 25 pounds
-- Some owners report a tilt on sloped or bucket-style seats
+- Some buyers report the seat tilting forward and back
 
 ### JOEJOY Elevated Dog Car Seat
 

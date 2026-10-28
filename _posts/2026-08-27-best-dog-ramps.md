@@ -2,7 +2,7 @@
 layout: post
 title: "Best Dog Ramps for Senior Dogs: Car and SUV"
 date: 2026-08-27
-last_modified_at: 2026-10-19
+last_modified_at: 2026-10-28
 categories: [health]
 redirect_from:
   - /dog-health/best-dog-ramps/
@@ -27,7 +27,7 @@ Three ramps earn a spot here, and each suits a different situation. The best dog
 
 ### Featured pick: PetSafe Happy Ride Folding Pet Ramp
 
-The [PetSafe Happy Ride Folding Ramp](https://www.amazon.com/dp/B0016HNU12?tag=happypetdc-20) folds flat like a suitcase and opens into one continuous surface, which suits dogs that freeze on stairs. It carries a 4.1 out of 5 rating (as of Jul 7, 2026), and at $59.99 (as of Jul 7, 2026) it undercuts many padded orthopedic ramps that cost twice as much. The walking surface uses a high-traction texture that helps paws catch on the way up, and the folded panel travels with one hand. Many owners report that a nervous dog crosses it faster once it learns the ramp does not wobble underfoot.
+The [PetSafe Happy Ride Folding Ramp](https://www.amazon.com/dp/B0016HNU12?tag=happypetdc-20) folds flat like a suitcase and opens into one continuous surface, which suits dogs that freeze on stairs. It carries a 4.1 out of 5 rating (as of Jul 7, 2026), and at $59.99 (as of Jul 7, 2026) it undercuts many padded orthopedic ramps that cost twice as much. The walking surface uses a high-traction texture that helps paws catch on the way up, and the folded panel travels with one hand. Amazon's summary of customer reviews says buyers find it lightweight, sturdy and easy to fold and use. Reviews are mixed on stability, with some dogs stepping off the sides, and several customers say it runs a bit narrow for larger dogs (Amazon review summary, as of Oct 28, 2026).
 
 The design has limits worth knowing. The single flat fold runs long when open, so you need clearance behind the vehicle to set it at a gentle angle. Smaller dogs adjust in a day, though a large breed may need a week of treat-based coaxing before it trusts the climb.
 
@@ -43,7 +43,7 @@ Cons:
 
 ### Pet Gear Travel Lite Ramp
 
-The Pet Gear Travel Lite Ramp swaps the flat fold for a more compact fold that collapses shorter, which helps when trunk space runs tight. It sets up fast and tends to feel stable once the panels lock into place. Most owners find the textured deck reassuring for a dog that drifts toward the edge. The extra hinges add a little bulk, and a heavier dog may notice more flex across the middle than on a stiffer one-piece panel.
+The Pet Gear Travel Lite Ramp swaps the flat fold for a more compact fold that collapses shorter, which helps when trunk space runs tight. Its own Amazon review summary says customers like it for older dogs and find the fold makes it easy to store. That summary also notes complaints that the surface feels rough like sandpaper and the ramp runs narrow for large breeds, with mixed reports on weight and sturdiness. The extra hinges add a little bulk, and a heavier dog may notice more flex across the middle than on a stiffer one-piece panel.
 
 ### PetSTEP Original Folding Pet Ramp
 

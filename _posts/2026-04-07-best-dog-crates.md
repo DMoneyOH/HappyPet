@@ -2,6 +2,7 @@
 layout: post
 title: "Best Dog Crates for Every Size"
 date: 2026-04-07
+last_modified_at: 2026-10-28
 categories: [crates]
 redirect_from:
   - /dog-crates/best-dog-crates/
@@ -24,7 +25,7 @@ For overall versatility and value, the MidWest Homes for Pets New World Dog Crat
 
 ### Featured Pick: MidWest Homes for Pets 42-Inch New World Dog Crate
 
-The MidWest New World Dog Crate is consistently a top performer in owner reviews, and it's easy to see why. This durable wire crate offers fantastic value, providing a secure and comfortable space for dogs of various sizes. Its double-door design offers flexibility in placement, allowing you to position it in more areas of your home. The secure slide-bolt latches keep even the most determined escape artists safely inside. Assembly is straightforward, and the fold-and-carry design makes it surprisingly portable for a wire crate. The included divider panel is a great choice for puppy owners, letting you adjust the interior space as your dog grows, ensuring proper sizing for house-training. It's a solid, reliable choice that will last for years.
+This durable wire crate offers fantastic value, providing a secure and comfortable space for dogs of various sizes. Its double-door design offers flexibility in placement, allowing you to position it in more areas of your home. The secure slide-bolt latches keep even the most determined escape artists safely inside. Assembly is straightforward, and the fold-and-carry design makes it surprisingly portable for a wire crate. The included divider panel is a great choice for puppy owners, letting you adjust the interior space as your dog grows, ensuring proper sizing for house-training. It's a solid, reliable choice that will last for years.
 
 **Pros:**
 * Excellent value for money

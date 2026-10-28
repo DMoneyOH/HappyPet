@@ -2,6 +2,7 @@
 layout: post
 title: "Best Dog Pools for Backyard Splashing All Summer Long"
 date: 2026-08-17
+last_modified_at: 2026-10-28
 categories: [outdoor]
 redirect_from:
   - /dog-toys/best-dog-pools/
@@ -29,7 +30,7 @@ These three folding pools rank among the best dog pool options for different yar
 
 ### Featured pick: Jasonwell foldable dog pet bath pool
 
-The [Jasonwell Foldable Dog Pool](https://www.amazon.com/dp/B01I3DTB2S?tag=happypetdc-20) carries a 4.5 out of 5 star rating and sells for $39.99 (as of Jul 7, 2026), which puts a full-size pool in reach of most budgets. The width does the heavy lifting here. A base that measures 63 inches across gives a Labrador or a golden room to lie down and roll, not just stand in the middle. The sides hold their shape through a stiff outer band, so the pool stays upright on its own once you add water, and it packs down flat when the weather cools. The coated material resists the claw scratches that split rigid plastic tubs. Many owners report that it empties fast through a side plug, which spares you from tipping fifty pounds of water across the lawn. Puppies and cats can use a lower fill level, and the same pool doubles as an indoor bath station on grooming day.
+The [Jasonwell Foldable Dog Pool](https://www.amazon.com/dp/B01I3DTB2S?tag=happypetdc-20) carries a 4.5 out of 5 star rating and sells for $39.99 (as of Jul 7, 2026), which puts a full-size pool in reach of most budgets. The width does the heavy lifting here. A base that measures 63 inches across gives a Labrador or a golden room to lie down and roll, not just stand in the middle. The sides hold their shape through a stiff outer band, so the pool stays upright on its own once you add water, and it packs down flat when the weather cools. Customers who bought it say it is easy to set up, folds away for storage and is roomy enough for large dogs. Amazon's summary of customer reviews says durability is mixed, with some customers reporting holes in the bottom, and so is value (Amazon review summary, as of Oct 28, 2026). Puppies and cats can use a lower fill level, and the same pool doubles as an indoor bath station on grooming day.
 
 Pros:
 - Wide 63 inch base fits medium and large dogs
@@ -43,7 +44,7 @@ Cons:
 
 ### Niubya foldable dog pool
 
-The Niubya foldable dog pool follows the same collapsible design, with firm sides that stand on their own and a base wide enough for a medium dog to wade and drink. Most owners find it quick to empty and fold for storage between hot days. The trade-off shows with determined chewers, since the exposed rim can tempt a bored dog to bite, and the folded pool needs a dry spot so the lining does not stay damp and musty.
+The Niubya foldable dog pool follows the same collapsible design, with firm sides that stand on their own and a base wide enough for a medium dog to wade and drink. The trade-off shows with determined chewers, since the exposed rim can tempt a bored dog to bite, and the folded pool needs a dry spot so the lining does not stay damp and musty.
 
 ### TRIXIE splash pool for dogs
 

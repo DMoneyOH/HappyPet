@@ -2,6 +2,7 @@
 layout: post
 title: "How to Choose the Best Cat Carrier"
 date: 2026-04-04
+last_modified_at: 2026-10-28
 categories: [carriers]
 redirect_from:
   - /cat-carriers/best-cat-carrier-travel/
@@ -59,7 +60,7 @@ Accidents happen, especially when a cat is stressed. A carrier that's easy to cl
 
 ## The Top Pick -- [Sherpa Original Deluxe Travel Pet Carrier](https://www.amazon.com/dp/B000FLETX8?th=1&tag=happypetdc-20)
 
-After weighing the options against what owners report from countless trips with feline companions, the most consistent performer is the [Sherpa Original Deluxe Travel Pet Carrier](https://www.amazon.com/dp/B000FLETX8?th=1&tag=happypetdc-20). This soft-sided carrier truly excels in combining comfort, security, and practicality, making cat carrier travel significantly smoother. Its patented spring wire frame allows the rear end of the carrier to be pushed down several inches, conforming to under-seat dimensions on most airlines – a huge plus for those flying with their cats. The multiple mesh windows give excellent ventilation, the top and side entry options make loading easy, and the comfortable faux lambskin liner is removable and washable. The non-slip shoulder strap and seatbelt/luggage strap make it versatile for all modes of transport, so your cat stays safe and secure wherever you go. It’s built to last and designed with real pet travel in mind.
+Our pick is the [Sherpa Original Deluxe Travel Pet Carrier](https://www.amazon.com/dp/B000FLETX8?th=1&tag=happypetdc-20). Amazon's summary of customer reviews says buyers find it well made and a good fit under airline seats, though reviews are mixed on size and some customers report straps breaking (Amazon review summary, as of Oct 28, 2026). This soft-sided carrier truly excels in combining comfort, security, and practicality, making cat carrier travel significantly smoother. Its patented spring wire frame allows the rear end of the carrier to be pushed down several inches, conforming to under-seat dimensions on most airlines – a huge plus for those flying with their cats. The multiple mesh windows give excellent ventilation, the top and side entry options make loading easy, and the comfortable faux lambskin liner is removable and washable. The non-slip shoulder strap and seatbelt/luggage strap make it versatile for all modes of transport, so your cat stays safe and secure wherever you go.
 
 ## Common Mistakes to Avoid
 
@@ -67,7 +68,7 @@ Even with the best intentions, new pet owners sometimes make simple mistakes tha
 
 1.  **Buying the Wrong Size:** As mentioned above, getting the size just right is crucial. A carrier that's too small is cruel, and one that's too large can be dangerous. Always measure your cat and compare it to the carrier's interior dimensions, not just the exterior.
 2.  **Only Using the Carrier for Vet Visits:** If the only time your cat sees their carrier is when they're being taken to the vet for shots or an unpleasant procedure, they'll quickly associate it with fear and negativity. Leave the carrier out in your home, with the door open and a comfy blanket inside. Toss treats or toys into it. Make it a safe, familiar den, not just a travel prison. This positive association is key for stress-free cat carrier travel.
-3.  **Forgetting Hydration and Sustenance for Longer Trips:** For journeys longer than a few hours, your cat will need access to water, and possibly food. Many carriers have small pockets where you can stash collapsible bowls or a small bag of treats. For extended travel, consider setting up an automatic feeder for travel once you arrive at your destination. Owners report that [automatic cat feeders for travel](/feeding/best-automatic-cat-feeder/) can be a lifesaver for maintaining routine.
+3.  **Forgetting Hydration and Sustenance for Longer Trips:** For journeys longer than a few hours, your cat will need access to water, and possibly food. Many carriers have small pockets where you can stash collapsible bowls or a small bag of treats. For extended travel, consider setting up an [automatic feeder](/feeding/best-automatic-cat-feeder/) for travel once you arrive at your destination.
 4.  **Not Checking Airline Requirements:** If you plan to fly with your cat, *always* double-check the specific dimensions and requirements of your chosen airline, both for in-cabin and cargo travel. These rules can vary significantly between carriers and change without much notice. Don't assume your carrier will fit just because it's labeled "airline approved" – verify!
 
 ## FAQ

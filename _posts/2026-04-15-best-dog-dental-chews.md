@@ -2,6 +2,7 @@
 layout: post
 title: "Best Dog Dental Chews for Clean Teeth and Fresh Breath"
 date: 2026-04-15
+last_modified_at: 2026-10-28
 categories: [dental]
 redirect_from:
   - /dog-health/best-dog-dental-chews/
@@ -29,17 +30,17 @@ With a stellar 4.8/5 star rating (as of Apr 8, 2026), Greenies Original Regular 
 * Made with natural ingredients
 * Can be expensive, with a price tag of $36.97 (as of Apr 8, 2026)
 * May not be suitable for dogs with sensitive stomachs
-Many owners report a significant reduction in bad breath and improved oral health after switching to Greenies.
+Amazon's summary of customer reviews says the treats help keep teeth and gums healthy and freshen breath, and that dogs look forward to them. Some customers call them the best value, and others find them too expensive (Amazon review summary, as of Oct 28, 2026).
 
 ### Additional Picks:
 #### OraVet Dental Chews
-OraVet Dental Chews use delmopinol, a unique ingredient that works by creating a barrier on teeth and gum surfaces to prevent bacteria from attaching and forming plaque. That mechanism makes them stand out from enzyme-based competitors. They tend to be well-liked by dogs and most owners report noticeable breath improvement, though they run on the pricier side and some dogs take time to warm up to the texture.
+OraVet Dental Chews use delmopinol, a unique ingredient that works by creating a barrier on teeth and gum surfaces to prevent bacteria from attaching and forming plaque. That mechanism makes them stand out from enzyme-based competitors.
 
 #### Purina Pro Plan Dental Chews
-Purina Pro Plan Dental Chews are a popular choice among dog owners, and for good reason. They're affordable, easy to find, and tend to be well-liked by dogs. However, some owners have reported that they can be a bit too hard for their dog's teeth, and may not be suitable for dogs with certain dental conditions.
+Purina Pro Plan Dental Chews are affordable and easy to find.
 
 #### Virbac C.E.T. Dental Chews
-Virbac C.E.T. Dental Chews are a great option for dog owners who want a chew that's specifically designed to reduce tartar and plaque. They work well for dogs with mild to moderate dental issues, and thousands of Amazon reviews suggest that they're a great way to keep their dog's teeth clean. However, they can be a bit expensive, and may not be suitable for dogs with severe dental problems.
+Virbac C.E.T. Dental Chews are a great option for dog owners who want a chew that's specifically designed to reduce tartar and plaque. However, they can be a bit expensive, and may not be suitable for dogs with severe dental problems.
 
 ## Comparison Table
 | Product | Best For | Price Range | Chew Time | Check price |

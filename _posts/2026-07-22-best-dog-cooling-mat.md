@@ -2,6 +2,7 @@
 layout: post
 title: "Best Dog Cooling Mats to Beat the Summer Heat"
 date: 2026-07-22
+last_modified_at: 2026-10-28
 categories: [beds]
 redirect_from:
   - /dog-gear/best-dog-cooling-mat/
@@ -26,7 +27,7 @@ Three mats made the short list. Each one cools through a pressure-activated gel 
 
 ### EHEYCIGA cooling mat for dogs
 
-The [EHEYCIGA Dog Cooling Mat](https://www.amazon.com/dp/B0GG8LR3RW?th=1&tag=happypetdc-20) tops the list, and its 4.8 out of 5 star rating (as of Apr 16, 2026) backs that up. At 41 by 28 inches, the mat gives a medium or large dog room to stretch without hanging off the edge. The gel activates under your dog's weight, pulls heat away from the belly, then resets on its own once your dog steps off. A non-slip backing keeps the pad planted on tile and hardwood, which counts for a lot with dogs who circle three times before they settle. Cleanup stays simple: wipe it down, or rinse it when muddy paws get involved. At $34.99 (as of Apr 16, 2026) the mat lands in the middle of the price range, not the cheapest slab on the shelf but nowhere near the priciest. Many owners report their dogs claimed it within a day, though a few note their more stubborn pets sniffed it and walked off at first.
+The [EHEYCIGA Dog Cooling Mat](https://www.amazon.com/dp/B0GG8LR3RW?th=1&tag=happypetdc-20) tops the list, and its 4.8 out of 5 star rating (as of Apr 16, 2026) backs that up. At 41 by 28 inches, the mat gives a medium or large dog room to stretch without hanging off the edge. The gel activates under your dog's weight, pulls heat away from the belly, then resets on its own once your dog steps off. A non-slip backing is meant to keep the pad planted on tile and hardwood, which counts for a lot with dogs who circle three times before they settle. Cleanup stays simple: wipe it down, or rinse it when muddy paws get involved. At $34.99 (as of Apr 16, 2026) the mat lands in the middle of the price range, not the cheapest slab on the shelf but nowhere near the priciest. Amazon's summary of customer reviews says it keeps dogs cool and gives positive but mixed marks for washability and value, and customers disagree on how soft it is and how well the non-slip backing holds (Amazon review summary, as of Oct 28, 2026).
 
 Pros:
 - Roomy 41 by 28 inch surface fits medium and large dogs
@@ -44,7 +45,7 @@ The Vivifying Cooling Blanket takes a softer shape, closer to a flexible blanket
 
 ### Rywell dog cooling mat 2.0
 
-The Rywell Dog Cooling Mat 2.0 runs the largest of the three, aimed squarely at big breeds who dwarf a standard pad. Most owners find the extra surface earns its space for a Lab or a shepherd who likes to sprawl full length. The thicker gel layer tends to hold its cool feel a touch longer between resets, which helps on the hottest afternoons. All that room adds bulk, though. The mat weighs more and eats up real floor space, so it stays home rather than folding into a bag for a day trip or a weekend away.
+The Rywell Dog Cooling Mat 2.0 runs the largest of the three, aimed squarely at big breeds who dwarf a standard pad. The thicker gel layer tends to hold its cool feel a touch longer between resets, which helps on the hottest afternoons. All that room adds bulk, though. The mat weighs more and eats up real floor space, so it stays home rather than folding into a bag for a day trip or a weekend away.
 
 ## Buying guide
 

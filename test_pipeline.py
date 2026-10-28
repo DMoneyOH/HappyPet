@@ -2958,7 +2958,9 @@ class TestNamedTestimonialGuard(unittest.TestCase):
         text = (REPO / "_posts" / "2026-04-04-best-cat-scratching-posts.md").read_text(
             encoding="utf-8")
         self.assertNotIn("shredded every other scratcher", text)
-        self.assertIn("Many owners rave about its longevity", text)  # the sentence stayed
+        # The paragraph the quote sat in went with the 2026-10-28 owner-attribution
+        # cleanup, so it is no longer pinned as surviving.
+        self.assertNotIn("Many owners rave about its longevity", text)
 
     def test_does_not_read_the_front_matter_terminator_as_an_attribution(self):
         """`image: "...jpg"` followed by the YAML `---` on the next line is a
@@ -7545,7 +7547,7 @@ class TestPinJsonPayload(unittest.TestCase):
     # first two: an em-dash in best-cat-beds, a whole rewrite in the other).
     REAL_CAPTIONS = {
         "best-cat-beds":
-            "Cozy indoor cats swear by these lounge-worthy beds. Find the "
+            "Lounge-worthy beds for cozy indoor cats. Find the "
             "perfect spot for your whiskered napper!",
         "best-dog-joint-supplements":
             "4 hip and joint supplements for dogs compared, led by an omega-3, "
@@ -13483,9 +13485,9 @@ class TestPublishWritesTheHub(unittest.TestCase):
             self.assertIn('title: "Dog and Cat Treats: Picks by Purpose"\n', hub)
             self.assertIn('intro: "A treat does a job, whether that job is rewarding a sit, '
                           'hiding a pill or filling a stocking.', hub)
-            self.assertIn('how_we_choose: "Every pick is compared on its ingredient list, '
-                          'owner ratings and what reviews say again and again about how pets '
-                          'take to it."\n', hub)
+            self.assertIn('how_we_choose: "Our guides look at what makers publish, such as '
+                          'specs, ingredients and price, along with what buyer reviews say."\n',
+                          hub)
 
     def test_the_publish_of_a_second_treats_post_writes_no_hub(self):
         import hub_pages

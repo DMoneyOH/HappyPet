@@ -2,6 +2,7 @@
 layout: post
 title: "Best Cat Window Perches and Hammocks: 5 Picks"
 date: 2026-08-31
+last_modified_at: 2026-10-28
 categories: [beds]
 redirect_from:
   - /cat-beds/best-cat-window-hammocks/
@@ -30,7 +31,7 @@ Five window seats cover most needs here, from a rugged pick built for big cats t
 
 ### Featured pick: mess-free waterproof cat window perch
 
-The [Suction-Cup Cat Window Hammock](https://www.amazon.com/dp/B07MH7WTSN?tag=happypetdc-20) earns a 4.5 out of 5 star rating (as of Jul 7, 2026), and the reason shows up in how it handles weight. Strong suction cups anchor it to the glass, and the frame spreads a large cat's weight without the slow droop that cheaper perches develop by the second week. The flannel cover gives your cat something warm to knead against, and the waterproof layer underneath means a hairball or a knocked-over water dish wipes clean instead of soaking through to the sill. At $24.99 (as of Jul 7, 2026) it sits in the middle of the price range for this category, which feels fair for a seat rated for bigger cats. Owners of large breeds tend to notice the suction holds longest on clean, dry glass, so a quick wipe before you mount it pays off. Many owners find the flannel cover comes off for a wash when fur builds up, and the seat sits close enough to the pane that most blinds still clear it. For a cat that already claims a windowsill as territory, this perch reads as an upgrade rather than a strange new object to ignore.
+The [Suction-Cup Cat Window Hammock](https://www.amazon.com/dp/B07MH7WTSN?tag=happypetdc-20) earns a 4.5 out of 5 star rating (as of Jul 7, 2026), and the reason shows up in how it handles weight. Suction cups anchor it to the glass, and the frame is built to spread a large cat's weight. The flannel cover gives your cat something warm to knead against, and the waterproof layer underneath means a hairball or a knocked-over water dish wipes clean instead of soaking through to the sill. At $24.99 (as of Jul 7, 2026) it sits in the middle of the price range for this category, which feels fair for a seat rated for bigger cats. Customers who bought it say it is easy to assemble, that cats love it and that it can hold two cats. Amazon's summary of customer reviews says suction and durability are mixed: some say it holds well and others say it keeps falling off, and some report it breaking within a week (Amazon review summary, as of Oct 28, 2026). For a cat that already claims a windowsill as territory, this perch reads as an upgrade rather than a strange new object to ignore.
 
 Pros:
 
@@ -46,7 +47,7 @@ Cons:
 
 ### AMOSIJOY cordless cat window perch with 4 suction cups
 
-The AMOSIJOY cordless cat window perch spreads its hold across four suction cups instead of two, which tends to reassure owners of nervous cats who bail at the first wobble. The cordless frame keeps the profile low against the glass, so it clears blinds and short curtains. Most owners find the extra cups add a few minutes to setup, and the perch works best on a wide, uninterrupted pane rather than a divided or heavily textured window.
+The AMOSIJOY cordless cat window perch spreads its hold across four suction cups instead of two. The cordless frame keeps the profile low against the glass, so it clears blinds and short curtains. The perch works best on a wide, uninterrupted pane rather than a divided or heavily textured window.
 
 ### 2PC cordless foldable cat window hammock bed
 

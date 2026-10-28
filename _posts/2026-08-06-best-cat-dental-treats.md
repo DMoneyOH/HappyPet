@@ -2,6 +2,7 @@
 layout: post
 title: "Best Cat Dental Treats for Fresher Breath and Healthier Teeth"
 date: 2026-08-06
+last_modified_at: 2026-10-28
 categories: [dental]
 redirect_from:
   - /cat-health/best-cat-dental-treats/
@@ -26,7 +27,7 @@ For most cats, a crunchy treat with a proven track record beats a fancy formula 
 
 ### Featured pick: Greenies Cat Treats, Feline Veterinarian-Recommended Adult Natural Dental Cat Treats, Oven Roasted Chicken Flavor, 9.75 oz Tub
 
-[Greenies Cat Dental Treats](https://www.amazon.com/dp/B0828WNJXC?tag=happypetdc-20) sits near the top of most shortlists for a reason. It holds a 4.8 out of 5 star rating, and at $9.49 (as of Jul 7, 2026) the 9.75 ounce tub lands in territory most owners can restock without wincing. The crunchy texture does the actual work here. The treat breaks apart as the cat chews, scraping softened plaque off the tooth surface instead of just masking odor for an hour. The oven roasted chicken flavor tends to win over picky eaters who snub other dental treats, which matters more than any spec, because a treat left in the dish cleans nothing.
+[Greenies Cat Dental Treats](https://www.amazon.com/dp/B0828WNJXC?tag=happypetdc-20) sits near the top of most shortlists for a reason. It holds a 4.8 out of 5 star rating, and at $9.49 (as of Jul 7, 2026) the 9.75 ounce tub lands in territory most owners can restock without wincing. The crunchy texture does the actual work here. The treat breaks apart as the cat chews, scraping softened plaque off the tooth surface instead of just masking odor for an hour. Amazon's summary of customer reviews says cats love the taste, which matters more than any spec, because a treat left in the dish cleans nothing. Customers who bought it also say the treats help keep teeth clean and breath fresh, though some find the pieces too large for their cats (Amazon review summary, as of Oct 28, 2026).
 
 Portion control still falls on you. These count as calories, so scale back meals a touch if your cat gets a daily handful. Owners of cats that gulp their food rather than chew may want to spread a few pieces across the day so the teeth actually meet the treat.
 
@@ -42,7 +43,7 @@ Cons:
 
 ### Purina DentaLife Cat Dental Treats
 
-Purina DentaLife shows up on nearly every pet store shelf, which makes restocking simple when you run low. The treats use a porous texture designed to let the tooth sink in before the piece crumbles, and most owners find their cats take to them quickly. Availability is the real draw here. On the downside, the pieces run small, so a fast eater can crunch through a serving in seconds without much chewing, and a cat that swallows rather than chews gets less of the cleaning benefit.
+Purina DentaLife shows up on nearly every pet store shelf, which makes restocking simple when you run low. The treats use a porous texture designed to let the tooth sink in before the piece crumbles. Availability is the real draw here. On the downside, the pieces run small, so a fast eater can crunch through a serving in seconds without much chewing, and a cat that swallows rather than chews gets less of the cleaning benefit.
 
 ### Emerald Pet Feline Dental Treats
 

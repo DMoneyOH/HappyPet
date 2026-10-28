@@ -2,6 +2,7 @@
 layout: post
 title: "Best Cat Tunnel Toys for Active Indoor Cats Who Love to Pounce"
 date: 2026-05-14
+last_modified_at: 2026-10-28
 categories: [toys]
 redirect_from:
   - /cat-gear/best-cat-tunnel-toys/
@@ -33,7 +34,7 @@ When Whiskers darts from the couch to the kitchen counter, then vanishes behind 
 
 ### Featured Pick: [Depets 5-Way Cat Tunnel](https://www.amazon.com/dp/B0BY7S5L92?th=1&tag=happypetdc-20)  
 
-The Depets tunnel is the standout of this roundup because it delivers space, surprise, and a built‑in play ball, all for under $20. With a verified 4.7/5 star rating (as of Apr 16, 2026) on Amazon, owners consistently praise its generous dimensions that accommodate even the most enthusiastic leapers. The S‑shaped layout creates three intersecting paths, encouraging cats to change direction mid‑pounce, which mimics natural hunting behavior. A small, crinkly ball hangs from the tunnel’s ceiling, providing an extra stimulus without the need for batteries or extra toys.
+The Depets tunnel is the standout of this roundup because it delivers space, surprise, and a built‑in play ball, all for under $20. It holds a 4.7/5 star rating (as of Apr 16, 2026) on Amazon. Amazon's summary of customer reviews says cats love it and buyers find it worth the money and easy to fold and set up. The same summary flags durability, with customers reporting the metal wires pop through the fabric, and notes some customers say it isn't suitable for large cats (Amazon review summary, as of Oct 28, 2026). The S‑shaped layout creates three intersecting paths, encouraging cats to change direction mid‑pounce, which mimics natural hunting behavior. A small, crinkly ball hangs from the tunnel’s ceiling, providing an extra stimulus without the need for batteries or extra toys.
 
 **Pros**  
 - Large, multi‑way layout keeps multiple cats engaged at once.  
@@ -50,13 +51,13 @@ Overall, the Depets tunnel hits the sweet spot of durability, interactive design
 ### Additional Picks
 
 #### Petstages Cat Tunnel  
-Petstages offers a compact, collapsible tunnel that slides easily under furniture when not in use. Many owners find the funnel entry encourages shy cats to explore, while the lightweight fabric folds flat for travel. A limitation is the shorter length, which may not satisfy cats that love extended chase routes.
+Petstages offers a compact, collapsible tunnel that slides easily under furniture when not in use. The lightweight fabric folds flat for travel. A limitation is the shorter length, which may not satisfy cats that love extended chase routes.
 
 #### Yaheetech Cat Tunnel  
 Yaheetech’s tunnel features a soft, breathable mesh that feels gentle on paws and whiskers. It tends to blend well with modern décor thanks to its neutral color palette. The downside is that the mesh can snag on very sharp claws, so occasional trimming may be needed.
 
 #### K&H Pet Products Cat Tunnel  
-K&H designs a longer tunnel with reinforced seams, perfect for marathon‑style sprint sessions. Most owners report that the sturdy frame holds up to vigorous play without sagging. However, the added length pushes the price into the $$ range, and storage can be a bit bulkier compared to the collapsible options.
+K&H designs a longer tunnel with reinforced seams, perfect for marathon‑style sprint sessions. However, the added length pushes the price into the $$ range, and storage can be a bit bulkier compared to the collapsible options.
 
 ## Buying Guide  
 
