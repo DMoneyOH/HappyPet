@@ -71,7 +71,7 @@ None of these is urgent, but each solves a problem most new owners hit within we
 - **A bed of its own.** See [cat beds](/beds/best-cat-beds/).
 - **A grooming brush**, to keep loose fur off the furniture. See [cat grooming brushes](/grooming/best-cat-grooming-brushes/).
 
-## Questions new kitten owners ask
+## Common questions
 
 ### What do I need before bringing a kitten home?
 
