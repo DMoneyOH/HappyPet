@@ -2,7 +2,7 @@
 layout: post
 title: "Best Cat Litter for Odor Control: 3 Picks Compared"
 date: 2026-04-04
-last_modified_at: 2026-10-27
+last_modified_at: 2026-10-28
 categories: [litter]
 redirect_from:
   - /cat-litter/best-cat-litter-odor-control/
@@ -45,7 +45,6 @@ In our view, two or three cats on one box is where odor gets hard to keep up wit
 
 **Cons:**
 *   Scented, so it's the wrong pick for a cat that avoids perfume
-*   Can be a bit dusty during pouring
 
 ### Dr. Elsey's Ultra Premium Clumping Cat Litter
 
@@ -55,10 +54,6 @@ Dr. Elsey's Ultra Premium Clumping Cat Litter is unscented, so nothing in it is 
 *   No added fragrance
 *   Hard clumping, the maker says
 
-**Cons:**
-*   Can be heavier to lift compared to some alternatives
-*   Price point is slightly higher than basic clay litters
-
 ### Arm & Hammer Clump & Seal
 
 Arm & Hammer Clump & Seal is the other scented clumping litter here. We picked Fresh Step for a busy box; this is the one to compare it against if you want a scented litter and a second option. If your cat starts to hesitate at the box after the switch, that's your answer: go back to unscented.
@@ -66,18 +61,18 @@ Arm & Hammer Clump & Seal is the other scented clumping litter here. We picked F
 **Pros:**
 *   Clumping litter with an added scent
 *   Sold for multi-cat homes
-*   Low-dust formula
+*   Low-dust formula, the maker says
 
 **Cons:**
 *   The added scent won't suit every cat or every owner
 
 ## Comparison Table
 
-| Product                                                  | Best For                  | Price Range | Rating | Check price |
-| :------------------------------------------------------- | :------------------------ | :---------- | :--------- | --- |
-| [Fresh Step Odor Shield Multi Cat Clumping Cat Litter](https://www.amazon.com/dp/B000VDR8LA?th=1&tag=happypetdc-20) | Our pick for a busy box | $$          | 4.6/5 (as of Oct 17, 2026) | [On Amazon](https://www.amazon.com/dp/B000VDR8LA?th=1&tag=happypetdc-20) |
-| [Dr. Elsey's Ultra Premium Clumping Cat Litter](https://www.amazon.com/dp/B0009X0QSY?th=1&tag=happypetdc-20) | Unscented, one-cat homes      | $$          | 4.3/5 (as of Oct 17, 2026) | [On Amazon](https://www.amazon.com/dp/B0009X0QSY?th=1&tag=happypetdc-20) |
-| [Arm & Hammer Clump & Seal](https://www.amazon.com/dp/B09P32SSRL?th=1&tag=happypetdc-20) | Scented multi-cat clumping | $$          | 4.6/5 (as of Oct 17, 2026) | [On Amazon](https://www.amazon.com/dp/B09P32SSRL?th=1&tag=happypetdc-20) |
+| Product                                                  | Best For                  | Rating | Check price |
+| :------------------------------------------------------- | :------------------------ | :--------- | --- |
+| [Fresh Step Odor Shield Multi Cat Clumping Cat Litter](https://www.amazon.com/dp/B000VDR8LA?th=1&tag=happypetdc-20) | Our pick for a busy box | 4.6/5 (as of Oct 17, 2026) | [On Amazon](https://www.amazon.com/dp/B000VDR8LA?th=1&tag=happypetdc-20) |
+| [Dr. Elsey's Ultra Premium Clumping Cat Litter](https://www.amazon.com/dp/B0009X0QSY?th=1&tag=happypetdc-20) | Unscented, one-cat homes      | 4.3/5 (as of Oct 17, 2026) | [On Amazon](https://www.amazon.com/dp/B0009X0QSY?th=1&tag=happypetdc-20) |
+| [Arm & Hammer Clump & Seal](https://www.amazon.com/dp/B09P32SSRL?th=1&tag=happypetdc-20) | Scented multi-cat clumping | 4.6/5 (as of Oct 17, 2026) | [On Amazon](https://www.amazon.com/dp/B09P32SSRL?th=1&tag=happypetdc-20) |
 
 ## Buying Guide
 

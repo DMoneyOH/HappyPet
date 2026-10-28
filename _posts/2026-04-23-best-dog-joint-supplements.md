@@ -2,7 +2,7 @@
 layout: post
 title: "Best Hip and Joint Supplements for Dogs"
 date: 2026-04-23
-last_modified_at: 2026-10-27
+last_modified_at: 2026-10-28
 categories: [supplements]
 redirect_from:
   - /dog-health/best-dog-joint-supplements/
@@ -37,22 +37,22 @@ The best evidence so far finds no pain-relief effect from glucosamine and chondr
 
 **An earlier review pointed the same way.** It covered controlled trials in horses, dogs and cats and judged the evidence for most nutraceuticals poor. The exception was diets supplemented with omega-3 fatty acids in dogs. (Vandeweerd et al., *Journal of Veterinary Internal Medicine*, 2012, [doi:10.1111/j.1939-1676.2012.00901.x](https://doi.org/10.1111/j.1939-1676.2012.00901.x))
 
-**One trial found a benefit, with real limits.** 35 dogs with hip or elbow osteoarthritis got glucosamine/chondroitin or carprofen, an anti-inflammatory pain medication vets use for arthritis. Vet-rated pain, weight-bearing and severity improved by day 70, more slowly than with carprofen. It compared the supplement with the drug carprofen, not a placebo. (McCarthy et al., *The Veterinary Journal*, 2007, [doi:10.1016/j.tvjl.2006.02.015](https://doi.org/10.1016/j.tvjl.2006.02.015))
+**One trial found a benefit, with real limits.** 35 dogs with hip or elbow osteoarthritis got glucosamine/chondroitin or the drug carprofen. Vet-rated pain, weight-bearing and severity improved by day 70, more slowly than with carprofen. It compared the supplement with the drug carprofen, not a placebo. (McCarthy et al., *The Veterinary Journal*, 2007, [doi:10.1016/j.tvjl.2006.02.015](https://doi.org/10.1016/j.tvjl.2006.02.015))
 
 **What we take from this:** if your dog is stiff, talk to your vet about omega-3 first. We'd treat a glucosamine supplement as an optional extra, not a treatment.
 
 ## Quick picks
 
-| Product | Best for | Form | Main ingredients | Price range | Check price |
-|---|---|---|---|---|---|
-| Nutramax Welactin Canine Softgels | Owners who want the ingredient the research backs | Softgel capsule | Omega-3 fish oil: EPA and DHA | $$ | [On Amazon](https://www.amazon.com/dp/B001L1BM2W?th=1&tag=happypetdc-20) |
-| Nutramax Cosequin Joint Supplement for Dogs, Chewable Tablets, 132 ct (with MSM) | A simple glucosamine formula | Chewable tablet | Glucosamine, chondroitin, MSM | $$ | [On Amazon](https://www.amazon.com/dp/B003ULL1NQ?th=1&tag=happypetdc-20) |
-| Dasuquin With MSM | Owners who want more than the core three | Soft chew or chewable tablet | Glucosamine, chondroitin, MSM, ASU, Boswellia, green tea extract | $$$ | [On Amazon](https://www.amazon.com/dp/B0041OOPK2?th=1&tag=happypetdc-20) |
-| Zesty Paws Hip & Joint Bites for Dogs | Dogs who refuse tablets | See listing | Glucosamine, chondroitin, OptiMSM, vitamins E and C | See listing | [On Amazon](https://www.amazon.com/dp/B07RM62JYB?th=1&tag=happypetdc-20) |
+| Product | Best for | Form | Main ingredients | Check price |
+|---|---|---|---|---|
+| Nutramax Welactin Canine Softgels | Owners who want the ingredient the research backs | Softgel capsule | Omega-3 fish oil: EPA and DHA | [On Amazon](https://www.amazon.com/dp/B001L1BM2W?th=1&tag=happypetdc-20) |
+| Nutramax Cosequin Joint Supplement for Dogs, Chewable Tablets, 132 ct (with MSM) | A simple glucosamine formula | Chewable tablet | Glucosamine, chondroitin, MSM | [On Amazon](https://www.amazon.com/dp/B003ULL1NQ?th=1&tag=happypetdc-20) |
+| Dasuquin With MSM | Owners who want more than the core three | Soft chew | Glucosamine, chondroitin, MSM, ASU, Boswellia, green tea extract | [On Amazon](https://www.amazon.com/dp/B0041OOPK2?th=1&tag=happypetdc-20) |
+| Zesty Paws Hip & Joint Bites for Dogs | Dogs who refuse tablets | See listing | Glucosamine, chondroitin, OptiMSM, vitamins E and C | [On Amazon](https://www.amazon.com/dp/B07RM62JYB?th=1&tag=happypetdc-20) |
 
 ### Featured pick: Nutramax Welactin Canine Softgels
 
-Welactin carries a **4.6/5** rating on Amazon from **5,239 ratings** (as of Oct 19, 2026). Each softgel holds 300 mg of omega-3 fatty acids, including 155 mg of EPA and 100 mg of DHA. Omega-3 is the ingredient with the best evidence in the research above, and the label tells you exactly how much your dog gets in each softgel. Nutramax also sells Welactin as a soft chew and a liquid. This pick is the softgel.
+Welactin carries a **4.6/5** rating on Amazon from **5,239 ratings** (as of Oct 19, 2026). Each softgel holds 300 mg of omega-3 fatty acids, including 155 mg of EPA and 100 mg of DHA. Omega-3 is the ingredient with the best evidence in the research above, and the label tells you exactly how much your dog gets in each softgel.
 
 **Pros**
 - Omega-3, the ingredient the research above backs most
@@ -60,7 +60,6 @@ Welactin carries a **4.6/5** rating on Amazon from **5,239 ratings** (as of Oct 
 
 **Cons**
 - No study on this page tested Welactin itself. The evidence covers omega-3 in general
-- The label dose is one softgel a day per 20 lb, so a large dog takes several
 
 If you and your vet decide to try a joint supplement, start with [Nutramax Welactin Canine Softgels](https://www.amazon.com/dp/B001L1BM2W?th=1&tag=happypetdc-20).
 
@@ -81,11 +80,11 @@ If you and your vet want a glucosamine supplement instead, start with [Nutramax 
 
 #### Dasuquin With MSM
 
-Dasuquin comes as soft chews and as chewable tablets, so check which one you are buying. Alongside glucosamine, chondroitin and MSM, it adds avocado/soybean unsaponifiables (ASU), Boswellia serrata extract and green tea extract. The tablets come in separate strengths for small-to-medium dogs and for large dogs. Those extra ingredients are the main difference from Cosequin. Omega-3, the ingredient with the best evidence above, is not on its list. The Amazon listing in the table costs $49.99 (as of Oct 21, 2026).
+The Amazon listing in the table is a soft chew. Alongside glucosamine, chondroitin and MSM, it adds avocado/soybean unsaponifiables (ASU), Boswellia serrata extract and green tea extract. Those extra ingredients are the main difference from Cosequin. The Amazon listing in the table costs $49.99 (as of Oct 21, 2026).
 
 #### Zesty Paws Hip & Joint Bites for Dogs
 
-This is the one this guide lists for a dog that spits out tablets. You may still see it sold as Mobility Bites. The listing names OptiMSM (a branded form of MSM), glucosamine, chondroitin, and vitamins E and C. Check the listing for the current form and count before you buy.
+This is the one this guide lists for a dog that spits out tablets. The listing names OptiMSM (a branded form of MSM), glucosamine, chondroitin, and vitamins E and C. Check the listing for the current form and count before you buy.
 
 ## How to choose a joint supplement for your dog
 
