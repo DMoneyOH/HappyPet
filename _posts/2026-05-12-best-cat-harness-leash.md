@@ -24,7 +24,7 @@ When the sunshine hits the backyard and the birds start singing, we all feel the
 ## Quick Picks  
 
 ### Featured Pick: Cat Harness and Leash Set, Escape Proof Adjustable, Hawaii Green  
-Rated 4.4 / 5 on Amazon, this set proves that safety and comfort can coexist at a budget‑friendly price of $12.99 (as of Apr 16, 2026). The adjustable straps let you fine‑tune the fit, while the escape‑proof design uses a secure, double‑stitched loop. Amazon's summary of customer reviews says buyers find it easy to get on and off and effective at preventing escapes, though reviews split on comfort and on sizing, with some finding it too small (Amazon review summary, as of Oct 28, 2026). The bright Hawaii green color adds a fun pop, and the matching leash feels sturdy enough for a brisk walk but lightweight for indoor adventures.  
+Rated 4.4 / 5 on Amazon, this set comes at a budget‑friendly price of $12.99 (as of Apr 16, 2026). The adjustable straps let you fine‑tune the fit, while the escape‑proof design uses a secure, double‑stitched loop. Amazon's summary of customer reviews says buyers find it easy to get on and off and effective at preventing escapes, though reviews split on comfort and on sizing, with some finding it too small (Amazon review summary, as of Oct 28, 2026). The bright Hawaii green color adds a fun pop, and the matching leash feels sturdy enough for a brisk walk but lightweight for indoor adventures.  
 
 **Pros**  
 - Adjustable fit accommodates growing kittens and adult cats  
