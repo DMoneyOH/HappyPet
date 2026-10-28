@@ -48,7 +48,7 @@ The best evidence so far finds no pain-relief effect from glucosamine and chondr
 | Nutramax Welactin Canine Softgels | Owners who want the ingredient the research backs | Softgel capsule | Omega-3 fish oil: EPA and DHA | [On Amazon](https://www.amazon.com/dp/B001L1BM2W?th=1&tag=happypetdc-20) |
 | Nutramax Cosequin Joint Supplement for Dogs, Chewable Tablets, 132ct | A simple glucosamine formula | Chewable tablet | Glucosamine, chondroitin, MSM | [On Amazon](https://www.amazon.com/dp/B003ULL1NQ?th=1&tag=happypetdc-20) |
 | Dasuquin With MSM | Owners who want more than the core three | Soft chew | Glucosamine, chondroitin, MSM, ASU, Boswellia, green tea extract | [On Amazon](https://www.amazon.com/dp/B0041OOPK2?th=1&tag=happypetdc-20) |
-| Zesty Paws Hip & Joint Bites for Dogs | Dogs who refuse tablets | See listing | Glucosamine, chondroitin, OptiMSM, vitamins E and C | [On Amazon](https://www.amazon.com/dp/B07RM62JYB?th=1&tag=happypetdc-20) |
+| Zesty Paws Hip & Joint Bites for Dogs | Dogs who refuse tablets | Soft chew | Glucosamine, chondroitin, OptiMSM, vitamins E and C | [On Amazon](https://www.amazon.com/dp/B07RM62JYB?th=1&tag=happypetdc-20) |
 
 ### Featured pick: Nutramax Welactin Canine Softgels
 
@@ -84,7 +84,7 @@ Dasuquin adds avocado/soybean unsaponifiables (ASU), Boswellia serrata extract a
 
 #### Zesty Paws Hip & Joint Bites for Dogs
 
-This is the one this guide lists for a dog that spits out tablets. The listing names OptiMSM (a branded form of MSM), glucosamine, chondroitin, and vitamins E and C. Check the listing for the current form and count before you buy.
+This is the one this guide lists for a dog that spits out tablets. The listing gives its form as a soft chew and names OptiMSM (a branded form of MSM), glucosamine, chondroitin, and vitamins E and C. Check the listing for the current count before you buy.
 
 ## How to choose a joint supplement for your dog
 

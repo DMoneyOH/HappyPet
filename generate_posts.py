@@ -167,9 +167,8 @@ BANNED_INTENSIFIERS = ["very", "truly", "really", "incredibly", "absolutely", "d
 
 # --- Firsthand-experience claims (advertising exposure, not a style rule) ---
 # Happy Pet Product Reviews does not test, try, own or handle any product. Every
-# article is built from retailer specs, star ratings and customer reviews, and
-# about.md says exactly that ("Every review on this site is researched
-# thoroughly"). An article that says it tested a product is a false advertising
+# article is built from retailer specs, star ratings and customer reviews, per
+# the Director's 2026-10-28 decision. An article that says it tested a product is a false advertising
 # claim on a monetized affiliate page, so this is a HOLD, never a style nit.
 #
 # The patterns key on WHO is doing the testing, never on the word "test". A

@@ -42,9 +42,11 @@ The [Texsens Bubble Backpack Carrier](https://www.amazon.com/dp/B07KHPLFMS?tag=h
 
 A rating tells you how buyers scored the bag, not whether it fits your cat. Measure your cat first and compare it with the listing's size and weight limits. While you're on the listing, check how the straps are padded and how the shell is built.
 
+**Pros:**
 - Bubble window, for a cat that likes to watch
 - Priced at $27.99 (as of Oct 28, 2026)
 
+**Cons:**
 - Fit depends on your cat's size, so measure before you order
 
 ### Lekebobor cat carrier backpack expandable pet carrier

@@ -2637,8 +2637,8 @@ class TestRewritePromptGuardrails(unittest.TestCase):
 
 class TestFirsthandClaimGuard(unittest.TestCase):
     """Happy Pet Product Reviews does not test, try, own or handle any product --
-    it works from retailer specs, star ratings and customer reviews, and about.md
-    says so. An article claiming otherwise is a false advertising claim on a
+    it works from retailer specs, star ratings and customer reviews, per the
+    Director's 2026-10-28 decision. An article claiming otherwise is a false advertising claim on a
     monetized affiliate page, which is why this is a hold and not a style rule.
 
     The generator published "We tested the top litters so you can finally say
@@ -8459,6 +8459,33 @@ class TestFaqStructuredData(unittest.TestCase):
                     self.assertNotRegex(body, r"display\s*:\s*none|visibility\s*:\s*hidden")
 
 
+class TestSectionACopyPins(unittest.TestCase):
+    """Two pins from the 2026-10-28 section A review. The post disclosure must
+    carry Amazon's Associates statement and must not bring back the dropped
+    promise. Each section A post dates its prices and ratings to one reading,
+    so a partial refresh cannot leave two dates for the same kind of figure."""
+
+    SECTION_A = (
+        "2026-04-23-best-dog-joint-supplements.md",
+        "2026-04-04-best-cat-litter-odor-control.md",
+        "2026-04-27-best-kitten-food.md",
+        "2026-08-24-best-cat-carrier-backpacks.md",
+        "2026-04-07-best-grain-free-cat-food.md",
+    )
+
+    def test_post_disclosure_carries_the_associates_line(self):
+        layout = (REPO / "_layouts" / "post.html").read_text(encoding="utf-8")
+        self.assertIn("As an Amazon Associate we earn from qualifying purchases.", layout)
+        self.assertNotIn("We only recommend", layout)
+
+    def test_each_section_a_post_uses_one_reading_date(self):
+        for name in self.SECTION_A:
+            text = (REPO / "_posts" / name).read_text(encoding="utf-8")
+            dates = set(re.findall(r"\bas of ([A-Z][a-z]{2} \d{1,2}, \d{4})", text))
+            with self.subTest(post=name):
+                self.assertEqual(len(dates), 1, f"{name} has reading dates {sorted(dates)}")
+
+
 class TestPublishedPostsVoiceIntegrity(unittest.TestCase):
     """Guards the published bodies against the substitution damage that commit
     fde8937 and its 30 siblings ("fix: third-person voice - <slug>") left behind.
@@ -12956,7 +12983,7 @@ def _publish_date_script():
 
 # The hub layout's intro and how-we-choose markup, as rendered, per front-matter field.
 HUB_FIELD_MARKUP = {"intro": '<p class="standfirst">{}</p>',
-                    "how_we_choose": '<p class="hub-method"><b>How we choose:</b> {}</p>'}
+                    "how_we_choose": '<p class="hub-method"><b>How our guides are put together:</b> {}</p>'}
 
 
 def _hub_front_matter_strings(text):

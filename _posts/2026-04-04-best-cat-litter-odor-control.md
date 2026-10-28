@@ -33,7 +33,7 @@ A litter box smells when used litter stays in it. That's why this guide puts clu
 
 ## Quick Picks
 
-For a multi-cat home or a box that gets heavy use, our pick is [Fresh Step Odor Shield Multi Cat Clumping Cat Litter](https://www.amazon.com/dp/B000VDR8LA?th=1&tag=happypetdc-20). The maker says it pairs carbon with Febreze freshness. If you want a litter that is unscented, go with Dr. Elsey's Ultra Unscented, a hard-clumping clay litter. Arm & Hammer Clump & Seal is the other scented litter here, and the one to weigh against Fresh Step.
+For a multi-cat home or a box that gets heavy use, our pick is [Fresh Step Odor Shield Multi Cat Clumping Cat Litter](https://www.amazon.com/dp/B000VDR8LA?th=1&tag=happypetdc-20). If you want a litter that is unscented, go with Dr. Elsey's Ultra Unscented, a hard-clumping clay litter. Arm & Hammer Clump & Seal is the other scented litter here, and the one to weigh against Fresh Step.
 
 ### Featured Pick: [Fresh Step Odor Shield Multi Cat Clumping Cat Litter](https://www.amazon.com/dp/B000VDR8LA?th=1&tag=happypetdc-20)
 

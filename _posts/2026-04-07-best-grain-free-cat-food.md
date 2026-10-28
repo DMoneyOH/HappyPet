@@ -44,20 +44,19 @@ It is listed on Amazon as grain-free, and it is a chicken recipe. It comes with 
 * Rated 4.7/5 on Amazon (as of Oct 28, 2026)
 
 **Cons:**
-* A chicken recipe, and chicken is a commonly reported food allergen in cats
+* A chicken recipe, which matters if you're switching for a suspected allergy
 
 [Blue Buffalo Wilderness Grain-Free Cat Food](https://www.amazon.com/dp/B002UT92EY?tag=happypetdc-20)
 
 ### Additional Pick: Merrick Purrfect Bistro Grain-Free Dry Cat Food
 
-Merrick Purrfect Bistro is rated 4.5/5 on Amazon (as of Oct 28, 2026). Merrick sells it in several recipes, including chicken and salmon, and includes omega-3 and omega-6 fatty acids. Because the protein changes from one recipe to the next, check which one you're buying.
+Merrick Purrfect Bistro is rated 4.5/5 on Amazon (as of Oct 28, 2026). Merrick includes omega-3 and omega-6 fatty acids. The Amazon listing gives the flavor as chicken but names salmon as the number 1 ingredient, so check the bag you're buying.
 
 **Pros:**
 * Contains omega-3 and omega-6 fatty acids
-* Available in several protein varieties
 
 **Cons:**
-* The protein differs by recipe, so read the bag you're buying
+* The listing names two different proteins, so read the bag you're buying
 
 ### Additional Pick: Taste of the Wild Rocky Mountain Grain-Free Dry Cat Food
 
@@ -72,10 +71,10 @@ Taste of the Wild's Rocky Mountain formula features roasted venison and smoke-fl
 
 ### Additional Pick: Wellness CORE Grain-Free Dry Cat Food
 
-This line lists deboned turkey and chicken meal as its main ingredients, plus cranberries and flaxseed.
+Its ingredient list opens with four animal proteins and also includes cranberries and flaxseed.
 
 **Pros:**
-* Deboned turkey and chicken meal as the main proteins
+* Deboned turkey, deboned chicken, turkey meal and chicken meal lead the ingredient list
 * Includes cranberries
 
 **Cons:**
@@ -83,12 +82,12 @@ This line lists deboned turkey and chicken meal as its main ingredients, plus cr
 
 ## Comparison Table
 
-| Product | Best For | Rating | Check price |
+| Product | Recipe | Rating | Check price |
 | :-------------------------------------------- | :------------------------------------------- | :--------- | --- |
-| Blue Buffalo Wilderness Grain-Free Dry Cat Food | Our pick | 4.7/5 (as of Oct 28, 2026) | [On Amazon](https://www.amazon.com/dp/B002UT92EY?tag=happypetdc-20) |
-| Merrick Purrfect Bistro Grain-Free Dry Cat Food | Several recipe options | 4.5/5 (as of Oct 28, 2026) | [On Amazon](https://www.amazon.com/dp/B0GKB61TMZ?tag=happypetdc-20) |
-| Taste of the Wild Rocky Mountain Grain-Free Dry Cat Food | Venison and salmon recipe | 4.7/5 (as of Oct 28, 2026) | [On Amazon](https://www.amazon.com/dp/B07KNF5SPY?tag=happypetdc-20) |
-| Wellness CORE Grain-Free Dry Cat Food | Turkey and chicken recipe | 4.4/5 (as of Oct 28, 2026) | [On Amazon](https://www.amazon.com/dp/B06XB1Y6NV?tag=happypetdc-20) |
+| Blue Buffalo Wilderness Grain-Free Dry Cat Food | Chicken (our pick) | 4.7/5 (as of Oct 28, 2026) | [On Amazon](https://www.amazon.com/dp/B002UT92EY?tag=happypetdc-20) |
+| Merrick Purrfect Bistro Grain-Free Dry Cat Food | See listing | 4.5/5 (as of Oct 28, 2026) | [On Amazon](https://www.amazon.com/dp/B0GKB61TMZ?tag=happypetdc-20) |
+| Taste of the Wild Rocky Mountain Grain-Free Dry Cat Food | Venison and smoke-flavored salmon | 4.7/5 (as of Oct 28, 2026) | [On Amazon](https://www.amazon.com/dp/B07KNF5SPY?tag=happypetdc-20) |
+| Wellness CORE Grain-Free Dry Cat Food | Turkey and chicken | 4.4/5 (as of Oct 28, 2026) | [On Amazon](https://www.amazon.com/dp/B06XB1Y6NV?tag=happypetdc-20) |
 
 ## Buying Guide: Choosing the Right Grain-Free Cat Food
 
@@ -100,7 +99,7 @@ Grain-free is one line on the bag. These are the checks we'd run on any of them:
 
 3. **Consider your cat's specific needs:** If your cat is overweight, ask your vet how many calories to aim for before you pick a formula, and match your choice to your cat's health and life stage. If your cat gobbles its food, [automatic cat feeders](https://happypetproductreviews.com/feeding/best-automatic-cat-feeder/) can portion meals out on a schedule.
 
-4. **Read the AAFCO Statement:** Look for an AAFCO (Association of American Feed Control Officials) statement confirming the food is "complete and balanced" for your cat's life stage, such as "for all life stages," "for adult maintenance," or "for growth."
+4. **Read the AAFCO statement:** Look for an AAFCO (Association of American Feed Control Officials) statement confirming the food is "complete and balanced" for your cat's life stage, such as "for all life stages," "for adult maintenance," or "for growth."
 
 5. **Switch slowly:** A food your cat won't eat doesn't help, however good the label. Introduce the new food over about 7 to 10 days, mixing a little more into the old food each day, so your cat has time to adjust to the new taste and texture.
 

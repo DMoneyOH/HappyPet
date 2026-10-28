@@ -47,15 +47,15 @@ Pros
 
 Cons
 
-- Dry food is about 6 to 10 percent water, so water intake becomes yours to watch
+- Dry food adds little water, so water intake becomes yours to watch
 
 ### Purina ONE Dry Kitten 3.5lb
 
-The smaller bag of the same idea. It suits a one-kitten household, or a first purchase when you're not ready to commit to seven pounds. Check the cost per pound against the 7 lb bag before you buy, because if your kitten settles on this food, the bigger bag is the one you'll want to compare.
+The smaller bag of the same idea. We'd pick it for a one-kitten household, or as a first bag when you're not ready to commit to seven pounds. Check the cost per pound against the 7 lb bag before you buy, because if your kitten settles on this food, the bigger bag is the one you'll want to compare.
 
 ### Purina Fancy Feast Wet Kitten Variety 24pk
 
-Canned food is at least 75 percent water, which is the gap dry food leaves open. A variety pack lets you find out early which flavors your kitten will eat, and single-serve cans make portioning obvious. The drawbacks are the ones every wet food carries: it costs more per meal, and the empties pile up.
+Canned food is at least 75 percent water, which is the gap dry food leaves open. A variety pack lets you find out early which flavors your kitten will eat, and single-serve cans make portioning obvious.
 
 ### Tiki Cat Baby Shreds Variety 12pk
 
@@ -79,7 +79,7 @@ Read the AAFCO statement before anything else. The label will say whether the fo
 
 Protein comes next. The best kitten food for a growing cat leads with a named meat and says which meat.
 
-Decide about moisture on purpose. Dry kibble is about 6 to 10 percent water, so a diet of only dry food leaves the rest of your kitten's water to you. Mixing wet and dry is an option.
+Decide about moisture on purpose. A diet of only dry food leaves most of your kitten's water to you. Mixing wet and dry is an option.
 
 Feed on a schedule rather than by refilling. Until about six months old, a kitten usually does best on three meals a day. For some cats, a bowl that is always full can lead to overeating. An [automatic cat feeder](https://happypetproductreviews.com/feeding/best-automatic-cat-feeder/) handles the timing if the household leaves for work before the second meal.
 

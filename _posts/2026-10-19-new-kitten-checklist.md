@@ -40,11 +40,11 @@ Kitten food exists as its own shelf for one reason: a kitten is building bone an
 2. **Look for a named animal protein first** in the ingredient list.
 3. **Plan the moisture.** Dry kibble adds almost no water, so pair it with wet food if your kitten drinks little.
 
-Our featured pick is [Purina ONE High Protein Kitten Food](https://www.amazon.com/dp/B0000AH3RP?th=1&tag=happypetdc-20), rated 4.8/5 (as of Apr 16, 2026) on Amazon. If the shelter fed something else, mix the new food into the old over about a week. The [full kitten food review](/food/best-kitten-food/) compares it with wet and dry alternatives.
+Our featured pick is [Purina ONE High Protein Kitten Food](https://www.amazon.com/dp/B0000AH3RP?th=1&tag=happypetdc-20), rated 4.8/5 (as of Oct 28, 2026) on Amazon. If the shelter fed something else, mix the new food into the old over about a week. The [full kitten food review](/food/best-kitten-food/) compares it with wet and dry alternatives.
 
 ## 2. Litter
 
-Start with the litter the kitten already knows, then change slowly if you need to. When you do choose, clumping matters most for odor: tight clumps lift the whole source of the smell out of the box. Scented litter can put a sensitive cat off the box entirely, so an unscented litter is the safer first try. If your kitten is very young, ask the shelter or your vet which type they recommend before you switch. The [litter odor control guide](/litter/best-cat-litter-odor-control/) compares three clumping litters on clumping, dust and scent.
+Start with the litter the kitten already knows, then change slowly if you need to. When you do choose, clumping matters most for odor: tight clumps lift the whole source of the smell out of the box. Scented litter can put a sensitive cat off the box entirely, so an unscented litter is the safer first try. If your kitten is very young, ask the shelter or your vet which type they recommend before you switch. The [litter odor control guide](/litter/best-cat-litter-odor-control/) compares three clumping litters on clumping and scent.
 
 ## 3. Litter box
 
