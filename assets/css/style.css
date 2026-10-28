@@ -1093,6 +1093,9 @@ a.creed-num:focus-visible span { text-decoration: underline; }
   color: var(--ink-2);
   max-width: 54ch;
 }
+/* The answer line (front matter `answer:`) runs 40 to 60 words, about twice
+   the description this slot was sized for, so it takes a wider measure. */
+.standfirst--answer { max-width: 64ch; }
 .piece-date {
   margin: 1.2rem 0 0;
   font-size: .62rem;
@@ -1240,6 +1243,38 @@ a.creed-num:focus-visible span { text-decoration: underline; }
   text-transform: uppercase;
   color: var(--ink-3);
   border-bottom-color: var(--rule-hard);
+}
+
+/* Common questions (post.html, from front matter `faq:`). Native
+   <details>/<summary> and no script. A closed answer is hidden by the
+   browser's own closed state only, never by a display:none rule here, so it
+   stays in the DOM and matches the FAQPage markup. The h2 matches .prose h2,
+   since this section sits just outside .prose. */
+.faq { margin-top: 2.6rem; padding-top: 1rem; border-top: 1px solid var(--rule); }
+.faq h2 {
+  margin: 0 0 .4rem;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: clamp(1.35rem, 5.4vw, 1.8rem);
+  line-height: 1.12;
+  letter-spacing: -.03em;
+}
+.faq-item { max-width: 68ch; border-bottom: 1px solid var(--rule); }
+.faq-item summary {
+  cursor: pointer;
+  padding: .85rem 0;           /* keeps the tap target near 44px */
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.04rem;
+  line-height: 1.35;
+}
+.faq-item summary:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.faq-item p {
+  margin: 0 0 1rem;
+  font-family: var(--font-prose);
+  font-size: 1.04rem;
+  line-height: 1.62;
+  color: var(--ink);
 }
 
 .share { margin-top: 2.6rem; padding-top: 1.2rem; border-top: 1px solid var(--rule-hard); }

@@ -86,7 +86,14 @@ layout: default
         {%- elsif page.species == "both" %} / Dogs &amp; cats{% endif %}
       </p>
       <h1>{{ page.title }}</h1>
-      {%- if page.description %}<p class="standfirst">{{ page.description }}</p>{% endif %}
+      {%- comment -%}
+        A post that sets `answer:` shows that 40 to 60 word answer under the
+        title in place of the description. The description still feeds the meta
+        description and Open Graph tags through jekyll-seo-tag, which reads
+        page.description directly, so search snippets keep the short line.
+      {%- endcomment %}
+      {%- if page.answer %}<p class="standfirst standfirst--answer">{{ page.answer | escape }}</p>
+      {%- elsif page.description %}<p class="standfirst">{{ page.description }}</p>{% endif %}
       {%- comment -%}
         "Updated" prints only when the post sets last_modified_at in its front
         matter. jekyll-sitemap reads the same field for the post's <lastmod>.
@@ -151,6 +158,42 @@ layout: default
     <div class="prose">
       {{ content }}
     </div>
+
+    {%- comment -%}
+      Common questions: one `faq:` list in front matter, rendered once as
+      visible text and once as FAQPage JSON-LD, so the markup always matches
+      the page word for word. Each answer opens on tap through native
+      <details>/<summary>, with no JavaScript. A collapsed answer stays in the
+      DOM, so crawlers and answer engines still read it. Plain text only: the
+      answers carry no links, so the affiliate_click position logic above is
+      untouched. test_pipeline.py::TestFaqStructuredData renders this block.
+    {%- endcomment -%}
+    {%- if page.faq %}
+    <section class="faq" aria-labelledby="faq-title">
+      <h2 id="faq-title">Common questions</h2>
+      {%- for item in page.faq %}
+      <details class="faq-item">
+        <summary>{{ item.q | escape }}</summary>
+        <p>{{ item.a | escape }}</p>
+      </details>
+      {%- endfor %}
+    </section>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      "mainEntity": [
+        {%- for item in page.faq %}
+        {
+          "@type": "Question",
+          "name": {{ item.q | jsonify }},
+          "acceptedAnswer": { "@type": "Answer", "text": {{ item.a | jsonify }} }
+        }{% unless forloop.last %},{% endunless %}
+        {%- endfor %}
+      ]
+    }
+    </script>
+    {%- endif %}
 
     {%- include related-reviews.html -%}
 
