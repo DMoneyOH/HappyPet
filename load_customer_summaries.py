@@ -19,12 +19,11 @@ The summary text is untrusted page content. It is stored as data and reaches a
 prompt only inside the delimited <customer_summary> block.
 """
 import argparse
-import datetime
 import sys
 from pathlib import Path
 
-from generate_posts import clean_customer_summary
-from json_io import atomic_write_json, read_json
+from generate_posts import clean_customer_summary, strict_iso_date
+from json_io import CorruptJSONError, atomic_write_json, read_json
 
 PRODUCTS_PATH = Path(__file__).resolve().parent / "products.json"
 
@@ -33,17 +32,18 @@ def apply_summaries(products: list, summaries: dict) -> dict:
     """Update `products` in place from a parsed summaries file. Returns counts.
     Raises ValueError when the file's read_on is not an ISO date, since every
     summary the site cites must carry the date it was read."""
-    read_on = summaries.get("read_on")
-    try:
-        datetime.date.fromisoformat(read_on)
-    except (TypeError, ValueError):
-        raise ValueError(f"read_on is {read_on!r}, not an ISO date (YYYY-MM-DD)") from None
+    read_on = strict_iso_date(summaries.get("read_on"))
+    if not read_on:
+        raise ValueError(f"read_on is {summaries.get('read_on')!r}, not a date "
+                         f"written YYYY-MM-DD")
     by_asin = summaries.get("products")
     if not isinstance(by_asin, dict):
         raise ValueError("the summaries file has no 'products' object keyed by ASIN")
     counts = {"loaded": 0, "cleared": 0, "missing": 0}
     for entry in products:
-        record = by_asin.get(entry.get("asin") or "")
+        asin = entry.get("asin")
+        # An entry with no ASIN matches nothing, not a "" key in the file.
+        record = by_asin.get(asin) if isinstance(asin, str) and asin else None
         if not isinstance(record, dict):
             counts["missing"] += 1
             continue
@@ -65,8 +65,12 @@ def main(argv=None) -> int:
     p.add_argument("--products", default=str(PRODUCTS_PATH))
     args = p.parse_args(argv)
     products_path = Path(args.products)
-    products = read_json(products_path)
-    summaries = read_json(args.summaries)
+    try:
+        products = read_json(products_path)
+        summaries = read_json(args.summaries)
+    except (CorruptJSONError, OSError) as e:
+        print(f"ERROR: {e}", file=sys.stderr)
+        return 2
     if not isinstance(products, list) or not isinstance(summaries, dict):
         print("ERROR: products.json must be a list and the summaries file an object",
               file=sys.stderr)
@@ -78,8 +82,8 @@ def main(argv=None) -> int:
         print(f"ERROR: {e}", file=sys.stderr)
         return 2
     if products != before:
-        trailing = products_path.read_text(encoding="utf-8").endswith("\n")
-        atomic_write_json(products_path, products, trailing_newline=trailing)
+        # Same shape as refill_cli and refill_products write it.
+        atomic_write_json(products_path, products, trailing_newline=True)
     print(f"{counts['loaded']} loaded, {counts['cleared']} cleared (empty summary), "
           f"{counts['missing']} not in the file; products.json "
           f"{'updated' if products != before else 'unchanged'}")

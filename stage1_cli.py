@@ -41,26 +41,32 @@ def cmd_next_topic(args) -> int:
     return 0
 
 
+def _product_for(slug: str):
+    """(entry, None) for a known slug, (None, None) when no slug was given,
+    and (None, 2) after printing the error for an unknown one."""
+    if not slug:
+        return None, None
+    product = gp.load_products().get(slug)
+    if product is None:
+        print(f"ERROR: unknown slug {slug!r}", file=sys.stderr)
+        return None, 2
+    return product, None
+
+
 def cmd_review_prompt(args) -> int:
     body = _read(args.body)
-    title, keyword, verified, summary_block = args.title, args.keyword, "", ""
-    if args.slug:
-        product = gp.load_products().get(args.slug)
-        if product is None:
-            print(f"ERROR: unknown slug {args.slug!r}", file=sys.stderr)
-            return 2
+    title, keyword, verified = args.title, args.keyword, ""
+    product, err = _product_for(args.slug)
+    if err:
+        return err
+    if product is not None:
         title = title or product.get("title", "")
         keyword = keyword or product.get("keyword", "")
         verified = gp.build_verified_facts(product)
-        summary_block = _summary_block(product)
-    print(gp.make_review_prompt(title, keyword, body, verified,
-                                summary_block=summary_block))
+    print(gp.make_review_prompt(
+        title, keyword, body, verified,
+        summary_block=gp.customer_summary_block(gp.feedback_sources(product))))
     return 0
-
-
-def _summary_block(product: dict) -> str:
-    return gp.customer_summary_block(product.get("customer_summary"),
-                                     product.get("customer_summary_read_on"))
 
 
 def cmd_gate(args) -> int:
@@ -73,18 +79,13 @@ def cmd_gate(args) -> int:
     # The em-dash hard-check inside authoritative_gate is a backstop for the rare
     # case a real em dash survives scrubbing.
     scrubbed = gp.scrub_typography(body)
-    product = None
-    if args.slug:
-        product = gp.load_products().get(args.slug)
-        if product is None:
-            print(f"ERROR: unknown slug {args.slug!r}", file=sys.stderr)
-            return 2
+    product, err = _product_for(args.slug)
+    if err:
+        return err
     # Buyer feedback is judged against the entry's customer summary; with no
     # --slug there is none, so every customer attribution is flagged.
-    passed, flags = gp.authoritative_gate(
-        scorecard, scrubbed,
-        customer_summary=(product or {}).get("customer_summary", ""),
-        customer_summary_read_on=(product or {}).get("customer_summary_read_on", ""))
+    passed, flags = gp.authoritative_gate(scorecard, scrubbed,
+                                          gp.feedback_sources(product))
     product_name = ""
     # A link to a product with no record is read off the body here too, when the
     # slug is given. authoritative_gate itself cannot do it -- its signature
@@ -125,27 +126,21 @@ def cmd_gate(args) -> int:
 def cmd_rewrite_prompt(args) -> int:
     body = _read(args.body)
     instructions = _read(args.instructions)
-    summary_block = ""
-    if args.slug:
-        product = gp.load_products().get(args.slug)
-        if product is None:
-            print(f"ERROR: unknown slug {args.slug!r}", file=sys.stderr)
-            return 2
-        summary_block = _summary_block(product)
-    print(gp.make_rewrite_prompt(args.title, args.keyword, body, instructions,
-                                 affiliate_url=args.affiliate_url,
-                                 product_name=args.product_name,
-                                 summary_block=summary_block))
+    product, err = _product_for(args.slug)
+    if err:
+        return err
+    print(gp.make_rewrite_prompt(
+        args.title, args.keyword, body, instructions,
+        affiliate_url=args.affiliate_url, product_name=args.product_name,
+        summary_block=gp.customer_summary_block(gp.feedback_sources(product))))
     return 0
 
 
 def cmd_stage(args) -> int:
     body = gp.scrub_typography(_read(args.body))
-    products = gp.load_products()
-    product = products.get(args.slug)
-    if product is None:
-        print(f"ERROR: unknown slug {args.slug!r}", file=sys.stderr)
-        return 2
+    product, err = _product_for(args.slug)
+    if err:
+        return err
     pin_desc = gp.clean_pin_desc(args.pin_desc or f"{product['title']} - reviews and buying guide.",
                                  product.get("species", "dog"))
     try:
@@ -155,8 +150,10 @@ def cmd_stage(args) -> int:
             runners_up=(product.get("runners_up", "")
                         if product.get("format") == "roundup" else None),
             product_name=product.get("name", ""),
-            customer_summary=product.get("customer_summary", ""),
-            customer_summary_read_on=product.get("customer_summary_read_on", ""))
+            sources=gp.feedback_sources(product))
+        # The pin description becomes the published `description` and the
+        # Pinterest text: no room for a dated citation, so no buyer feedback.
+        gp.assert_no_unsourced_buyer_feedback("pin_desc", pin_desc, args.slug)
     except gp.GenerationStageError as e:
         print(f"ERROR: content contract failed: {e}", file=sys.stderr)
         return 3
