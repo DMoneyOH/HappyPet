@@ -18,7 +18,7 @@ faq:
   - q: "Are cat backpack carriers safe?"
     a: "They can be, if the bag fits your cat and stays secure. In our checklist, look for mesh on at least two sides, an internal leash clip and zippers that lock. The leash clip is there to help keep a startled cat from bolting when you open a zipper."
   - q: "What size cat backpack do I need?"
-    a: "Your cat needs room to stand and turn, but not so much that it slides around while you walk. Measure from nose to tail base and compare that with the bag's listed dimensions and weight limit. For a larger cat, this guide lists the Pecute Cat Backpack Carrier Large Space, so check its listed size against your cat."
+    a: "Your cat needs room to stand and turn, but not so much that it slides around while you walk. Measure from nose to tail base and compare that with the bag's listed dimensions and weight limit. For a larger cat, look at the Texsens or the Lekebobor, which both list a limit of 18 lb. The Pecute is listed for cats under 13.2 lb, so this guide treats it as the pick for a smaller cat."
   - q: "Bubble or expandable: which backpack suits my cat?"
     a: "In our judgment, a calm cat who likes to watch may suit a bubble bag like the Texsens. A restless cat who dislikes tight quarters may suit an expandable bag like the Lekebobor. That is a judgment, not a rule, so watch how your own cat reacts."
   - q: "How do I get my cat used to a backpack?"
@@ -34,7 +34,7 @@ You clip a harness on your cat, load them into a soft bag, and realize both hand
 
 ## Quick picks
 
-The best cat carrier backpack for your household depends on your cat's size and temperament, so we picked one bag for each of three cases: a calm watcher, a restless pacer, and a bigger cat who needs headroom.
+The best cat carrier backpack for your household depends on your cat's size and temperament, so we picked one bag for each of three cases: a calm watcher, a restless pacer, and a cat under 13.2 lb. If your cat is on the big side, the Texsens and the Lekebobor both list a limit of 18 lb.
 
 ### Featured pick: Texsens Innovative Traveler Bubble Backpack Pet Carriers for Cats and Dogs (Black)
 
@@ -53,7 +53,7 @@ The Lekebobor Cat Carrier Backpack Expandable Pet Carrier is an expandable bag r
 
 ### Pecute cat backpack carrier large space
 
-The Pecute Cat Backpack Carrier Large Space is this guide's pick for a larger cat, so check its listed size against your cat.
+Despite "Large Space" in the name, the Pecute Cat Backpack Carrier is listed for cats under 13.2 lb, and its listing says pets around 6.6 to 8.8 lb will find it more comfortable. It's a bubble backpack like the Texsens, so we'd look at it for a smaller cat who likes to watch. The listing also notes locking zippers, a built-in safety leash and an ergonomic EVA backplate. For a bigger cat, go with the Texsens or the Lekebobor, both listed to 18 lb.
 
 ## What to look for in a carrier backpack
 
@@ -73,6 +73,6 @@ Give your cat time to adjust. Leave the bag open at home for several days or lon
 | --- | --- | --- | --- | --- |
 | Texsens Innovative Traveler Bubble Backpack | Calm cats who like to watch | $27.99 | See listing | [On Amazon](https://www.amazon.com/dp/B07KHPLFMS?tag=happypetdc-20) |
 | Lekebobor Expandable Pet Carrier | Restless cats who dislike tight quarters | $35.99 | See listing | [On Amazon](https://www.amazon.com/dp/B09YYKFLMQ?tag=happypetdc-20) |
-| Pecute Large Space Carrier | Larger cats needing headroom | $39.99 | See listing | [On Amazon](https://www.amazon.com/dp/B0F7XJHX9L?tag=happypetdc-20) |
+| Pecute Large Space Carrier | Smaller cats (listed under 13.2 lb) | $39.99 | See listing | [On Amazon](https://www.amazon.com/dp/B0F7XJHX9L?tag=happypetdc-20) |
 
 We'd choose on your cat's size and temperament before any single feature. A calm cat who likes to watch may suit a bubble design, and a restless cat may want room to shift and stretch. For most owners starting out, the [Texsens Bubble Backpack Carrier](https://www.amazon.com/dp/B07KHPLFMS?tag=happypetdc-20) is our pick for a first-timer. Pair it with a slow introduction at home. For more gear that travels well, see this guide to [cat carrier travel](https://happypetproductreviews.com/carriers/best-cat-carrier-travel/).
