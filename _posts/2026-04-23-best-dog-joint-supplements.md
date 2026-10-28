@@ -94,7 +94,7 @@ You may still see this one sold as Mobility Bites. It is a chewable, treat-style
 3. **Read the label, not the claims.** Look for each ingredient's amount per tablet or chew, and a dose chart by weight. Treat words like "clinically proven" as marketing unless the brand names the study and the study tested that formula.
 4. **Pick a form your dog will take.** Joint supplements come in several forms, including softgels and soft chews. A supplement your dog refuses can't help much.
 5. **Pay for a clear label, not a promise.** Nothing in the research above suggests a pricier formula works better.
-6. **Set a trial with your vet.** A 2007 trial of 35 dogs with osteoarthritis found vet-rated pain scores improving by day 70 on glucosamine and chondroitin. It compared the supplement with the drug carprofen, not a placebo. Agree up front on how you will judge it, and stop if nothing changes.
+6. **Set a trial with your vet.** A 2007 trial of 35 dogs with osteoarthritis found vet-rated pain scores improving by day 70 on glucosamine and chondroitin. Agree up front on how you will judge it, and stop if nothing changes.
 
 ## The bottom line
 

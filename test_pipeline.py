@@ -8416,6 +8416,37 @@ class TestFaqStructuredData(unittest.TestCase):
                 for item in entry["faq"]:
                     self.assertNotIn(item["q"].lower(), headings)
 
+    def test_faq_heading_reads_common_questions(self):
+        self.assertIn('<h2 id="faq-title">Common questions</h2>', self._faq_block())
+
+    def test_faq_copy_matches_the_approved_text(self):
+        """Every answer line, question and answer equals the approved copy in
+        _test_fixtures/faq_section_a.json, which was built from Scarlett's v2
+        file plus the citation-check overrides, not from these posts. Any
+        change to an FAQ fact fails here until the fixture is changed on
+        purpose."""
+        expected = json.loads((REPO / "_test_fixtures" / "faq_section_a.json")
+                              .read_text(encoding="utf-8"))
+        self.assertEqual(set(expected), self.FAQ_POSTS)
+        for name, want in expected.items():
+            with self.subTest(post=name):
+                entry = self.posts[name]
+                self.assertEqual(entry["answer"], want["answer"])
+                self.assertEqual(entry["faq"], want["faq"])
+
+    def test_bodies_keep_the_two_contradictions_out(self):
+        """The two body claims most likely to creep back against their own
+        FAQ: the kitten food FAQ prefers scheduled meals, so no grazing; the
+        backpack FAQ pairs the bubble bag with a calm cat, so no nervous cat
+        in a sentence about the Texsens or a bubble bag."""
+        kitten = self.posts["2026-04-27-best-kitten-food.md"]["body"]
+        self.assertNotRegex(kitten, r"(?i)\bgraz(e|es|ed|er|ers|ing)\b")
+        backpack = self.posts["2026-08-24-best-cat-carrier-backpacks.md"]["body"]
+        for sentence in re.split(r"(?<=[.!?])\s+|\n+", backpack):
+            if re.search(r"(?i)texsens|bubble", sentence):
+                with self.subTest(sentence=sentence[:60]):
+                    self.assertNotRegex(sentence, r"(?i)\bnervous\b")
+
     def test_css_never_hides_a_faq_answer(self):
         """Collapsed answers are hidden by the browser's closed state only. A
         display:none rule on the FAQ would remove them from what crawlers read

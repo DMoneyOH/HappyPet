@@ -33,7 +33,7 @@ Whether a litter controls odor or only covers it comes down to how hard it clump
 
 ## Quick Picks
 
-Here are the top recommendations. For multi-cat households or particularly potent smells, [Fresh Step Odor Shield Multi Cat Clumping Cat Litter](https://www.amazon.com/dp/B000VDR8LA?th=1&tag=happypetdc-20) is our pick, pairing carbon with Febreze freshness, the maker says. For an unscented option, Dr. Elsey's Ultra Premium Clumping Cat Litter is hard clumping and unscented. And if you need a scented multi-cat clumping litter, Arm & Hammer Clump & Seal is a fantastic choice.
+Here are the top recommendations. For multi-cat households or particularly potent smells, [Fresh Step Odor Shield Multi Cat Clumping Cat Litter](https://www.amazon.com/dp/B000VDR8LA?th=1&tag=happypetdc-20) is our pick, pairing carbon with Febreze freshness, the maker says. For an unscented option, Dr. Elsey's Ultra Premium Clumping Cat Litter is hard clumping. And if you need a scented multi-cat clumping litter, Arm & Hammer Clump & Seal is a fantastic choice.
 
 ### Featured Pick: [Fresh Step Odor Shield Multi Cat Clumping Cat Litter](https://www.amazon.com/dp/B000VDR8LA?th=1&tag=happypetdc-20)
 
@@ -63,7 +63,7 @@ Dr. Elsey's Ultra Premium Clumping Cat Litter is unscented, so it does not rely 
 
 ### Arm & Hammer Clump & Seal
 
-When you need serious cat litter odor control that goes the extra mile, Arm & Hammer Clump & Seal is an exceptional contender. The fresh scent also helps keep things pleasant without being too overpowering.
+When you need serious cat litter odor control that goes the extra mile, Arm & Hammer Clump & Seal is an exceptional contender. The fresh scent also helps keep things pleasant.
 
 **Pros:**
 *   Scented clumping litter
@@ -101,7 +101,7 @@ This is a personal preference for both you and your cat. Scented litters, often 
 
 ### 4. Dust Level
 
-Fine dust particles can carry odors, and they certainly don't make for a pleasant scooping experience. Look for litters marketed as "low dust" or "99% dust-free." While no litter is truly 100% dust-free, some brands do a much better job than others at minimizing airborne particles. Remember, proper litter box hygiene goes hand-in-hand with good litter, and don't forget to provide other essentials like a sturdy [cat scratching post](/scratching/best-cat-scratching-posts/).
+Fine dust particles can carry odors, and they certainly don't make for a pleasant scooping experience. Look for litters marketed as "low dust" or "99% dust-free." While no litter is 100% dust-free, some brands do a much better job than others at minimizing airborne particles. Remember, proper litter box hygiene goes hand-in-hand with good litter, and don't forget to provide other essentials like a sturdy [cat scratching post](/scratching/best-cat-scratching-posts/).
 
 ### 5. Multi-Cat Formulas
 

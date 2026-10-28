@@ -25,7 +25,7 @@ faq:
     a: "Leave the backpack open at home for several days or longer before the first trip, so it smells familiar. Some cats need weeks. A rushed introduction can turn even a good carrier into a fight."
 ---
 
-**Quick pick:** In our judgment, the [Texsens Bubble Backpack Carrier on Amazon](https://www.amazon.com/dp/B07KHPLFMS?tag=happypetdc-20) may suit a nervous cat on longer trips.
+**Quick pick:** In our judgment, the [Texsens Bubble Backpack Carrier on Amazon](https://www.amazon.com/dp/B07KHPLFMS?tag=happypetdc-20) may suit a calm cat who likes to watch.
 {: .quick-pick}
 
 **Good gift for:** a cat owner who travels, or wants both hands free on the way to the vet.
@@ -34,7 +34,7 @@ You clip a harness on your cat, load them into a soft bag, and realize both hand
 
 ## Quick picks
 
-The best cat carrier backpack for your household depends on your cat's size and nerves, and this guide picks one bag for each of three cases. In our judgment, one may suit nervous watchers, one restless pacers, and one bigger cats who need headroom.
+The best cat carrier backpack for your household depends on your cat's size and nerves, and this guide picks one bag for each of three cases. In our judgment, one may suit calm watchers, one restless pacers, and one bigger cats who need headroom.
 
 ### Featured pick: Texsens Innovative Traveler Bubble Backpack Pet Carriers for Cats and Dogs (Black)
 
@@ -71,7 +71,7 @@ Give your cat time to adjust. Leave the bag open at home for several days or lon
 
 | Product | May suit, in our judgment | Price range | Ventilation | Check price |
 | --- | --- | --- | --- | --- |
-| Texsens Innovative Traveler Bubble Backpack | Nervous cats on longer trips | $ | See listing | [On Amazon](https://www.amazon.com/dp/B07KHPLFMS?tag=happypetdc-20) |
+| Texsens Innovative Traveler Bubble Backpack | Calm cats who like to watch | $ | See listing | [On Amazon](https://www.amazon.com/dp/B07KHPLFMS?tag=happypetdc-20) |
 | Lekebobor Expandable Pet Carrier | Restless cats who dislike tight quarters | $$ | See listing | [On Amazon](https://www.amazon.com/dp/B09YYKFLMQ?tag=happypetdc-20) |
 | Pecute Large Space Carrier | Larger cats needing headroom | $$ | See listing | [On Amazon](https://www.amazon.com/dp/B0F7XJHX9L?tag=happypetdc-20) |
 
