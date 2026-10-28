@@ -48,7 +48,6 @@ Pros
 Cons
 
 - Dry food is about 6 to 10 percent water, so water intake becomes yours to watch
-- A 7 lb bag is more than a single small kitten will get through quickly once opened
 
 ### Purina ONE Dry Kitten 3.5lb
 

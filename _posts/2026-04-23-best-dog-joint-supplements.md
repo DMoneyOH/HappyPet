@@ -33,11 +33,11 @@ Your dog takes the stairs slower than she used to, and you want to help. Three o
 
 The best evidence so far finds no pain-relief effect from glucosamine and chondroitin, and a pain-relief benefit from omega-3 fatty acids. Two reviews and one trial are worth knowing.
 
-**A 2022 review found no pain-relief effect.** This meta-analysis of dog and cat osteoarthritis trials found that omega-3 diets and supplements gave a pain-relief benefit. It found "a very marked non-effect" for chondroitin-glucosamine, and the authors say it should no longer be recommended for pain management. Its conclusions cover dogs and cats together. (Barbeau-Grégoire et al., *International Journal of Molecular Sciences*, 2022, [doi:10.3390/ijms231810384](https://doi.org/10.3390/ijms231810384))
+**A 2022 review found no pain-relief effect.** This review of dog and cat osteoarthritis trials found that omega-3 diets and supplements gave a pain-relief benefit. It found "a very marked non-effect" for chondroitin-glucosamine, and the authors say it should no longer be recommended for pain management. Its conclusions cover dogs and cats together. (Barbeau-Grégoire et al., *International Journal of Molecular Sciences*, 2022, [doi:10.3390/ijms231810384](https://doi.org/10.3390/ijms231810384))
 
 **An earlier review pointed the same way.** It covered controlled trials in horses, dogs and cats and judged the evidence for most nutraceuticals poor. The exception was diets supplemented with omega-3 fatty acids in dogs. (Vandeweerd et al., *Journal of Veterinary Internal Medicine*, 2012, [doi:10.1111/j.1939-1676.2012.00901.x](https://doi.org/10.1111/j.1939-1676.2012.00901.x))
 
-**One trial found a benefit, with real limits.** 35 dogs with hip or elbow osteoarthritis got glucosamine/chondroitin or the drug carprofen. Vet-rated pain, weight-bearing and severity improved by day 70, more slowly than with carprofen. It compared the supplement with the drug carprofen, not a placebo. (McCarthy et al., *The Veterinary Journal*, 2007, [doi:10.1016/j.tvjl.2006.02.015](https://doi.org/10.1016/j.tvjl.2006.02.015))
+**One trial found a benefit, with real limits.** 35 dogs with hip or elbow osteoarthritis got glucosamine/chondroitin or the drug carprofen. Vet-rated pain scores improved by day 70, more slowly than with carprofen. It compared the supplement with the drug carprofen, not a placebo. (McCarthy et al., *The Veterinary Journal*, 2007, [doi:10.1016/j.tvjl.2006.02.015](https://doi.org/10.1016/j.tvjl.2006.02.015))
 
 **What we take from this:** if your dog is stiff, talk to your vet about omega-3 first. We'd treat a glucosamine supplement as an optional extra, not a treatment.
 
@@ -80,7 +80,7 @@ If you and your vet want a glucosamine supplement instead, start with [Nutramax 
 
 #### Dasuquin With MSM
 
-Dasuquin adds avocado/soybean unsaponifiables (ASU), Boswellia serrata extract and green tea extract to glucosamine, chondroitin and MSM. Those extra ingredients are the main difference from Cosequin. The Amazon listing in the table is a soft chew and costs $49.99 (as of Oct 28, 2026).
+Dasuquin adds avocado/soybean unsaponifiables (ASU), Boswellia serrata extract and green tea extract to glucosamine, chondroitin and MSM. Those extra ingredients are the main difference from Cosequin. The Amazon listing in the table is the soft chew for small and medium dogs, and it costs $49.99 (as of Oct 28, 2026).
 
 #### Zesty Paws Hip & Joint Bites for Dogs
 
@@ -88,7 +88,7 @@ This is the one this guide lists for a dog that spits out tablets. The listing n
 
 ## How to choose a joint supplement for your dog
 
-1. **Start with your vet.** Stiffness has more than one cause, and your vet can check for the ones a supplement cannot reach and talk you through pain relief.
+1. **Start with your vet.** Ask about your dog's stiffness and about pain relief before you buy a supplement.
 2. **Ask about omega-3 first.** In the research above, omega-3 diets and supplements had the best evidence for dogs with osteoarthritis. Some senior dog foods already include an omega-3, and our [senior dog food guide](/food/best-senior-dog-food/) lists a formula with EPA. If you add a supplement, look for EPA and DHA amounts per dose, like the ones on our featured pick.
 3. **Read the label, not the claims.** Look for each ingredient's amount per tablet or chew, and a dose chart by weight. Treat words like "clinically proven" as marketing unless the brand names the study and the study tested that formula.
 4. **Pick a form your dog will take.** Joint supplements come in several forms, including softgels and soft chews. A supplement your dog refuses can't help much.

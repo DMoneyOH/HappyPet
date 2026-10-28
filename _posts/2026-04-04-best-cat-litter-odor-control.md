@@ -87,7 +87,7 @@ This is the one we'd never compromise on. Clumps that hold together come out who
 
 ### 2. Litter Type and Material
 
-Clay litters absorb moisture and clump. Silica gel litters are absorbent, and brands often say they last longer between changes. Pine, corn and wheat litters are another option; check the bag to see whether a given one clumps. We don't rank one material over another for odor. All three picks here are clumping litters, and Dr. Elsey's is clay. If your cat already uses its box happily, weigh that before you change the texture under its paws.
+Clay litters absorb moisture and clump. Silica gel litters are absorbent, and brands often say they last longer between changes. We don't rank one material over another for odor. All three picks here are clumping litters, and Dr. Elsey's is clay. If your cat already uses its box happily, weigh that before you change the texture under its paws.
 
 ### 3. Scented vs. Unscented
 

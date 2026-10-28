@@ -26,11 +26,11 @@ permalink: /about/
         <li>Feeders, water fountains, and daily essentials</li>
       </ul>
 
-      <h2>How we choose</h2>
-      <p>We don't test or handle the products we cover. Each guide starts from the products with the strongest owner ratings, compares them on their published specs, and weighs price against what you get.</p>
+      <h2>How our guides are put together</h2>
+      <p>Each guide starts with products that pet owners rate highly and compares them side by side on what their makers publish: specs, ingredients and price. We check those facts against the maker's listing or the study behind them.</p>
 
       <h2 id="affiliate-disclosure">Affiliate disclosure</h2>
-      <p>To keep this site free, we take part in affiliate programs including Amazon Associates and Chewy. If you click a link and make a purchase, we may earn a small commission at no extra cost to you. This never influences our recommendations. Our goal is always to help you find the best product for your pet, full stop.</p>
+      <p>To keep this site free, we take part in affiliate programs including Amazon Associates and Chewy. If you click a link and make a purchase, we may earn a small commission at no extra cost to you.</p>
       <p>We link to two retailers, Amazon and Chewy, because between them they carry the widest and most varied range of pet products, so most readers can find the exact item a guide recommends.</p>
 
       <h2>Get in touch</h2>
