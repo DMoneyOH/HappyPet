@@ -8436,16 +8436,16 @@ class TestFaqStructuredData(unittest.TestCase):
 
     def test_bodies_keep_the_two_contradictions_out(self):
         """The two body claims most likely to creep back against their own
-        FAQ: the kitten food FAQ prefers scheduled meals, so no grazing; the
-        backpack FAQ pairs the bubble bag with a calm cat, so no nervous cat
-        in a sentence about the Texsens or a bubble bag."""
+        FAQ: the kitten food FAQ prefers scheduled meals, so no grazing or
+        free feeding; the backpack FAQ pairs the bubble bag with a calm cat,
+        so no nervous or anxious cat anywhere in the backpack body."""
         kitten = self.posts["2026-04-27-best-kitten-food.md"]["body"]
-        self.assertNotRegex(kitten, r"(?i)\bgraz(e|es|ed|er|ers|ing)\b")
+        self.assertNotRegex(
+            kitten, r"(?i)\bgraz(e|es|ed|er|ers|ing)\b|\bfree[\s-]*fe(e|)d(s|ing|er|ers)?\b")
         backpack = self.posts["2026-08-24-best-cat-carrier-backpacks.md"]["body"]
         for sentence in re.split(r"(?<=[.!?])\s+|\n+", backpack):
-            if re.search(r"(?i)texsens|bubble", sentence):
-                with self.subTest(sentence=sentence[:60]):
-                    self.assertNotRegex(sentence, r"(?i)\bnervous\b")
+            with self.subTest(sentence=sentence[:60]):
+                self.assertNotRegex(sentence, r"(?i)\b(nervous|anxious)\b")
 
     def test_css_never_hides_a_faq_answer(self):
         """Collapsed answers are hidden by the browser's closed state only. A

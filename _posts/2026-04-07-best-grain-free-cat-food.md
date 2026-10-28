@@ -38,7 +38,7 @@ For cat owners looking for a reliable, high-quality grain-free option, the top r
 
 ### Featured Pick: Blue Buffalo Wilderness Grain-Free Dry Cat Food, Chicken, 12 lb
 
-This particular formula is crafted to satisfy your cat's wild side. It is listed as grain-free (check the current label), with no artificial preservatives. The included "LifeSource Bits" are a thoughtful addition, providing a blend of antioxidants, vitamins, and minerals. If you're ready to upgrade your cat's diet to a high-quality grain free cat food, this is a fantastic starting point.
+This particular formula is crafted to satisfy your cat's wild side. It is listed as grain-free (check the current label), with no artificial preservatives. The included "LifeSource Bits" are a thoughtful addition, providing a blend of antioxidants, vitamins, and minerals.
 
 **Pros:**
 * Includes LifeSource Bits

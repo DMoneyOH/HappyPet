@@ -40,7 +40,6 @@ Here are the top recommendations. For multi-cat households or particularly poten
 For many cat parents, especially those with multiple furry residents, odor control is paramount. [Fresh Step Odor Shield](https://www.amazon.com/dp/B000VDR8LA?th=1&tag=happypetdc-20) is our pick for a busy box. The maker pairs carbon with Febreze freshness. It forms incredibly tight, hard clumps that are easy to scoop, preventing lingering waste from breaking apart and contributing to further odor. This means less mess and more effective removal of the source of the smell.
 
 **Pros:**
-*   Strong, tight clumping for easy scooping
 *   Carbon and Febreze scent
 *   Forms tight clumps, the maker says
 
@@ -97,7 +96,7 @@ For effective cat litter odor control, strong clumping is key. When litter clump
 
 ### 3. Scented vs. Unscented
 
-This is a personal preference for both you and your cat. Scented litters, often infused with freshness boosters like Febreze or baking soda, can provide an extra layer of odor neutralization. However, some cats (and people!) are sensitive to strong fragrances, which can deter them from using the litter box. If your cat seems hesitant to use a scented litter, or if you have allergies, an unscented formula with excellent natural odor-trapping abilities might be a better choice. Many unscented options, like Dr. Elsey's, still excel at cat litter odor control.
+This is a personal preference for both you and your cat. However, some cats (and people!) are sensitive to strong fragrances, which can deter them from using the litter box. If your cat seems hesitant to use a scented litter, or if you have allergies, an unscented formula with excellent natural odor-trapping abilities might be a better choice.
 
 ### 4. Dust Level
 
