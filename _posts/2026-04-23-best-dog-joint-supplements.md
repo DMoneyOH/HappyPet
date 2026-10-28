@@ -80,7 +80,7 @@ If you and your vet want a glucosamine supplement instead, start with [Nutramax 
 
 #### Dasuquin With MSM
 
-The Amazon listing in the table is a soft chew. Alongside glucosamine, chondroitin and MSM, it adds avocado/soybean unsaponifiables (ASU), Boswellia serrata extract and green tea extract. Those extra ingredients are the main difference from Cosequin. The Amazon listing in the table costs $49.99 (as of Oct 21, 2026).
+Alongside glucosamine, chondroitin and MSM, it adds avocado/soybean unsaponifiables (ASU), Boswellia serrata extract and green tea extract. Those extra ingredients are the main difference from Cosequin. The Amazon listing in the table is a soft chew and costs $49.99 (as of Oct 21, 2026).
 
 #### Zesty Paws Hip & Joint Bites for Dogs
 
