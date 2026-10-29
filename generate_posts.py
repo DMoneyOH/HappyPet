@@ -756,15 +756,6 @@ def _subject_claim(sentence: str, m) -> str:
     lead = [w.lower() for w in before.split()[-3:]]
     if any(w in _OBJECT_LEAD for w in lead):
         return ""
-    # A singular noun is a speaker only with a determiner: "a typical owner
-    # buys"; "owner reviews" and "customer service" are compounds.
-    group = m.group(0).lower()
-    if not re.search(r"s['’]?$|people|households|homes|families", group) and not (
-            lead and lead[-1] in {"a", "an", "one", "another", "the", "every", "each",
-                                  "any", "this", "that", "typical"}
-            or (len(lead) > 1 and lead[-2] in {"a", "an", "one", "another", "the",
-                                               "every", "each", "any"})):
-        return ""
     rest = _CLAUSE_BREAK.split(sentence[m.end():])[0]
     words = [w.lower().strip("'’") for w in _WORD.findall(rest)][:16]
     i = 0
@@ -799,6 +790,30 @@ def _subject_claim(sentence: str, m) -> str:
     return ""
 
 
+_CLAUSE_SEGMENT = re.compile(r"[:;—()]")
+_GROUP_DETERMINER = {"a", "an", "one", "another", "the", "every", "each", "any", "this",
+                     "that", "typical"}
+
+
+def _is_group_mention(sentence: str, g) -> bool:
+    """Whether the match `g` names a buyer group rather than part of a name or
+    a compound. A capitalized word after another capitalized word is a proper
+    name ("MidWest Homes for Pets"). A bare singular is a compound modifier
+    ("summary of customer reviews", "customer service") unless a determiner
+    leads it ("a typical owner") or a popularity noun follows it ("an owner
+    favorite", "Customer favorite")."""
+    word, before = g.group(0), sentence[:g.start()]
+    if word[0].isupper() and re.search(r"\b[A-Z][\w'’-]*\s+$", before) and not re.search(
+            r"\b(?:Most|Many|Some|All|The|Few|Several|Every|Our|Dog|Cat|Pet)\s+$", before):
+        return False
+    if re.search(r"(?:s['’]?|['’]s?|people|households|homes|families)$", word.lower()):
+        return True
+    lead = before.split()[-2:]
+    return (any(w.lower() in _GROUP_DETERMINER for w in lead)
+            or bool(re.match(r"[- ]?(?:favou?rite|fave|pick|choice|go[-‐‑]to|wish|after\s)",
+                             sentence[g.end():], re.IGNORECASE)))
+
+
 def _default_deny_hits(text: str, group: str) -> list:
     group_rx = re.compile(rf"\b{group}\b", re.IGNORECASE)
     sweep_rx = re.compile(_SWEEP_FRAME + rf"{group}\b", re.IGNORECASE)
@@ -806,22 +821,18 @@ def _default_deny_hits(text: str, group: str) -> list:
     hits = []
     for sm in _SENTENCE.finditer(text or ""):
         sentence = sm.group(0)
-        # A capitalized group word after another capitalized word is part of
-        # a proper name ("MidWest Homes for Pets"), not a buyer group.
-        groups = [g for g in group_rx.finditer(sentence)
-                  if not (g.group(0)[0].isupper() and re.search(
-                      r"\b[A-Z][\w'’-]*\s+$", sentence[:g.start()]) and not re.search(
-                      r"\b(?:Most|Many|Some|All|The|Few|Several|Every|Our|Dog|Cat|Pet)\s+$",
-                      sentence[:g.start()]))]
+        groups = [g for g in group_rx.finditer(sentence) if _is_group_mention(sentence, g)]
         if not groups:
             continue
         snippet = " ".join(sentence.split())[:120]
-        if _POPULARITY.search(sentence) or sweep_rx.search(sentence) or credit_rx.search(sentence):
-            hits.append(snippet)
-            continue
-        if _RANKING.search(sentence) and any(
-                not re.search(r"\bfor\s+(?:[\w-]+\s+){0,3}$", sentence[:g.start()], re.IGNORECASE)
-                for g in groups):
+        # Popularity and ranking are judged inside one clause, so "the way a
+        # careful shopper would: comparing popular brands" claims nothing.
+        if any(_POPULARITY.search(seg) or sweep_rx.search(seg) or credit_rx.search(seg)
+               or (_RANKING.search(seg) and any(
+                   not re.search(r"\bfor\s+(?:[\w-]+\s+){0,3}$", seg[:g.start()], re.IGNORECASE)
+                   for g in group_rx.finditer(seg) if _is_group_mention(seg, g)))
+               for seg in _CLAUSE_SEGMENT.split(sentence)
+               if any(_is_group_mention(seg, g) for g in group_rx.finditer(seg))):
             hits.append(snippet)
             continue
         documented = bool(_DOC_CREDIT.search(sentence))
