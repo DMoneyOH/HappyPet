@@ -2,7 +2,6 @@
 layout: post
 title: "Best Slow Feeder Dog Bowls to Stop Gulping and Aid Digestion"
 date: 2026-08-10
-last_modified_at: 2026-10-28
 categories: [feeding]
 redirect_from:
   - /pet-feeding/best-slow-feeder-dog-bowls/

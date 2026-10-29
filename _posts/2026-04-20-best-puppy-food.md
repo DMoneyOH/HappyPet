@@ -53,7 +53,7 @@ Blue Buffalo’s puppy formula focuses on large‑breed growth, offering a balan
 Wellness delivers a grain‑inclusive recipe. The added probiotics tend to keep digestive upset at bay, and the kibble’s moderate size works well for growing teeth.  
 
 **NutriSource Puppy Food**  
-NutriSource offers a budget‑friendly option that still hits the basics: protein, DHA, and essential vitamins. It’s a solid starter food for rescue puppies or anyone looking to keep costs low while providing adequate nutrition. The formula tends to be slightly softer, which can be easier for very young pups.  
+NutriSource offers a budget‑friendly option that still hits the basics: protein, DHA, and essential vitamins. It’s a solid starter food for rescue puppies or anyone looking to keep costs low while providing adequate nutrition. The formula tends to be slightly softer, which can be easier for young pups.  
 
 ## Buying Guide  
 

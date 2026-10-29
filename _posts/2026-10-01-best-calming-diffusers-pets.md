@@ -51,7 +51,7 @@ Cons:
 
 ### ThunderEase Dog Calming Pheromone Diffuser Kit, Powered by ADAPTIL
 
-The [ThunderEase Dog Calming Pheromone Diffuser Kit](https://www.amazon.com/dp/B072KP2TYK?tag=happypetdc-20) is the ADAPTIL diffuser for dogs. Amazon lists it under the ThunderEase brand, "Powered by ADAPTIL," so search for that name rather than ADAPTIL alone. It covers the animal the FELIWAY products skip. Picture the dog that circles the couch every time the garbage truck rolls by, or the one that won't settle in a new apartment for the first week. Its own Amazon review summary reports mixed results: some dogs become calmer during thunderstorms and others show no improvement. Customers also report the diffuser getting very hot, leaking oil and having no smell. Dogs with severe separation anxiety usually need training work alongside it.
+The [ThunderEase Dog Calming Pheromone Diffuser Kit](https://www.amazon.com/dp/B072KP2TYK?tag=happypetdc-20) is the ADAPTIL diffuser for dogs. Amazon lists it under the ThunderEase brand, "Powered by ADAPTIL," so search for that name rather than ADAPTIL alone. It covers the animal the FELIWAY products skip. Picture the dog that circles the couch every time the garbage truck rolls by, or the one that won't settle in a new apartment for the first week. Its own Amazon review summary reports mixed results: some dogs become calmer during thunderstorms and others show no improvement. Customers also report the diffuser getting hot, leaking oil and having no smell. Dogs with severe separation anxiety usually need training work alongside it.
 
 ### FELIWAY Classic Cat Calming Pheromone Diffuser
 

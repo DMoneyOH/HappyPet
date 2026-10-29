@@ -2,6 +2,7 @@
 layout: post
 title: "New Kitten Checklist: 6 Things to Have Ready"
 date: 2026-10-19
+last_modified_at: 2026-10-28
 categories: [food]
 species: cat
 tags: [new kitten checklist]

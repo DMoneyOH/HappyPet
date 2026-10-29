@@ -2,6 +2,7 @@
 layout: post
 title: "Best Pet Cameras for Checking on Your Dog"
 date: 2026-04-07
+last_modified_at: 2026-10-28
 categories: [tech]
 redirect_from:
   - /pet-tech/best-pet-cameras/

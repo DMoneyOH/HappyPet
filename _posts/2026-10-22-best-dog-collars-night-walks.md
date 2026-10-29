@@ -67,7 +67,7 @@ Charging needs depend on how long your walks run and which setting you use, and 
 
 ## Is a $12.99 (as of Oct 11, 2026) LED dog collar worth buying?
 
-The BSEEN Led Dog Collar costs $12.99 and holds a 4.6/5 star rating (as of Oct 11, 2026) on Amazon, so shoppers appear broadly satisfied at that price. The value of a lit collar comes from visibility rather than extra features. If your dog walks near traffic after dark, a low-cost LED dog collar offers a cheap way to make your dog easier to spot.
+The BSEEN Led Dog Collar costs $12.99 and holds a 4.6/5 star rating (as of Oct 11, 2026) on Amazon. The value of a lit collar comes from visibility rather than extra features. If your dog walks near traffic after dark, a low-cost LED dog collar offers a cheap way to make your dog easier to spot.
 
 ## Comparison table
 

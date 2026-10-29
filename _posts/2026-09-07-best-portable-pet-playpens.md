@@ -55,7 +55,7 @@ The Siedihit Dog Cat Playpen Indoor for Small Dog gives a bit more room to stret
 
 ### Dog Cat Playpen Portable Small Animal Playpen Crate
 
-The Dog Cat Playpen Portable Small Animal Playpen Crate leans toward the lightest, most travel-friendly end of the category. It suits very small pets and short outings. The mesh panels keep things airy on warm days. The light build tends to shift on grass if an energetic pet pushes against a wall, so it works best for calm animals that settle down.
+The Dog Cat Playpen Portable Small Animal Playpen Crate leans toward the lightest, most travel-friendly end of the category. It suits small pets and short outings. The mesh panels keep things airy on warm days. The light build tends to shift on grass if an energetic pet pushes against a wall, so it works best for calm animals that settle down.
 
 ## What to look for in a portable pet playpen
 

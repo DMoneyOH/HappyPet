@@ -2,7 +2,6 @@
 layout: post
 title: "How to Choose Puppy Training Pads"
 date: 2026-04-04
-last_modified_at: 2026-10-28
 categories: [training]
 redirect_from:
   - /dog-training/best-puppy-training-pads/

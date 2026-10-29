@@ -2,6 +2,7 @@
 layout: post
 title: "Best Flea Prevention for Dogs"
 date: 2026-04-07
+last_modified_at: 2026-10-29
 categories: [flea-tick]
 redirect_from:
   - /dog-health/best-flea-prevention-dogs/

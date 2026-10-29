@@ -2,7 +2,6 @@
 layout: post
 title: "Green Goodness: The Best Cat Grass Growing Kits for Happy Felines"
 date: 2026-09-17
-last_modified_at: 2026-10-28
 categories: [health]
 redirect_from:
   - /cat-health/best-cat-grass-growing-kits/
@@ -40,7 +39,7 @@ Pros:
 - Three grow containers per box, enough to rotate fresh grass for weeks
 - Organic, non-GMO seeds paired with BPA-free containers
 - Sprouts quickly on a warm windowsill with light watering
-- Solid 4.4 out of 5 rating (as of Jul 7, 2026) on Amazon
+- Solid 4.4 out of 5 rating (as of Jul 7, 2026)
 
 Cons:
 
