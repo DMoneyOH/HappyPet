@@ -58,7 +58,7 @@ def run_with_queue(entries, *args):
 
 # Three question H2s with 40-80 word answers: the block every article needs to
 # pass the gate (generate_posts.QUESTION_BLOCK_RULE).
-_ANSWER = ("Owners of small and large dogs both report that the cable stays untangled "
+_ANSWER = ("For small and large dogs alike, the cable stays untangled "
            "when the stake sits at the center of the yard and the run is clear of "
            "posts, chairs and low branches. Check the clip and the swivel every week, "
            "and bring the dog inside during storms or very hot afternoons.")

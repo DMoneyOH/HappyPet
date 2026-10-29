@@ -41,18 +41,35 @@ def cmd_next_topic(args) -> int:
     return 0
 
 
+def _product_for(slug: str, required: bool = False):
+    """(entry, None) for a known slug, (None, None) when no slug was given and
+    none is required, and (None, 2) after printing the error for an unknown
+    slug or a missing required one."""
+    if not slug:
+        if required:
+            print("ERROR: --slug is required and was empty", file=sys.stderr)
+            return None, 2
+        return None, None
+    product = gp.load_products().get(slug)
+    if product is None:
+        print(f"ERROR: unknown slug {slug!r}", file=sys.stderr)
+        return None, 2
+    return product, None
+
+
 def cmd_review_prompt(args) -> int:
     body = _read(args.body)
     title, keyword, verified = args.title, args.keyword, ""
-    if args.slug:
-        product = gp.load_products().get(args.slug)
-        if product is None:
-            print(f"ERROR: unknown slug {args.slug!r}", file=sys.stderr)
-            return 2
+    product, err = _product_for(args.slug)
+    if err:
+        return err
+    if product is not None:
         title = title or product.get("title", "")
         keyword = keyword or product.get("keyword", "")
         verified = gp.build_verified_facts(product)
-    print(gp.make_review_prompt(title, keyword, body, verified))
+    print(gp.make_review_prompt(
+        title, keyword, body, verified,
+        sources=gp.feedback_sources(product)))
     return 0
 
 
@@ -66,7 +83,13 @@ def cmd_gate(args) -> int:
     # The em-dash hard-check inside authoritative_gate is a backstop for the rare
     # case a real em dash survives scrubbing.
     scrubbed = gp.scrub_typography(body)
-    passed, flags = gp.authoritative_gate(scorecard, scrubbed)
+    product, err = _product_for(args.slug)
+    if err:
+        return err
+    # Buyer feedback is judged against the entry's customer summary; with no
+    # --slug there is none, so every customer attribution is flagged.
+    passed, flags = gp.authoritative_gate(scorecard, scrubbed,
+                                          gp.feedback_sources(product))
     product_name = ""
     # A link to a product with no record is read off the body here too, when the
     # slug is given. authoritative_gate itself cannot do it -- its signature
@@ -74,11 +97,7 @@ def cmd_gate(args) -> int:
     # entry's own link to compare against. Staging holds the article regardless
     # (validate_output + stage_article); flagging it here is what lets the
     # rewrite pass fix it instead of hitting the hold.
-    if args.slug:
-        product = gp.load_products().get(args.slug)
-        if product is None:
-            print(f"ERROR: unknown slug {args.slug!r}", file=sys.stderr)
-            return 2
+    if product is not None:
         product_name = product.get("name", "")
         for link in gp.find_unbacked_affiliate_links(
                 scrubbed, product.get("affiliate_url", "")):
@@ -104,6 +123,20 @@ def cmd_gate(args) -> int:
     for problem in gp.find_question_block_problems(scrubbed, product_name):
         passed = False
         flags.append(f"question_block: {problem}")
+    # The Pinterest description the routine wrote beside the body
+    # (LOOP/pindesc.txt), judged as stage judges it, so the rewrite pass can
+    # fix it here instead of hitting the stage hold.
+    pin_path = Path(args.pin_desc_file) if args.pin_desc_file else \
+        Path(args.body).with_name("pindesc.txt")
+    if pin_path.is_file():
+        pin_desc = gp.clean_pin_desc(_read(pin_path),
+                                     (product or {}).get("species", "dog"))
+        for claim in gp.find_firsthand_claims(pin_desc):
+            passed = False
+            flags.append(f"pin_desc: firsthand claim {claim!r}")
+        for claim in gp.find_unsourced_buyer_feedback(pin_desc):
+            passed = False
+            flags.append(f"pin_desc: buyer feedback {claim!r}")
     print(json.dumps({"passed": passed, "flags": flags, "scrubbed_body": scrubbed}))
     return 0
 
@@ -111,19 +144,26 @@ def cmd_gate(args) -> int:
 def cmd_rewrite_prompt(args) -> int:
     body = _read(args.body)
     instructions = _read(args.instructions)
-    print(gp.make_rewrite_prompt(args.title, args.keyword, body, instructions,
-                                 affiliate_url=args.affiliate_url,
-                                 product_name=args.product_name))
+    product, err = _product_for(args.slug)
+    if err:
+        return err
+    entry = product or {}
+    # --slug means what it means on review-prompt: the entry fills every field
+    # a flag leaves empty, and supplies the customer summary.
+    print(gp.make_rewrite_prompt(
+        args.title or entry.get("title", ""), args.keyword or entry.get("keyword", ""),
+        body, instructions,
+        affiliate_url=args.affiliate_url or entry.get("affiliate_url", ""),
+        product_name=args.product_name or entry.get("name", ""),
+        sources=gp.feedback_sources(product)))
     return 0
 
 
 def cmd_stage(args) -> int:
     body = gp.scrub_typography(_read(args.body))
-    products = gp.load_products()
-    product = products.get(args.slug)
-    if product is None:
-        print(f"ERROR: unknown slug {args.slug!r}", file=sys.stderr)
-        return 2
+    product, err = _product_for(args.slug, required=True)
+    if err:
+        return err
     pin_desc = gp.clean_pin_desc(args.pin_desc or f"{product['title']} - reviews and buying guide.",
                                  product.get("species", "dog"))
     try:
@@ -132,7 +172,11 @@ def cmd_stage(args) -> int:
             affiliate_url=product.get("affiliate_url", ""),
             runners_up=(product.get("runners_up", "")
                         if product.get("format") == "roundup" else None),
-            product_name=product.get("name", ""))
+            product_name=product.get("name", ""),
+            sources=gp.feedback_sources(product))
+        # The pin description becomes the published `description` and the
+        # Pinterest text, which travels without the post's date: no buyer feedback.
+        gp.assert_no_unsourced_buyer_feedback("pin_desc", pin_desc, args.slug)
     except gp.GenerationStageError as e:
         print(f"ERROR: content contract failed: {e}", file=sys.stderr)
         return 3
@@ -150,13 +194,21 @@ def build_parser() -> argparse.ArgumentParser:
 
     rp = sub.add_parser("review-prompt")
     rp.add_argument("--body", required=True)
-    rp.add_argument("--slug", default="")  # derives title/keyword + verified facts
+    rp.add_argument("--slug", default="",
+                    help="products.json entry: fills empty --title/--keyword, adds its "
+                         "verified facts and its Amazon customer summary")
     rp.add_argument("--title", default=""); rp.add_argument("--keyword", default="")
     rp.set_defaults(func=cmd_review_prompt)
 
     g = sub.add_parser("gate")
     g.add_argument("--body", required=True); g.add_argument("--scorecard", required=True)
-    g.add_argument("--slug", default="")  # enables the unbacked-link check
+    g.add_argument("--slug", default="",
+                   help="products.json entry: supplies its link, alternatives, product "
+                        "name and Amazon customer summary; without it every "
+                        "buyer-feedback line is flagged")
+    g.add_argument("--pin-desc-file", dest="pin_desc_file", default="",
+                   help="Pinterest description to check (default: pindesc.txt "
+                        "beside --body, when it exists)")
     g.set_defaults(func=cmd_gate)
 
     rw = sub.add_parser("rewrite-prompt")
@@ -164,6 +216,10 @@ def build_parser() -> argparse.ArgumentParser:
     rw.add_argument("--title", default=""); rw.add_argument("--keyword", default="")
     rw.add_argument("--affiliate-url", dest="affiliate_url", default="")
     rw.add_argument("--product-name", dest="product_name", default="")
+    rw.add_argument("--slug", default="",
+                    help="products.json entry: fills empty --title/--keyword/"
+                         "--affiliate-url/--product-name and adds its Amazon "
+                         "customer summary (same meaning as on review-prompt)")
     rw.set_defaults(func=cmd_rewrite_prompt)
 
     st = sub.add_parser("stage")
