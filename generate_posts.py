@@ -2326,6 +2326,11 @@ def evaluate_scorecard(scorecard: dict, content: str, sources=None) -> tuple:
       - every numeric score must clear its minimum (REVIEW_SCORE_MINIMUMS)
       - an em dash present in the actual body (checked here, not the model's count)
       - accuracy/fabrication keywords in the flags
+      - buyer feedback the entry's `sources` do not back, or any owner
+        attribution, in the actual body (find_unsourced_buyer_feedback)
+      - the reviewer's structured category-25 verdict
+        (reviewer_buyer_feedback_flags; a missing field fails closed when the
+        body states buyer feedback)
 
     Returns (passed: bool, flags: list).
     """
