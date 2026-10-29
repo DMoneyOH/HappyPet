@@ -831,6 +831,58 @@ class TestFirstPersonDetection(unittest.TestCase):
         self.assertIn("—", BAD_ARTICLE)
 
 
+class TestFirstPersonSingularGuard(unittest.TestCase):
+    """FIRST_PERSON_RULE allows "we/our" for the site's picks and never
+    "I/me/my". The prompt said so; this is the code-level refusal (Tessa,
+    round 3). Quotes, link text, URLs and reader questions are not the site's
+    voice and stay clean."""
+
+    def setUp(self):
+        import generate_posts as gp
+        self.gp = gp
+
+    def test_refuses_i_me_my_in_the_sites_voice(self):
+        for s in ("I tested it for a month.", "My dog loves the squeaker.",
+                  "It won me over.", "I've used it daily.", "I'd skip the XL.",
+                  "In my experience it lasts.", "The lid is mine to recommend.",
+                  "We liked it, and I liked the price."):
+            with self.subTest(s=s):
+                self.assertTrue(self.gp.find_first_person_singular(s), s)
+
+    def test_leaves_quotes_links_questions_and_numerals_clean(self):
+        for s in ('The box says "Made for my best friend" on the side.',
+                  "[My Pet Bed Brand](https://www.amazon.com/dp/B0X?tag=x) ships fast.",
+                  "## Which size do I need?", "Can I wash it in a machine?",
+                  "It contains type I collagen.", "Our pick is the KONG.",
+                  "We would skip it for a heavy chewer.", "Your dog may love it.",
+                  "MyQ app support is listed on the box.", "Item weight: 1.2 lb."):
+            with self.subTest(s=s):
+                self.assertEqual(self.gp.find_first_person_singular(s), [], s)
+
+    def test_both_gates_refuse_it(self):
+        body = ("My dog sleeps on this bed every night. " + "word " * 900
+                + "https://amzn.to/3TestABC\n\n" + QUESTION_BLOCK)
+        for stage in ("generate", "review"):
+            with self.subTest(stage=stage):
+                with self.assertRaises(self.gp.GenerationStageError) as cm:
+                    self.gp.validate_output(stage, body, "slug",
+                                            affiliate_url="https://amzn.to/3TestABC")
+                self.assertIn("first person", str(cm.exception))
+        card = {"pass": True, "scores": {"human_voice": 4, "warmth": 4, "readability": 4,
+                                         "accuracy": 4}, "flags": []}
+        passed, flags = self.gp.authoritative_gate(card, "My dog loves it.")
+        self.assertFalse(passed)
+        self.assertTrue(any("first_person_singular" in f for f in flags), flags)
+
+    def test_no_published_post_speaks_in_the_first_person_singular(self):
+        offenders = []
+        for md in sorted((REPO / "_posts").glob("*.md")):
+            text = md.read_text(encoding="utf-8")
+            body = text.split("---", 2)[2] if text.startswith("---") else text
+            offenders += [f"{md.name}: {h}" for h in self.gp.find_first_person_singular(body)]
+        self.assertEqual(offenders, [])
+
+
 class TestReviewerResponseParsing(unittest.TestCase):
     """Reviewer JSON structure validation — P2"""
 
@@ -3049,13 +3101,16 @@ class TestNamedTestimonialGuard(unittest.TestCase):
                 "affiliate_url": "https://amzn.to/x"}
         without = self.gp.make_prompt("T", "kw", "slug", "single_review", base, "", "")
         self.assertNotIn("Real Owner Experiences", without)
-        self.assertNotIn("What Customers Say", without)
+        self.assertNotIn("What Amazon's Review Summary Says", without)
         self.assertIn("NO buyer-feedback section", without)
         with_summary = self.gp.make_prompt(
             "T", "kw", "slug", "single_review",
             dict(base, customer_summary="Customers like the sturdy handle.",
                  customer_summary_read_on="2026-10-28"), "", "")
-        self.assertIn("What Customers Say (H2", with_summary)
+        # Named for its source, matching the published guides' heading.
+        self.assertIn("What Amazon's Review Summary Says (H2", with_summary)
+        self.assertNotIn("What Customers Say", with_summary)
+        self.assertIn("backed by that summary", with_summary)
         self.assertNotIn("dated with its read date", with_summary)
         self.assertIn("Customers like the sturdy handle.", with_summary)
         self.assertIn('read_on="Oct 28, 2026"', with_summary)
@@ -3163,6 +3218,40 @@ class TestBuyerFeedbackGuard(unittest.TestCase):
         "It is popular with dog owners.", "Pet parents keep coming back to this brand.",
         "Owners stick with it for years.", "Owners turn to it during storms.",
         "It has become the go-to bed among large-breed owners.",
+        # Round-3 review (Talon) and verifier (Tessa) misses. The fix is the
+        # default-deny layer (_default_deny_hits), not one pattern per line.
+        "It is a favorite of budget-conscious owners.", "It is a favorite of owners.",
+        "It is trusted by owners.", "It is chosen by owners.",
+        "It is preferred by owners.", "It is beloved by owners.",
+        "It is an owner favorite.", "It is owners' top pick.",
+        "For many pet owners, the hunt for a fountain ends with models like the Drinkwell.",
+        "For many owners, the hunt ends with the Drinkwell.",
+        "Owners favor it.", "It is a budget-conscious owner's favorite.",
+        "It is well loved among owners.", "Owners overwhelmingly choose the large.",
+        "Many owners went with the medium.", "Owners regularly return to it.",
+        "It is a fixture in multi-dog homes.", "Among owners, the consensus is clear.",
+        # Ranking words credited to a group that is not the recommendation's target.
+        "It is the first choice of most dog owners.", "It is a consistent winner in real homes.",
+    )
+    # Customer-noun forms of the round-3 misses: refused without a summary.
+    DEFAULT_DENY_CUSTOMER_CASES = (
+        "It is a favorite of buyers.", "It is trusted by customers.",
+        "It is a customer favorite.", "It is buyers' top pick.",
+        "For many shoppers, the search ends with this one.",
+        "Customers favor it.", "Buyers overwhelmingly choose the large.",
+        "Shoppers keep reordering it.", "It is a hit with buyers.",
+    )
+    # Instructions and document-credited facts stay clean (Tessa round 3).
+    DOCUMENT_CREDITED_CASES = (
+        "Owners need to wash the filter every two weeks, the manual says.",
+        "Buyers should register it for the warranty, the listing says.",
+        "Owners rinse the pump monthly, per the manual.",
+        "Owners pick a size from the chart, the listing says.",
+        "Owners who want a quieter fountain should reach for the Drinkwell.",
+        "Owners who want to report a problem can call the maker.",
+        "Our pick for owners who travel is the folding bowl.",
+        "It suits households with more than one cat.",
+        "This guide helps owners pick a size that fits.",
     )
     CUSTOMER_CASES = (
         "Customers who bought it say the lid locks well.",
@@ -3207,10 +3296,9 @@ class TestBuyerFeedbackGuard(unittest.TestCase):
         "along with what buyer reviews say.",
         "Dog owners who rent need a crate that folds flat.",
         "It holds a 4.7-star rating across 12,000 customer reviews.",
-        # Removed 2026-10-29: "For many pet owners, the hunt for a fountain ends
-        # with models like the Drinkwell." It is a buyer-behavior claim under the
-        # Director's ruling, so it is no longer benign. The detector does not
-        # catch that shape; the published line was cut by hand.
+        # Moved to OWNER_CASES 2026-10-29: "For many pet owners, the hunt for a
+        # fountain ends with models like the Drinkwell." It is a buyer-behavior
+        # claim under the Director's ruling.
         "This design gives peace of mind to owners who worry about their dog getting caught.",
         "Owners who prioritize durability will appreciate this bed.",
         "Treat indestructible as marketing until owner reviews back it up.",
@@ -3267,12 +3355,37 @@ class TestBuyerFeedbackGuard(unittest.TestCase):
                 self.assertEqual(self.gp.find_owner_attribution(s), [], s)
 
     def test_allows_customer_attribution_with_a_summary(self):
+        """Each attribution shape passes when a summary backs it. The summary
+        here is the line's own wording, so only the attribution is under
+        test; backing is test_a_customer_claim_the_summary_does_not_back_is_refused."""
         for s in self.CUSTOMER_CASES:
             with self.subTest(s=s[:60]):
-                self.assertEqual(self._find(s), [])
+                self.assertEqual(self._find(s, self.sources._replace(summary=s)), [])
         self.assertEqual(self._find(self.ALLOWED), [])
 
+    def test_refuses_customer_behavior_claims_without_a_summary(self):
+        for s in self.DEFAULT_DENY_CUSTOMER_CASES:
+            with self.subTest(s=s[:60]):
+                self.assertTrue(self.gp.find_unsourced_buyer_feedback(s), s)
+                self.assertEqual(self.gp.find_owner_attribution(s), [], s)
+
     # --- the inverse direction: honest prose stays clean -------------------
+    def test_does_not_flag_instructions_or_document_credited_facts(self):
+        for s in self.DOCUMENT_CREDITED_CASES:
+            with self.subTest(s=s[:60]):
+                self.assertEqual(self.gp.find_unsourced_buyer_feedback(s), [], s)
+
+    def test_a_document_credit_does_not_launder_an_opinion(self):
+        """"the listing says" excuses an instruction, never what owners think."""
+        for s in ("Owners love it, the listing says.",
+                  "Owners swear by it, according to the manual.",
+                  "It is a favorite of owners, the listing says.",
+                  # Opinion verbs the older patterns never listed, so only the
+                  # default-deny layer's document rule decides these.
+                  "Owners favor it, the listing says.", "Owners vouch for it, per the manual."):
+            with self.subTest(s=s):
+                self.assertTrue(self.gp.find_owner_attribution(s), s)
+
     def test_does_not_flag_prose_that_attributes_nothing_to_buyers(self):
         """A guard that fires on these holds clean articles on an unattended cron."""
         for s in self.BENIGN_CASES:
@@ -3375,12 +3488,80 @@ class TestBuyerFeedbackGuard(unittest.TestCase):
         source = (REPO / "generate_posts.py").read_text(encoding="utf-8")
         main_src = source[source.index("def main()"):]
         self.assertEqual(main_src.count("sources = feedback_sources(product)"), 1)
-        self.assertEqual(main_src.count("sources=sources)"), 2)
-        self.assertIn("summary_block=customer_summary_block(sources)", main_src)
+        # validate_output twice, review_and_rewrite once (it builds the reviewer
+        # and rewrite prompts and judges the scorecard from the same sources).
+        self.assertEqual(main_src.count("sources=sources)"), 3)
+
+    # --- ruling (a): a customer line must be BACKED by the summary ------------
+    CLEAN_CARD = {"pass": True, "scores": {"human_voice": 4, "warmth": 4,
+                                           "readability": 4, "accuracy": 4},
+                  "flags": [], "ai_patterns_found": [], "unbacked_buyer_feedback": []}
+
+    def test_a_customer_claim_the_summary_does_not_back_is_refused(self):
+        """Tessa round 3: with a summary present the gate only checked that it
+        existed. The deterministic floor: no content word of the claim is in
+        the summary."""
+        for s in ("Customers who bought it say the puree cured their cat's kidney disease.",
+                  "Buyers report the zipper broke on the first flight.",
+                  "Customers favor the blue colorway."):
+            with self.subTest(s=s):
+                found = self._find(s)
+                self.assertTrue(any("does not back" in f for f in found), found)
+        for s in (self.ALLOWED, "Some customers mention the size runs small.",
+                  "Amazon's summary of customer reviews says it is durable for serious chewers."):
+            with self.subTest(s=s):
+                self.assertEqual(self._find(s), [])
+
+    def test_the_reviewer_flag_fails_both_scorecard_gates(self):
+        """A structured field, not word-sniffing: the reviewer copies each
+        unbacked sentence into unbacked_buyer_feedback, and either gate fails
+        on it whatever words it used."""
+        card = dict(self.CLEAN_CARD, unbacked_buyer_feedback=[
+            "Customers who bought it say it keeps a dog busy for hours."])
+        passed, flags = self.gp.authoritative_gate(card, self.ALLOWED, self.sources)
+        self.assertFalse(passed)
+        self.assertTrue(any("reviewer_unbacked_buyer_feedback" in f for f in flags), flags)
+        passed, flags = self.gp.evaluate_scorecard(card, self.ALLOWED, self.sources)
+        self.assertFalse(passed)
+        self.assertTrue(any("reviewer_unbacked_buyer_feedback" in f for f in flags), flags)
+        for gate in (self.gp.authoritative_gate, self.gp.evaluate_scorecard):
+            with self.subTest(gate=gate.__name__):
+                self.assertTrue(gate(self.CLEAN_CARD, self.ALLOWED, self.sources)[0])
+
+    def test_a_category_25_pattern_fails_both_scorecard_gates(self):
+        card = dict(self.CLEAN_CARD, ai_patterns_found=["25: claim not in the summary"])
+        for gate in (self.gp.authoritative_gate, self.gp.evaluate_scorecard):
+            with self.subTest(gate=gate.__name__):
+                self.assertFalse(gate(card, self.ALLOWED, self.sources)[0])
+        card = dict(self.CLEAN_CARD, ai_patterns_found=["2: rule of three", "15: vague"])
+        self.assertTrue(self.gp.authoritative_gate(card, self.ALLOWED, self.sources)[0])
+
+    def test_a_missing_or_malformed_reviewer_flag_fails_closed_on_a_customer_line(self):
+        missing = {k: v for k, v in self.CLEAN_CARD.items() if k != "unbacked_buyer_feedback"}
+        for card in (missing, dict(self.CLEAN_CARD, unbacked_buyer_feedback=None),
+                     dict(self.CLEAN_CARD, unbacked_buyer_feedback="the zipper line"),
+                     dict(self.CLEAN_CARD, unbacked_buyer_feedback={"x": 1})):
+            for gate in (self.gp.authoritative_gate, self.gp.evaluate_scorecard):
+                with self.subTest(card=str(card.get("unbacked_buyer_feedback", "MISSING")),
+                                  gate=gate.__name__):
+                    self.assertFalse(gate(card, self.ALLOWED, self.sources)[0])
+        # No customer line in the body: nothing for the reviewer to judge.
+        for gate in (self.gp.authoritative_gate, self.gp.evaluate_scorecard):
+            with self.subTest(gate=gate.__name__, body="no customer line"):
+                self.assertTrue(gate(missing, "The lid locks and the bowl lifts out.",
+                                     self.sources)[0])
+
+    def test_the_schema_and_prompt_ask_for_the_reviewer_flag(self):
+        schema = self.gp.REVIEW_SCHEMA
+        self.assertIn("unbacked_buyer_feedback", schema["required"])
+        self.assertEqual(schema["properties"]["unbacked_buyer_feedback"],
+                         {"type": "array", "items": {"type": "string"}})
+        p = self.gp.make_review_prompt("T", "kw", "body", sources=self.sources)
+        self.assertIn('"unbacked_buyer_feedback": []', p)
+        self.assertIn("- unbacked_buyer_feedback:", p)
 
     def test_authoritative_gate_reads_the_body(self):
-        clean = {"pass": True, "scores": {"human_voice": 4, "warmth": 4,
-                                          "readability": 4, "accuracy": 4}, "flags": []}
+        clean = self.CLEAN_CARD
         passed, flags = self.gp.authoritative_gate(clean, "Owners tend to love it.")
         self.assertFalse(passed)
         self.assertTrue(any("unsourced_buyer_feedback_in_body" in f for f in flags), flags)
@@ -3497,7 +3678,9 @@ class TestBuyerFeedbackGuard(unittest.TestCase):
         prompts += [self.gp.make_prompt("T", "kw", "s", fmt, prod, "", "")
                     for fmt in ("roundup", "single_review", "buying_guide")]
         for p in prompts:
-            rest = p.replace(self.gp.BUYER_FEEDBACK_RULE, "")
+            # FIRSTHAND_CLAIM_RULE quotes "tested by real owners" in order to ban it.
+            rest = p.replace(self.gp.BUYER_FEEDBACK_RULE, "").replace(
+                self.gp.FIRSTHAND_CLAIM_RULE, "")
             with self.subTest(prompt=p[:40]):
                 self.assertEqual(self.gp.find_owner_attribution(rest), [])
                 self.assertNotIn("(I, we, us, our, my)", p)
@@ -3508,8 +3691,8 @@ class TestBuyerFeedbackGuard(unittest.TestCase):
         product = {"name": "Toy", "affiliate_url": self.LINK,
                    "customer_summary": self.SUMMARY, "customer_summary_read_on": self.READ_ON}
         for p in (self.gp.make_prompt("T", "kw", "s", "roundup", product, "", ""),
-                  self.gp.make_review_prompt("T", "kw", "body", summary_block=block),
-                  self.gp.make_rewrite_prompt("T", "kw", "body", "fix", summary_block=block)):
+                  self.gp.make_review_prompt("T", "kw", "body", sources=self.sources),
+                  self.gp.make_rewrite_prompt("T", "kw", "body", "fix", sources=self.sources)):
             start = p.index("<customer_summary")
             end = p.index("</customer_summary>")
             self.assertIn(self.SUMMARY, p[start:end])
@@ -3545,7 +3728,8 @@ class TestStage1CliBuyerFeedback(unittest.TestCase):
                    customer_summary=TestBuyerFeedbackGuard.SUMMARY,
                    customer_summary_read_on=TestBuyerFeedbackGuard.READ_ON)
     CARD = {"pass": True, "scores": {"human_voice": 4, "warmth": 4,
-                                     "readability": 4, "accuracy": 4}, "flags": []}
+                                     "readability": 4, "accuracy": 4}, "flags": [],
+            "ai_patterns_found": [], "unbacked_buyer_feedback": []}
 
     def setUp(self):
         import io
@@ -3628,6 +3812,60 @@ class TestStage1CliBuyerFeedback(unittest.TestCase):
         self.assertIn("pin_desc", err)
         self.assertEqual(list((self.dir / "_posts").glob("*.md")), [])
         self.assertEqual(list((self.dir / "_pin_queue").glob("*.json")), [])
+
+    def test_gate_judges_the_reviewer_flag(self):
+        card = dict(self.CARD, unbacked_buyer_feedback=[self.ALLOWED])
+        (self.dir / "card.json").write_text(json.dumps(card), encoding="utf-8")
+        flags = self._gate_flags({"best-x": self.PRODUCT}, "--slug", "best-x")
+        self.assertTrue(any("reviewer_unbacked_buyer_feedback" in f for f in flags), flags)
+
+    def test_gate_checks_the_pin_description_beside_the_body(self):
+        """The routine writes LOOP/pindesc.txt next to LOOP/body.md. The gate
+        reads it when present, so the rewrite pass can fix it before stage."""
+        (self.dir / "pindesc.txt").write_text("Owners rave about this toy.", encoding="utf-8")
+        code, out, _ = self._run({"best-x": self.PRODUCT}, "gate", "--slug", "best-x",
+                                 "--body", "{dir}/body.md", "--scorecard", "{dir}/card.json")
+        self.assertEqual(code, 0)
+        result = json.loads(out)
+        self.assertFalse(result["passed"])
+        self.assertTrue(any(f.startswith("pin_desc:") for f in result["flags"]), result)
+        (self.dir / "pindesc.txt").write_text("We tested this toy for a month.", encoding="utf-8")
+        code, out, _ = self._run({"best-x": self.PRODUCT}, "gate", "--slug", "best-x",
+                                 "--body", "{dir}/body.md", "--scorecard", "{dir}/card.json")
+        self.assertTrue(any(f.startswith("pin_desc:") for f in json.loads(out)["flags"]))
+        (self.dir / "pindesc.txt").write_text("A toy that keeps a dog busy.", encoding="utf-8")
+        code, out, _ = self._run({"best-x": self.PRODUCT}, "gate", "--slug", "best-x",
+                                 "--body", "{dir}/body.md", "--scorecard", "{dir}/card.json")
+        self.assertFalse(any(f.startswith("pin_desc:") for f in json.loads(out)["flags"]))
+
+    def test_gate_without_a_pin_description_file_still_runs(self):
+        self.assertFalse((self.dir / "pindesc.txt").exists())
+        self.assertEqual(self._gate_flags({"best-x": self.PRODUCT}, "--slug", "best-x"), [])
+
+    def test_stage_with_an_empty_slug_exits_2_cleanly(self):
+        """`stage --slug ""` used to crash with a TypeError on product['title']."""
+        for slug in ("", "   "):
+            with self.subTest(slug=repr(slug)):
+                code, out, err = self._run({"best-x": self.PRODUCT}, "stage", "--slug", slug,
+                                           "--body", "{dir}/body.md")
+                self.assertEqual(code, 2)
+                self.assertIn("ERROR", err)
+                self.assertNotIn("Traceback", err)
+                self.assertEqual(list((self.dir / "_posts").glob("*.md")), [])
+
+    def test_rewrite_prompt_slug_fills_the_entry_fields_like_review_prompt(self):
+        """--slug means the same on both prompts: it supplies the entry's
+        title, keyword, link and product name wherever a flag leaves them empty."""
+        product = dict(self.PRODUCT, name="TopMat Cooling Pad", keyword="best x keyword")
+        code, out, _ = self._run({"best-x": product}, "rewrite-prompt", "--slug", "best-x",
+                                 "--body", "{dir}/body.md", "--instructions", "{dir}/flags.txt")
+        self.assertEqual(code, 0)
+        for value in ("Best X", "best x keyword", "TopMat Cooling Pad"):
+            self.assertIn(value, out)
+        code, out, _ = self._run({"best-x": product}, "rewrite-prompt", "--slug", "best-x",
+                                 "--title", "Given Title", "--body", "{dir}/body.md",
+                                 "--instructions", "{dir}/flags.txt")
+        self.assertIn("Given Title", out)
 
     def test_the_routine_passes_the_slug_to_gate_and_rewrite(self):
         skill = (REPO / ".claude" / "skills" / "happypet-stage1" / "SKILL.md").read_text(
@@ -9210,7 +9448,8 @@ class TestPublishedPostsVoiceIntegrity(unittest.TestCase):
     recast first-person sentences as "Testing found X" / "Testing showed X",
     which is third person and also a claim this site tested something it never
     touched. The recorded target for an observation is now a flat statement of
-    the spec, or a dated paraphrase of a real Amazon customer summary. "Owners
+    the spec, or a paraphrase of a real Amazon customer summary that names it
+    as the source (the post carries the one date). "Owners
     report X" is not the fix: nothing here reads reviews, so that phrasing is
     invented feedback and is banned (Director, 2026-10-28).
     test_no_published_post_claims_firsthand_experience below enforces that; the
@@ -9287,8 +9526,9 @@ class TestPublishedPostsVoiceIntegrity(unittest.TestCase):
         That pass recast first-person sentences into "Testing found X" /
         "Testing showed X", which satisfies the no-first-person rule and asserts
         a test that never happened. The recorded target voice for an
-        observation is a flat statement of the spec, or a dated paraphrase of a
-        real Amazon customer summary. "Owners report X" is not the fix: it
+        observation is a flat statement of the spec, or a paraphrase of a real
+        Amazon customer summary that names it as the source. "Owners report X"
+        is not the fix: it
         invents feedback, and test_no_published_post_carries_owner_attribution
         below tracks it.
         """
@@ -9412,11 +9652,15 @@ class TestPublishedPostsVoiceIntegrity(unittest.TestCase):
                 offenders.append(f"{name}: {quote!r}")
         self.assertEqual(offenders, [])
 
-    # Expected to fail until the published-post cleanup merges: 57 of 66 posts
-    # carried owner attribution at 8a7a877 (round 2 detector, 2026-10-28). Marked
-    # rather than skipped or report-only so it cannot rot quietly: once the
-    # corpus is clean, pytest reports this as an unexpected success, which is a
-    # failure, and the marker has to come off. Remove @expectedFailure then.
+    # Expected to fail on this branch: 57 of 66 posts carried owner attribution
+    # at 8a7a877 (round 2 detector, 2026-10-28). Merge order is section A, then
+    # this branch, then content/buyer-feedback-cleanup. The cleanup branch
+    # merges this branch into itself, so it carries this detector, removes this
+    # marker and exempts the four section B posts by name, each exemption
+    # expiring once its post is clean. Every step stays green: on main before
+    # the cleanup lands the corpus is still dirty and this is an expected
+    # failure. Marked rather than skipped so it cannot rot quietly: a clean
+    # corpus here is an unexpected success, which pytest fails.
     @unittest.expectedFailure
     def test_no_published_post_carries_owner_attribution(self):
         """"Owners report", "owners tend to", "Real Owner Experiences": nothing

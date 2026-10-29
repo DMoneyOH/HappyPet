@@ -579,13 +579,20 @@ _OWNER_FEEDBACK_PATTERNS = [
     r"noted|wrote|found|mentioned|described)\b",
     *_behavior_patterns(rf"(?:{_OWNER_NOUN}|households|homes|families)"),
 ]
-_CUSTOMER_FEEDBACK_PATTERNS = [
+# The customer patterns that state a claim (a group plus what it says, finds or
+# does), as opposed to the ones that only name the summary. The backstop in
+# _unbacked_claims reads a claim from where one of these starts.
+_CUSTOMER_CLAIM_PATTERNS = [
     rf"\b{_CUSTOMER_NOUN}\b{_WHO}{_GAP}\s+{_ANY_VERB}\b",
     rf"\b{_CUSTOMER_NOUN}\b{_FAR_GAP}[ \t,]+{_LONG_VERB}\b",
     rf"\bpeople\s+who\s+(?:have\s+)?(?:bought|purchased|tried|used|own|owned)\b"
     rf"[^.!?\n]{{0,30}}?{_GAP}\s+{_ANY_VERB}\b",
     rf"\bpeople\b{_GAP}\s+{_ANY_VERB}\b",
     rf"\b(?:(?:customer|buyer|amazon|user)\s+)?reviews\b{_GAP}\s+{_ANY_VERB}\b",
+    *_behavior_patterns(_CUSTOMER_NOUN),
+]
+_CUSTOMER_FEEDBACK_PATTERNS = [
+    *_CUSTOMER_CLAIM_PATTERNS,
     r"\bstories\s+(?:abound|come\s+up|pour\s+in|keep\s+coming)\b",
     r"\b(?:customer|buyer|shopper|user|reviewer)\s+(?:feedback|sentiment|consensus|"
     r"opinions?|praise|complaints?)\b",
@@ -605,10 +612,10 @@ _CUSTOMER_FEEDBACK_PATTERNS = [
     r"\b(?:overall|general)\s+(?:sentiment|consensus)\b",
     r"\bthe\s+consensus\s+is\b",
     r"\bsentiment\s+(?:around|about|toward|towards)\b",
-    *_behavior_patterns(_CUSTOMER_NOUN),
 ]
 _OWNER_FEEDBACK_RE = [re.compile(p, re.IGNORECASE) for p in _OWNER_FEEDBACK_PATTERNS]
 _CUSTOMER_FEEDBACK_RE = [re.compile(p, re.IGNORECASE) for p in _CUSTOMER_FEEDBACK_PATTERNS]
+_CUSTOMER_CLAIM_RE = [re.compile(p, re.IGNORECASE) for p in _CUSTOMER_CLAIM_PATTERNS]
 
 # A far verb is not the noun's own when a modal or another subject sits
 # between them ("owners of X, you will find"), or when a preposition or a
@@ -643,6 +650,10 @@ def _keep_feedback_hit(m) -> bool:
     words = [w.strip(",'\"()").lower() for w in gap.split()]
     if _FAR_GAP_STOP & set(words) or (words and words[-1] == "to"):
         return False
+    # "Owners need to wash the filter, the manual says": the far verb's subject
+    # is the document, not the owners.
+    if _DOCUMENT_NOUNS & set(words[-2:]):
+        return False
     # The three words before the noun, inside its clause: "For many pet owners"
     # and "peace of mind to owners" make the noun an object, not a speaker.
     # A quantifier's "of" ("a handful of reviewers") does not count.
@@ -656,6 +667,170 @@ def _keep_customer_hit(m) -> bool:
                  re.IGNORECASE):
         return False
     return _keep_feedback_hit(m)
+
+
+# --- Default deny: a buyer group credited with a preference ------------------
+# The patterns above whitelist verbs and prepositions, so every synonym passed
+# ("a favorite OF owners", "owners favor it", "many owners went with"). This
+# layer inverts that: in any sentence, a buyer group (owners, pet parents,
+# households, homes, customers, buyers ...) that is the subject of, or is
+# credited with, a preference, choice, popularity or habit claim is refused,
+# and only narrow shapes are let through: a modal or advice frame ("owners
+# should", "owners who want X can"), the group as the object of a
+# recommendation ("our pick for owners who travel"), and a document-credited
+# instruction ("owners pick a size from the chart, the listing says").
+# Judged one sentence at a time, on text already through _normalize_for_feedback.
+_DOCUMENT_NOUNS = {"manual", "listing", "label", "labels", "packaging", "package",
+                   "instructions", "maker", "manufacturer", "brand", "retailer",
+                   "chart", "box", "insert", "faq", "warranty", "policy", "datasheet"}
+_DOC_CREDIT = re.compile(
+    r"\b(?:the|its|their|this)\s+(?:product\s+|user\s+|brand['’]s\s+)?(?:"
+    + "|".join(sorted(_DOCUMENT_NOUNS)) + r")\b", re.IGNORECASE)
+_OWNER_GROUP = (r"(?:(?:pet|dog|cat|puppy|kitten|fur)[- ]parents?(?:['’]s?)?|"
+                r"owners?(?:['’]s?)?|households|homes|families)")
+_CUSTOMER_GROUP = (r"(?:(?:customers?|buyers?|shoppers?|purchasers?|reviewers?)(?:['’]s?)?|"
+                   r"users?(?:['’]s?)?(?![- ](?:friendly|manual|interface|guide))|people)")
+# Popularity and habit: refused wherever the group sits in the sentence.
+_POPULARITY = re.compile(
+    r"\b(?:favou?rites?|fave|go[-‐‑]to|staples?|mainstays?|fixtures?|cult\b|"
+    r"(?:loyal|devoted|big|huge|strong|dedicated)\s+following|popular\w*|"
+    r"best[- ]?sell\w*|top[- ]sell\w*|crowd[- ]pleas\w*|household\s+name|"
+    r"beloved\s+(?:by|among|with|of)|"
+    r"(?:well|much|widely|universally|dearly)[- ]loved|loved\s+by|adored|darlings?|"
+    r"(?:a|big|huge|real)\s+hit\b|hit\s+(?:with|among)|wins?\s+over|won\s+over|"
+    r"wish\s*lists?|(?:well|highly|widely|generally)\s+regarded|reputation|"
+    r"word\s+of\s+mouth|trusted|tried[- ]and[- ]true|embrac\w*|swear\s+by|swore\s+by|"
+    r"rav(?:e|es|ed|ing)\s+about|(?:go|goes|went|going)\s+with|sid(?:e|es|ed)\s+with|"
+    r"(?:hunt|search|quest|decision|debate|shopping)\b[^.!?]{0,40}?\b(?:ends?|ended|"
+    r"stops?|stopped|is\s+over|comes?\s+down|lands?|settles?)\b|comes?\s+up\s+first|"
+    r"named\s+(?:more|most)|end(?:s|ed)?\s+up|winds?\s+up|wound\s+up|keeps?\s+\w+ing\b|"
+    r"circl\w*\s+back|(?:come|comes|came|coming|go|goes|went|going|return\w*)\s+back|"
+    r"switch(?:ed|es)?\s+(?:over\s+)?to|made\s+the\s+switch|reorder\w*|"
+    r"single[sd]?\s+out|talking\s+about|can['’]?t\s+stop|(\w+)\s+after\s+\1)\b",
+    re.IGNORECASE)
+# Recommendation-shaped popularity: refused unless the group is the target of
+# the recommendation ("the top choice for most dog owners" is the site's pick).
+_RANKING = re.compile(r"\b(?:top\s+(?:choice|pick|seller|rated)|first\s+(?:choice|pick)|"
+                      r"standard\s+(?:pick|choice)|default\s+\w+|winners?)\b", re.IGNORECASE)
+# "In many cat households", "across most homes": a sweeping claim about them.
+_SWEEP_FRAME = (r"\b(?:among\s+(?:the\s+)?|(?:in|across|throughout)\s+(?:many|most|"
+                r"plenty\s+of|a\s+lot\s+of|lots\s+of|countless|thousands\s+of|"
+                r"millions\s+of|so\s+many)\s+)(?:[\w-]+\s+){0,2}?")
+_CREDIT_FRAME = r"\b(?:according\s+to|\w+(?:ed|en|wn)\s+by)\s+(?:[\w-]+\s+){0,3}?"
+# Verbs and adverbs that make a subject group's sentence a claim about it.
+# CHOICE verbs are the only ones a document credit can excuse.
+_CHOICE_CUES = {"pick", "picks", "picked", "picking", "choose", "chooses", "choosing",
+                "chose", "chosen", "select", "selects", "selected", "selecting", "buy",
+                "buys", "buying", "bought", "order", "orders", "ordered", "ordering",
+                "purchase", "purchases", "purchased", "purchasing", "grab", "grabs",
+                "grabbed", "grabbing", "keep", "keeps", "keeping", "kept"}
+_OPINION_CUE = re.compile(
+    r"^(?:say|says|said|saying|report\w*|mention\w*|note|notes|noted|noting|notic\w*|"
+    r"prais\w*|rav(?:e|es|ed|ing)|complain\w*|grip(?:e|es|ed)|describ\w*|highlight\w*|"
+    r"agree\w*|swear\w*|swore|point\w*|comment\w*|echo\w*|credit\w*|recommend\w*|"
+    r"confirm\w*|warn\w*|shar(?:e|es|ed)|observ\w*|claim\w*|cit(?:e|es|ed)|flag\w*|"
+    r"tend\w*|emphasi\w*|insist\w*|suggest\w*|tell\w*|told|writ(?:e|es)|wrote|"
+    r"call\w*|consider\w*|regard\w*|find\w*|found|lov(?:e|es|ed|ing)|lik(?:e|es|ed)|"
+    r"appreciat\w*|enjoy\w*|prefer\w*|favou?r\w*|trust\w*|see|sees|saw|seen|"
+    r"opt|opts|opted|went|side|sided|stick\w*|stuck|settl\w*|gravitat\w*|turn\w*|"
+    r"reach\w*|rely|relies|relied|count|counts|counted|depend\w*|pair\w*|treat|treats|"
+    r"treated|rank\w*|rat(?:e|es|ed)|giv(?:e|es)|gave|given|return\w*|switch\w*|"
+    r"single|singled|divided|split|happy|pleased|satisfied|thrilled|delighted|"
+    r"impressed|fans?|seem\w*|vouch\w*|applaud\w*|adore\w*|cherish\w*|"
+    r"dislike\w*|hate\w*|wish\w*|want|wants|wanted|overwhelmingly|commonly|"
+    r"frequently|routinely|regularly|often|usually|typically|always|repeatedly|"
+    r"consistently|widely|generally|largely|mostly|universally)$")
+_SUBJECT_STOP = {"will", "would", "may", "might", "should", "could", "can", "must",
+                 "cannot", "can't", "won't", "shouldn't", "need", "needs", "ought",
+                 "you", "you'll", "your", "we", "they", "they'll", "i", "he", "she"}
+_RELATIVE_AUX = {"have", "has", "had", "do", "does", "did", "are", "were", "is", "was",
+                 "can", "could", "will", "would", "may", "might", "should", "must",
+                 "already", "also", "just", "still", "really"}
+_SENTENCE = re.compile(r"[^.!?\n]+[.!?]?")
+_WORD = re.compile(r"[\w'’-]+")
+
+
+def _subject_claim(sentence: str, m) -> str:
+    """The cue word that makes the group at `m` the subject of a claim, or ""."""
+    before = _QUANTIFIER_OF.sub("", _CLAUSE_BREAK.split(sentence[:m.start()])[-1])
+    lead = [w.lower() for w in before.split()[-3:]]
+    if any(w in _OBJECT_LEAD for w in lead):
+        return ""
+    # A singular noun is a speaker only with a determiner: "a typical owner
+    # buys"; "owner reviews" and "customer service" are compounds.
+    group = m.group(0).lower()
+    if not re.search(r"s['’]?$|people|households|homes|families", group) and not (
+            lead and lead[-1] in {"a", "an", "one", "another", "the", "every", "each",
+                                  "any", "this", "that", "typical"}
+            or (len(lead) > 1 and lead[-2] in {"a", "an", "one", "another", "the",
+                                               "every", "each", "any"})):
+        return ""
+    rest = _CLAUSE_BREAK.split(sentence[m.end():])[0]
+    words = [w.lower().strip("'’") for w in _WORD.findall(rest)][:16]
+    i = 0
+    while i < len(words):
+        w = words[i]
+        if w in {"who", "that"}:
+            # A relative clause describes the group; its own verb is not the
+            # claim: "owners who want a quieter fountain should ...". Skip its
+            # auxiliaries, its verb, adverbs right after it ("who travel
+            # frequently") and an infinitive ("who want to report").
+            i += 1
+            while i < len(words) and words[i] in _RELATIVE_AUX:
+                i += 1
+            i += 1
+            while i < len(words) and words[i].endswith("ly"):
+                i += 1
+            if i < len(words) and words[i] == "to":
+                i += 2
+            continue
+        if w in _SUBJECT_STOP:
+            return ""
+        if w in {"like", "likes"} and i + 1 < len(words) and words[i + 1] in {
+                "you", "yourself", "us", "me"}:
+            return ""
+        if w in {"give", "gives", "gave", "given", "rate", "rated", "rates", "rating"} and any(
+                re.match(r"\d", x) for x in words[i + 1:i + 4]):
+            i += 1
+            continue
+        if _OPINION_CUE.match(w) or w in _CHOICE_CUES:
+            return w
+        i += 1
+    return ""
+
+
+def _default_deny_hits(text: str, group: str) -> list:
+    group_rx = re.compile(rf"\b{group}\b", re.IGNORECASE)
+    sweep_rx = re.compile(_SWEEP_FRAME + rf"{group}\b", re.IGNORECASE)
+    credit_rx = re.compile(_CREDIT_FRAME + rf"{group}\b", re.IGNORECASE)
+    hits = []
+    for sm in _SENTENCE.finditer(text or ""):
+        sentence = sm.group(0)
+        # A capitalized group word after another capitalized word is part of
+        # a proper name ("MidWest Homes for Pets"), not a buyer group.
+        groups = [g for g in group_rx.finditer(sentence)
+                  if not (g.group(0)[0].isupper() and re.search(
+                      r"\b[A-Z][\w'’-]*\s+$", sentence[:g.start()]) and not re.search(
+                      r"\b(?:Most|Many|Some|All|The|Few|Several|Every|Our|Dog|Cat|Pet)\s+$",
+                      sentence[:g.start()]))]
+        if not groups:
+            continue
+        snippet = " ".join(sentence.split())[:120]
+        if _POPULARITY.search(sentence) or sweep_rx.search(sentence) or credit_rx.search(sentence):
+            hits.append(snippet)
+            continue
+        if _RANKING.search(sentence) and any(
+                not re.search(r"\bfor\s+(?:[\w-]+\s+){0,3}$", sentence[:g.start()], re.IGNORECASE)
+                for g in groups):
+            hits.append(snippet)
+            continue
+        documented = bool(_DOC_CREDIT.search(sentence))
+        for g in groups:
+            cue = _subject_claim(sentence, g)
+            if cue and not (documented and cue in _CHOICE_CUES):
+                hits.append(snippet)
+                break
+    return hits
 
 
 # One block of rule text, shared by the generator, reviewer and rewrite prompts
@@ -688,6 +863,35 @@ FIRST_PERSON_RULE = (
     "heavy chewer\"). Never use I, me or my, and never use first person to "
     "describe experience, testing, ownership or a story."
 )
+
+# The code half of FIRST_PERSON_RULE: "we/our" stays legal, "I/me/my" never.
+# Quoted spans, link text, URLs and inline code are not the site's voice, and a
+# question is the reader's ("Which size do I need?"). "Type I" is a numeral.
+_FIRST_PERSON_SINGULAR = re.compile(
+    r"(?<![\w'’-])(?P<word>[\w'’-]+\s+)?(?<![\w'’-])"
+    r"(?:I(?:['’](?:m|ve|d|ll))?|[Mm]e|[Mm]y|[Mm]ine|[Mm]yself)(?![\w'’-])")
+_NUMERAL_LEAD = {"type", "phase", "class", "stage", "grade", "level", "part", "size",
+                 "schedule", "vitamin", "tier", "category", "group", "model"}
+
+
+def find_first_person_singular(text: str) -> list:
+    """Every sentence in `text` that speaks as I, me or my (deduped, in order).
+    Empty list = clean. Used by validate_output and authoritative_gate."""
+    t = re.sub(r"`[^`]*`", " ", _normalize_for_feedback(text))
+    t = re.sub(r"!?\[[^\]]*\]\([^)]*\)", " ", t)
+    t = re.sub(r"https?://\S+", " ", t)
+    t = re.sub(r"[\"“][^\"“”\n]*[\"”]", " ", t)
+    found = []
+    for sm in _SENTENCE.finditer(t):
+        sentence = " ".join(sm.group(0).split())
+        if sentence.endswith("?") or not any(
+                (m.group("word") or "").strip().lower() not in _NUMERAL_LEAD
+                for m in _FIRST_PERSON_SINGULAR.finditer(sentence)):
+            continue
+        if sentence[:120] not in found:
+            found.append(sentence[:120])
+    return found
+
 
 CUSTOMER_SUMMARY_MAX_CHARS = 900
 _STRICT_ISO_DATE = re.compile(r"\d{4}-\d{2}-\d{2}")
@@ -735,42 +939,51 @@ class FeedbackSources(NamedTuple):
     featured: str = ""         # the featured product's name
     alternatives: tuple = ()   # runner-up names; none of them has a summary
 
+    @property
+    def usable(self) -> bool:
+        """The one test of "there is a summary to cite": non-empty after
+        cleaning, with a real YYYY-MM-DD read date. Every gate, prompt and
+        block asks this, so a hand-built FeedbackSources cannot pass one check
+        and fail another."""
+        return bool(clean_customer_summary(self.summary) and strict_iso_date(self.read_on))
+
 
 def feedback_sources(product) -> FeedbackSources:
     """The one accessor for an entry's summary: cleaned and dated once. A
     summary with no valid read date cannot be dated in a post, so it counts
     as no summary."""
     product = product or {}
-    summary = clean_customer_summary(product.get("customer_summary"))
-    read_on = strict_iso_date(product.get("customer_summary_read_on"))
-    if not (summary and read_on):
-        summary = read_on = ""
-    return FeedbackSources(summary, read_on, product.get("name") or "",
-                           tuple(parse_runners_up(product.get("runners_up") or "")))
+    sources = FeedbackSources(
+        clean_customer_summary(product.get("customer_summary")),
+        strict_iso_date(product.get("customer_summary_read_on")),
+        product.get("name") or "",
+        tuple(parse_runners_up(product.get("runners_up") or "")))
+    return sources if sources.usable else sources._replace(summary="", read_on="")
 
 
 def customer_summary_block(sources=None) -> str:
     """The <customer_summary> data block every prompt carries. Re-cleans the
     summary, so a FeedbackSources built by hand cannot carry raw page text."""
     sources = sources or FeedbackSources()
-    clean = clean_customer_summary(sources.summary)
-    read_on = strict_iso_date(sources.read_on)
-    if not (clean and read_on):
+    if not sources.usable:
         return ("<customer_summary>\nNone supplied for this product. Write no "
                 "buyer feedback.\n</customer_summary>")
     return (f'<customer_summary source="Amazon customer review summary" '
-            f'read_on="{as_of_text(read_on)}">\n{clean}\n</customer_summary>')
+            f'read_on="{as_of_text(sources.read_on)}">\n'
+            f'{clean_customer_summary(sources.summary)}\n</customer_summary>')
 
 
 def find_owner_attribution(text: str) -> list:
     """The always-refused half of find_unsourced_buyer_feedback. Public for
     the published-post corpus test, whose posts carry no summary data."""
-    return _collect_hits(_OWNER_FEEDBACK_RE, _normalize_for_feedback(text),
-                         keep=_keep_feedback_hit)
+    norm = _normalize_for_feedback(text)
+    return _collect_hits(_OWNER_FEEDBACK_RE, norm, keep=_keep_feedback_hit) + [
+        hit for hit in _default_deny_hits(norm, _OWNER_GROUP)]
 
 
 def _customer_hits(text: str) -> list:
-    return _collect_hits(_CUSTOMER_FEEDBACK_RE, text, keep=_keep_customer_hit)
+    return (_collect_hits(_CUSTOMER_FEEDBACK_RE, text, keep=_keep_customer_hit)
+            + _default_deny_hits(text, _CUSTOMER_GROUP))
 
 
 def _names_alternative(paragraph: str, alternative: str, featured: str) -> bool:
@@ -798,7 +1011,7 @@ def find_unsourced_buyer_feedback(text: str, sources=None) -> list:
     sources = sources or FeedbackSources()
     norm = _normalize_for_feedback(text)
     found = find_owner_attribution(norm)
-    if not (sources.summary and strict_iso_date(sources.read_on)):
+    if not sources.usable:
         return found + _customer_hits(norm)
     alt_bodies = []
     for section in split_alternative_sections(norm):
@@ -814,7 +1027,65 @@ def find_unsourced_buyer_feedback(text: str, sources=None) -> list:
                     if _names_alternative(para, a, sources.featured)), None)
         if alt:
             found += [f"alternative pick {alt!r}: {hit}" for hit in hits]
+        else:
+            found += [f"customer claim the summary does not back: {claim!r}"
+                      for claim in _unbacked_claims(para, sources.summary)]
     return found
+
+
+# --- Backstop: a customer claim must share a word with the summary -----------
+# Ruling (a): a customer line must be BACKED by the summary, not merely sit
+# next to one. The reviewer judges backing (unbacked_buyer_feedback, below);
+# this is the cheap deterministic floor under it. A sentence that credits
+# customers with something is refused when, after the attribution words, not
+# one content word of it appears in the summary ("Customers say the puree cured
+# their cat's kidney disease" against a summary about taste and price). It
+# cannot catch an invented claim that reuses a summary word, which is why the
+# reviewer flag exists. Measured on the 83 summary-backed claim sentences in
+# the published guides (2026-10-29): 0 refused. A per-clause version refused 19
+# of them, so it stays per sentence.
+_BACKING_STOP = set("""a an the and or but if of to in on at by for with from as is are
+was were be been being it its it's this that these those they them their there here
+he she we us our you your i me my do does did have has had not no nor so than then too
+very can will just also into over under about after before more most some any each all
+both few other such only own same out up down off again further once what which who whom
+when where why how says say said find finds found report reports mention mentions
+customers customer buyers buyer reviewers reviewer reviews review users user shoppers
+people amazon amazon's summary summarize summarizes overall many others though although
+while however one two three get gets got make makes made well good great like likes love
+loves""".split())
+
+
+def _backing_tokens(text: str) -> set:
+    out = set()
+    for w in re.findall(r"[A-Za-z][A-Za-z'’-]+", text or ""):
+        w = w.lower().strip("'’")
+        if len(w) < 3 or w in _BACKING_STOP:
+            continue
+        for suffix in ("ingly", "edly", "ing", "ed", "es", "ly", "s"):
+            if len(w) > len(suffix) + 3 and w.endswith(suffix):
+                w = w[:-len(suffix)]
+                break
+        out.add(w)
+    return out
+
+
+def _unbacked_claims(paragraph: str, summary: str) -> list:
+    backing = _backing_tokens(clean_customer_summary(summary))
+    claims = []
+    for sm in _SENTENCE.finditer(paragraph):
+        sentence = sm.group(0)
+        starts = [m.start() for rx in _CUSTOMER_CLAIM_RE for m in rx.finditer(sentence)
+                  if _keep_customer_hit(m)]
+        if not starts and _default_deny_hits(sentence, _CUSTOMER_GROUP):
+            starts = [g.start() for g in re.finditer(rf"\b{_CUSTOMER_GROUP}\b", sentence,
+                                                     re.IGNORECASE)]
+        if not starts:
+            continue
+        words = _backing_tokens(sentence[min(starts):])
+        if words and not (words & backing):
+            claims.append(" ".join(sentence.split())[:120])
+    return claims
 
 
 # ---------------------------------------------------------------------------
@@ -1331,9 +1602,11 @@ REVIEW_SCHEMA = {
         "ai_patterns_found": {"type": "array", "items": {"type": "string"}},
         "flags": {"type": "array", "items": {"type": "string"}},
         "rewrite_instructions": {"type": "string"},
+        "unbacked_buyer_feedback": {"type": "array", "items": {"type": "string"}},
     },
     "required": ["pass", "scores", "affiliate_link_present", "em_dash_count",
-                 "ai_patterns_found", "flags", "rewrite_instructions"],
+                 "ai_patterns_found", "flags", "rewrite_instructions",
+                 "unbacked_buyer_feedback"],
     "additionalProperties": False,
 }
 
@@ -1971,6 +2244,11 @@ def validate_output(stage: str, content: str, slug: str, affiliate_url: str = ""
         )
     assert_no_firsthand_claims(stage, content, slug)
     assert_no_named_testimonials(stage, content, slug)
+    singular = find_first_person_singular(content)
+    if singular:
+        raise GenerationStageError(
+            f"[{stage}] {slug}: first person singular (I, me, my) in the site's "
+            f"voice: {singular}")
     assert_no_unsourced_buyer_feedback(stage, content, slug, sources)
     assert_no_unbacked_affiliate_links(stage, content, slug, affiliate_url)
     # Affiliate link required only at Gate 2 (post-review); rewrite has a chance to inject it first
@@ -2002,7 +2280,33 @@ def validate_output(stage: str, content: str, slug: str, affiliate_url: str = ""
 REVIEW_SCORE_MINIMUMS = {"human_voice": 3, "warmth": 3, "readability": 3, "accuracy": 3}
 
 
-def evaluate_scorecard(scorecard: dict, content: str) -> tuple:
+def reviewer_buyer_feedback_flags(scorecard: dict, content: str) -> list:
+    """The reviewer's own category-25 verdict, read from structure rather than
+    from its prose: every sentence in `unbacked_buyer_feedback`, and any
+    ai_patterns_found entry numbered 25. Fails closed when the field is
+    missing or malformed and the body states buyer feedback the reviewer was
+    meant to judge. Empty list = nothing to fail on. Used by both scorecard
+    gates (evaluate_scorecard, authoritative_gate)."""
+    flags = []
+    value = scorecard.get("unbacked_buyer_feedback")
+    if isinstance(value, list):
+        flags += [f"reviewer_unbacked_buyer_feedback={str(v)[:120]!r}"
+                  for v in value if str(v).strip()]
+    elif isinstance(value, str) and value.strip():
+        flags.append(f"reviewer_unbacked_buyer_feedback={value[:120]!r}")
+    elif value is not None and not isinstance(value, str):
+        flags.append(f"reviewer_unbacked_buyer_feedback_malformed={type(value).__name__}")
+    if not isinstance(value, list) and not flags:
+        norm = _normalize_for_feedback(content)
+        if find_owner_attribution(norm) or _customer_hits(norm):
+            flags.append("reviewer_did_not_report_unbacked_buyer_feedback")
+    for pattern in scorecard.get("ai_patterns_found") or []:
+        if re.match(r"\s*25\s*[:.)\-]", str(pattern)):
+            flags.append(f"reviewer_category_25={str(pattern)[:120]!r}")
+    return flags
+
+
+def evaluate_scorecard(scorecard: dict, content: str, sources=None) -> tuple:
     """
     Decide pass/fail from a reviewer scorecard WITHOUT trusting the model's
     self-reported `pass`, numeric scores, or em-dash count on their own.
@@ -2043,6 +2347,15 @@ def evaluate_scorecard(scorecard: dict, content: str) -> tuple:
     if flags and any(kw in " ".join(str(f) for f in flags).lower() for kw in accuracy_keywords):
         passed = False
 
+    # Buyer feedback, judged in code on the body and on the reviewer's
+    # structured category-25 verdict (ruling (a): a line must be backed).
+    for claim in find_unsourced_buyer_feedback(content, sources):
+        passed = False
+        flags.append(f"unsourced_buyer_feedback_in_body={claim[:120]!r}")
+    for flag in reviewer_buyer_feedback_flags(scorecard, content):
+        passed = False
+        flags.append(flag)
+
     return passed, flags
 
 
@@ -2056,6 +2369,9 @@ def authoritative_gate(scorecard: dict, content: str, sources=None) -> tuple:
       - a quote attributed to a named individual in the actual body (ditto),
       - buyer feedback with no customer summary behind it, or any owner
         attribution, in the actual body (ditto; no summary passed = none),
+      - the reviewer's structured category-25 verdict: any sentence in
+        unbacked_buyer_feedback, a "25:" pattern, or the field missing when
+        the body states buyer feedback (reviewer_buyer_feedback_flags),
       - an EXPLICIT fabrication callout (fabricated/invented/made-up) in the flags.
     Returns (passed: bool, flags: list).
     """
@@ -2082,6 +2398,10 @@ def authoritative_gate(scorecard: dict, content: str, sources=None) -> tuple:
     # longer hard-fails the article. Narrowing the scan was right -- it was
     # false-failing verified figures -- but it left this defect resting entirely
     # on whether an LLM happens to pick the word "fabricated".
+    for sentence in find_first_person_singular(content):
+        passed = False
+        flags.append(f"first_person_singular_in_body={sentence!r}")
+
     for quote in find_named_testimonials(content):
         passed = False
         flags.append(f"named_testimonial_in_body={quote[:120]!r}")
@@ -2089,6 +2409,11 @@ def authoritative_gate(scorecard: dict, content: str, sources=None) -> tuple:
     for claim in find_unsourced_buyer_feedback(content, sources):
         passed = False
         flags.append(f"unsourced_buyer_feedback_in_body={claim[:120]!r}")
+    # The reviewer's own verdict on backing, read from its structured field:
+    # a customer line beside a summary is not thereby backed by it.
+    for flag in reviewer_buyer_feedback_flags(scorecard, content):
+        passed = False
+        flags.append(flag)
 
     # Only UNAMBIGUOUS fabrication verbs hard-fail. Cautionary reviewer prose
     # ("no source", "unverified", "statistic", "specific number") is NOT treated
@@ -2191,16 +2516,16 @@ def build_verified_facts(product: dict) -> str:
 
 
 def make_review_prompt(title: str, keyword: str, content: str, verified_facts: str = "",
-                       summary_block: str = "") -> str:
+                       sources=None) -> str:
     """
     Full 25-category AI writing audit built from the avoid-ai-writing catalog
     and beautiful-prose style contract. Replaces the 6-pattern legacy prompt.
     `verified_facts` (optional): the featured product's retailer-verified figures;
     when given, the reviewer is told to treat them as fact and not flag them.
-    `summary_block` (optional): customer_summary_block() for the entry; empty
+    `sources` (optional): feedback_sources() of the entry; None
     means none was supplied, and any buyer feedback is then a failure.
     """
-    summary_block = summary_block or customer_summary_block()
+    summary_block = customer_summary_block(sources)
     content_sample = content[:15000] if len(content) > 15000 else content
     verified_block = ""
     if verified_facts:
@@ -2312,8 +2637,9 @@ Check every category. Flag every violation found.
     an experience or a buying choice to customers, buyers, reviewers or owners, unless it
     paraphrases that summary and names it as the source.
     Flag any theme, number or complaint the summary does not contain, any buyer feedback
-    on an alternative pick, and every owner attribution wherever it appears. Presenting
-    invented feedback as what customers said is a fake-review exposure, not a style note.
+    on an alternative pick, and every owner attribution wherever it appears. Copy each such
+    sentence, word for word, into unbacked_buyer_feedback. Presenting invented feedback as
+    what customers said is a fake-review exposure, not a style note.
 
 === PASS CRITERIA (ALL must be true) ===
 
@@ -2344,7 +2670,8 @@ Begin with {{ and end with }}.
   "em_dash_count": 0,
   "ai_patterns_found": [],
   "flags": [],
-  "rewrite_instructions": ""
+  "rewrite_instructions": "",
+  "unbacked_buyer_feedback": []
 }}
 
 Rules:
@@ -2352,12 +2679,13 @@ Rules:
 - flags: list each specific problem as a plain string; empty array if none
 - rewrite_instructions: name exact sections and specific fixes if pass=false; empty string if pass=true. Keep under 250 words -- a truncated response fails JSON parsing and the article is held unreviewed.
 - em_dash_count: exact integer count of (—) characters in article
+- unbacked_buyer_feedback: every sentence that states buyer feedback the CUSTOMER SUMMARY does not back, or attributes anything to owners (category 25), copied word for word; empty array if none. Any entry fails the article.
 - pass=false if em_dash_count > 0, first-person voice present outside a pick or judgment, unsourced buyer feedback or owner attribution present, a firsthand-experience claim present, a quote attributed to a named individual present, a second affiliate link or an invented figure for a non-featured product present, or human_voice < {REVIEW_SCORE_MINIMUMS['human_voice']} or warmth < {REVIEW_SCORE_MINIMUMS['warmth']}
 """
 
 
-def make_rewrite_prompt(title: str, keyword: str, content: str, instructions: str, affiliate_url: str = "", product_name: str = "", summary_block: str = "") -> str:
-    summary_block = summary_block or customer_summary_block()
+def make_rewrite_prompt(title: str, keyword: str, content: str, instructions: str, affiliate_url: str = "", product_name: str = "", sources=None) -> str:
+    summary_block = customer_summary_block(sources)
     affiliate_reminder = ""
     if affiliate_url and affiliate_url not in content:
         affiliate_reminder = (
@@ -2518,16 +2846,18 @@ def make_prompt(title: str, keyword: str, slug: str, fmt: str, product: dict,
             f"- LINK FORMAT: Always use the short product name as anchor text: [{short_product_name(product_name)}]({affiliate_url}). NEVER display the raw URL as text or as anchor text. NEVER write [{affiliate_url}]({affiliate_url}).\n"
         )
     sources = feedback_sources(product)
-    has_summary = bool(sources.summary)
+    has_summary = sources.usable
     summary_block = customer_summary_block(sources)
     if fmt == "single_review":
         # A buyer-feedback section is asked for ONLY when the entry carries a
         # real Amazon customer summary. It used to be asked for always, as
         # "Real Owner Experiences", with nothing to draw it from.
         if has_summary:
-            feedback_part = " | What Customers Say (H2, 2-4 sentences)"
-            feedback_note = ("\n\"What Customers Say\" paraphrases ONLY the <customer_summary> "
-                             "below, attributed to it. "
+            feedback_part = " | What Amazon's Review Summary Says (H2, 2-4 sentences)"
+            feedback_note = ("\n\"What Amazon's Review Summary Says\" paraphrases ONLY the "
+                             "<customer_summary> below and names it as the source "
+                             "(\"Amazon's summary of customer reviews says ...\"). Every "
+                             "sentence in it must be backed by that summary. "
                              f"{NAMED_TESTIMONIAL_RULE}")
         else:
             feedback_part = ""
@@ -2824,9 +3154,10 @@ ARTICLE:
 # from the entry's runners_up names -- so it was a loaded gun with the safety on.
 
 
-def review_and_rewrite(title: str, keyword: str, content: str, api_key: str, or_key: str = "", affiliate_url: str = "", product_name: str = "", summary_block: str = "") -> tuple:
-    """Returns (final_content, passed, flags). `summary_block` is the entry's
-    customer_summary_block(); the reviewer and the rewriter both read it."""
+def review_and_rewrite(title: str, keyword: str, content: str, api_key: str, or_key: str = "", affiliate_url: str = "", product_name: str = "", sources=None) -> tuple:
+    """Returns (final_content, passed, flags). `sources` is the entry's
+    feedback_sources(); the reviewer, the rewriter and the scorecard gate all
+    read it."""
     if not REVIEWER_ENABLED:
         return content, True, []
     for attempt in range(1, MAX_REVIEW_ATTEMPTS + 1):
@@ -2840,7 +3171,7 @@ def review_and_rewrite(title: str, keyword: str, content: str, api_key: str, or_
         log_reviewer(f"  REVIEW pre-sleep {REVIEW_PRE_SLEEP}s...")
         time.sleep(REVIEW_PRE_SLEEP)
         review_prompt = make_review_prompt(title, keyword, content,
-                                           summary_block=summary_block)
+                                           sources=sources)
         scorecard = None
 
         # --- Stage 2 (review): REVIEW_CHAIN via OpenRouter, schema-enforced JSON.
@@ -2862,7 +3193,7 @@ def review_and_rewrite(title: str, keyword: str, content: str, api_key: str, or_
         # Decide pass/fail in code -- never trust the reviewer's self-reported
         # `pass`, numeric scores, or em-dash count on their own (evaluate_scorecard).
         model_pass    = scorecard.get("pass", False)
-        passed, flags = evaluate_scorecard(scorecard, content)
+        passed, flags = evaluate_scorecard(scorecard, content, sources)
         log_reviewer(f"  REVIEW {'PASS' if passed else 'FAIL'} | human_voice={scores.get('human_voice')} "
             f"warmth={scores.get('warmth')} readability={scores.get('readability')} em_dashes={em_dashes}")
         if passed != model_pass:
@@ -2890,7 +3221,7 @@ def review_and_rewrite(title: str, keyword: str, content: str, api_key: str, or_
             time.sleep(RPM_SLEEP)
             rw_prompt_text = make_rewrite_prompt(title, keyword, content, instructions,
                                                  affiliate_url=affiliate_url, product_name=product_name,
-                                                 summary_block=summary_block)
+                                                 sources=sources)
             try:
                 content = call_openrouter_chain(
                     REWRITE_CHAIN, [{"role": "user", "content": rw_prompt_text}],
@@ -3378,7 +3709,7 @@ def main() -> None:
                     title, keyword, content, groq_key, or_key=or_key_reviewer,
                     affiliate_url=product.get("affiliate_url", ""),
                     product_name=product.get("name", ""),
-                    summary_block=customer_summary_block(sources))
+                    sources=sources)
                 log(f"  [timing] review: {time.monotonic()-_t0:.1f}s")
                 if not review_passed:
                     create_github_issue(title, slug, review_flags)
