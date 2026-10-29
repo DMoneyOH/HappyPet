@@ -30,7 +30,7 @@ You pull out of the driveway, and within a minute your small dog has climbed off
 
 The [Amazon Basics Dog Car Booster Seat](https://www.amazon.com/dp/B0735GGXGK?tag=happypetdc-20) holds a 4.6 out of 5 star rating on Amazon and sells for $61.81 (as of Sep 25, 2026). The weight limit appears right in the name, so check your dog on a bathroom scale before you order. A dog near the top of that range will fill the seat, and a heavier one needs something else.
 
-A booster like this one keeps a small dog in one place and lifts it closer to the side window. Amazon's summary of customer reviews says buyers find it comfortable and secure, like how it tethers to the seat belt, and say dogs can see out the window easily. Reports are mixed on stability, with some saying the seat stays put when strapped in and others saying it tilts forward and back (Amazon review summary, as of Oct 28, 2026).
+A booster like this one keeps a small dog in one place and lifts it closer to the side window. Amazon's summary of customer reviews says buyers find it comfortable and secure, like how it tethers to the seat belt, and say dogs can see out the window easily. Reports are mixed on stability, with some saying the seat stays put when strapped in and others saying it tilts forward and back.
 
 Pros:
 - Lifts a small dog to window height, which tends to cut down on whining

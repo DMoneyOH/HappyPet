@@ -36,7 +36,7 @@ This roundup compares fabrics and construction across the popular options, along
 
 ### Featured Pick: Bedsure ComfyFleece Cute Cat Couch for Pets, 24inch, Cream  
 
-With a verified 4.7/5 star rating and a price tag of $31.99 (as of Apr 16, 2026), the Bedsure ComfyFleece Cat Couch quickly became the go‑to recommendation for indoor loungers. The 24‑inch cushion offers enough room for a medium cat to sprawl out, while the plush fleece feels like a warm hug on chilly mornings. Customers who bought it find it soft, cozy and easy to put together. Amazon's summary of customer reviews says the removable cover makes it easy to wash and that it holds up, with no rips or tears in use (Amazon review summary, as of Oct 28, 2026).  
+With a verified 4.7/5 star rating and a price tag of $31.99 (as of Apr 16, 2026), the Bedsure ComfyFleece Cat Couch quickly became the go‑to recommendation for indoor loungers. The 24‑inch cushion offers enough room for a medium cat to sprawl out, while the plush fleece feels like a warm hug on chilly mornings. Customers who bought it find it soft, cozy and easy to put together. Amazon's summary of customer reviews says the removable cover makes it easy to wash and that it holds up, with no rips or tears in use.  
 
 **Pros**  
 - Ultra‑soft fleece that retains warmth  

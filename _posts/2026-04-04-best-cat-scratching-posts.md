@@ -76,7 +76,7 @@ The [SmartCat Ultimate Scratching Post](https://www.amazon.com/dp/B07W865K8N?th=
 
 ## What Amazon's Review Summary Says
 
-Customers who bought the [SmartCat Ultimate Scratching Post](https://www.amazon.com/dp/B07W865K8N?th=1&tag=happypetdc-20) say it is well built, easy to assemble and taller than most posts. Amazon's summary of customer reviews says it holds up well and still looks new after use (Amazon review summary, as of Oct 28, 2026).
+Customers who bought the [SmartCat Ultimate Scratching Post](https://www.amazon.com/dp/B07W865K8N?th=1&tag=happypetdc-20) say it is well built, easy to assemble and taller than most posts. Amazon's summary of customer reviews says it holds up well and still looks new after use.
 
 The same summary says customers love it for their cats and consider it worth the money.
 

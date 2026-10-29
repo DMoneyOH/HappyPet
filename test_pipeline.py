@@ -13836,10 +13836,12 @@ class TestSitemapInputs(unittest.TestCase):
 
 
 class TestUpdatedDate(unittest.TestCase):
-    """A post prints "Updated <date>" beside "Reviewed <date>" only when its
-    front matter sets last_modified_at, the field jekyll-sitemap reads for
-    <lastmod>. It is set by hand for a substantive edit, so nothing automated
-    may write it: a date that moves on every pipeline commit is noise."""
+    """A post shows one date. "Updated on <date>" replaces "Reviewed <date>"
+    when its front matter sets last_modified_at, never both (Director,
+    2026-10-29: "the 'Updated on' should replace the original post date").
+    jekyll-sitemap reads the same field for <lastmod>. It is set by hand for a
+    substantive edit, so nothing automated may write it: a date that moves on
+    every pipeline commit is noise."""
 
     FIELD = "last_modified_at"
 
@@ -13853,10 +13855,17 @@ class TestUpdatedDate(unittest.TestCase):
         self.assertEqual(self._date_line({"date": "2026-10-05"}),
                          '<p class="piece-date">Reviewed October 5, 2026</p>')
 
-    def test_updated_prints_beside_reviewed_when_set(self):
-        self.assertEqual(
-            self._date_line({"date": "2026-10-05", self.FIELD: "2026-10-20"}),
-            '<p class="piece-date">Reviewed October 5, 2026 &middot; Updated October 20, 2026</p>')
+    def test_updated_on_replaces_reviewed_when_set(self):
+        line = self._date_line({"date": "2026-10-05", self.FIELD: "2026-10-20"})
+        self.assertEqual(line, '<p class="piece-date">Updated on October 20, 2026</p>')
+        self.assertNotIn("October 5", line)
+
+    def test_the_post_body_prints_no_other_visible_date_line(self):
+        """One date per post: no second piece-date line, and the Review
+        JSON-LD keeps datePublished as the original date."""
+        layout = (REPO / "_layouts" / "post.html").read_text(encoding="utf-8")
+        self.assertEqual(layout.count('class="piece-date"'), 1)
+        self.assertIn('"datePublished": {{ page.date | date: "%Y-%m-%d" | jsonify }}', layout)
 
     def test_no_pipeline_script_workflow_or_routine_writes_the_field(self):
         sources = [p for p in REPO.glob("*.py") if not p.name.startswith("test_")]

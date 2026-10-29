@@ -30,7 +30,7 @@ If you're in a hurry to find a fantastic collar for your small dog, the top reco
 
 ### Featured Pick – [Blueberry Florence Nylon Collar](https://www.amazon.com/dp/B00HWQNFF2?th=1&tag=happypetdc-20)
 
-The [Blueberry Florence Nylon Collar](https://www.amazon.com/dp/B00HWQNFF2?th=1&tag=happypetdc-20) is the one small-dog owners come back to most. This collar truly hits the sweet spot for small breeds, offering a delightful combination of softness, strength, and style. Made from a high-density, durable nylon fabric, it feels smooth and comfortable against your dog’s fur, reducing the risk of chafing or irritation, which is so important for smaller, more sensitive pups. The eco-friendly plastic buckle is surprisingly robust, and the chrome-coated D-ring provides a secure attachment point for leashes and tags. Plus, the color selection is fantastic, allowing you to find the perfect shade to match your dog's personality. It’s a fantastic everyday collar that looks great and holds up well to daily adventures.
+The [Blueberry Florence Nylon Collar](https://www.amazon.com/dp/B00HWQNFF2?th=1&tag=happypetdc-20) truly hits the sweet spot for small breeds, offering a delightful combination of softness, strength, and style. Made from a high-density, durable nylon fabric, it feels smooth and comfortable against your dog’s fur, reducing the risk of chafing or irritation, which is so important for smaller, more sensitive pups. The eco-friendly plastic buckle is surprisingly robust, and the chrome-coated D-ring provides a secure attachment point for leashes and tags. Plus, the color selection is fantastic, allowing you to find the perfect shade to match your dog's personality. It’s a fantastic everyday collar that looks great and holds up well to daily adventures.
 
 **Pros:**
 *   Soft, high-density nylon is comfortable and prevents chafing.
@@ -44,7 +44,7 @@ The [Blueberry Florence Nylon Collar](https://www.amazon.com/dp/B00HWQNFF2?th=1&
 
 ### KONG Comfort Padded Dog Collar
 
-KONG is a name many pet parents trust, and for good reason. Their Comfort Padded Dog Collar lives up to the brand's reputation for quality and durability, even for the smallest members of the pack. What immediately stands out is the plush neoprene padding on the inside of the collar. For small dogs with delicate throats or those prone to skin irritation, this extra cushion makes a huge difference in comfort. The robust hardware, including a strong metal D-ring and buckle, gives you confidence during walks, knowing your dog is secure. The reflective stitching adds an important layer of visibility for early morning or late evening strolls. It's a slightly more premium option, but the added comfort and safety features make it a worthwhile investment for many.
+What immediately stands out on the KONG Comfort Padded Dog Collar is the plush neoprene padding on the inside of the collar. For small dogs with delicate throats or those prone to skin irritation, this extra cushion makes a huge difference in comfort. The robust hardware, including a strong metal D-ring and buckle, gives you confidence during walks, knowing your dog is secure. The reflective stitching adds an important layer of visibility for early morning or late evening strolls. It's a slightly more premium option, but the added comfort and safety features make it a worthwhile investment for many.
 
 **Pros:**
 *   Soft neoprene padding provides superior comfort for sensitive necks.

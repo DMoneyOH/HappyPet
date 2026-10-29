@@ -32,7 +32,7 @@ Each pick suits a different coat and a different level of patience, from yours a
 
 The [Aumuca Cat Shedding Brush](https://www.amazon.com/dp/B098P6164W?tag=happypetdc-20) holds a 4.4 out of 5 star rating on Amazon and sells for $13.49 (as of Sep 25, 2026). That price lands it firmly in budget territory.
 
-Customers who bought it say it removes hair well with soft bristles that are gentle on the cat, and that cats love being brushed with it. Amazon's summary of customer reviews says it is easy to use and easy to clean thanks to a self-cleaning button, though opinions on value are mixed (Amazon review summary, as of Oct 28, 2026).
+Customers who bought it say it removes hair well with soft bristles that are gentle on the cat, and that cats love being brushed with it. Amazon's summary of customer reviews says it is easy to use and easy to clean thanks to a self-cleaning button, though opinions on value are mixed.
 
 Any de-shedding brush can feel scratchy on a thin-coated or older cat if you press too hard, so a light hand matters.
 

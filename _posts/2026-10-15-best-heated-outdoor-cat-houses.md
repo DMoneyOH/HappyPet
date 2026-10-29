@@ -30,7 +30,7 @@ You step outside at 6 a.m. to fill the food bowl, and the water dish next to it 
 
 The [K&H Heated Cat House](https://www.amazon.com/dp/B07HMPRTXF?tag=happypetdc-20) holds a 4.6 out of 5 star rating on Amazon and sells for $89.98 (as of Sep 25, 2026). The house comes with a heated pad inside, and the "Safety Listed" in the name tells you the electrical side carries a safety certification, which matters for anything plugged in outdoors all winter.
 
-Amazon's summary of customer reviews says it keeps cats dry and warm through winter and holds up through full winters, and notes the heating pad switches on after about 10 minutes of pressure. Reviews split on weather, with some customers saying it isn't suited to direct rain or snow (Amazon review summary, as of Oct 28, 2026). Put it somewhere covered.
+Amazon's summary of customer reviews says it keeps cats dry and warm through winter and holds up through full winters, and notes the heating pad switches on after about 10 minutes of pressure. Reviews split on weather, with some customers saying it isn't suited to direct rain or snow. Put it somewhere covered.
 
 Pros:
 - Heated pad built in, so you don't need to buy one separately

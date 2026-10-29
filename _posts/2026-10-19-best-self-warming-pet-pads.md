@@ -25,7 +25,7 @@ You come home on a January evening and find your cat folded into a tight loaf on
 
 The [K&H Self-Warming Cat Bed Pad](https://www.amazon.com/dp/B07PF1KYYK?tag=happypetdc-20) carries a 4.6 out of 5 star rating on Amazon and sells for $11.98 (as of Oct 11, 2026). That price puts it in impulse-buy territory. This pad takes the unplugged route, so you can drop it on a windowsill or the floor of a crate with no outlet anywhere nearby.
 
-Customers who bought it say it keeps pets warm, feels soft and well cushioned, and works well inside outdoor cat houses. Amazon's summary of customer reviews says washing is mixed, with some saying it holds up and others saying it sheds pieces, and so is size, with some finding it smaller than expected (Amazon review summary, as of Oct 28, 2026). A self-warming pad feels warm only while your pet lies on it, so don't expect it to work like a heating pad.
+Customers who bought it say it keeps pets warm, feels soft and well cushioned, and works well inside outdoor cat houses. Amazon's summary of customer reviews says washing is mixed, with some saying it holds up and others saying it sheds pieces, and so is size, with some finding it smaller than expected. A self-warming pad feels warm only while your pet lies on it, so don't expect it to work like a heating pad.
 
 Pros:
 - No cord, so it works anywhere in the house

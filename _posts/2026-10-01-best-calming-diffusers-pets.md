@@ -24,7 +24,7 @@ pin_image: "https://happypetproductreviews.com/assets/images/pins/best-calming-d
 **Quick pick:** For a cat who sprays or hides under stress (cats only), start with the [FELIWAY Optimum Cat Diffuser Kit on Amazon](https://www.amazon.com/dp/B097W651NJ?tag=happypetdc-20).
 {: .quick-pick}
 
-You come home from a weekend away and find a fresh wet spot on the bath mat and a dog pacing the hallway like it owes someone money. Nothing in the house changed except your absence and a new neighbor's leaf blower. Stress shows up in pets through behavior long before it shows up anywhere else, and owners often reach for a calming diffuser for pets as the first, lowest-effort fix. A plug-in diffuser asks nothing of your pet. No pills to hide in cheese, no collar to tolerate. It sits in an outlet and works in the background. This roundup compares three plug-in options, explains which animal each one targets, and flags the limits Amazon's review summaries point to. After the diffusers, it covers three calming options for cats that work without an outlet.
+You come home from a weekend away and find a fresh wet spot on the bath mat and a dog pacing the hallway like it owes someone money. Nothing in the house changed except your absence and a new neighbor's leaf blower. Stress shows up in pets through behavior long before it shows up anywhere else, and a calming diffuser for pets is one of the lowest-effort fixes to try. A plug-in diffuser asks nothing of your pet. No pills to hide in cheese, no collar to tolerate. It sits in an outlet and works in the background. This roundup compares three plug-in options, explains which animal each one targets, and flags the limits Amazon's review summaries point to. After the diffusers, it covers three calming options for cats that work without an outlet.
 
 ## Quick picks
 
@@ -38,7 +38,7 @@ One thing to settle before you shop. Pheromone diffusers target a single species
 
 The [FELIWAY Optimum Cat Diffuser Kit](https://www.amazon.com/dp/B097W651NJ?tag=happypetdc-20) carries a 4.0 out of 5 star rating on Amazon and sells for $29.99 (as of Jul 7, 2026). The listing names the stress behaviors that drive cat owners up the wall, from urine spraying to fighting with a housemate. The listing sells it as an all-in-one kit, so setup amounts to opening the box and finding a free outlet.
 
-Amazon's summary of customer reviews says results split: some buyers find it calms their cats, especially during heat cycles, while others say it didn't work at all. Customers also report the diffuser leaking oil and a refill lasting about 21 days of its 30-day supply, and find it expensive (Amazon review summary, as of Oct 28, 2026). It holds a 4.0 rating on Amazon (as of Jul 7, 2026).
+Amazon's summary of customer reviews says results split: some buyers find it calms their cats, especially during heat cycles, while others say it didn't work at all. Customers also report the diffuser leaking oil and a refill lasting about 21 days of its 30-day supply, and find it expensive. It holds a 4.0 rating on Amazon (as of Jul 7, 2026).
 
 Pros:
 - Plugs in and runs without daily effort from you

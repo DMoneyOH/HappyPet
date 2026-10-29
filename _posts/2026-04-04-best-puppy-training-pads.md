@@ -41,7 +41,7 @@ A pad can have all the absorbency in the world, but if the backing isn't truly l
 
 ### 4. Attractant Scent
 
-Some puppy training pads come infused with a special pheromone or scent designed to attract your puppy to the pad. This can be a helpful training aid, guiding your puppy to the designated spot and reinforcing where they should go. For some puppies, this attractant makes a noticeable difference in their understanding of where to potty. However, not all puppies respond to these scents, and some pet owners prefer to rely solely on positive reinforcement and consistent placement. If you're struggling to get your puppy to use the pads, an attractant scent might be worth trying. Just be sure it’s a subtle, non-overpowering scent that won’t irritate your pup or your family.
+Some puppy training pads come infused with a special pheromone or scent designed to attract your puppy to the pad. This can be a helpful training aid, guiding your puppy to the designated spot and reinforcing where they should go. For some puppies, this attractant makes a noticeable difference in their understanding of where to potty. However, not all puppies respond to these scents. If you're struggling to get your puppy to use the pads, an attractant scent might be worth trying. Just be sure it’s a subtle, non-overpowering scent that won’t irritate your pup or your family.
 
 ### 5. Odor Control
 

@@ -33,7 +33,7 @@ In the next few minutes, this guide walks you through the top picks, compare key
 
 ### Featured Pick: Royal Canin Size Health Nutrition Small Puppy Dry Dog Food, 4 lb  
 
-The top spot goes to **[Royal Canin Small Puppy Dry Food](https://www.amazon.com/dp/B0DQYK8MP3?th=1&tag=happypetdc-20)** because it’s formulated specifically for puppies under 20 lb, a group that often gets overlooked in generic formulas. It holds a 4.8/5 rating on Amazon (as of Apr 16, 2026). Amazon's summary of customer reviews says buyers recommend it for new puppies, find the small pieces right for little puppies and say puppies like the taste, though some report diarrhea (Amazon review summary, as of Oct 28, 2026).  
+The top spot goes to **[Royal Canin Small Puppy Dry Food](https://www.amazon.com/dp/B0DQYK8MP3?th=1&tag=happypetdc-20)** because it’s formulated specifically for puppies under 20 lb, a group that often gets overlooked in generic formulas. It holds a 4.8/5 rating on Amazon (as of Apr 16, 2026). Amazon's summary of customer reviews says buyers recommend it for new puppies, find the small pieces right for little puppies and say puppies like the taste, though some report diarrhea.  
 
 **Pros**  
 - Tailored kibble size makes chewing easy for tiny jaws.  

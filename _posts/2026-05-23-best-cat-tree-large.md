@@ -26,7 +26,7 @@ When the living‑room curtain pole becomes a feline runway, you know it’s tim
 ## Quick Picks  
 
 ### Featured Pick: [Globlazer 74-Inch Cat Tree](https://www.amazon.com/dp/B0DNPS3YTZ?th=1&tag=happypetdc-20)  
-The Globlazer Heavy Duty Cat Tree stands out with a solid 74‑inch height that satisfies even the most ambitious climbers. With seven sisal‑wrapped posts, two padded condos, and a sleek dark‑grey finish, it blends durability with style. It holds a **4.7/5** rating on Amazon (as of Apr 16, 2026). Customers who bought it say it is sturdy enough for large cats, very tall, roomy and easy to assemble, and Amazon's summary of customer reviews says they consider it worth the money (Amazon review summary, as of Oct 28, 2026).  
+The Globlazer Heavy Duty Cat Tree stands out with a solid 74‑inch height that satisfies even the most ambitious climbers. With seven sisal‑wrapped posts, two padded condos, and a sleek dark‑grey finish, it blends durability with style. It holds a **4.7/5** rating on Amazon (as of Apr 16, 2026). Customers who bought it say it is sturdy enough for large cats, very tall, roomy and easy to assemble, and Amazon's summary of customer reviews says they consider it worth the money.  
 
 **Pros**  
 - Sturdy construction that holds up to vigorous play  

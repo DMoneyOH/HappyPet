@@ -28,7 +28,7 @@ Three sets earned a spot here, chosen for fit and grip on scorching sidewalks. T
 
 The [QUMY Dog Boots (4-pack)](https://www.amazon.com/dp/B0D2WVJR7X?tag=happypetdc-20) carries a 4.0 out of 5 star rating and sells for $21.99 (as of Jul 7, 2026), which lands it squarely in budget territory for a set of four. The mesh upper lets air move through the boot, so paws stay cooler than they would inside a sealed rubber shell. A soft anti-slip rubber sole handles the actual job of keeping hot ground away from the pad while adding traction on slick hardwood indoors.
 
-Fit is where small-dog boots live or die, and Amazon's summary of customer reviews says buyers split here: some report a secure fit, while others say the boots don't stay on. The same summary says buyers find them easy to put on, with good traction and protection on hot pavement, and that durability reports are mixed (Amazon review summary, as of Oct 28, 2026). Measure your dog's paw before ordering, since the small sizing runs close and a loose boot walks right off.
+Fit is where small-dog boots live or die, and Amazon's summary of customer reviews says buyers split here: some report a secure fit, while others say the boots don't stay on. The same summary says buyers find them easy to put on, with good traction and protection on hot pavement, and that durability reports are mixed. Measure your dog's paw before ordering, since the small sizing runs close and a loose boot walks right off.
 
 Pros:
 

@@ -37,7 +37,7 @@ Hill's Science Diet is a brand synonymous with veterinarian-recommended nutritio
 * Highly digestible ingredients for sensitive senior stomachs.
 
 **Cons:**
-* Contains corn, which some dog owners prefer to avoid.
+* Contains corn.
 * Can be a bit pricier than some budget brands, but offers excellent value for the quality.
 
 [Hill's Science Diet Senior 7+ Dry Food](https://www.amazon.com/dp/B009B87TKG?th=1&tag=happypetdc-20)

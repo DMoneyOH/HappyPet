@@ -29,7 +29,7 @@ Three tools, three jobs. For most homes a reusable roller handles furniture and 
 
 ### Featured pick: [ChomChom Pet Hair Roller](https://www.amazon.com/dp/B00BAGTNAQ?tag=happypetdc-20)
 
-The ChomChom Roller holds a 4.5 out of 5 star rating on Amazon at a price of $24.99 (as of Jul 7, 2026), and it earns that score by doing one job well. You roll it back and forth across a couch, a blanket, or a car seat, and the internal brushes sweep loose fur into a chamber you empty with a click. No adhesive sheets, no batteries. When the chamber fills, you pop it open, dump it in the trash, and keep rolling. Customers who bought it say it is highly effective at removing pet hair and easier than vacuuming, and Amazon's summary of customer reviews says they find it easy to clean and good value (Amazon review summary, as of Oct 28, 2026).
+The ChomChom Roller holds a 4.5 out of 5 star rating on Amazon at a price of $24.99 (as of Jul 7, 2026), and it earns that score by doing one job well. You roll it back and forth across a couch, a blanket, or a car seat, and the internal brushes sweep loose fur into a chamber you empty with a click. No adhesive sheets, no batteries. When the chamber fills, you pop it open, dump it in the trash, and keep rolling. Customers who bought it say it is highly effective at removing pet hair and easier than vacuuming, and Amazon's summary of customer reviews says they find it easy to clean and good value.
 
 It grabs cat hair and dog hair off most woven surfaces, and it works on rugs and bedding that cheap sticky rollers give up on. Fur ground deep into thick pile or a knit sweater gives it more trouble, so treat it as a surface tool rather than a deep-cleaner.
 

@@ -34,7 +34,7 @@ Here is how the best dog snuffle mats in this roundup line up at a glance.
 
 The [AWOOF Snuffle Mat](https://www.amazon.com/dp/B07N1JYYCW?tag=happypetdc-20) holds a 4.2 out of 5 star rating on Amazon and sells for $11.98 (as of Sep 25, 2026). That price puts it in impulse territory, cheaper than a bag of premium treats in some stores. The design follows the classic snuffle format: a base packed with fleece strips that hide kibble down near the bottom, so your dog has to work for each bite.
 
-Amazon's summary of customer reviews says the mat keeps dogs busy for long stretches and slows their eating, and that it is particularly suitable for smaller dogs. The same summary is mixed on durability, with some customers saying it tears apart quickly, and criticizes the material as thin and felt-like (Amazon review summary, as of Oct 28, 2026). A dog that treats the strips as a chew toy instead of a search area can pull them loose, so supervision matters for the first few sessions.
+Amazon's summary of customer reviews says the mat keeps dogs busy for long stretches and slows their eating, and that it is particularly suitable for smaller dogs. The same summary is mixed on durability, with some customers saying it tears apart quickly, and criticizes the material as thin and felt-like. A dog that treats the strips as a chew toy instead of a search area can pull them loose, so supervision matters for the first few sessions.
 
 Pros:
 - Low price makes it an easy first trial
@@ -52,7 +52,7 @@ The [Adjustable Snuffle Mat for Dogs Puzzle Feeder Toy](https://www.amazon.com/d
 
 ### Snuffle Mat for Dogs Interactive Puzzle Toys Feeding Games
 
-The [Snuffle Mat for Dogs Interactive Puzzle Toys Feeding Games](https://www.amazon.com/dp/B08JGHMDLX?tag=happypetdc-20) leans into the puzzle side of the category, which works well for dogs that need more than a simple sniff-and-find session. Owners looking to fill a long afternoon indoors tend to like this kind of layout. Expect a short learning curve. Some dogs give up early on a puzzle-heavy mat, so start with easy hiding spots and plenty of visible treats before you make it harder.
+The [Snuffle Mat for Dogs Interactive Puzzle Toys Feeding Games](https://www.amazon.com/dp/B08JGHMDLX?tag=happypetdc-20) leans into the puzzle side of the category, which works well for dogs that need more than a simple sniff-and-find session. Expect a short learning curve. Some dogs give up early on a puzzle-heavy mat, so start with easy hiding spots and plenty of visible treats before you make it harder.
 
 ## Buying guide
 

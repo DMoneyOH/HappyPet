@@ -28,7 +28,7 @@ For eye coverage on a small dog, the [Lewondr Dog Sunglasses](https://www.amazon
 
 These heart-shaped goggles carry a 4.5/5 star rating and sell for around $9.99 (as of Jul 7, 2026), which puts real eye coverage within reach of almost any budget. The frames wrap close to the face, and the adjustable strap holds them in place while your dog trots and shakes. Anti-fog lenses help on humid mornings when cheaper lenses cloud over. The pink heart styling reads as a novelty, but the UV shielding does a job that matters for light-eyed and older dogs.
 
-Fit takes patience. Amazon's summary of customer reviews says buyers find the goggles protect eyes from sun, wind and bugs and that dogs take to wearing them, but reviews split on fit, and many customers find them too big for small breeds (Amazon review summary, as of Oct 28, 2026). Start indoors where there are fewer distractions, then move to the yard before a real outing.
+Fit takes patience. Amazon's summary of customer reviews says buyers find the goggles protect eyes from sun, wind and bugs and that dogs take to wearing them, but reviews split on fit, and many customers find them too big for small breeds. Start indoors where there are fewer distractions, then move to the yard before a real outing.
 
 Pros:
 
@@ -44,7 +44,7 @@ Cons:
 
 ### QUMY dog goggles UV protection
 
-The QUMY Dog Goggles UV Protection for Small to Medium Breed step up for dogs whose heads run larger than the Lewondr pair fits. The wider frame and stretch strap tend to sit securely, and owners who ride with their dogs or drive with the windows down often reach for them. Getting the strap tension right takes a few tries, and dogs new to goggles may paw at them at first before they settle in.
+The QUMY Dog Goggles UV Protection for Small to Medium Breed step up for dogs whose heads run larger than the Lewondr pair fits. The wider frame and stretch strap tend to sit securely. Getting the strap tension right takes a few tries, and dogs new to goggles may paw at them at first before they settle in.
 
 ### Dog helmet and goggles for small dogs
 

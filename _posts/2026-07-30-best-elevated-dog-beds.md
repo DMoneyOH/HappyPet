@@ -27,7 +27,7 @@ The best elevated dog bed for most homes is the Coolaroo Original, a hammock-sty
 
 ### Featured pick: Coolaroo the original cooling elevated dog bed
 
-The [Coolaroo Elevated Dog Bed](https://www.amazon.com/dp/B000P7JKD6?tag=happypetdc-20) holds a 4.5 out of 5 star rating (as of Jul 7, 2026). The woven fabric stretches tight across a steel frame, so air passes underneath and keeps the surface cooler than foam. At 51 by 31.5 inches, the large size fits most big dogs with room to stretch out. The frame stands 8 inches off the ground, high enough to clear a wet patio or a dusty garage floor. Priced around $28.34 (as of Jul 7, 2026), it undercuts a lot of cushioned beds. Amazon's summary of customer reviews says dogs love it and buyers find it comfortable, roomy for large dogs and good value. It also flags mixed reports on assembly and durability, with several customers saying the bed sags almost to the ground (Amazon review summary, as of Oct 28, 2026).
+The [Coolaroo Elevated Dog Bed](https://www.amazon.com/dp/B000P7JKD6?tag=happypetdc-20) holds a 4.5 out of 5 star rating (as of Jul 7, 2026). The woven fabric stretches tight across a steel frame, so air passes underneath and keeps the surface cooler than foam. At 51 by 31.5 inches, the large size fits most big dogs with room to stretch out. The frame stands 8 inches off the ground, high enough to clear a wet patio or a dusty garage floor. Priced around $28.34 (as of Jul 7, 2026), it undercuts a lot of cushioned beds. Amazon's summary of customer reviews says dogs love it and buyers find it comfortable, roomy for large dogs and good value. It also flags mixed reports on assembly and durability, with several customers saying the bed sags almost to the ground.
 
 Pros:
 

@@ -27,7 +27,7 @@ You clip the leash on at 9 p.m., step off the porch, and find the street has no 
 
 The BSEEN collar holds a 4.6/5 star rating on Amazon and sells for $12.99 (as of Oct 11, 2026), which keeps it well within a budget shopper's range. It charges over USB, so you plug it in after a walk the same way you charge a phone.
 
-The light runs along the collar band instead of sitting in one small clip, so drivers and cyclists can pick out your dog from more than one angle. Amazon's summary of customer reviews says buyers find it bright and clearly visible at night, easy to fit and good value, though while some say it lasts for hours, others report it breaking after five uses (Amazon review summary, as of Oct 28, 2026). The other two picks here lack rating data this site has verified.
+The light runs along the collar band instead of sitting in one small clip, so drivers and cyclists can pick out your dog from more than one angle. Amazon's summary of customer reviews says buyers find it bright and clearly visible at night, easy to fit and good value, though while some say it lasts for hours, others report it breaking after five uses. The other two picks here lack rating data this site has verified.
 
 Pros:
 - USB charging cuts out the ongoing cost of disposable batteries

@@ -68,7 +68,7 @@ The white finish scuffs and discolors with regular use faster than a darker hous
 
 ### What Amazon's Review Summary Says
 
-Amazon's summary of customer reviews says buyers find the grinder quiet and efficient, and that dogs don't get scared of it. Customers who bought it call it easy to use, especially on puppies, say it works well for smaller dogs, and like the LED light (Amazon review summary, as of Oct 28, 2026).
+Amazon's summary of customer reviews says buyers find the grinder quiet and efficient, and that dogs don't get scared of it. Customers who bought it call it easy to use, especially on puppies, say it works well for smaller dogs, and like the LED light.
 
 ### Who Should Buy This
 

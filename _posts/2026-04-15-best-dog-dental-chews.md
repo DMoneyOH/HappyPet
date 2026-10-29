@@ -30,7 +30,7 @@ With a stellar 4.8/5 star rating (as of Apr 8, 2026), Greenies Original Regular 
 * Made with natural ingredients
 * Can be expensive, with a price tag of $36.97 (as of Apr 8, 2026)
 * May not be suitable for dogs with sensitive stomachs
-Amazon's summary of customer reviews says the treats help keep teeth and gums healthy and freshen breath, and that dogs look forward to them. Some customers call them the best value, and others find them too expensive (Amazon review summary, as of Oct 28, 2026).
+Amazon's summary of customer reviews says the treats help keep teeth and gums healthy and freshen breath, and that dogs look forward to them. Some customers call them the best value, and others find them too expensive.
 
 ### Additional Picks:
 #### OraVet Dental Chews

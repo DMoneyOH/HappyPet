@@ -31,7 +31,7 @@ The best gps dog tracker for you depends on your dog's size and how much you wan
 
 The [Tractive Dog GPS Tracker](https://www.amazon.com/dp/B0D6Z4L6BW?tag=happypetdc-20) holds a 3.9 out of 5 star rating on Amazon and sells for around $47.00 (as of Jul 7, 2026), which lands it at the affordable end of the category. It clips onto your dog's existing collar and reports live location as they move. The virtual fence pings your phone the moment your dog crosses a boundary you set, so an escape artist gets caught early instead of after a long chase. It also reads heart and respiratory rate while tracking barking across the day, which paints a rough picture of how your dog feels when you cannot watch them.
 
-The catch sits in the subscription. Location tracking runs on a cellular plan, so the $47.00 hardware price (as of Jul 7, 2026) only starts the tab. Amazon's summary of customer reviews says buyers find it easy to use and like the live location tracking. Reviews are mixed on battery life, accuracy and value, and some customers report delays in location updates (Amazon review summary, as of Oct 28, 2026).
+The catch sits in the subscription. Location tracking runs on a cellular plan, so the $47.00 hardware price (as of Jul 7, 2026) only starts the tab. Amazon's summary of customer reviews says buyers find it easy to use and like the live location tracking. Reviews are mixed on battery life, accuracy and value, and some customers report delays in location updates.
 
 Pros:
 

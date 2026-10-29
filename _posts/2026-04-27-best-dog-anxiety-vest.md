@@ -37,7 +37,7 @@ The vest’s design focuses on simplicity: slip it on, secure the straps, and le
 
 ## What Stands Out  
 
-1. **Steady Pressure** – The wrap applies steady, gentle pressure. Amazon's summary of customer reviews says buyers find it effective at calming dogs, especially during storms (Amazon review summary, as of Oct 28, 2026).  
+1. **Steady Pressure** – The wrap applies steady, gentle pressure. Amazon's summary of customer reviews says buyers find it effective at calming dogs, especially during storms.  
 2. **Easy On/Off** – The Velcro system is intuitive even for one‑handed use. It goes on in under 30 seconds, even in the middle of a thunderstorm.  
 3. **Durable Build** – The polyester fabric resists rain and drool, and the stitching holds up after multiple washes without fraying.  
 4. **Versatile Use Cases** – From fireworks on the Fourth of July to anxious car rides, the vest proved useful in a wide range of stressful scenarios.  
