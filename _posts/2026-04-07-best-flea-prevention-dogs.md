@@ -57,7 +57,7 @@ Many flea prevention products offer broader protection against other parasites, 
 
 ## The Top Pick -- Seresto Flea & Tick Collar for Large Dogs
 
-When it comes to reliable, long-lasting, and budget-friendly flea prevention for dogs, the Seresto Flea & Tick Collar consistently rises to the top. This collar is a true workhorse, providing an impressive 8 months of continuous protection against both fleas and ticks. It uses two active ingredients, Imidacloprid and Flumethrin, which are slowly and continuously released, spreading over your dog's skin and coat without being absorbed into their bloodstream. Its convenience is the draw – put it on and forget about monthly applications. It's also water-resistant, so your adventurous pup can still enjoy a swim or a bath without losing protection. For its extended efficacy and excellent value, it's hard to beat.
+For long-acting, budget-friendly flea prevention for dogs, the Seresto Flea & Tick Collar is our pick. It is rated for 8 months of continuous protection against both fleas and ticks. It uses two active ingredients, Imidacloprid and Flumethrin, which are slowly and continuously released, spreading over your dog's skin and coat without being absorbed into their bloodstream. Its convenience is the draw – put it on and forget about monthly applications. It's also water-resistant, so your adventurous pup can still enjoy a swim or a bath without losing protection. For its extended efficacy and excellent value, it's hard to beat.
 
 [Seresto Large Dog Flea & Tick Collar](https://www.amazon.com/dp/B00B8CG602?th=1&tag=happypetdc-20)
 
@@ -71,7 +71,7 @@ This is perhaps the biggest mistake people make! Only about 5% of a flea problem
 
 ### 2. Stopping Treatment in Winter
 
-Many pet owners mistakenly believe fleas die off in colder months. While outdoor flea activity might decrease, fleas are masters of survival. They can happily live and reproduce indoors year-round, especially in heated homes. Consistent, year-round flea prevention for dogs is crucial to prevent infestations from taking hold. Don't give those pesky parasites a winter vacation!
+It is a myth that fleas die off in colder months. While outdoor flea activity might decrease, fleas are masters of survival. They can happily live and reproduce indoors year-round, especially in heated homes. Consistent, year-round flea prevention for dogs is crucial to prevent infestations from taking hold. Don't give those pesky parasites a winter vacation!
 
 ### 3. Using the Wrong Product (Especially Cat Products on Dogs)
 

@@ -33,13 +33,11 @@ Fit takes patience. Amazon's summary of customer reviews says buyers find the go
 Pros:
 
 - Low price for genuine UV eye coverage
-- Adjustable strap stays put during active play
 - Anti-fog lenses resist clouding in humid air
-- Lightweight build most small dogs tolerate
+- Lightweight build
 
 Cons:
 
-- Sized for small breeds, not wide muzzles
 - Novelty styling will not suit every owner
 
 ### QUMY dog goggles UV protection

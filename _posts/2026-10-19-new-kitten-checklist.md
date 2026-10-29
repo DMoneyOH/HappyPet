@@ -64,7 +64,7 @@ A kitten needs several small meals a day, and a bowl that is always full teaches
 
 ## Worth adding in the first month
 
-None of these is urgent, but each solves a problem most new owners hit within weeks:
+None of these is urgent, but each solves a problem that tends to come up within weeks:
 
 - **A water fountain**, for a kitten that drinks little from a still bowl. See our [pet water fountain review](/feeding/best-pet-water-fountain/).
 - **Interactive toys**, to spend the energy that would otherwise go into your ankles. See [interactive cat toys](/toys/best-interactive-cat-toys/).

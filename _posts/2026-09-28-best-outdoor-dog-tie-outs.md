@@ -34,7 +34,6 @@ The spring earns its place. When a dog bolts after a rabbit and hits the end of 
 Pros:
 - Spring softens sudden stops for dogs that lunge
 - 30 feet of cable gives plenty of roaming room in an average yard
-- Weight rating covers everything from small terriers up to large breeds
 - Swivel design tends to cut down on knots around the stake
 
 Cons:

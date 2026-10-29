@@ -23,7 +23,7 @@ That frustration is real. Seeing your dog slow down can be tough, and you want t
 
 ## Quick Picks
 
-When it comes to nourishing senior dogs, several brands stand out for their tailored formulas and quality ingredients. the top recommendation, Hill's Science Diet Adult 7+ Senior Dry Dog Food, consistently delivers balanced nutrition with ingredients focused on aging health. For those looking for cognitive support, Purina Pro Plan Bright Mind Adult 7+ offers a unique blend to keep minds sharp. Blue Buffalo Life Protection Formula Senior provides natural ingredients with added glucosamine and chondroitin for joint health, while Royal Canin Canine Health Nutrition Senior 7+ targets the specific needs of smaller or medium-sized older dogs with precise nutrient profiles. If you are also weighing a joint supplement, our [guide to hip and joint supplements for dogs](/supplements/best-dog-joint-supplements/) covers what the research does and doesn't show.
+When it comes to nourishing senior dogs, several brands stand out for their tailored formulas and quality ingredients. The top recommendation, Hill's Science Diet Adult 7+ Senior Dry Dog Food, consistently delivers balanced nutrition with ingredients focused on aging health. For those looking for cognitive support, Purina Pro Plan Bright Mind Adult 7+ offers a unique blend to keep minds sharp. Blue Buffalo Life Protection Formula Senior provides natural ingredients with added glucosamine and chondroitin for joint health, while Royal Canin Canine Health Nutrition Senior 7+ targets the specific needs of smaller or medium-sized older dogs with precise nutrient profiles. If you are also weighing a joint supplement, our [guide to hip and joint supplements for dogs](/supplements/best-dog-joint-supplements/) covers what the research does and doesn't show.
 
 ## Featured Pick – Hill's Science Diet Adult 7+ Senior Dry Dog Food, 33 lb
 
@@ -34,11 +34,10 @@ Hill's Science Diet is a brand synonymous with veterinarian-recommended nutritio
 * Contains natural glucosamine and chondroitin for joint and cartilage support.
 * Includes L-carnitine to help maintain lean muscle mass and ideal body weight.
 * Antioxidant blend supports a strong immune system.
-* Highly digestible ingredients for sensitive senior stomachs.
 
 **Cons:**
 * Contains corn.
-* Can be a bit pricier than some budget brands, but offers excellent value for the quality.
+* Can be a bit pricier than some budget brands.
 
 [Hill's Science Diet Senior 7+ Dry Food](https://www.amazon.com/dp/B009B87TKG?th=1&tag=happypetdc-20)
 

@@ -77,6 +77,6 @@ Finally, remember that puppies grow quickly, so their nutritional needs will cha
 
 ## Closing  
 
-Finding the *best puppy food* is a blend of science, observation, and a little trial and error. the top pick, **[Royal Canin Small Puppy Dry Food](https://www.amazon.com/dp/B0DQYK8MP3?th=1&tag=happypetdc-20)**, delivers a balanced, breed‑neutral formula made for puppies under 20 lb. Pair it with regular vet check‑ups, plenty of playtime, and a cozy bedtime routine, and you’ll set the stage for a lifetime of health.  
+Finding the *best puppy food* is a blend of science, observation, and a little trial and error. The top pick, **[Royal Canin Small Puppy Dry Food](https://www.amazon.com/dp/B0DQYK8MP3?th=1&tag=happypetdc-20)**, delivers a balanced, breed‑neutral formula made for puppies under 20 lb. Pair it with regular vet check‑ups, plenty of playtime, and a cozy bedtime routine, and you’ll set the stage for a lifetime of health.  
 
 Happy feeding!

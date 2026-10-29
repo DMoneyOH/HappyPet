@@ -33,13 +33,13 @@
     "title": "Dog and Cat Grooming Tools",
     "description": "Dog grooming kits, nail grinders and cat grooming brushes, compared by coat type, noise and how easy they are to use at home.",
     "intro": "Grooming at home saves money only if the tool suits your pet's coat and temperament. These guides cover brushes for different cat coats, nail grinders and dog grooming tools. Each one notes what helps a nervous pet get through it.",
-    "how_we_choose": "Our guides look at what makers publish, such as specs, ingredients and price, along with what buyer reviews say."
+    "how_we_choose": "Our guides look at what makers publish, such as specs, materials and price, along with what buyer reviews say."
   },
   "outdoor": {
     "title": "Outdoor Dog Gear: Picks for Every Season",
     "description": "Dog life jackets, pools, sun protection, hot-pavement boots and tie-outs, compared on fit, safety features and how they hold up outside.",
     "intro": "Outdoor gear has to work on a hot sidewalk, a lake and a long afternoon in the yard. These guides cover dog gear for water, sun, heat and staying put, and each one points out the safety features worth paying for. Fit matters more than features here.",
-    "how_we_choose": "Our guides look at what makers publish, such as specs, ingredients and price, along with what buyer reviews say."
+    "how_we_choose": "Our guides look at what makers publish, such as specs, materials and price, along with what buyer reviews say."
   },
   "food": {
     "title": "Dog and Cat Food: Picks by Life Stage",
@@ -57,67 +57,67 @@
     "title": "Pet Feeders, Fountains and Slow Bowls",
     "description": "Automatic cat feeders, pet water fountains, slow feeder dog bowls and cat puzzle feeders, compared on capacity, cleaning and pace.",
     "intro": "How a pet eats matters as much as what it eats. These guides cover timed feeders for busy days, fountains for pets who don't drink enough, and bowls and puzzles that slow down a fast eater. Each one weighs how much work the gear takes to keep clean.",
-    "how_we_choose": "Our guides look at what makers publish, such as specs, ingredients and price, along with what buyer reviews say."
+    "how_we_choose": "Our guides look at what makers publish, such as specs, materials and price, along with what buyer reviews say."
   },
   "toys": {
     "title": "Dog and Cat Toys: Picks by Play Style",
     "description": "Chew-proof dog toys, interactive puzzles, catnip, tunnels and snuffle mats, sorted by how your pet plays and whether it keeps them busy without you.",
     "intro": "A toy that gets ignored after a day costs the same as one that gets played with for a year. These guides sort dog and cat toys by how your pet actually plays: chewing, chasing, sniffing or solving. Each one flags which toys hold up to a power chewer and which ones keep a pet busy on their own.",
-    "how_we_choose": "Our guides look at what makers publish, such as specs, ingredients and price, along with what buyer reviews say."
+    "how_we_choose": "Our guides look at what makers publish, such as specs, materials and price, along with what buyer reviews say."
   },
   "collars": {
     "title": "Dog and Cat Collars: Picks for Fit and Safety",
     "description": "Collars for small dogs, night-walk collars and breakaway cat collars, compared on fit, hardware and the safety features worth having.",
     "intro": "A collar has to stay on, stay comfortable and carry an ID tag every day. These guides cover collars for small necks, visibility for dark evening walks and breakaway designs that release if a cat gets snagged.",
-    "how_we_choose": "Our guides look at what makers publish, such as specs, ingredients and price, along with what buyer reviews say."
+    "how_we_choose": "Our guides look at what makers publish, such as specs, materials and price, along with what buyer reviews say."
   },
   "harnesses": {
     "title": "Dog and Cat Harnesses",
     "description": "No-pull dog harnesses and cat harness and leash sets, compared on fit, adjustment points and how well they stop a pet from slipping out.",
     "intro": "A harness spreads pressure across the chest instead of the neck, which suits pullers, small dogs and cats learning to walk outside. These guides cover no-pull designs for dogs and escape-resistant sets for cats. Each one starts with how to measure, since a loose harness is the one a pet backs out of.",
-    "how_we_choose": "Our guides look at what makers publish, such as specs, ingredients and price, along with what buyer reviews say."
+    "how_we_choose": "Our guides look at what makers publish, such as specs, materials and price, along with what buyer reviews say."
   },
   "training": {
     "title": "Dog and Cat Training Gear",
     "description": "Puppy pads, training clickers and deterrents that keep cats off counters and trees, compared on how they fit into everyday training.",
     "intro": "Training gear works best as a helper for consistent habits, not a replacement for them. These guides cover house-training supplies, clickers for marking good behavior, and deterrents that steer pets away from the places you want kept clear.",
-    "how_we_choose": "Our guides look at what makers publish, such as specs, ingredients and price, along with what buyer reviews say."
+    "how_we_choose": "Our guides look at what makers publish, such as specs, materials and price, along with what buyer reviews say."
   },
   "litter": {
     "title": "Cat Litter and Litter Boxes",
     "description": "Odor-control litter, litter boxes and self-cleaning litter boxes, compared on smell, dust, cleanup and fit for multi-cat homes.",
     "intro": "Most litter box trouble comes down to a mismatch: the wrong litter, the wrong box, or too few boxes for the cats in the house. These guides cover odor-control litters, litter boxes, and automatic boxes that do the scooping for you. Each one notes what fits a multi-cat home.",
-    "how_we_choose": "Our guides look at what makers publish, such as specs, ingredients and price, along with what buyer reviews say."
+    "how_we_choose": "Our guides look at what makers publish, such as specs, materials and price, along with what buyer reviews say."
   },
   "scratching": {
     "title": "Cat Scratchers and Cat Trees",
     "description": "Scratching posts, cardboard scratchers and cat trees for big cats and small spaces, compared on stability, height and how long they last.",
     "intro": "Cats are going to scratch something, so the only choice is where. These guides cover posts, cardboard scratchers and cat trees, and each one looks at the things that decide whether a cat uses them: height, stability and the scratching surface. A scratcher that wobbles gets ignored, and the couch takes the hit.",
-    "how_we_choose": "Our guides look at what makers publish, such as specs, ingredients and price, along with what buyer reviews say."
+    "how_we_choose": "Our guides look at what makers publish, such as specs, materials and price, along with what buyer reviews say."
   },
   "beds": {
     "title": "Dog and Cat Beds: Picks for Every Sleeper",
     "description": "Beds for large dogs, cooling mats, elevated cots, cat beds and window perches and hammocks, compared on support, washability and fit.",
     "intro": "Dogs and cats sleep most of the day, so the bed is the piece of gear they use most. These guides cover big-dog support, beds that run cool, and cats who want the sunniest window in the house. Each one looks at fit, cleanup and how well the bed holds its shape.",
-    "how_we_choose": "Our guides look at what makers publish, such as specs, ingredients and price, along with what buyer reviews say."
+    "how_we_choose": "Our guides look at what makers publish, such as specs, materials and price, along with what buyer reviews say."
   },
   "crates": {
     "title": "Dog Crates, Playpens and Crate Gear",
     "description": "Dog crates, portable playpens and crate pads, compared on size, setup, cleaning and how well they suit a new puppy.",
     "intro": "A crate or playpen gives a dog a safe spot of its own and gives you a break. These guides cover wire and soft crates, playpens that fold for travel, and the pads and covers that make a crate comfortable. Each one starts with sizing, since a crate that is too big or too small undoes most of its purpose.",
-    "how_we_choose": "Our guides look at what makers publish, such as specs, ingredients and price, along with what buyer reviews say."
+    "how_we_choose": "Our guides look at what makers publish, such as specs, materials and price, along with what buyer reviews say."
   },
   "carriers": {
     "title": "Cat and Dog Carriers: Picks for Every Trip",
     "description": "Cat travel carriers, cat backpacks and dog backpack carriers, compared on ventilation, sizing and how they carry over a long walk.",
     "intro": "A carrier your pet hates turns every vet trip into a fight. These guides cover cat travel carriers, bubble-window backpacks and backpack carriers for small dogs.",
-    "how_we_choose": "Our guides look at what makers publish, such as specs, ingredients and price, along with what buyer reviews say."
+    "how_we_choose": "Our guides look at what makers publish, such as specs, materials and price, along with what buyer reviews say."
   },
   "travel": {
     "title": "Dog Car Travel Gear",
     "description": "Dog car booster seats, car seat covers and travel water bottles, compared on fit, cleanup and keeping a dog settled on the road.",
     "intro": "A dog who rides well makes every trip easier, and the right gear does most of that work. These guides cover booster seats for small dogs, seat covers that survive mud and hair, and water bottles for stops along the way.",
-    "how_we_choose": "Our guides look at what makers publish, such as specs, ingredients and price, along with what buyer reviews say."
+    "how_we_choose": "Our guides look at what makers publish, such as specs, materials and price, along with what buyer reviews say."
   },
   "cleaning": {
     "title": "Pet Cleaning Gear: Hair, Stains and Odor",
@@ -129,6 +129,6 @@
     "title": "Pet Tech: Cameras and GPS Trackers",
     "description": "Pet cameras and GPS dog trackers, compared on features and subscription costs.",
     "intro": "Pet tech lets you check in on a pet you can't see, whether it's on the couch at home or somewhere past the fence. These guides cover pet cameras and GPS trackers, and each one spells out the ongoing costs, like subscriptions, that the sticker price leaves out. Battery life and app quality decide most of the experience, so both get a close look.",
-    "how_we_choose": "Our guides look at what makers publish, such as specs, ingredients and price, along with what buyer reviews say."
+    "how_we_choose": "Our guides look at what makers publish, such as specs, materials and price, along with what buyer reviews say."
   }
 }

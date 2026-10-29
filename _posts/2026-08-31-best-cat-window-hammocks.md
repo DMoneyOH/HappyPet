@@ -35,10 +35,8 @@ The [Suction-Cup Cat Window Hammock](https://www.amazon.com/dp/B07MH7WTSN?tag=ha
 
 Pros:
 
-- Holds larger cats without sagging over time
 - Flannel cover adds warmth for cold-weather napping
 - Waterproof base wipes clean after spills or hairballs
-- Suction cups grip firmly on smooth glass
 
 Cons:
 
@@ -79,4 +77,4 @@ Fabric affects both comfort and cleanup. Flannel and plush covers hold warmth fo
 | Zakkart SnugCloud cat window perch | Average adult cats, washable comfort | $ | Cordless, foldable, bolstered | [On Amazon](https://www.amazon.com/dp/B0F9FD3115?tag=happypetdc-20) |
 | AMOSIJOY sill perch, wood and metal frame | Heavier cats, humid rooms | Unlisted | Frame-braced | [On Amazon](https://www.amazon.com/dp/B0BJZ8YPZD?tag=happypetdc-20) |
 
-A good window seat, hammock or perch, solves two problems at once: it keeps your cat off the sill and gives them the sun and the view they actually want. For a heavier cat or a household that wants one seat to last, the [Suction-Cup Cat Window Hammock](https://www.amazon.com/dp/B07MH7WTSN?tag=happypetdc-20) covers the basics well at $24.99 (as of Jul 7, 2026), with a waterproof base that shrugs off spills. Pair it with steady litter habits and good [cat litter odor control](https://happypetproductreviews.com/litter/best-cat-litter-odor-control/), and your cat's favorite corner stays clean and sunny.
+A good window seat, hammock or perch, solves two problems at once: it keeps your cat off the sill and gives them the sun and the view they actually want. For a heavier cat, the [Suction-Cup Cat Window Hammock](https://www.amazon.com/dp/B07MH7WTSN?tag=happypetdc-20) covers the basics well at $24.99 (as of Jul 7, 2026), with a waterproof base that shrugs off spills. Pair it with steady litter habits and good [cat litter odor control](https://happypetproductreviews.com/litter/best-cat-litter-odor-control/), and your cat's favorite corner stays clean and sunny.

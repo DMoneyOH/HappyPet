@@ -39,14 +39,13 @@ The Depets tunnel is the standout of this roundup because it delivers space, sur
 **Pros**  
 - Large, multi‑way layout keeps multiple cats engaged at once.  
 - Built‑in play ball adds motion and intrigue.  
-- Soft, washable fabric holds up to repeated clawing.  
 - Easy to assemble and fold for storage.
 
 **Cons**  
 - The fabric may shift slightly after heavy use, requiring occasional re‑tensioning.  
 - Not ideal for very large breeds that prefer open‑air play areas.
 
-Overall, the Depets tunnel hits the sweet spot of durability, interactive design, and affordability, making it the best cat tunnel toys choice for families with active indoor kitties.
+Overall, the Depets tunnel hits the sweet spot of interactive design and affordability, making it the best cat tunnel toys choice for families with active indoor kitties.
 
 ### Additional Picks
 
@@ -78,4 +77,4 @@ Finally, consider extra features that add value without raising the price dramat
 
 A good tunnel does more than hide a cat—it creates a playground that satisfies instinctual hunting drives while protecting your furniture. Whether you choose the feature‑packed Depets model or a sleek Yaheetech version, the right tunnel will turn idle prowling into lively, healthy exercise.
 
-If you’re ready to upgrade your indoor cat’s play area, the [Depets 5-Way Cat Tunnel](https://www.amazon.com/dp/B0BY7S5L92?th=1&tag=happypetdc-20) offers the perfect blend of space, interactivity, and budget‑friendliness. Your feline explorer will thank you with endless pounces, and you’ll enjoy a quieter, more contented home. Happy hunting!
+If you’re ready to upgrade your indoor cat’s play area, the [Depets 5-Way Cat Tunnel](https://www.amazon.com/dp/B0BY7S5L92?th=1&tag=happypetdc-20) offers the perfect blend of space, interactivity, and budget‑friendliness. Happy hunting!

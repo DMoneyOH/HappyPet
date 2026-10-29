@@ -54,7 +54,7 @@ Treat size matters too. Advent treats should stay small, since they add up acros
 
 Cats knock things off counters, and a cardboard box of fish treats makes a tempting target. Store the calendar high between openings.
 
-Households with both a cat and a dog sometimes want a matching treat routine for each pet. Cat treats and dog treats differ in formulation, so give each animal its own. For the dog side of the house, a guide to [dog training treats](https://happypetproductreviews.com/treats/best-dog-training-treats/) covers small, low-calorie options that fit a daily reward habit.
+If your home has both a cat and a dog, you may want a matching treat routine for each pet. Cat treats and dog treats differ in formulation, so give each animal its own. For the dog side of the house, a guide to [dog training treats](https://happypetproductreviews.com/treats/best-dog-training-treats/) covers small, low-calorie options that fit a daily reward habit.
 
 ## How many days does a cat advent calendar with treats last?
 

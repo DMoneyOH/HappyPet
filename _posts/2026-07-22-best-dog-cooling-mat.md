@@ -31,7 +31,6 @@ The [EHEYCIGA Dog Cooling Mat](https://www.amazon.com/dp/B0GG8LR3RW?th=1&tag=hap
 
 Pros:
 - Roomy 41 by 28 inch surface fits medium and large dogs
-- Non-slip backing holds its spot on smooth floors
 - Wipes clean and rinses off without a fuss
 - Strong 4.8 out of 5 star rating (as of Apr 16, 2026) from buyers
 

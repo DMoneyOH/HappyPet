@@ -8,7 +8,7 @@ redirect_from:
   - /dog-toys/best-dog-pools/
 species: dog
 tags: [best dog pool]
-description: "Beat the summer heat: the folding dog pool that stands up to claws, drains fast, and stores flat."
+description: "Beat the summer heat: the folding dog pool that drains fast and stores flat."
 affiliate_url: "https://www.amazon.com/dp/B01I3DTB2S?tag=happypetdc-20"
 product_short: "Jasonwell Foldable Dog Pool"
 image: "https://m.media-amazon.com/images/I/61-U8XMaW2L._AC_SX679_.jpg"
@@ -35,7 +35,6 @@ The [Jasonwell Foldable Dog Pool](https://www.amazon.com/dp/B01I3DTB2S?tag=happy
 Pros:
 - Wide 63 inch base fits medium and large dogs
 - Folds flat and slides into a closet over winter
-- Coated material outlasts thin plastic kiddie pools
 - Side drain empties the water without heavy lifting
 
 Cons:

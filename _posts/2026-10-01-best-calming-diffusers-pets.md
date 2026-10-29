@@ -44,7 +44,6 @@ Pros:
 - Plugs in and runs without daily effort from you
 - Targets several stress behaviors at once rather than just one
 - All-in-one kit format keeps the first purchase simple
-- Price sits within reach for a first trial
 
 Cons:
 - Results vary, and some buyers say it didn't work at all
@@ -76,7 +75,7 @@ Dosing differs by product and by a cat's weight, so follow the label on the pack
 
 ## Buying guide
 
-Start with the species. This sounds obvious, but mixed homes trip up plenty of shoppers, and nobody wants to spend a month waiting on a product their pet can't even detect. A calming diffuser for pets works through species-specific pheromones, so match the product to the animal showing stress. If both your dog and your cat seem on edge, buy one of each and place them in different rooms.
+Start with the species. This sounds obvious, but it is easy to get wrong in a mixed home, and nobody wants to spend a month waiting on a product their pet can't even detect. A calming diffuser for pets works through species-specific pheromones, so match the product to the animal showing stress. If both your dog and your cat seem on edge, buy one of each and place them in different rooms.
 
 Placement decides a lot. Plug the diffuser into the room where your pet spends the most time, not a hallway they pass through. Avoid outlets hidden behind couches or curtains, since furniture blocks the airflow the unit depends on. Keep it away from open windows and air vents too.
 
@@ -96,4 +95,4 @@ Watch the refill cost. Pheromone diffusers run on refills, and those keep coming
 | ThunderEase Dog Calming Pheromone Diffuser Kit, Powered by ADAPTIL | Dogs anxious at home or during noise | Dogs | [On Amazon](https://www.amazon.com/dp/B072KP2TYK?tag=happypetdc-20) |
 | FELIWAY Classic Cat Calming Pheromone Diffuser | Single cat facing one stressor | Cats | [On Amazon](https://www.amazon.com/dp/B01AVIIFRA?tag=happypetdc-20) |
 
-No single plug-in covers every pet in a mixed home, and none replaces a vet check when behavior changes suddenly. For a cat that sprays or hides under stress, the featured kit makes the most sense as a first try: it costs $29.99, holds a 4.0 star rating (as of Jul 7, 2026), and lists the widest range of target behaviors of the three. Dog owners should skip it and pick up the ThunderEase diffuser (Powered by ADAPTIL) instead. If your cat fits the profile, give the [FELIWAY Optimum cat diffuser (cats only)](https://www.amazon.com/dp/B097W651NJ?tag=happypetdc-20) a full refill cycle in the room your cat uses most, then judge the results with a clear head. Your cat, and your bath mat, may thank you.
+No single plug-in covers every pet in a mixed home, and none replaces a vet check when behavior changes suddenly. For a cat that sprays or hides under stress, the featured kit makes the most sense as a first try: it costs $29.99, holds a 4.0 star rating (as of Jul 7, 2026), and lists the widest range of target behaviors of the three. Dog owners should skip it and pick up the ThunderEase diffuser (Powered by ADAPTIL) instead. If your cat fits the profile, give the [FELIWAY Optimum cat diffuser (cats only)](https://www.amazon.com/dp/B097W651NJ?tag=happypetdc-20) a full refill cycle in the room your cat uses most, then judge the results with a clear head.

@@ -35,7 +35,7 @@ The [Outward Hound Fun Feeder Slo Bowl](https://www.amazon.com/dp/B093K2NDS2?tag
 
 Pros:
 
-- Wide 11.75 inch dish fits medium and large breeds without crowding
+- Wide 11.75 inch dish
 - Non-slip base stays put on hardwood and tile
 - Low price for a bowl built to last through daily use
 - Drop pattern slows most gulpers to a steady pace
@@ -43,7 +43,6 @@ Pros:
 Cons:
 
 - A determined chewer can gnaw the raised ridges over time
-- The 4-cup size runs too large for toy breeds
 
 ### Neater Pet Brands Slow Feeder Bowl
 

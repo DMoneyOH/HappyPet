@@ -17,7 +17,7 @@ product_short: "MidWest New World Dog Crate"
 **Quick pick:** For everyday crating at home, start with the [MidWest New World Dog Crate on Amazon](https://www.amazon.com/dp/B01DLS2EX8?th=1&tag=happypetdc-20).
 {: .quick-pick}
 
-Dog owners all want the best for their four-legged family members, and want them to feel safe, secure, and loved. But sometimes, despite the best intentions, real homes can feel a little... chaotic. Perhaps your energetic puppy loves to chew on everything when your back is turned, or maybe your anxious rescue dog needs a quiet den to retreat to during thunderstorms. That’s where a good dog crate comes in. Far from being a punishment, a properly sized and introduced dog crate can be a sanctuary, a training aid, and a vital safety tool. It helps with house-training, prevents destructive behaviors, and provides a secure space for travel or recovery. But with so many options out there – wire, plastic, fabric, different sizes, and features – how do you choose the right one without breaking the bank? Don't worry, this guide has done the legwork. Here are the best dog crates that offer excellent value and meet the needs of pups big and small.
+You want your dog to feel safe, secure, and loved. But sometimes, despite the best intentions, real homes can feel a little... chaotic. Perhaps your energetic puppy loves to chew on everything when your back is turned, or maybe your anxious rescue dog needs a quiet den to retreat to during thunderstorms. That’s where a good dog crate comes in. Far from being a punishment, a properly sized and introduced dog crate can be a sanctuary, a training aid, and a vital safety tool. It helps with house-training, prevents destructive behaviors, and provides a secure space for travel or recovery. But with so many options out there – wire, plastic, fabric, different sizes, and features – how do you choose the right one without breaking the bank? Don't worry, this guide has done the legwork. Here are the best dog crates that offer excellent value and meet the needs of pups big and small.
 
 ## Quick Picks: the Top Dog Crate Recommendations
 
@@ -42,7 +42,7 @@ This durable wire crate offers fantastic value, providing a secure and comfortab
 
 ### Frisco Fold & Carry Double Door Collapsible Wire Dog Crate
 
-The Frisco Fold & Carry crate is a fantastic option for those who need a reliable, everyday dog crate that also offers impressive portability. Its clever design allows it to fold down flat in seconds, making it super easy to store away when not in use or transport for trips to grandma's house. The double-door setup is incredibly convenient, giving you more options for positioning the crate in your home or car. The secure, easy-to-use latches and the durable electro-coat finish help prevent rust. It's a sturdy, no-frills option that delivers on its promises.
+The Frisco Fold & Carry crate is a fantastic option for those who need a reliable, everyday dog crate that also offers impressive portability. Its clever design allows it to fold down flat in seconds, making it super easy to store away when not in use or transport for trips to grandma's house. The double-door setup is incredibly convenient, giving you more options for positioning the crate in your home or car. The secure, easy-to-use latches and the durable electro-coat finish help prevent rust. It's a sturdy, no-frills option.
 
 **Pros:**
 * Folds down quickly and compactly

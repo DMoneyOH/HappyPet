@@ -67,4 +67,4 @@ Cleaning deserves a thought before you buy. A woven or mesh top rinses off with 
 | K&H Outdoor Elevated Dog Bed | Full-time outdoor dogs | $$ | Multiple sizes | - |
 | Simple Trending Elevated Dog Bed | Budget and smaller dogs | $ | Small to medium | - |
 
-A raised cot earns its place in summer by doing one thing well, keeping a dog off the hot floor so air can carry heat away. Any of these three will manage that. For the widest mix of price and durability, the [Coolaroo Elevated Dog Bed](https://www.amazon.com/dp/B000P7JKD6?tag=happypetdc-20) stays the best elevated dog bed to start with, and at around $28.34 (as of Jul 7, 2026) it costs little to find out whether your dog would rather sleep up off the ground.
+A raised cot earns its place in summer by doing one thing well, keeping a dog off the hot floor so air can carry heat away. Any of these three will manage that. On price, the [Coolaroo Elevated Dog Bed](https://www.amazon.com/dp/B000P7JKD6?tag=happypetdc-20) stays the best elevated dog bed to start with, and at around $28.34 (as of Jul 7, 2026) it costs little to find out whether your dog would rather sleep up off the ground.

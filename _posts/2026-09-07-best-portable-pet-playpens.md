@@ -19,7 +19,7 @@ pin_image: "https://happypetproductreviews.com/assets/images/pins/best-portable-
 **Quick pick:** For a small dog or cat who needs a fast outdoor setup, start with the [Love's Cabin Pop-Up Dog Playpen on Amazon](https://www.amazon.com/dp/B0BN3S5KYN?tag=happypetdc-20).
 {: .quick-pick}
 
-You unclip the leash at the campsite, turn to grab a water bowl, and your terrier is already across the lot chasing a squirrel toward the road. That scramble is why a lot of owners pack a folding enclosure for trips. A portable pet playpen gives a small dog or cat a defined space outdoors without a permanent fence or a death grip on the leash. It sets up in seconds, packs flat, and travels from the backyard to a hotel room. The right one keeps your pet contained during a picnic or a slow afternoon on the deck while you actually relax. This roundup covers three options that hold up to real outdoor use, starting with a budget pick that punches above its price.
+You unclip the leash at the campsite, turn to grab a water bowl, and your terrier is already across the lot chasing a squirrel toward the road. That scramble is why a lot of owners pack a folding enclosure for trips. A portable pet playpen gives a small dog or cat a defined space outdoors without a permanent fence or a death grip on the leash. It sets up in seconds, packs flat, and travels from the backyard to a hotel room. The right one keeps your pet contained during a picnic or a slow afternoon on the deck while you actually relax. This roundup covers three options for outdoor use, starting with a budget pick that punches above its price.
 
 ## Quick picks
 
@@ -31,7 +31,7 @@ Short on time? Here is the quick version.
 
 ## Featured pick: Love's cabin pop-up playpen
 
-The [Love's Cabin Pop-Up Dog Playpen](https://www.amazon.com/dp/B0BN3S5KYN?tag=happypetdc-20) earns a 4.3 out of 5 star rating and sells for about $15.99 (as of Jul 7, 2026), which puts it at the low end of the price range for a portable pet playpen. It pops open without poles or assembly and folds back into a flat carrying case when the day ends. The mesh walls let air move through on hot afternoons, and the removable zipper top covers the space so a cat cannot leap out or a hawk cannot swoop in. Customers who bought it say it works well for puppies and kittens and folds flat to go anywhere, though some report it falling apart within a week.
+The [Love's Cabin Pop-Up Dog Playpen](https://www.amazon.com/dp/B0BN3S5KYN?tag=happypetdc-20) earns a 4.3 out of 5 star rating and sells for about $15.99 (as of Jul 7, 2026), which puts it at the low end of the price range for a portable pet playpen. It pops open without poles or assembly and folds back into a flat carrying case when the day ends. The mesh walls let air move through on hot afternoons, and the removable zipper top covers the space so a cat cannot leap out or a hawk cannot swoop in. Amazon's summary of customer reviews says it works well for puppies and kittens and folds flat to go anywhere, though some customers report it falling apart within a week.
 
 Where it falls short: the soft sides suit small, calm pets, not a determined chewer or a strong adult dog that leans on the walls.
 

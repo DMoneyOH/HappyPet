@@ -42,8 +42,7 @@ Pros:
 - Strong Amazon rating for a budget grooming tool
 
 Cons:
-- Can feel rough on sensitive or thin-coated cats with heavy pressure
-- Clearing fur from the brush head takes some effort
+- Opinions on value are mixed in Amazon's review summary
 
 ### Swihauk Self Cleaning Slicker Brush
 

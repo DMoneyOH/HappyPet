@@ -33,7 +33,7 @@ For most cats, a feeder that fits their skill level beats a complicated maze the
 Pros:
 - Adjustable difficulty grows with your cat's skill
 - Works for both kibble and treats
-- Slows fast eaters without frustrating them into quitting
+- Slows fast eaters
 - Priced low enough for a first try
 
 Cons:
