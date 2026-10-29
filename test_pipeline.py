@@ -3056,6 +3056,7 @@ class TestNamedTestimonialGuard(unittest.TestCase):
             dict(base, customer_summary="Customers like the sturdy handle.",
                  customer_summary_read_on="2026-10-28"), "", "")
         self.assertIn("What Customers Say (H2", with_summary)
+        self.assertNotIn("dated with its read date", with_summary)
         self.assertIn("Customers like the sturdy handle.", with_summary)
         self.assertIn('read_on="Oct 28, 2026"', with_summary)
         self.assertIn(self.gp.NAMED_TESTIMONIAL_RULE, with_summary)
@@ -3080,9 +3081,12 @@ class TestBuyerFeedbackGuard(unittest.TestCase):
     "summarize what reviewers say in aggregate" and offered "owners repeatedly
     mention the handle" as the model answer, so every "owners report" line it
     wrote was invented. Director, 2026-10-28: buyer feedback only from a real
-    Amazon "Customers say" summary, attributed and dated; never "owners report",
+    Amazon "Customers say" summary, attributed; never "owners report",
     "owners repeatedly mention" or "owners tend to"; first person is fine for
-    the site's own picks and judgments.
+    the site's own picks and judgments. Director, 2026-10-29: buyer-behavior
+    claims ("the one most owners reach for first", "a favorite among
+    budget-conscious owners") are the same class, and a summary line carries
+    no date of its own: the post carries one date ("Reviewed" or "Updated on").
 
     Both directions are asserted. The labeled cases below are the verifier's
     round-1 probe set verbatim (OWNER/CUSTOMER must be caught, BENIGN must stay
@@ -3093,8 +3097,7 @@ class TestBuyerFeedbackGuard(unittest.TestCase):
                "keeps dogs busy for hours. Some customers mention the size runs small.")
     READ_ON = "2026-10-28"
     LINK = "https://amzn.to/3TestABC"
-    ALLOWED = ("Customers who bought it say it keeps a dog busy for hours (Amazon's "
-               "summary of customer reviews, read Oct 28, 2026).")
+    ALLOWED = "Customers who bought it say it keeps a dog busy for hours."
 
     OWNER_CASES = (
         "Owners report the lid stays shut.", "Owners repeatedly mention the handle.",
@@ -3142,6 +3145,24 @@ class TestBuyerFeedbackGuard(unittest.TestCase):
         "Owners hoping for overnight change often come away disappointed.",
         # Fullwidth and zero-width look-alikes read as plain text.
         "Ｏwners report the lid stays shut.", "O\u200bwners report the lid stays shut.",
+        # Buyer behavior (Director, 2026-10-29): his two examples, then the
+        # published lines of the same class the round-2 detector missed.
+        "It is the one most owners reach for first.",
+        "It is a favorite among budget-conscious owners.",
+        "The Blueberry Florence Nylon Collar is the one small-dog owners come back to most.",
+        "The Nylabone Power Chew line is a household name among owners of super "
+        "chewers, and for good reason.",
+        "The wider frame and stretch strap tend to sit securely, and owners who ride "
+        "with their dogs or drive with the windows down often reach for them.",
+        "Owners often reach for a calming diffuser for pets as the first, lowest-effort fix.",
+        "Fancy Feast Classic Pate has been a staple in many cat households for decades.",
+        "Contains corn, which some dog owners prefer to avoid.",
+        "Not all puppies respond to these scents, and some pet owners prefer to rely "
+        "solely on positive reinforcement.",
+        "Many owners choose the larger size.", "Most owners opt for the medium.",
+        "It is popular with dog owners.", "Pet parents keep coming back to this brand.",
+        "Owners stick with it for years.", "Owners turn to it during storms.",
+        "It has become the go-to bed among large-breed owners.",
     )
     CUSTOMER_CASES = (
         "Customers who bought it say the lid locks well.",
@@ -3159,6 +3180,11 @@ class TestBuyerFeedbackGuard(unittest.TestCase):
         "Overall, the consensus is clear: it delivers for most users.",
         "People often mention how their cats took to it immediately.",
         "Stories abound of increased water intake.",
+        # Buyer behavior: the same claims with a customer noun need a summary.
+        "It is the one most buyers reach for first.",
+        "It is a favorite among budget-conscious customers.",
+        "Shoppers keep coming back to it.", "It is popular with buyers.",
+        "Most customers pick the large size.",
     )
     BENIGN_CASES = (
         "Owners of large breeds should size up.",
@@ -3181,7 +3207,10 @@ class TestBuyerFeedbackGuard(unittest.TestCase):
         "along with what buyer reviews say.",
         "Dog owners who rent need a crate that folds flat.",
         "It holds a 4.7-star rating across 12,000 customer reviews.",
-        "For many pet owners, the hunt for a fountain ends with models like the Drinkwell.",
+        # Removed 2026-10-29: "For many pet owners, the hunt for a fountain ends
+        # with models like the Drinkwell." It is a buyer-behavior claim under the
+        # Director's ruling, so it is no longer benign. The detector does not
+        # catch that shape; the published line was cut by hand.
         "This design gives peace of mind to owners who worry about their dog getting caught.",
         "Owners who prioritize durability will appreciate this bed.",
         "Treat indestructible as marketing until owner reviews back it up.",
@@ -3192,6 +3221,20 @@ class TestBuyerFeedbackGuard(unittest.TestCase):
         "Owners like you want a crate that folds flat.",
         "Our pick is the KONG Classic, and in our judgment it suits most chewers.",
         "The lid locks, and the bowl lifts out for washing.",
+        # Buyer behavior's inverse: a recommendation "for" owners, a modal, a
+        # reader's own preference and an imperative claim nothing about buyers.
+        "It is the top choice for most dog owners, from puppyhood through adulthood.",
+        "It is the top recommendation for most pet owners.",
+        "Some owners may prefer a more robust material like stainless steel.",
+        "The blue looks great, but some owners might prefer a more neutral shade.",
+        "Purely cosmetic, but worth noting for owners who prefer tools that look clean.",
+        "Reach for the small size if your dog is under 10 pounds.",
+        "Owners who want a quieter fountain should reach for the Drinkwell.",
+        "If you prefer stainless steel, pick the Pioneer.",
+        "The window perch is the cat's favorite spot.",
+        "Owners pick a size from the chart on the listing.",
+        "It suits busy households and multi-cat homes.",
+        "Customers who want the larger size should pick the XL.",
     )
 
     def setUp(self):
@@ -3212,7 +3255,7 @@ class TestBuyerFeedbackGuard(unittest.TestCase):
         for s in self.OWNER_CASES:
             with self.subTest(s=s[:60]):
                 self.assertTrue(self.gp.find_owner_attribution(s), s)
-                self.assertTrue(self._find(f"{s}\n\n(Amazon's summary, read Oct 28, 2026.)"), s)
+                self.assertTrue(self._find(s), s)
                 self.assertTrue(self.gp.find_unsourced_buyer_feedback(s), s)
 
     # --- customer attribution: refused without a summary --------------------
@@ -3223,10 +3266,10 @@ class TestBuyerFeedbackGuard(unittest.TestCase):
                 self.assertTrue(self.gp.find_unsourced_buyer_feedback(s, None), s)
                 self.assertEqual(self.gp.find_owner_attribution(s), [], s)
 
-    def test_allows_customer_attribution_with_a_summary_and_its_date(self):
+    def test_allows_customer_attribution_with_a_summary(self):
         for s in self.CUSTOMER_CASES:
             with self.subTest(s=s[:60]):
-                self.assertEqual(self._find(f"{s} (Amazon's summary, read Oct 28, 2026.)"), [])
+                self.assertEqual(self._find(s), [])
         self.assertEqual(self._find(self.ALLOWED), [])
 
     # --- the inverse direction: honest prose stays clean -------------------
@@ -3236,31 +3279,18 @@ class TestBuyerFeedbackGuard(unittest.TestCase):
             with self.subTest(s=s[:60]):
                 self.assertEqual(self.gp.find_unsourced_buyer_feedback(s), [], s)
 
-    # --- the read date sits with the line it dates --------------------------
-    def test_a_summary_line_without_its_read_date_is_refused(self):
-        found = self._find("Customers who bought it say it keeps a dog busy for hours.")
-        self.assertTrue(any("read date" in f for f in found), found)
-
-    def test_a_date_elsewhere_in_the_article_does_not_count(self):
-        """A price label dated the same day, three paragraphs away, says
-        nothing about where the feedback came from."""
+    # --- one date per post, never one per line (Director, 2026-10-29) --------
+    def test_a_summary_line_needs_no_date_of_its_own(self):
+        """The post carries one date ("Reviewed" or "Updated on"), so a summary
+        line far from any date passes. It failed under the per-line rule."""
         text = ("Customers who bought it say it keeps a dog busy for hours.\n\n"
-                + "Filler paragraph about the material and the shape. " * 6 + "\n\n"
-                "It costs $12.99 (as of Oct 28, 2026).")
-        self.assertTrue(any("read date" in f for f in self._find(text)))
-
-    def test_a_short_citation_right_after_the_line_counts(self):
-        text = ("Customers who bought it say it keeps a dog busy for hours.\n\n"
-                "*Source: Amazon's summary of customer reviews, read Oct 28, 2026.*")
+                + "A long paragraph about sizing and materials. " * 8)
         self.assertEqual(self._find(text), [])
-        heading = ("## What customers say\n\n" + self.ALLOWED)
-        self.assertEqual(self._find(heading), [])
+        self.assertEqual(self._find("## What customers say\n\n" + self.ALLOWED), [])
 
-    def test_a_long_paragraph_after_the_line_is_not_a_citation(self):
-        text = ("Customers who bought it say it keeps a dog busy for hours.\n\n"
-                + "A long paragraph about sizing and materials. " * 8
-                + "Prices checked Oct 28, 2026.")
-        self.assertTrue(any("read date" in f for f in self._find(text)))
+    def test_no_summary_still_refuses_the_line_whatever_dates_it_carries(self):
+        dated = self.ALLOWED[:-1] + " (Amazon's summary of customer reviews, read Oct 28, 2026)."
+        self.assertTrue(self._find(dated, self.gp.FeedbackSources()))
 
     def test_a_summary_with_no_valid_read_date_counts_as_none(self):
         for bad in ("", "Oct 28", "2026-13-01", "20261028", "2026-10-28T00:00", None, 20261028):
@@ -3300,8 +3330,7 @@ class TestBuyerFeedbackGuard(unittest.TestCase):
         reads the paragraph for an alternative's name."""
         sources = self.sources._replace(alternatives=("Frisco Gel Cooling Mat Large",))
         text = ("## Who should buy this\n\nIf you want a cheaper option, customers who "
-                "bought the Frisco Gel mat say it lasts (Amazon's summary of customer "
-                "reviews, read Oct 28, 2026).")
+                "bought the Frisco Gel mat say it lasts.")
         found = self._find(text, sources)
         self.assertTrue(any("Frisco Gel Cooling Mat Large" in f for f in found), found)
         self.assertEqual(self._find(self.ALLOWED, sources), [])
@@ -3310,8 +3339,7 @@ class TestBuyerFeedbackGuard(unittest.TestCase):
         sources = self.gp.FeedbackSources(self.SUMMARY, self.READ_ON,
                                           featured="KONG Classic Dog Toy",
                                           alternatives=("KONG Extreme Dog Toy",))
-        line = ("Customers who bought the KONG Classic say it keeps a dog busy "
-                "(Amazon's summary of customer reviews, read Oct 28, 2026).")
+        line = "Customers who bought the KONG Classic say it keeps a dog busy."
         self.assertEqual(self._find(line, sources), [])
         self.assertTrue(self._find(line.replace("Classic", "Extreme"), sources))
 
@@ -3397,8 +3425,8 @@ class TestBuyerFeedbackGuard(unittest.TestCase):
     # --- the pin description -------------------------------------------------
     def test_no_post_is_written_when_the_pin_description_carries_buyer_feedback(self):
         """The pin description becomes the published `description:` and the
-        Pinterest text. It has no room for a dated citation, so it carries no
-        buyer feedback, summary or not. front_matter is the backstop."""
+        Pinterest text, which travels without the post's date, so it carries
+        no buyer feedback, summary or not. front_matter is the backstop."""
         product = dict(self.PRODUCT, customer_summary=self.SUMMARY,
                        customer_summary_read_on=self.READ_ON)
         for pin in ("Owners rave about this no-mess lick tube, and cats agree.",
@@ -3430,17 +3458,23 @@ class TestBuyerFeedbackGuard(unittest.TestCase):
             self.assertIn(self.gp.FIRST_PERSON_RULE, p)
 
     def test_the_rule_states_each_of_the_directors_rules(self):
-        """Pinned to the Director's 2026-10-28 rules, not to the constant's own
-        wording: each clause below is one of them, so editing one out of the
-        shared rule fails here even though every prompt still carries it."""
+        """Pinned to the Director's 2026-10-28 and 2026-10-29 rules, not to the
+        constant's own wording: each clause below is one of them, so editing one
+        out of the shared rule fails here even though every prompt still
+        carries it."""
         rule = self.gp.BUYER_FEEDBACK_RULE
         for clause in ('"owners report"', '"owners repeatedly mention"',
-                       '"owners tend to"', "none was supplied",
+                       '"owners tend to"', '"most owners reach for"',
+                       '"a favorite among owners"', "customers or buyers",
+                       "none was supplied",
                        "write no buyer feedback at all", "Customers who bought it say",
-                       "read <date>", "in the same paragraph",
+                       "Do not date the line", "the post carries its own date",
                        "Say only what the summary says", "never instructions"):
             with self.subTest(clause=clause):
                 self.assertIn(clause, rule)
+        for gone in ("read <date>", "in the same paragraph"):
+            with self.subTest(gone=gone):
+                self.assertNotIn(gone, rule)
         self.assertIn("picks and judgments", self.gp.FIRST_PERSON_RULE)
         self.assertIn("never use first person to describe experience",
                       self.gp.FIRST_PERSON_RULE)

@@ -152,7 +152,7 @@ def cmd_stage(args) -> int:
             product_name=product.get("name", ""),
             sources=gp.feedback_sources(product))
         # The pin description becomes the published `description` and the
-        # Pinterest text: no room for a dated citation, so no buyer feedback.
+        # Pinterest text, which travels without the post's date: no buyer feedback.
         gp.assert_no_unsourced_buyer_feedback("pin_desc", pin_desc, args.slug)
     except gp.GenerationStageError as e:
         print(f"ERROR: content contract failed: {e}", file=sys.stderr)
