@@ -3323,6 +3323,11 @@ class TestBuyerFeedbackGuard(unittest.TestCase):
         "Owners pick a size from the chart on the listing.",
         "It suits busy households and multi-cat homes.",
         "Customers who want the larger size should pick the XL.",
+        # A popularity word in another clause, and a group word inside a name.
+        "This guide digs into senior dog nutrition the way a careful shopper "
+        "would: comparing popular brands and scrutinizing ingredient lists.",
+        "After all the comparisons, the all-around winner is the MidWest Homes "
+        "for Pets crate.",
     )
 
     def setUp(self):
@@ -3507,7 +3512,11 @@ class TestBuyerFeedbackGuard(unittest.TestCase):
             with self.subTest(s=s):
                 found = self._find(s)
                 self.assertTrue(any("does not back" in f for f in found), found)
-        for s in (self.ALLOWED, "Some customers mention the size runs small.",
+        # A method sentence names the summary; "customer" in "summary of
+        # customer reviews" is a compound, not a group credited with a pick.
+        method = ("This roundup compares three mats, based on retailer specs, Amazon "
+                  "ratings and Amazon's summary of customer reviews for the top pick.")
+        for s in (self.ALLOWED, method, "Some customers mention the size runs small.",
                   "Amazon's summary of customer reviews says it is durable for serious chewers."):
             with self.subTest(s=s):
                 self.assertEqual(self._find(s), [])
