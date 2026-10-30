@@ -532,11 +532,12 @@ def strict_iso_date(value) -> str:
 class FeedbackSources(NamedTuple):
     """What a post's summary block may quote, the names the crowd-term gate
     reads as names, and the listing title it may credit. The default is
-    "nothing to quote"."""
+    "nothing to quote, nothing to credit"."""
     summary: str = ""          # cleaned Amazon summary; "" = none usable
     read_on: str = ""          # YYYY-MM-DD; "" whenever summary is ""
-    featured: str = ""         # the featured product's stored listing title
+    featured: str = ""         # the featured product's stored name
     alternatives: tuple = ()   # runner-up names
+    listing: str = ""          # `featured` when Amazon is its source, else ""
 
     @property
     def usable(self) -> bool:
@@ -555,13 +556,18 @@ def feedback_sources(product) -> FeedbackSources:
     """The one accessor for an entry's summary: cleaned and dated once. A
     summary with no valid read date, or one the entry marks unusable in
     `customer_summary_unusable` (it describes a different item), counts as no
-    summary."""
+    summary. The name is a listing title the post may credit only when the
+    entry marks it read off Amazon (`name_source: "amazon"`, written by
+    refill_products.apply_resolution). A name typed by hand, or an entry
+    written before the marker existed, credits nothing."""
     product = product or {}
+    name = product.get("name") or ""
     sources = FeedbackSources(
         clean_customer_summary(product.get("customer_summary")),
         strict_iso_date(product.get("customer_summary_read_on")),
-        product.get("name") or "",
-        tuple(parse_runners_up(product.get("runners_up") or "")))
+        name,
+        tuple(parse_runners_up(product.get("runners_up") or "")),
+        name if product.get("name_source") == "amazon" else "")
     if sources.usable and not product.get("customer_summary_unusable"):
         return sources
     return sources._replace(summary="", read_on="")
@@ -580,7 +586,7 @@ def find_crowd_claims_for(text: str, sources: FeedbackSources = None,
     """find_crowd_claims with the entry's product names read as names and its
     listing title as the one source a crowd term may be credited to."""
     sources = sources or FeedbackSources()
-    return find_crowd_claims(text, sources.names, allow_block, listing=sources.featured)
+    return find_crowd_claims(text, sources.names, allow_block, listing=sources.listing)
 
 
 def find_pin_desc_problems(pin_desc: str, sources: FeedbackSources = None) -> list:
@@ -2952,9 +2958,9 @@ def front_matter(title: str, keyword: str, affiliate_url: str, slug: str,
     # tests can check them after the entry is retired: the summary the block
     # quotes, and the listing title a credited crowd term must come from.
     sources = sources or FeedbackSources()
-    if sources.featured:
-        fm += f'listing_title: "{yaml_quote(sources.featured)}"\n'
-    if sources.usable:
+    if sources.listing:
+        fm += f'listing_title: "{yaml_quote(sources.listing)}"\n'
+    if summary_block_for(sources):
         fm += (f'customer_summary: "{yaml_quote(sources.summary)}"\n'
                f'customer_summary_read_on: {sources.read_on}\n')
     fm += '---\n'
