@@ -12,30 +12,32 @@ Pinterest posting is handled separately via post_pins.py -> IFTTT webhooks.
 # Facebook message hooks -- keyed by slug fragment, fallback to title-derived.
 # Add new entries here as the article library grows rather than editing the
 # append logic. Hooks must be second-person or third-person only -- no I/we/us/our/my.
+# They follow the post copy rules: no crowd claims, no promises, no unsourced
+# facts. Each one says what the post covers (test_pipeline.TestFbMessage).
 # ---------------------------------------------------------------------------
 _FB_HOOKS: dict[str, str] = {
-    'joint-supplement':   "Stiff joints don't have to slow your dog down. These supplements actually work.",
-    'dental-chew':        "Clean teeth, fresh breath, happy dog. The chews that actually deliver.",
-    'calming-treat':      "Calm your dog without a vet visit. These treats actually soothe anxiety.",
-    'anxiety-vest':       "Thunder, fireworks, separation -- these vests help your dog keep calm when it counts.",
-    'probiotic':          "Gut health is everything. The right probiotic keeps your dog's digestion running smooth.",
-    'puzzle-toy':         "Bored dogs are destructive dogs. These puzzle toys burn energy and keep them sharp.",
-    'backpack-carrier':   "Carry your pup hands-free on any trail. Built for the long haul.",
-    'life-jacket':        "Water adventures are safer with the right vest. Here's the one worth trusting.",
-    'nail-grinder':       "No more nail-trim dread. This grinder is quiet, safe, and dog-approved.",
-    'harness-leash':      "The right harness makes all the difference for outdoor cats. Here's what actually fits.",
-    'window-perch':       "A sunny perch changes everything for an indoor cat. Here's the one worth buying.",
-    'cat-bed':            "Cozy cats swear by these lounge-worthy beds -- find the perfect spot for your napper.",
-    'kitten-food':        "Give your kitten the best start -- top-rated food for growth, immunity, and a shiny coat.",
-    'calming-product':    "Stressed cats hide it well. These calming products actually make a difference.",
-    'cat-litter':         "The secret to a mess-free litter area starts with the right box.",
-    'puppy-food':         "Fuel your puppy's growth with food that actually delivers -- without filler.",
-    'wet-cat-food':       "Picky cats devour this. Real food your feline will actually eat.",
-    'dog-food':           "Dogs who eat well, live well. These top-rated foods make every meal count.",
-    'flea':               "Flea season doesn't have to be a nightmare. Here's what actually works.",
-    'tick':               "Keep ticks off your pet without harsh chemicals. Here's the smart way to protect them.",
-    'shampoo':            "Bath time doesn't have to be a battle. The right shampoo makes all the difference.",
-    'brush':              "A good brush is the foundation of a healthy coat. Here's the one groomers reach for.",
+    'joint-supplement':   "Joint supplements for dogs, compared by ingredient, dose and form.",
+    'dental-chew':        "Dental chews for dogs: what to check before you buy.",
+    'calming-treat':      "How calming treats for dogs differ: active ingredient, dose and form.",
+    'anxiety-vest':       "Anxiety vests for dogs, compared by fit, fabric and sizing.",
+    'probiotic':          "Probiotics for dogs: what to read on the label before you buy.",
+    'puzzle-toy':         "How dog puzzle toys differ: difficulty, material and cleanup.",
+    'backpack-carrier':   "Backpack carriers for dogs, compared by weight limit, straps and airflow.",
+    'life-jacket':        "Life jackets for dogs: how to check fit, handles and sizing.",
+    'nail-grinder':       "How dog nail grinders differ: speed settings, guards and charging.",
+    'harness-leash':      "Harness and leash sets for cats, compared by fit and adjustment.",
+    'window-perch':       "Window perches for cats: mount type, size and weight limit, side by side.",
+    'cat-bed':            "Cat beds, compared by shape, size and washable covers.",
+    'kitten-food':        "Kitten food: what to read on the label before you buy.",
+    'calming-product':    "How calming products for cats differ, and how each one is used.",
+    'cat-litter':         "Cat litter and litter boxes, compared by type, size and cleanup.",
+    'puppy-food':         "Puppy food, compared by protein source and breed size.",
+    'wet-cat-food':       "How wet cat foods differ: protein, texture and ingredients.",
+    'dog-food':           "Dog food: what to read on the label before you buy.",
+    'flea':               "Flea treatments for pets, compared by type and how often each is applied.",
+    'tick':               "How tick treatments differ: type and how often each is applied.",
+    'shampoo':            "Pet shampoos: ingredients and coat type, side by side.",
+    'brush':              "Pet brushes, compared by bristle type and coat length.",
 }
 
 # Varied fallback hooks for slugs without a curated _FB_HOOKS entry, so
@@ -103,7 +105,7 @@ from pathlib import Path
 
 REPO_DIR            = Path(__file__).parent
 import sys as _sys; _sys.path.insert(0, str(REPO_DIR))
-from json_io import atomic_write_json
+from json_io import write_products
 try:
     from brain_secrets import (get_sheets_creds as _vault_sheets_creds,
                                get_secret as _vault_get_secret,
@@ -243,7 +245,7 @@ def retire_from_products(slug: str) -> int:
         # read-modify-write of products.json on an ephemeral CI runner that can be
         # cancelled or OOM-killed mid-step, and a truncated products.json takes the
         # whole pipeline down until a human repairs it. Same reason json_io exists.
-        atomic_write_json(p, products, indent=2)
+        write_products(p, products)
         log(f'  RETIRED: {slug} removed from products.json ({before} -> {len(products)} entries)')
         try:
             import sqlite3 as _sq

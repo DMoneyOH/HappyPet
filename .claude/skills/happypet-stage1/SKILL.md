@@ -31,11 +31,12 @@ step. Never call OpenRouter or any external model. Run from the repo root with
    - Dispatch a subagent with `model: sonnet` whose entire task is: read
      `LOOP/revprompt.txt`, follow it, and return ONLY the scorecard JSON. Save its
      reply to `LOOP/card.json`.
-4. **Gate (deterministic):** `python stage1_cli.py gate --body LOOP/body.md --scorecard LOOP/card.json`.
+4. **Gate (deterministic):** `python stage1_cli.py gate --slug <slug> --body LOOP/body.md --scorecard LOOP/card.json` (the slug supplies the entry's link, alternatives and product names). The body carries no buyer feedback at all: `stage` adds Amazon's customer review summary itself, quoted word for word. The gate also checks `LOOP/pindesc.txt`, beside the body, when it exists.
    - `passed: true` → go to step 6.
    - `passed: false` → note `flags`, go to step 5 (unless attempts exhausted).
 5. **Rewrite (Opus, you):** if attempts remain,
-   `python stage1_cli.py rewrite-prompt --body LOOP/body.md --instructions <flags-file> --title "<title>" --keyword "<keyword>" --affiliate-url "<affiliate_url>" --product-name "<name>" > LOOP/rwprompt.txt`,
+   `python stage1_cli.py rewrite-prompt --slug <slug> --body LOOP/body.md --instructions <flags-file> > LOOP/rwprompt.txt`
+   (`--slug` fills the title, keyword, link and product name from the entry, as on review-prompt; a flag given explicitly wins),
    produce the corrected body, overwrite `LOOP/body.md`, and go back to step 3.
    If `MAX_ATTEMPTS` is hit without a pass → **hold**: do not stage; report the best
    scorecard and the blocking flags. (Phase 1: this is a data point, not a failure.)

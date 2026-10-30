@@ -13,9 +13,13 @@ Happy Pet Product Reviews Generator v22.0 — 3-stage Writer-Judge-Fixer routing
 """
 import os, re, json, datetime, time, urllib.request, urllib.error, urllib.parse, subprocess
 from pathlib import Path
+from typing import NamedTuple
 
-from json_io import atomic_write_json, read_json
+from json_io import read_json, write_products
 import categories
+from buyer_feedback import (clean_customer_summary, find_crowd_claims,
+                            find_summary_block_problems, insert_summary_block,
+                            normalize as normalize_text, prompt_term_list, render_summary_block)
 
 try:
     from dotenv import load_dotenv
@@ -298,13 +302,13 @@ _FIRSTHAND_CLAIM_RE = [re.compile(p, re.IGNORECASE | re.MULTILINE)
 # prompts so the stated rule and the enforced gate can never drift apart.
 FIRSTHAND_CLAIM_RULE = (
     "Never claim firsthand experience with a product. This site researches and "
-    "compares products from retailer specs, star ratings and customer reviews; "
+    "compares products from retailer listings, specs and star ratings; "
     "nobody here tests, tries, owns or handles them. Never write \"we tested\", "
     "\"after testing\", \"Testing found\", \"put it through its paces\", "
     "\"our testing lab\", \"the test dogs\", \"tested by real owners\", "
     "\"firsthand\", or any invented test panel, test household or named test "
-    "pet. Write what is true instead: what the specs say, what owner reviews "
-    "repeatedly mention, and what comparing the options shows."
+    "pet. Write what is true instead: what the specs say and what comparing "
+    "the options shows."
 )
 
 
@@ -312,8 +316,14 @@ def find_firsthand_claims(text: str) -> list:
     """Return every firsthand-experience claim found in `text` (deduped, in
     order of first appearance). Empty list = clean. Used by the output gates,
     by the pin-description gate and by the published-post test guard."""
+    return _collect_hits(_FIRSTHAND_CLAIM_RE, text)
+
+
+def _collect_hits(patterns, text) -> list:
+    """Every match of `patterns` in `text`, whitespace-collapsed, deduped
+    case-insensitively, in order."""
     found, seen = [], set()
-    for rx in _FIRSTHAND_CLAIM_RE:
+    for rx in patterns:
         for m in rx.finditer(text or ""):
             phrase = " ".join(m.group(0).split())
             if phrase.lower() not in seen:
@@ -363,10 +373,9 @@ _QUOTED_SENTENCE = (                            # a quoted span long enough to b
     rf"{_Q}[^\"“”\n]{{{_TESTIMONIAL_MIN_QUOTE_CHARS},600}}{_Q}"
 )
 # Reporting verbs that introduce a quotation. Deliberately excludes the aggregate
-# verbs this site uses honestly and constantly ("owners report that...",
-# "reviewers mention...", "owners rave about...", "describe it as...") -- those
-# are only a problem when they introduce a fabricated verbatim quote, which the
-# sentence-length floor above already discriminates.
+# verbs ("owners report that...", "reviewers mention...", "describe it as...")
+# -- this detector judges quotes only. Aggregate feedback is
+# buyer_feedback.find_crowd_claims' job.
 _REPORTING_VERB = (
     r"(?:writes|wrote|says|said|notes|noted|reports|reported|explains|explained|"
     r"clarifies|clarified|adds|added|recalls|recalled|comments|commented|"
@@ -420,10 +429,8 @@ NAMED_TESTIMONIAL_RULE = (
     "attributed to a first name, an initialed name, a demographic byline "
     "(\"Samantha, 38, Portland, OR\"), a \"verified buyer\", an \"Amazon "
     "reviewer\", or a \"reviewer on Reddit\", and never invent a reviewer "
-    "username, star-rating date or review that you were not given. Summarize "
-    "what reviewers say in aggregate instead -- \"owners repeatedly mention the "
-    "handle\", \"the common complaint is the sizing\" -- with no quotation marks "
-    "around a statement and no speaker attached to it."
+    "username, star-rating date or review that you were not given. Buyer "
+    "feedback follows the buyer-feedback rule: write none."
 )
 
 
@@ -432,14 +439,165 @@ def find_named_testimonials(text: str) -> list:
     (deduped, in order of first appearance). Empty list = clean. Used by both
     output gates, by authoritative_gate, by stage_article and by the
     published-post test guard, so the gate and the corpus check cannot drift."""
-    found, seen = [], set()
-    for rx in _NAMED_TESTIMONIAL_RE:
-        for m in rx.finditer(text or ""):
-            phrase = " ".join(m.group(0).split())
-            if phrase.lower() not in seen:
-                seen.add(phrase.lower())
-                found.append(phrase)
+    return _collect_hits(_NAMED_TESTIMONIAL_RE, text)
+
+
+# --- Buyer feedback: code adds it, the writer never states it ----------------
+# products.json held no review text, yet the prompts once asked the generator to
+# "summarize what reviewers say", so every "owners report" line it wrote was
+# invented. Buyer feedback now comes from one place: the featured product's
+# Amazon customer review summary, quoted word for word in a marked block that
+# stage_article adds (buyer_feedback.render_summary_block). The writer, the
+# reviewer and the rewriter never see the summary, and any crowd, opinion or
+# popularity term in what they write is refused (buyer_feedback.CROWD_TERMS).
+# A vet or doctor endorsement is refused even when the listing title carries
+# it; only the verbatim product name in a heading keeps its own words.
+# The post carries one date for the summary: the block's "read <date>" lead.
+
+# The reviewer prompt's audit category for buyer feedback. The prompt and the
+# scorecard parser both read this number.
+BUYER_FEEDBACK_CATEGORY = 25
+
+# One block of rule text, shared by the generator, reviewer and rewrite prompts
+# so the stated rule and the enforced gate cannot drift apart.
+BUYER_FEEDBACK_RULE = (
+    "Write no buyer feedback. When Amazon publishes a customer review summary "
+    "for the featured product, code adds it to the post, quoted word for word, "
+    "so never paraphrase it, preview it or refer to it. Do not say what anyone "
+    "thinks, says, reports, chooses or keeps buying, and do not call anything "
+    "popular, a favorite or a best seller. These terms are refused anywhere in "
+    "the article and the pin description: " + prompt_term_list() + ". Allowed: "
+    "the star rating and review count you were given, written as figures; "
+    "\"ask your vet\"; advice in second person (\"if your dog chews hard, "
+    "pick the XL\"). Never call a product vet- or doctor-recommended, approved, "
+    "backed or tested, even when its listing title says so; the Featured Pick "
+    "heading is the one place the product name appears exactly as given."
+)
+
+# First person is the site's own voice for its picks and judgments (HappyPet
+# copy decision, 2026-10-28). The firsthand-claim rule still governs
+# experience and testing.
+FIRST_PERSON_RULE = (
+    "First-person voice is fine for the site's own picks and judgments: use "
+    "we, us or our (\"our pick\", \"in our judgment\", \"we would skip it for a "
+    "heavy chewer\"). Never use I, me or my, and never use first person to "
+    "describe experience, testing, ownership or a story."
+)
+
+# The code half of FIRST_PERSON_RULE: "we/our" stays legal, "I/me/my" never.
+# Quoted spans, link text, URLs and inline code are not the site's voice, and a
+# question is the reader's ("Which size do I need?"). "Type I" is a numeral.
+_FIRST_PERSON_SINGULAR = re.compile(
+    r"(?<![\w'\u2019-])(?P<word>[\w'\u2019-]+\s+)?(?<![\w'\u2019-])"
+    r"(?:I(?:['\u2019](?:m|ve|d|ll))?|[Mm]e|[Mm]y|[Mm]ine|[Mm]yself)(?![\w'\u2019-])")
+_NUMERAL_LEAD = {"type", "phase", "class", "stage", "grade", "level", "part", "size",
+                 "schedule", "vitamin", "tier", "category", "group", "model"}
+_SENTENCE = re.compile(r"[^.!?\n]+[.!?]?")
+
+
+def find_first_person_singular(text: str) -> list:
+    """Every sentence in `text` that speaks as I, me or my (deduped, in order).
+    Empty list = clean. Used by validate_output, both scorecard gates and the
+    pin-description check."""
+    t = re.sub(r"`[^`]*`", " ", normalize_text(text))
+    t = re.sub(r"!?\[[^\]]*\]\([^)]*\)", " ", t)
+    t = re.sub(r"https?://\S+", " ", t)
+    t = re.sub(r"[\"\u201c][^\"\u201c\u201d\n]*[\"\u201d]", " ", t)
+    found = []
+    for sm in _SENTENCE.finditer(t):
+        sentence = " ".join(sm.group(0).split())
+        if sentence.endswith("?") or not any(
+                (m.group("word") or "").strip().lower() not in _NUMERAL_LEAD
+                for m in _FIRST_PERSON_SINGULAR.finditer(sentence)):
+            continue
+        if sentence[:120] not in found:
+            found.append(sentence[:120])
     return found
+
+
+_STRICT_ISO_DATE = re.compile(r"\d{4}-\d{2}-\d{2}")
+
+
+def strict_iso_date(value) -> str:
+    """`value` when it is a real date written exactly YYYY-MM-DD, else ""."""
+    if isinstance(value, str) and _STRICT_ISO_DATE.fullmatch(value):
+        try:
+            datetime.date.fromisoformat(value)
+            return value
+        except ValueError:
+            pass
+    return ""
+
+
+class FeedbackSources(NamedTuple):
+    """What a post's summary block may quote, the names the crowd-term gate
+    reads as names. The default is "nothing to quote"."""
+    summary: str = ""          # cleaned Amazon summary; "" = none usable
+    read_on: str = ""          # YYYY-MM-DD; "" whenever summary is ""
+    featured: str = ""         # the featured product's stored name
+    alternatives: tuple = ()   # runner-up names
+
+    @property
+    def usable(self) -> bool:
+        """The one test of "there is a summary to quote": a summary (cleaned
+        by feedback_sources) with a real YYYY-MM-DD read date."""
+        return bool(self.summary and strict_iso_date(self.read_on))
+
+    @property
+    def names(self) -> tuple:
+        """Product names, read as names: "MidWest Homes for Pets" is a crate."""
+        featured = (self.featured, short_product_name(self.featured)) if self.featured else ()
+        return tuple(featured) + tuple(self.alternatives)
+
+
+def feedback_sources(product) -> FeedbackSources:
+    """The one accessor for an entry's summary: cleaned and dated once. A
+    summary with no valid read date, or one the entry marks unusable in
+    `customer_summary_unusable` (it describes a different item), counts as no
+    summary."""
+    product = product or {}
+    sources = FeedbackSources(
+        clean_customer_summary(product.get("customer_summary")),
+        strict_iso_date(product.get("customer_summary_read_on")),
+        product.get("name") or "",
+        tuple(parse_runners_up(product.get("runners_up") or "")))
+    if sources.usable and not product.get("customer_summary_unusable"):
+        return sources
+    return sources._replace(summary="", read_on="")
+
+
+def summary_block_for(sources: FeedbackSources) -> str:
+    """The block stage_article adds for `sources`, or "" when there is no
+    usable summary."""
+    if not sources.usable:
+        return ""
+    return render_summary_block(sources.summary, as_of_text(sources.read_on))
+
+
+def find_crowd_claims_for(text: str, sources: FeedbackSources = None,
+                          allow_block: bool = False) -> list:
+    """find_crowd_claims with the entry's product names read as names."""
+    sources = sources or FeedbackSources()
+    return find_crowd_claims(text, sources.names, allow_block)
+
+
+def find_pin_desc_problems(pin_desc: str, sources: FeedbackSources = None) -> list:
+    """Everything that keeps a pin description from publishing. Empty list =
+    clean. The pin description is also the front matter `description` and
+    the Pinterest text, so it carries no summary block and no buyer feedback
+    of any kind. The one check used by main(), front_matter() and
+    stage1_cli's gate and stage."""
+    return ([f"firsthand claim {c!r}" for c in find_firsthand_claims(pin_desc)]
+            + [f"first person singular {s!r}" for s in find_first_person_singular(pin_desc)]
+            + [f"buyer feedback {c}" for c in find_crowd_claims_for(pin_desc, sources)])
+
+
+def assert_pin_desc_clean(stage: str, pin_desc: str, slug: str,
+                          sources: FeedbackSources = None) -> None:
+    """Hold a post whose pin description fails find_pin_desc_problems."""
+    problems = find_pin_desc_problems(pin_desc, sources)
+    if problems:
+        raise GenerationStageError(f"[{stage}] {slug}: pin description: {problems}")
 
 
 # ---------------------------------------------------------------------------
@@ -719,7 +877,7 @@ QUESTION_BLOCK_RULE = (
     "the pick. Question block: after the last section of the structure and "
     "before the closing paragraph (in a single review, before the Verdict), write "
     f"exactly {QUESTION_MIN_COUNT} H2 sections whose headings are questions a "
-    "shopper would type, each ending in a question mark. Under each, write one "
+    "reader would type, each ending in a question mark. Under each, write one "
     f"answer of {QUESTION_ANSWER_MIN} to {QUESTION_ANSWER_MAX} words that makes "
     "sense read on its own: name the product or the topic instead of \"it\" or "
     "\"the pick above\", and use only facts given in this brief. No other H2 in "
@@ -956,9 +1114,11 @@ REVIEW_SCHEMA = {
         "ai_patterns_found": {"type": "array", "items": {"type": "string"}},
         "flags": {"type": "array", "items": {"type": "string"}},
         "rewrite_instructions": {"type": "string"},
+        "unbacked_buyer_feedback": {"type": "array", "items": {"type": "string"}},
     },
     "required": ["pass", "scores", "affiliate_link_present", "em_dash_count",
-                 "ai_patterns_found", "flags", "rewrite_instructions"],
+                 "ai_patterns_found", "flags", "rewrite_instructions",
+                 "unbacked_buyer_feedback"],
     "additionalProperties": False,
 }
 
@@ -1207,7 +1367,7 @@ def enrich_with_chewy(slug: str, product: dict) -> bool:
                 entry["chewy_stock"]  = result.get("chewy_stock")
                 entry["chewy_rating"] = result.get("chewy_rating")
                 break
-        atomic_write_json(json_path, raw)
+        write_products(json_path, raw)
         log(f"  [chewy] products.json updated for {slug}: {url[:60]}")
         return True
     except Exception as e:
@@ -1473,6 +1633,20 @@ def assert_no_named_testimonials(stage: str, text: str, slug: str) -> None:
         )
 
 
+def assert_no_crowd_claims(stage: str, text: str, slug: str,
+                           sources: FeedbackSources = None) -> None:
+    """Hold written text that names a crowd, an opinion or popularity. Buyer
+    feedback reaches a post only as the summary block stage_article adds, so
+    the writer's text carries none and a block in it is refused too. Called
+    at both output gates and inside stage_article (the backstop)."""
+    claims = find_crowd_claims_for(text, sources)
+    if claims:
+        raise GenerationStageError(
+            f"[{stage}] {slug}: buyer feedback or crowd wording in written text "
+            f"(code adds Amazon's summary on its own): {claims}"
+        )
+
+
 def assert_no_unbacked_affiliate_links(stage: str, text: str, slug: str,
                                        affiliate_url: str = "") -> None:
     """Hold anything that links a product the pipeline has no record of.
@@ -1532,7 +1706,8 @@ def assert_alternatives_are_backed(stage: str, text: str, slug: str,
 
 
 def validate_output(stage: str, content: str, slug: str, affiliate_url: str = "",
-                    runners_up: str = None, product_name: str = "") -> None:
+                    runners_up: str = None, product_name: str = "",
+                    sources=None) -> None:
     """
     Output contract gate. Raises GenerationStageError on violation.
     Called after each pipeline stage. GHA step captures non-zero exit.
@@ -1558,6 +1733,10 @@ def validate_output(stage: str, content: str, slug: str, affiliate_url: str = ""
     present (find_question_block_problems). Like the affiliate link, it is not
     required at the generate gate, so the rewrite pass can still add it.
     `product_name` enables the check that the lead names the top pick.
+
+    Any crowd, opinion or popularity term fails both gates: the writer states
+    no buyer feedback, and stage_article adds the summary block after these
+    gates. `sources` only supplies the product names read as names.
     """
     MIN_WORD_COUNT   = 700
     MIN_CHARS        = 2000
@@ -1575,6 +1754,12 @@ def validate_output(stage: str, content: str, slug: str, affiliate_url: str = ""
         )
     assert_no_firsthand_claims(stage, content, slug)
     assert_no_named_testimonials(stage, content, slug)
+    singular = find_first_person_singular(content)
+    if singular:
+        raise GenerationStageError(
+            f"[{stage}] {slug}: first person singular (I, me, my) in the site's "
+            f"voice: {singular}")
+    assert_no_crowd_claims(stage, content, slug, sources)
     assert_no_unbacked_affiliate_links(stage, content, slug, affiliate_url)
     # Affiliate link required only at Gate 2 (post-review); rewrite has a chance to inject it first
     if stage == "review":
@@ -1605,15 +1790,63 @@ def validate_output(stage: str, content: str, slug: str, affiliate_url: str = ""
 REVIEW_SCORE_MINIMUMS = {"human_voice": 3, "warmth": 3, "readability": 3, "accuracy": 3}
 
 
-def evaluate_scorecard(scorecard: dict, content: str) -> tuple:
+# "25: ...", "25 - ...", "25 – ...", "#25.", "Category 25)", never "250:".
+_CATEGORY_RE = re.compile(
+    rf"\s*(?:category\s*)?#?\s*{BUYER_FEEDBACK_CATEGORY}\s*[:.)\-–—]", re.IGNORECASE)
+
+
+def reviewer_buyer_feedback_flags(scorecard: dict, content: str,
+                                  sources: FeedbackSources = None) -> list:
+    """The reviewer's own buyer-feedback verdict (category
+    BUYER_FEEDBACK_CATEGORY), read from structure rather than from its prose:
+    every sentence in `unbacked_buyer_feedback`, and any ai_patterns_found
+    entry with that number. Fails closed when the field is missing or
+    malformed and the body carries a crowd term. A second line of defence
+    behind find_crowd_claims. Empty list = nothing to fail on."""
+    flags = []
+    value = scorecard.get("unbacked_buyer_feedback")
+    if isinstance(value, list):
+        flags += [f"reviewer_unbacked_buyer_feedback={str(v)[:120]!r}"
+                  for v in value if str(v).strip()]
+    elif isinstance(value, str) and value.strip():
+        flags.append(f"reviewer_unbacked_buyer_feedback={value[:120]!r}")
+    elif value is not None and not isinstance(value, str):
+        flags.append(f"reviewer_unbacked_buyer_feedback_malformed={type(value).__name__}")
+    if not isinstance(value, list) and not flags and find_crowd_claims_for(content, sources):
+        flags.append("reviewer_did_not_report_unbacked_buyer_feedback")
+    for pattern in scorecard.get("ai_patterns_found") or []:
+        if _CATEGORY_RE.match(str(pattern)):
+            flags.append(f"reviewer_category_{BUYER_FEEDBACK_CATEGORY}={str(pattern)[:120]!r}")
+    return flags
+
+
+def body_rule_flags(scorecard: dict, content: str, sources: FeedbackSources = None) -> list:
+    """Every hard rule both scorecard gates read off the actual body rather
+    than off the reviewer's word: a real em dash, first person singular, a
+    quote attributed to a named individual, a crowd or popularity term, and
+    the reviewer's structured buyer-feedback verdict. Empty list = clean. The
+    one list evaluate_scorecard and authoritative_gate share."""
+    flags = []
+    if "—" in content:  # real U+2014 em dash in the body
+        flags.append("em_dash_in_body")
+    flags += [f"first_person_singular_in_body={s!r}" for s in find_first_person_singular(content)]
+    flags += [f"named_testimonial_in_body={q[:120]!r}" for q in find_named_testimonials(content)]
+    flags += [f"buyer_feedback_in_body={c[:160]!r}" for c in find_crowd_claims_for(content, sources)]
+    return flags + reviewer_buyer_feedback_flags(scorecard, content, sources)
+
+
+def evaluate_scorecard(scorecard: dict, content: str, sources: FeedbackSources = None) -> tuple:
     """
     Decide pass/fail from a reviewer scorecard WITHOUT trusting the model's
     self-reported `pass`, numeric scores, or em-dash count on their own.
 
     Deterministic overrides (any one fails the article):
       - every numeric score must clear its minimum (REVIEW_SCORE_MINIMUMS)
-      - an em dash present in the actual body (checked here, not the model's count)
       - accuracy/fabrication keywords in the flags
+      - every rule in body_rule_flags, read off the actual body: an em dash
+        (not the model's count), first person singular, a named testimonial,
+        a crowd or popularity term, and the reviewer's structured
+        buyer-feedback verdict (a missing field fails closed)
 
     Returns (passed: bool, flags: list).
     """
@@ -1629,16 +1862,6 @@ def evaluate_scorecard(scorecard: dict, content: str) -> tuple:
                 flags.append(f"{key}={val} below minimum {minimum}")
             passed = False
 
-    # Em dashes: trust ONLY the real body (deterministic, accurate). The model's
-    # self-reported em_dash_count is advisory -- reviewer LLMs mislabel hyphenated
-    # compounds ("extra-large") as em dashes, which would falsely hold a clean
-    # article. Em dashes are stripped before review (scrub_typography) and any
-    # real one left in the body is caught here.
-    if "—" in content:
-        if passed:
-            flags.append("em_dash_in_body")
-        passed = False
-
     # Accuracy/fabrication flags always fail regardless of pass=true
     accuracy_keywords = ("fabricat", "unverif", "invent", "statistic", "percentag",
                          "specific number", "no source", "not verif", "made up",
@@ -1646,17 +1869,25 @@ def evaluate_scorecard(scorecard: dict, content: str) -> tuple:
     if flags and any(kw in " ".join(str(f) for f in flags).lower() for kw in accuracy_keywords):
         passed = False
 
+    # The hard rules are read off the real body, never the reviewer's word
+    # (reviewer LLMs mislabel hyphenated compounds such as "extra-large" as
+    # em dashes, for one).
+    for flag in body_rule_flags(scorecard, content, sources):
+        passed = False
+        flags.append(flag)
+
     return passed, flags
 
 
-def authoritative_gate(scorecard: dict, content: str) -> tuple:
+def authoritative_gate(scorecard: dict, content: str, sources: FeedbackSources = None) -> tuple:
     """Decide pass/fail for the internal Claude routine WITHOUT trusting the
     reviewer's self-reported `pass`. Unlike evaluate_scorecard (which seeds from
     `pass` and can only downgrade -- the asymmetry that held a clean article on a
     hallucinated em-dash veto), this starts from PASS and downgrades only on:
       - a numeric score below its REVIEW_SCORE_MINIMUMS floor,
-      - a real em dash in the actual body (deterministic, not the model's count),
-      - a quote attributed to a named individual in the actual body (ditto),
+      - every rule in body_rule_flags, read off the actual body (em dash,
+        first person singular, named testimonial, crowd term, the reviewer's
+        structured buyer-feedback verdict),
       - an EXPLICIT fabrication callout (fabricated/invented/made-up) in the flags.
     Returns (passed: bool, flags: list).
     """
@@ -1670,22 +1901,13 @@ def authoritative_gate(scorecard: dict, content: str) -> tuple:
             passed = False
             flags.append(f"{key}={val} below minimum {minimum}")
 
-    if "—" in content:  # real U+2014 em dash in the body
-        passed = False
-        flags.append("em_dash_in_body")
-
-    # A quote attributed to a named individual, read off the actual body rather
-    # than off the reviewer's flags. This is the same deterministic-over-advisory
-    # move as the em-dash check above, and it exists because the keyword scan
-    # below cannot cover this class: ee2fe31 narrowed that scan to explicit
+    # Read off the actual body rather than off the reviewer's flags. The
+    # keyword scan below cannot cover these: ee2fe31 narrowed it to explicit
     # fabrication verbs, so a reviewer who describes a fake testimonial in the
-    # natural words ("quote is unverified", "no source for the reviewer") no
-    # longer hard-fails the article. Narrowing the scan was right -- it was
-    # false-failing verified figures -- but it left this defect resting entirely
-    # on whether an LLM happens to pick the word "fabricated".
-    for quote in find_named_testimonials(content):
+    # natural words ("quote is unverified") no longer hard-fails the article.
+    for flag in body_rule_flags(scorecard, content, sources):
         passed = False
-        flags.append(f"named_testimonial_in_body={quote[:120]!r}")
+        flags.append(flag)
 
     # Only UNAMBIGUOUS fabrication verbs hard-fail. Cautionary reviewer prose
     # ("no source", "unverified", "statistic", "specific number") is NOT treated
@@ -1789,10 +2011,12 @@ def build_verified_facts(product: dict) -> str:
 
 def make_review_prompt(title: str, keyword: str, content: str, verified_facts: str = "") -> str:
     """
-    Full 23-category AI writing audit built from the avoid-ai-writing catalog
+    Full 25-category AI writing audit built from the avoid-ai-writing catalog
     and beautiful-prose style contract. Replaces the 6-pattern legacy prompt.
     `verified_facts` (optional): the featured product's retailer-verified figures;
     when given, the reviewer is told to treat them as fact and not flag them.
+    The reviewer never sees the Amazon customer summary: the article carries
+    no buyer feedback, and code adds the summary block after review.
     """
     content_sample = content[:15000] if len(content) > 15000 else content
     verified_block = ""
@@ -1849,7 +2073,7 @@ accuracy:
   2 = Multiple unverified specs presented as fact.
   1 = Significant factual errors or invented specifications.
 
-=== 24-CATEGORY AI PATTERN AUDIT ===
+=== 25-CATEGORY AI PATTERN AUDIT ===
 
 Check every category. Flag every violation found.
 
@@ -1869,7 +2093,7 @@ Check every category. Flag every violation found.
 13. SIGNIFICANCE INFLATION — Flag language that makes ordinary products sound historic or transformative (the trigger words are in category 10).
 14. SYNONYM CYCLING — Flag if the same concept is described with 3+ different synonyms in one article
     purely for variety (e.g. "purchase" → "acquire" → "obtain" → "procure").
-15. VAGUE ATTRIBUTIONS — Flag unsourced attributions from category 10 (e.g. "experts say", "studies show") used without naming a specific source. A hedge grounded in owners ("owners tend to...") is fine.
+15. VAGUE ATTRIBUTIONS — Flag unsourced attributions from category 10 (e.g. "experts say", "studies show") used without naming a specific source. Owner and buyer attributions are category {BUYER_FEEDBACK_CATEGORY}.
 16. FILLER PHRASES — Flag any filler phrase from category 10 (e.g. "It's no secret that", "Let's face it", "The fact of the matter is").
 17. GENERIC CONCLUSIONS — Flag conclusions that restate the intro, summarize without adding new information,
     or end with a generic call to action not tied to a specific product or action.
@@ -1883,22 +2107,27 @@ Check every category. Flag every violation found.
     (e.g. "The Best Features Of This Product" should be "The best features of this product").
 22. FALSE FIRSTHAND CLAIMS — {FIRSTHAND_CLAIM_RULE}
     Flag every sentence that claims or implies the site handled the product, including an
-    invented test panel, test household, testing lab or named test pet. Attributing an
-    observation to owner reviews ("owners report", "reviewers mention") is fine; claiming
-    the observation was made here is not. This one is a legal exposure, not a style note.
+    invented test panel, test household, testing lab or named test pet. Claiming the
+    observation was made here is the failure. This one is a legal exposure, not a style note.
 23. INVENTED NAMED TESTIMONIALS — {NAMED_TESTIMONIAL_RULE}
     Flag every quoted statement with a speaker attached to it, in any arrangement: speaker
     before the quote ('Reviewer "J.T." writes, "..."'), speaker after it ('"..." - Megan T.,
     verified buyer'), or speaker as a label ('**Samantha, 38, Portland, OR:** "..."'). Also
-    flag an invented review date, reviewer username or star-rating attribution. Aggregate
-    sentiment with no quotation marks and no speaker is fine and is what the section should
-    contain. This one is a legal exposure, not a style note.
+    flag an invented review date, reviewer username or star-rating attribution. Unquoted
+    buyer feedback is judged under category 25. This one is a legal exposure, not a style note.
 24. UNBACKED PRODUCT PICKS — {UNBACKED_PICK_RULE}
     Flag every affiliate link after the first: one article carries exactly one. Flag any
     link that looks composed or placeholder ("amzn.to/xyz1"). Flag every star rating,
     review count, price, dimension, material percentage, dosage or cited study attached to
     a product that is NOT the featured one -- there is no source for any of them. A reader
     can try to buy what the article describes, so this one is a legal exposure too.
+{BUYER_FEEDBACK_CATEGORY}. BUYER FEEDBACK — {BUYER_FEEDBACK_RULE}
+    The article must contain no buyer feedback at all. Flag every sentence that says what
+    customers, buyers, owners, reviewers, people or any other group think, say, report,
+    choose or buy, and every sentence that calls a product popular, a favorite, a best
+    seller, top-rated or well loved, with or without a named group. Copy each such
+    sentence, word for word, into unbacked_buyer_feedback. Presenting invented feedback as
+    what customers said is a fake-review exposure, not a style note.
 
 === PASS CRITERIA (ALL must be true) ===
 
@@ -1908,7 +2137,8 @@ Check every category. Flag every violation found.
 - accuracy >= {REVIEW_SCORE_MINIMUMS['accuracy']}
 - affiliate_link_present = true (an Amazon affiliate link -- amzn.to/... or amazon.com/dp/... -- is present)
 - em_dash_count = 0 (any em dash = FAIL, no exceptions)
-- NO first-person voice (I, we, us, our, my used as author voice = FAIL regardless of scores)
+- NO first-person voice outside the site's own picks and judgments ({FIRST_PERSON_RULE} Anything else = FAIL regardless of scores)
+- NO buyer feedback of any kind (category {BUYER_FEEDBACK_CATEGORY} = FAIL regardless of scores)
 - NO claim of firsthand experience with the product (category 22 = FAIL regardless of scores)
 - NO quote attributed to a named individual (category 23 = FAIL regardless of scores)
 - NO second affiliate link and no invented figure for a non-featured product (category 24 = FAIL regardless of scores)
@@ -1928,7 +2158,8 @@ Begin with {{ and end with }}.
   "em_dash_count": 0,
   "ai_patterns_found": [],
   "flags": [],
-  "rewrite_instructions": ""
+  "rewrite_instructions": "",
+  "unbacked_buyer_feedback": []
 }}
 
 Rules:
@@ -1936,7 +2167,8 @@ Rules:
 - flags: list each specific problem as a plain string; empty array if none
 - rewrite_instructions: name exact sections and specific fixes if pass=false; empty string if pass=true. Keep under 250 words -- a truncated response fails JSON parsing and the article is held unreviewed.
 - em_dash_count: exact integer count of (—) characters in article
-- pass=false if em_dash_count > 0, first-person voice present, a firsthand-experience claim present, a quote attributed to a named individual present, a second affiliate link or an invented figure for a non-featured product present, or human_voice < {REVIEW_SCORE_MINIMUMS['human_voice']} or warmth < {REVIEW_SCORE_MINIMUMS['warmth']}
+- unbacked_buyer_feedback: every sentence that states buyer feedback or popularity (category {BUYER_FEEDBACK_CATEGORY}), copied word for word; empty array if none. Any entry fails the article.
+- pass=false if em_dash_count > 0, first-person voice present outside a pick or judgment, buyer feedback present, a firsthand-experience claim present, a quote attributed to a named individual present, a second affiliate link or an invented figure for a non-featured product present, or human_voice < {REVIEW_SCORE_MINIMUMS['human_voice']} or warmth < {REVIEW_SCORE_MINIMUMS['warmth']}
 """
 
 
@@ -1963,20 +2195,21 @@ REWRITE RULES:
 - Fix exactly what the editor flagged. Do not rewrite sections that passed.
 - These hard rules from the original brief still apply -- breaking any one fails the article again:
   - NEVER use em dashes (—). Use hyphens, commas, or shorter sentences.
-  - NEVER use first-person voice (I, we, us, our, my). No personal stories and no named pets. Write in second or third person.
+  - {FIRST_PERSON_RULE} No personal stories and no named pets.
   - {FIRSTHAND_CLAIM_RULE}
   - {NAMED_TESTIMONIAL_RULE}
+  - {BUYER_FEEDBACK_RULE}
   - {UNBACKED_PICK_RULE}
   - {QUESTION_BLOCK_RULE}
   - NEVER invent numbers -- no percentages, review counts, prices, dates, or specs you were not given. If a number is not already in the article, do not add one.
 - Where the editor flagged generic or AI-patterned writing, replace with something SPECIFIC and concrete.
   A specific detail beats a fluent generality every time.
-  BAD: "Many cat owners find this litter box easy to clean."
+  BAD: "This litter box is easy to clean and great for any home."
   GOOD: "The front-entry design means you scoop from the top instead of kneeling on the floor."
 - Where warmth or human voice is flagged, get MORE SPECIFIC in second person -- name a scenario the reader recognizes ("your dog paces the kitchen at 5am") or a concrete frustration. Do NOT invent a personal anecdote, a named pet, a testimonial, or a statistic to sound warmer. Real warmth is specific and grounded, never fabricated.
 - Where transitions feel templated, cut them or rewrite as a direct statement.
   Never use: {_BANNED_TRANSITIONS_STR}.
-- Read your output before returning it. If any sentence could have been written by a content farm, rewrite it. If you added an em dash, a first-person word, or a number that was not in the original, remove it.
+- Read your output before returning it. If any sentence could have been written by a content farm, rewrite it. If you added an em dash, first person outside a pick or judgment, any buyer feedback, or a number that was not in the original, remove it.
 
 Return ONLY clean Markdown. No YAML. No preamble. First line must be:
 PIN_DESC: [one punchy sentence, max 20 words, Pinterest stop-scroll hook]
@@ -1987,7 +2220,7 @@ Then article body immediately after."""
 # (Claude 3.5 Haiku primary, and the chat fallbacks) follow rules placed in the
 # system role and delimited by XML tags far more reliably than the same rules
 # buried in a flat user prompt.
-GENERATOR_SYSTEM_PROMPT = f"""You are a senior writer for Happy Pet Product Reviews, a trusted budget-focused pet product review blog. You write complete, publish-ready posts that read like honest advice from a real, budget-conscious pet owner, never like AI or marketing copy.
+GENERATOR_SYSTEM_PROMPT = f"""You are a senior writer for Happy Pet Product Reviews, a trusted budget-focused pet product review blog. You write complete, publish-ready posts that read like honest advice from a budget-conscious friend who knows pets, never like AI or marketing copy.
 
 An automated reviewer rejects any article that breaks the rules in <writing_rules>. It judges you on exactly these rules, so follow every one of them.
 
@@ -1995,9 +2228,10 @@ An automated reviewer rejects any article that breaks the rules in <writing_rule
 - Tone: conversational, grounded, and slightly skeptical. Avoid the hyper-enthusiastic, overly polished "salesperson" voice. No unearned superlatives ("the best", "the most", "unmatched", "top-tier", "best-in-class") unless you back them with a specific reason.
 - Cadence: vary sentence length. Mix short, punchy sentences with a few longer flowing ones. Do not make every sentence the same length; keep it readable and do not overuse one-word fragments.
 - Verbs: prefer active verbs over be-verbs. Do not let most sentences lean on "is", "are", "was", "were"; specificity comes from verbs.
-- Voice: write ONLY in second person ("your dog", "you'll find") or third person ("owners report", "dogs tend to"). NEVER use first-person voice (I, we, us, our, my). No personal stories, no named pets, no invented testimonials. The reviewer fails any article that uses first person.
+- Voice: write mostly in second person ("your dog", "you'll find") or as a flat statement of what the product is and does ("dogs tend to", "the lid locks"). {FIRST_PERSON_RULE} No personal stories, no named pets, no invented testimonials.
 - Firsthand claims: {FIRSTHAND_CLAIM_RULE} This is a legal line, not a style preference: the article is held and never published if it breaks it.
 - Named testimonials: {NAMED_TESTIMONIAL_RULE} This is a legal line too, and it is enforced in code: the article is held and never published if it breaks it.
+- Buyer feedback: {BUYER_FEEDBACK_RULE} This is a legal line too, and it is enforced in code: the article is held and never published if it breaks it.
 - Unbacked picks: {UNBACKED_PICK_RULE} The link half of this is enforced in code: a second affiliate link holds the article and it is never published.
 - Dashes: NEVER use em dashes (—). Use hyphens, commas, or shorter sentences.
 - Transitions: never use {_BANNED_TRANSITIONS_STR}. Start sentences with the subject or an action; an occasional plain "But", "And", or "So" is fine, but do not lean on them.
@@ -2009,8 +2243,8 @@ An automated reviewer rejects any article that breaks the rules in <writing_rule
 - Participial openings: never open a sentence or section with a windup like "Standing at...", "Looking at...", "Considering...", or "Navigating...". Start with the subject.
 - Synonyms: do not cycle synonyms for the same thing just for variety ("purchase", "acquire", "obtain", "procure"). Pick one word and reuse it.
 - Notability: do not name-drop brands, institutions, or experts that add no real information, and never write chatbot artifacts ("Certainly!", "Of course!", "As an AI", "I hope this helps").
-- Never use these words or phrases: {_BANNED_WORDS_STR}. Use "dog owner" or "cat owner".
-- Facts: only state specs given in the product data. When you lack a number, be concretely specific ("owners of large breeds", "on hardwood floors") rather than leaning on vague attributions ("experts say", "studies show", "research suggests"). NEVER invent dimensions, materials, weight, percentages, statistics, prices, review counts, or dates you were not given. Hedging an unverified claim ("owners tend to...", "works well for...") is fine; inventing a number is not.
+- Never use these words or phrases: {_BANNED_WORDS_STR}. Write "your dog" or "your cat" instead.
+- Facts: only state specs given in the product data. When you lack a number, be concretely specific ("for large breeds", "on hardwood floors") rather than leaning on vague attributions ("experts say", "studies show", "research suggests"). NEVER invent dimensions, materials, weight, percentages, statistics, prices, review counts, or dates you were not given. Hedging an unverified claim ("tends to...", "works well for...") is fine; inventing a number is not.
 - Headings: sentence case, not Title Case. Never start a section with "In conclusion" or "In summary". Never use "Opening" or "Closing" as headings.
 - Opening moment: the first paragraph is the answer-first lead described in <question_block>. In the paragraph after it, when it fits, set a specific second-person moment the reader recognizes ("You step away for a 45-minute Zoom call and come back to a shredded couch cushion."). Show, don't tell. Never open with "We've all been there", "As a pet owner...", a generic fact, or a vague scenario before a product pitch. For purely practical topics, a direct factual opening is fine.
 - Use the focus keyword naturally 4-6 times.
@@ -2096,12 +2330,12 @@ def make_prompt(title: str, keyword: str, slug: str, fmt: str, product: dict,
             f"- LINK FORMAT: Always use the short product name as anchor text: [{short_product_name(product_name)}]({affiliate_url}). NEVER display the raw URL as text or as anchor text. NEVER write [{affiliate_url}]({affiliate_url}).\n"
         )
     if fmt == "single_review":
+        # No buyer-feedback section. It was once asked for always, as "Real
+        # Owner Experiences", with nothing to draw it from. Amazon's own summary
+        # is added by code (stage_article), never written.
         structure = f"""ARTICLE FORMAT: In-depth single product review of {product_name}
-STRUCTURE: Opening (100+ words) | Product Overview (H2) | What We Like (H2, 4-5 features) | What Could Be Better (H2, 2-3 honest drawbacks) | Real Owner Experiences (H2) | Who Should Buy This (H2) | Verdict (H2, 80+ words with affiliate link) | Star rating: **Our Rating: X/5**
-"Real Owner Experiences" means AGGREGATE sentiment drawn from the review pool: the themes owners
-repeat, the common complaint, what the split of opinion looks like. It is prose, not a list of
-people. Do not quote any individual, do not invent a person to quote, and do not give any speaker
-a name, an age, a city or a review date. {NAMED_TESTIMONIAL_RULE}"""
+STRUCTURE: Opening (100+ words) | Product Overview (H2) | What We Like (H2, 4-5 features) | What Could Be Better (H2, 2-3 honest drawbacks) | Who Should Buy This (H2) | Verdict (H2, 80+ words with affiliate link) | Star rating: **Our Rating: X/5**
+NO buyer-feedback section, under any heading."""
     elif fmt == "roundup":
         # Build verified data block — only include fields we actually have
         verified_data = ""
@@ -2131,8 +2365,9 @@ a name, an age, a city or a review date. {NAMED_TESTIMONIAL_RULE}"""
     - Write each as a single prose paragraph, NOT a bullet list
     - Naturally include 1-2 genuine strengths AND 1-2 honest limitations
     - The NAME is the only thing known about these products. Do not state a star rating, a review count, a price, a dimension, a material percentage, a dosage or a study for any of them -- omit numbers entirely
-    - Hedge unverified claims: "tends to...", "most owners find...", "works well for..."
-    - DO NOT fabricate review data like "88% of owners reported..." -- if you don't have the number, don't include one
+    - Hedge unverified claims: "tends to...", "works well for..."
+    - NO buyer feedback for an additional pick, as for every other part of the article
+    - DO NOT fabricate review data like "88% would buy it again" -- if you don't have the number, don't include one
     - Use ONLY the products listed above; do not add or invent others
     - NO link for an additional pick. The featured product's link is the only link in the article
 """
@@ -2179,7 +2414,8 @@ STRUCTURE:
     - Pros bullet list: 3-4 genuine strengths
     - Cons bullet list: 1-2 honest limitations
     - Include affiliate link per LINKING RULE above
-    - Do not fabricate specs; hedge unverified claims ("many owners report..." / "tends to...")
+    - Do not fabricate specs; hedge unverified claims ("tends to...")
+    - No buyer feedback: code adds Amazon's customer review summary after this section
     - NO invented personal stories, named dogs, specific dates, or fabricated test metrics
 {alt_block}
   Buying Guide (H2, 150+ words)
@@ -2284,7 +2520,7 @@ PART 1 -- Specific numbers: Find ALL specific numbers in alternative sections. T
 
 For EACH number found, replace it with hedged language:
 - "4.5-star rating on Amazon" -> "strong ratings on Amazon"
-- "85% of Amazon reviewers" -> "most Amazon reviewers"
+- "85% of Amazon reviewers say X" -> delete the claim; nothing is known about what reviewers of an alternative say
 - "over 12,000 Amazon reviews" -> "thousands of Amazon reviews"
 - "reduce bad breath by up to 80%" -> "shown to significantly reduce bad breath"
 - "over 20 clinical studies" -> "multiple clinical studies"
@@ -2387,8 +2623,9 @@ ARTICLE:
 # from the entry's runners_up names -- so it was a loaded gun with the safety on.
 
 
-def review_and_rewrite(title: str, keyword: str, content: str, api_key: str, or_key: str = "", affiliate_url: str = "", product_name: str = "") -> tuple:
-    """Returns (final_content, passed, flags)"""
+def review_and_rewrite(title: str, keyword: str, content: str, api_key: str, or_key: str = "", affiliate_url: str = "", product_name: str = "", sources: FeedbackSources = None) -> tuple:
+    """Returns (final_content, passed, flags). `sources` is the entry's
+    feedback_sources(); the scorecard gate reads its product names."""
     if not REVIEWER_ENABLED:
         return content, True, []
     for attempt in range(1, MAX_REVIEW_ATTEMPTS + 1):
@@ -2423,7 +2660,7 @@ def review_and_rewrite(title: str, keyword: str, content: str, api_key: str, or_
         # Decide pass/fail in code -- never trust the reviewer's self-reported
         # `pass`, numeric scores, or em-dash count on their own (evaluate_scorecard).
         model_pass    = scorecard.get("pass", False)
-        passed, flags = evaluate_scorecard(scorecard, content)
+        passed, flags = evaluate_scorecard(scorecard, content, sources)
         log_reviewer(f"  REVIEW {'PASS' if passed else 'FAIL'} | human_voice={scores.get('human_voice')} "
             f"warmth={scores.get('warmth')} readability={scores.get('readability')} em_dashes={em_dashes}")
         if passed != model_pass:
@@ -2442,6 +2679,16 @@ def review_and_rewrite(title: str, keyword: str, content: str, api_key: str, or_
             problems = list(flags) + list(scorecard.get("ai_patterns_found") or [])
             instructions = "Fix each of these reviewer findings: " + "; ".join(str(p) for p in problems[:12])
             log_reviewer("  rewrite_instructions empty -- synthesized from flags/patterns", "WARN")
+        else:
+            # The reviewer wrote instructions, or reported nothing at all.
+            # Either way, append what code found that the reviewer did not
+            # flag: a reviewer that passes the prose while code refuses a
+            # sentence would otherwise never tell the rewriter what to fix, and
+            # the same sentence would hold the article three times over.
+            found_in_code = [f for f in flags if f not in (scorecard.get("flags") or [])]
+            if found_in_code:
+                instructions += ("\nAlso fix these, found in code: "
+                                 + "; ".join(str(f) for f in found_in_code[:12]))
         if attempt < MAX_REVIEW_ATTEMPTS and instructions:
             # Stage 3 (rewrite): surgical edits via the REWRITE_CHAIN (DeepSeek V3
             # primary). Ingests the original draft PLUS the JSON critique's
@@ -2677,12 +2924,12 @@ def assert_amazon_figures_labelled(stage: str, body: str, slug: str, price, star
 def front_matter(title: str, keyword: str, affiliate_url: str, slug: str,
                  species: str, category: str, description: str, image: str = "",
                  pin_image: str = "", chewy_url: str = "",
-                 product_short: str = "") -> str:
+                 product_short: str = "", sources: FeedbackSources = None) -> str:
     # `description` is the pin description, and it is the field that published
     # "We tested the top litters so you can finally say goodbye to that smell"
     # on a live monetized page. Every path that writes a post goes through here,
     # so this is where the claim is made structurally impossible.
-    assert_no_firsthand_claims("front_matter", description, slug)
+    assert_pin_desc_clean("front_matter", description, slug, sources)
     today = datetime.date.today().isoformat()
     fm = (
         f'---\nlayout: post\ntitle: "{yaml_quote(title)}"\ndate: {today}\n'
@@ -2699,6 +2946,13 @@ def front_matter(title: str, keyword: str, affiliate_url: str, slug: str,
         fm += f'image: "{image}"\n'
     if pin_image:
         fm += f'pin_image: "{pin_image}"\n'
+    # The sources the post may cite travel with it, so the published-post
+    # tests can check them after the entry is retired: the summary the block
+    # quotes.
+    sources = sources or FeedbackSources()
+    if summary_block_for(sources):
+        fm += (f'customer_summary: "{yaml_quote(sources.summary)}"\n'
+               f'customer_summary_read_on: {sources.read_on}\n')
     fm += '---\n'
     return fm
 
@@ -2725,7 +2979,9 @@ def stage_article(slug: str, product: dict, body: str, pin_desc: str,
     # both land here -- so a fabricated testimonial or a link to a product with
     # no record cannot reach _posts/ even if a future caller is added that skips
     # validate_output.
+    sources = feedback_sources(product)
     assert_no_named_testimonials("stage_article", body, slug)
+    assert_no_crowd_claims("stage_article", body, slug, sources)
     assert_no_unbacked_affiliate_links("stage_article", body, slug,
                                        product.get("affiliate_url", ""))
     # Roundups only: the entry's runners_up is the list of alternatives that
@@ -2746,12 +3002,14 @@ def stage_article(slug: str, product: dict, body: str, pin_desc: str,
     keyword  = product["keyword"]
     species  = product.get("species", "dog")
     category = product.get("category", "")
+    block    = summary_block_for(sources)
 
     fm = front_matter(title, keyword, product.get("affiliate_url", ""), slug,
                       species, category, pin_desc, product.get("image", ""),
                       build_pin_image_url_for_queue(slug),
                       chewy_url=product.get("chewy_url") or "",
-                      product_short=short_product_name(product.get("name", "")))
+                      product_short=short_product_name(product.get("name", "")),
+                      sources=sources)
 
     content_clean = body.lstrip()
     while content_clean.startswith("---"):
@@ -2763,6 +3021,15 @@ def stage_article(slug: str, product: dict, body: str, pin_desc: str,
         content_clean, product.get("price"), product.get("stars"), pulled_on)
     assert_amazon_figures_labelled("stage_article", content_clean, slug,
                                    product.get("price"), product.get("stars"))
+    # Buyer feedback enters the post here and nowhere else: after every scrub,
+    # gate and label, so nothing rewrites the quote. Then the finished text is
+    # checked again, block included.
+    content_clean = insert_summary_block(content_clean, block)
+    problems = (find_summary_block_problems(
+                    content_clean, sources.summary, as_of_text(sources.read_on) if block else "")
+                + find_crowd_claims_for(content_clean, sources, allow_block=True))
+    if problems:
+        raise GenerationStageError(f"[stage_article] {slug}: summary block: {problems}")
 
     article_url = build_url(slug, utm=True, category=category)
     # Pin image source: prefer the curated /images/I/ image -- fetch_image reaches
@@ -2889,12 +3156,13 @@ def main() -> None:
             time.sleep(RPM_SLEEP)
 
             try:
+                sources = feedback_sources(product)
                 writer = build_writer_inputs(slug, product)
                 prompt = writer["user"]
                 content = call_generator(prompt, groq_key, system=writer["system"])
                 log(f"  [timing] generate: {time.monotonic()-_t0:.1f}s")
 
-                pin_desc, content = extract_pin_desc(content, f"{title} - expert reviews and buying guide.")
+                pin_desc, content = extract_pin_desc(content, f"{title} - our picks and buying guide.")
                 log_pin(f"  PIN_DESC: {pin_desc[:60]}")
                 pin_desc = clean_pin_desc(pin_desc, species)
                 if len(content) < 2000:
@@ -2911,8 +3179,9 @@ def main() -> None:
                     # not URLs -- and _sanitize_factcheck_output keeps the
                     # ORIGINAL body whenever the links differ).
                     validate_output("generate", content, slug,
-                                    affiliate_url=product.get("affiliate_url", ""))
-                    assert_no_firsthand_claims("pin_desc", pin_desc, slug)
+                                    affiliate_url=product.get("affiliate_url", ""),
+                                    sources=sources)
+                    assert_pin_desc_clean("pin_desc", pin_desc, slug, sources)
                 except GenerationStageError as e:
                     log(f"  HOLD {slug} -- generation contract failed: {e}", "WARN")
                     held += 1; continue
@@ -2928,7 +3197,11 @@ def main() -> None:
 
                 time.sleep(RPM_SLEEP)
                 or_key_reviewer = os.environ.get("OPENROUTER_API_KEY", "").strip()
-                content, review_passed, review_flags = review_and_rewrite(title, keyword, content, groq_key, or_key=or_key_reviewer, affiliate_url=product.get("affiliate_url", ""), product_name=product.get("name", ""))
+                content, review_passed, review_flags = review_and_rewrite(
+                    title, keyword, content, groq_key, or_key=or_key_reviewer,
+                    affiliate_url=product.get("affiliate_url", ""),
+                    product_name=product.get("name", ""),
+                    sources=sources)
                 log(f"  [timing] review: {time.monotonic()-_t0:.1f}s")
                 if not review_passed:
                     create_github_issue(title, slug, review_flags)
@@ -2947,7 +3220,8 @@ def main() -> None:
                         affiliate_url=product.get("affiliate_url", ""),
                         runners_up=(product.get("runners_up", "")
                                     if fmt == "roundup" else None),
-                        product_name=product.get("name", ""))
+                        product_name=product.get("name", ""),
+                        sources=sources)
                 except GenerationStageError as e:
                     log(f"  HOLD {slug} -- post-review contract failed: {e}", "WARN")
                     held += 1; continue

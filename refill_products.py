@@ -46,7 +46,7 @@ import urllib.parse
 import urllib.request
 from pathlib import Path
 
-from json_io import atomic_write_json, read_json
+from json_io import read_json, write_products
 import categories
 import generate_posts as gp
 
@@ -670,7 +670,7 @@ def main() -> None:
 
     changed = bool(backfilled or added_resolved or added_placeholder)
     if changed:
-        atomic_write_json(PRODUCTS_PATH, products, trailing_newline=True)
+        write_products(PRODUCTS_PATH, products)
 
     result = {
         "ran": True, "unpublished_before": count,

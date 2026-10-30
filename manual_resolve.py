@@ -29,7 +29,7 @@ Exits non-zero and writes nothing if:
 """
 import argparse
 
-from json_io import atomic_write_json
+from json_io import write_products
 import refill_products as rp
 
 
@@ -83,7 +83,7 @@ def main(argv: list | None = None) -> None:
         resolved["upc"] = args.upc
 
     rp.apply_resolution(entry, resolved, enrich_chewy=args.chewy)
-    atomic_write_json(rp.PRODUCTS_PATH, products, trailing_newline=True)
+    write_products(rp.PRODUCTS_PATH, products)
     print(f"APPLIED '{args.topic}': {args.name} ({args.asin})")
 
 
