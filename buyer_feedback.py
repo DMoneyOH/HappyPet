@@ -256,7 +256,7 @@ CROWD_TERMS = (
      r"(?:ratings?|reviews?|stars|orders|sales)|"
      r"(?<!of\s)(?<![\d.])(?:five|5)[\s-]*stars?\s+(?:ratings|reviews)"),
     ("sells out, went viral, millions sold",
-     r"sell(?:s|ing)?\s+out|sold\s+out\s+(?:every|each|fast|quickly|often|again)|viral|"
+     r"sells\s+out|selling\s+out|sold\s+out\s+(?:every|each|fast|quickly|often|again)|viral|"
      r"(?:thousands?|millions?)\s+(?:of\s+units\s+)?sold"),
     ("beloved", r"beloved"), ("reputation", r"reputation\w*"), ("go-to", r"go[\s-]to"),
     ("thumbs-up", r"thumbs[\s-]*up"), ("consensus", r"consensus"),
@@ -335,6 +335,8 @@ _EXEMPT = [re.compile(p, re.IGNORECASE | re.MULTILINE) for p in (
     rf"\b(?:your|their|its|(?:your|the)\s+{_PET}(?:'s|s'))\s+(?:(?:very|all-time)\s+)?"
     r"(?P<m>favou?rite)\b",
     r"\b(?:cooling|ceiling|box|desk|electric|exhaust|oscillating)\s+(?P<m>fans?)\b",
+    # Outdoor cats with no owner are "community cats", not a crowd.
+    r"\b(?P<m>community)\s+cats?\b",
 )]
 _DROP = re.compile("[" + _INVISIBLE + "*_]")
 # Inline tags that can split a word without showing anything, and empty comments.
@@ -349,7 +351,8 @@ _LOOKALIKES = dict(zip(
      0x03A1, 0x03A4, 0x03A5, 0x03A7, 0x03BF, 0x03BD, 0x03B9, 0x03BA, 0x03C1),  # Greek
     "ABEKMHOPCTXYaeopcyxijsdlSIJ" "ABEZHIKMNOPTYXovikp"))
 _DASHES = re.compile("[\u2010-\u2015\u2212]")
-_BOUNDARY = re.compile(r"[.!?](?=\s|$)|\n\s*\n|\n(?=\s*(?:#|\||>|[-+]\s|\d+[.)]\s))")
+_BLOCK_BREAK = re.compile(r"\n\s*\n|\n(?=\s*(?:#|\||>|[-+]\s|\d+[.)]\s))")
+_BOUNDARY = re.compile(r"[.!?](?=\s|$)|" + _BLOCK_BREAK.pattern)
 # The sourced mask. A crowd term the featured product's own listing title
 # carries ("Vet Recommended") may be repeated when the same clause credits the
 # listing with it: the listing, a verb of saying, then the term within a few
@@ -396,6 +399,18 @@ def _snippet(text: str, start: int, end: int) -> str:
 def _words(text: str) -> list:
     """Lower-cased words, so case, spacing and hyphens never decide a match."""
     return _WORD.findall(normalize(text).lower())
+
+
+def _crosses_a_block(text: str, m) -> bool:
+    """True when term match `m` runs from one block into the next: across a
+    blank line, out of a heading, or into a heading, list item, table row or
+    quote. "## What Matters Most" then "Buying a brush..." is two blocks, not
+    "most buying". A line wrap inside a paragraph is still one block."""
+    if "\n" not in m.group(0):
+        return False
+    line_start = text.rfind("\n", 0, m.start()) + 1
+    return bool(_BLOCK_BREAK.search(text, m.start(), m.end())
+                or re.match(r"\s*#", text[line_start:m.start()]))
 
 
 def _is_sourced(text: str, m, listing_words: list) -> bool:
@@ -446,6 +461,8 @@ def find_crowd_claims(text: str, names=(), allow_block: bool = False,
     listing_words = _words(listing)
     found, seen = [], set()
     for m in _TERM_RE.finditer(masked):
+        if _crosses_a_block(masked, m):
+            continue
         if listing_words and _is_sourced(masked, m, listing_words):
             continue
         snippet = _snippet(t, m.start(), m.end())
