@@ -27,7 +27,7 @@ permalink: /about/
       </ul>
 
       <h2>How our guides are put together</h2>
-      <p>Our guides look at what makers publish, such as specs, ingredients and price, along with what buyer reviews say.</p>
+      <p>{% include method-sentence.html %}</p>
 
       <h2 id="affiliate-disclosure">Affiliate disclosure</h2>
       <p>To keep this site free, we take part in affiliate programs including Amazon Associates and Chewy. If you click a link and make a purchase, we may earn a small commission at no extra cost to you.</p>

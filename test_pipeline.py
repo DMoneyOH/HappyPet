@@ -2712,7 +2712,7 @@ class TestRewritePromptGuardrails(unittest.TestCase):
 
 class TestFirsthandClaimGuard(unittest.TestCase):
     """Happy Pet Product Reviews does not test, try, own or handle any product
-    (HappyPet copy decisions 2026-10-28, recorded in the vault session log).
+    (HappyPet copy decision, 2026-10-28).
     An article claiming otherwise is a false advertising claim on a monetized
     affiliate page, which is why this is a hold and not a style rule.
 
@@ -3003,17 +3003,14 @@ class TestNamedTestimonialGuard(unittest.TestCase):
         find_crowd_claims' job, not this detector's. They were left
         as a separate, smaller question for a human, not a gate.
 
-        That question has since been answered, and it split (Director, 2026-09-22).
         The FIRST string below was a whole invented sentence in quotation marks,
-        and it was DELETED BY HAND from best-cat-scratching-posts; the published
-        text now reads "returning to it again and again in reviews as the
-        scratcher that outlasted the ones before it", with no quotation marks.
-        The short idioms -- "immediately loved it.", "worth every penny",
-        "game-changer" -- were KEPT: they are honest aggregate sentiment and
-        reaching them would cost the section its legitimate content.
+        and it was deleted by hand from best-cat-scratching-posts (HappyPet
+        copy decision, 2026-09-22). The 2026-10-28 cleanup later cut the rest of that
+        paragraph. The short idioms -- "immediately loved it.", "worth every
+        penny", "game-changer" -- are not testimonials, so this detector leaves
+        them alone.
 
-        So the strings below are no longer all published text. They stay here
-        verbatim anyway, because what this test guards is the detector's WIDTH,
+        The strings below are kept verbatim, published or not, because what this test guards is the detector's WIDTH,
         not the corpus: one hand-edit is not a reason to widen a detector, and
         the next pass reading "we deleted one of these" must not read it as
         "so catch the rest".
@@ -3028,12 +3025,14 @@ class TestNamedTestimonialGuard(unittest.TestCase):
 
     def test_the_deleted_group_quote_is_gone_from_the_published_corpus(self):
         """The hand-deletion above, asserted on the corpus rather than trusted.
-        The detector does not and will not fire on this shape, so nothing else
-        in the suite would notice it coming back."""
+        The testimonial detector does not and will not fire on this quote shape.
+        test_no_published_post_carries_crowd_claims_outside_the_summary_block
+        catches its "Many owners rave" lead-in; this test pins the quote itself."""
         text = (REPO / "_posts" / "2026-04-04-best-cat-scratching-posts.md").read_text(
             encoding="utf-8")
         self.assertNotIn("shredded every other scratcher", text)
-        self.assertIn("Many owners rave about its longevity", text)  # the sentence stayed
+        # The paragraph the quote sat in was cut in the owner-attribution cleanup.
+        self.assertNotIn("Many owners rave about its longevity", text)
 
     def test_does_not_read_the_front_matter_terminator_as_an_attribution(self):
         """`image: "...jpg"` followed by the YAML `---` on the next line is a
@@ -8774,11 +8773,12 @@ class TestPinJsonPayload(unittest.TestCase):
     queue copy has drifted, so reading the queue field instead fails them.
     """
 
-    # Hand-copied from _posts/ front matter (the queue copies differ for the
-    # first two: an em-dash in best-cat-beds, a whole rewrite in the other).
+    # Hand-copied from _posts/ front matter. The queue copies differ for the
+    # first two: best-cat-beds' queue copy keeps the old "swear by" wording
+    # and an em-dash, and the joint-supplements copy is a whole rewrite.
     REAL_CAPTIONS = {
         "best-cat-beds":
-            "Cozy indoor cats swear by these lounge-worthy beds. Find the "
+            "Lounge-worthy beds for cozy indoor cats. Find the "
             "perfect spot for your whiskered napper!",
         "best-dog-joint-supplements":
             "4 hip and joint supplements for dogs compared, led by an omega-3, "
@@ -9414,6 +9414,16 @@ class TestProductReviewStructuredData(unittest.TestCase):
                     self.assertIsNone(declared, "front matter rating with nothing shown on the page")
 
 
+# The verbatim Amazon review-summary block a post carries after its featured
+# pick (generate_posts renders it from the post's customer_summary front
+# matter). Its quoted text and its "read <date>" lead are the one place a post
+# names customers or dates a summary, so the corpus checks skip it.
+REVIEW_SUMMARY_BLOCK = re.compile(
+    r"<!-- amazon-review-summary -->.*?<!-- /amazon-review-summary -->", re.S)
+
+# A month name as the posts and the layout write it: "Oct", "Oct.", "October".
+MONTH_NAME = r"(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\.?"
+
 # The five section A posts: the FAQ fixture covers them, and each dates its
 # prices and ratings to one listing reading.
 SECTION_A_POSTS = frozenset({
@@ -9704,7 +9714,6 @@ class TestSectionACopyPins(unittest.TestCase):
     reading, so a partial refresh cannot leave an older date behind."""
 
     SECTION_A = sorted(SECTION_A_POSTS)
-    NEWEST_READING = "2026-10-28"
 
     def test_post_disclosure_carries_the_associates_line(self):
         layout = (REPO / "_layouts" / "post.html").read_text(encoding="utf-8")
@@ -9713,7 +9722,7 @@ class TestSectionACopyPins(unittest.TestCase):
 
     # The price and rating labels' date. The summary block's "read <date>" lead
     # dates Amazon's summary, a different source, and is not counted here.
-    FIGURE_DATE = re.compile(r"\bas\s+of\s+([a-z]+\.?\s+\d{1,2},\s*\d{4})", re.I)
+    FIGURE_DATE = re.compile(r"\bas\s+of\s+(" + MONTH_NAME + r"\s+\d{1,2},\s*\d{4})", re.I)
 
     @staticmethod
     def _reading_date(raw):
@@ -9729,14 +9738,19 @@ class TestSectionACopyPins(unittest.TestCase):
         raise AssertionError(f"unreadable reading date {raw!r}")
 
     def test_each_section_a_post_uses_the_newest_reading_date(self):
+        """The newest "as of" date across the five posts is the current
+        reading, so it is derived, not typed in; every dated figure in every
+        section A post must carry it."""
+        found = {}
         for name in self.SECTION_A:
             text = (REPO / "_posts" / name).read_text(encoding="utf-8")
             raw = self.FIGURE_DATE.findall(text)
+            self.assertTrue(raw, f"{name} has no dated figure")
+            found[name] = {self._reading_date(r) for r in raw}
+        newest = max(d for dates in found.values() for d in dates)
+        for name, dates in found.items():
             with self.subTest(post=name):
-                self.assertTrue(raw, f"{name} has no dated figure")
-                dates = {self._reading_date(r) for r in raw}
-                self.assertEqual(dates, {self.NEWEST_READING},
-                                 f"{name} has reading dates {sorted(dates)}")
+                self.assertEqual(dates, {newest}, f"{name} has reading dates {sorted(dates)}")
 
     def test_the_summary_blocks_read_date_is_not_a_second_figure_date(self):
         """Ruled to stay (section 16 round 1): the block's lead carries the
@@ -9755,7 +9769,7 @@ class TestPublishedPostsVoiceIntegrity(unittest.TestCase):
     Those commits converted the author voice from first to third person with a
     blind find-and-replace: we -> reviewers, our -> the, my -> a. The intent
     matched the prompt of the time (it forbade first person from 0ad8182 until
-    the Director allowed it for picks and judgments on 2026-10-28), but the execution
+    a copy decision allowed it for picks and judgments on 2026-10-28), but the execution
     produced 229 defects across 34 of the 49 posts, including non-words
     ("reviewers've"), dropped subjects ("At Happy Pet Product Reviews,'re
     always...") and sentences starting mid-paragraph in lowercase.
@@ -9770,7 +9784,7 @@ class TestPublishedPostsVoiceIntegrity(unittest.TestCase):
     the spec, or a paraphrase of a real Amazon customer summary that names it
     as the source (the post carries the one date). "Owners
     report X" is not the fix: nothing here reads reviews, so that phrasing is
-    invented feedback and is banned (Director, 2026-10-28).
+    invented feedback and is banned (HappyPet copy decision, 2026-10-28).
     test_no_published_post_claims_firsthand_experience below enforces that; the
     sentence-initial "testing" token in test_no_sentence_starting_in_lowercase
     stays, since a lowercase sentence start is a casing artifact either way.
@@ -9822,7 +9836,7 @@ class TestPublishedPostsVoiceIntegrity(unittest.TestCase):
         paragraphs after dropping it. Checks the author-voice verbs only.
 
         NOT a blanket first-person ban. First person naming a pick or a
-        judgment is allowed (Director, 2026-10-28; generate_posts.FIRST_PERSON_RULE);
+        judgment is allowed (copy decision, 2026-10-28; generate_posts.FIRST_PERSON_RULE);
         first person crediting experience, the shape matched here, is not.
         Six posts (best-cat-harness-leash,
         best-cat-tunnel-toys, best-dog-puzzle-toys, best-dog-life-jacket,
@@ -9845,10 +9859,10 @@ class TestPublishedPostsVoiceIntegrity(unittest.TestCase):
         That pass recast first-person sentences into "Testing found X" /
         "Testing showed X", which satisfies the no-first-person rule and asserts
         a test that never happened. The recorded target voice for an
-        observation is a flat statement of the spec, or a paraphrase of a real
-        Amazon customer summary that names it as the source. "Owners report X"
-        is not the fix: it
-        invents feedback, and test_no_published_post_carries_owner_attribution
+        observation is a flat statement of the spec. Buyer feedback appears only
+        in the verbatim Amazon summary block. "Owners report X" is not the fix:
+        it invents feedback, and
+        test_no_published_post_carries_crowd_claims_outside_the_summary_block
         below tracks it.
         """
         import generate_posts as gp
@@ -10007,22 +10021,41 @@ class TestPublishedPostsVoiceIntegrity(unittest.TestCase):
                     scan = scan.replace(sentence, " ")
         return scan
 
-    # Expected to fail on this branch: every post outside section B still
-    # carries crowd wording (635 hits across 67 posts at this commit, with the
-    # owner lines the cleanup is removing). Merge order is this branch, then
-    # content/buyer-feedback-cleanup, which converts the posts to the summary
-    # block and removes this marker. Marked rather than skipped so it cannot
-    # rot quietly: a clean corpus here is an unexpected success, which pytest
-    # fails.
-    @unittest.expectedFailure
+    @staticmethod
+    def _product_names(name):
+        """The post's product names from _data/verified_products.json, as the
+        gate reads an entry's names: a name is a name, not a word. Each also
+        without a trailing "(2-pack)"-style note, the form the prose uses."""
+        verified = json.loads((REPO / "_data" / "verified_products.json").read_text(encoding="utf-8"))
+        names = [p["name"] for p in verified.get(name[11:-3], [])]
+        return tuple(names) + tuple(re.sub(r"\s*\([^)]*\)$", "", n) for n in names)
+
+    def _crowd_claims(self, name, text, names=None):
+        """The gate's crowd check over the reader's text, with the post's
+        product names and its stored listing title read as names."""
+        import generate_posts as gp
+        names = self._product_names(name) if names is None else names
+        sources = gp.FeedbackSources(featured=self._listing_title(text),
+                                     alternatives=tuple(names))
+        return gp.find_crowd_claims_for(self._reader_text(name, text), sources,
+                                        allow_block=True)
+
     def test_no_published_post_carries_crowd_claims_outside_the_summary_block(self):
-        """Buyer feedback appears only inside the marked summary block, or as a
-        listing-title term credited to the listing. Uses the gate's own
-        detector, so the corpus and new output cannot drift."""
+        """Buyer feedback appears only inside the marked summary block. Uses
+        the gate's own detector, so the corpus and new output cannot drift."""
         offenders = [f"{name}: {hit}" for name, text in self.posts.items()
                      if name not in self.SECTION_B_EXEMPT
                      for hit in self._crowd_claims(name, text)]
         self.assertEqual(offenders, [], f"{len(offenders)} crowd claim(s)")
+
+    def test_the_corpus_crowd_check_can_fail(self):
+        """Prove the check above can fail: one crowd line added to a clean post,
+        and a product name read as words once the post's names are withheld."""
+        name = "2026-09-03-best-dog-training-treats.md"
+        text = self.posts[name]
+        self.assertEqual(self._crowd_claims(name, text), [])
+        self.assertTrue(self._crowd_claims(name, text + "\n\nOwners love the bacon flavor.\n"))
+        self.assertTrue(self._crowd_claims(name, text, names=()))
 
     @staticmethod
     def _listing_title(text):
@@ -10030,14 +10063,6 @@ class TestPublishedPostsVoiceIntegrity(unittest.TestCase):
         fm = text.split("---", 2)[1] if text.startswith("---") else ""
         m = re.search(r'^listing_title: (".*")\s*$', fm, re.MULTILINE)
         return json.loads(m.group(1)) if m else ""
-
-    def _crowd_claims(self, name, text):
-        """The gate's crowd check over the reader's text, with the post's
-        stored listing title read as a name."""
-        import generate_posts as gp
-        sources = gp.FeedbackSources(featured=self._listing_title(text))
-        return gp.find_crowd_claims_for(self._reader_text(name, text), sources,
-                                        allow_block=True)
 
     def test_a_stored_listing_title_unlocks_no_vet_endorsement(self):
         title = TestBuyerFeedbackGuard.OXYFRESH
@@ -10096,6 +10121,34 @@ class TestPublishedPostsVoiceIntegrity(unittest.TestCase):
         self.assertTrue(self._summary_block_problems(post.replace("warm.\"\n>", "cozy.\"\n>")))
         self.assertTrue(self._summary_block_problems(
             post.replace("customer_summary_read_on: 2026-10-29\n", "")))
+
+    # A per-line summary cite: "(Amazon review summary, Oct 2026)" or "read
+    # Oct 28, 2026" after a customer line.
+    SUMMARY_CITE = re.compile(
+        r"\([^()\n]{0,40}summar(?:y|ies)\b[^()\n]{0,60}\b(?:19|20)\d\d\)"
+        r"|\bread\s+(?:on\s+)?" + MONTH_NAME + r"\s+\d{1,2},?\s+(?:19|20)\d\d", re.IGNORECASE)
+
+    def _dated_summary_lines(self, text):
+        """Per-line cites outside the review-summary block, whose lead is the
+        one place a summary carries its read date."""
+        return [m.group(0) for m in self.SUMMARY_CITE.finditer(REVIEW_SUMMARY_BLOCK.sub("", text))]
+
+    def test_no_published_customer_line_is_dated_per_line(self):
+        """One date per post: the "Reviewed" or "Updated on" line (HappyPet
+        copy decision, 2026-10-29). The per-paragraph cite is gone and must not
+        come back; only the review-summary block's lead names its read date."""
+        offenders = [f"{name}: {hit!r}" for name, text in self.posts.items()
+                     if name not in self.SECTION_B_EXEMPT
+                     for hit in self._dated_summary_lines(text)]
+        self.assertEqual(offenders, [])
+
+    def test_the_dated_line_check_skips_only_the_review_summary_block(self):
+        block = ('<!-- amazon-review-summary -->\n\nAmazon\'s customer review summary, '
+                 'read Oct 29, 2026:\n\n> "Customers like it."\n\n<!-- /amazon-review-summary -->')
+        self.assertEqual(self._dated_summary_lines("Intro.\n\n" + block), [])
+        self.assertEqual(self._dated_summary_lines(
+            block + "\n\nThe summary, read Oct 29, 2026, says it is sturdy."),
+            ["read Oct 29, 2026"])
 
     def test_no_published_post_carries_a_placeholder_affiliate_link(self):
         """The six "Buy now: [amzn.to/xyz1]" links shipped for four months. A
@@ -14071,6 +14124,8 @@ class _MiniLiquid:
                 nodes.append((word, branches))
             elif word == "break":
                 nodes.append(("break",))
+            elif word == "include":
+                nodes.append(("include", rest.strip()))
             else:
                 raise AssertionError(f"unhandled Liquid tag {word!r}")
         if stop:
@@ -14118,6 +14173,17 @@ class _MiniLiquid:
                         break
             elif kind == "break":
                 raise self._Break("".join(out))
+            elif kind == "include":
+                # {% include name.html key=value ... %}: the named _includes file,
+                # rendered with its parameters under `include`.
+                name, *params = node[1].split()
+                args = {}
+                for p in params:
+                    key, sep, expr = p.partition("=")
+                    assert sep, f"unhandled include parameter {p!r}"
+                    args[key] = self._expr(expr)
+                source = (REPO / "_includes" / name).read_text(encoding="utf-8")
+                out.append(_MiniLiquid(source).render(dict(self.ctx, include=args)))
         return "".join(out)
 
     def _cond(self, text):
@@ -14378,6 +14444,11 @@ def _publish_date_script():
             .replace("python3 ", shlex.quote(Path(sys.executable).as_posix()) + " "))
 
 
+# The site's method sentence, typed in here as an independent record. A hub
+# fills the noun from its how_we_choose field; other pages use "ingredients".
+METHOD_SENTENCE = ("Our guides look at what makers publish, such as specs, {} and price, and, "
+                   "where Amazon publishes one, the product's customer review summary.")
+
 # The hub layout's intro and how-we-choose markup, as rendered, per front-matter field.
 HUB_FIELD_MARKUP = {"intro": '<p class="standfirst">{}</p>',
                     "how_we_choose": '<p class="hub-method"><b>How our guides are put together:</b> {}</p>'}
@@ -14478,8 +14549,29 @@ class TestTopicHubs(unittest.TestCase):
                 with self.subTest(hub=slug, field=field):
                     self.assertIn(slug, copy)
                     hub_file = (REPO / "hubs" / f"{slug}.md").read_text(encoding="utf-8")
-                    self.assertEqual(_render_hub_field(field, hub_file),
-                                     markup.format(copy[slug][field]))
+                    text = copy[slug][field]
+                    if field == "how_we_choose":
+                        text = METHOD_SENTENCE.format(text)
+                    self.assertEqual(_render_hub_field(field, hub_file), markup.format(text))
+
+    def test_the_method_sentence_has_one_copy(self):
+        """The sentence lives in _includes/method-sentence.html only; the home
+        page, About page and hub layout render it, and a hub's copy entry
+        carries only its noun."""
+        include = REPO / "_includes" / "method-sentence.html"
+        self.assertEqual(_MiniLiquid(include.read_text(encoding="utf-8")).render({"include": {}}),
+                         METHOD_SENTENCE.format("ingredients"))
+        sources = [p for p in REPO.glob("*.md")] + list((REPO / "_layouts").glob("*.html"))
+        sources += list((REPO / "_includes").glob("*.html")) + list((REPO / "hubs").glob("*.md"))
+        sources += list((REPO / "_data").glob("*.json")) + list((REPO / "_posts").glob("*.md"))
+        holders = [p.relative_to(REPO).as_posix() for p in sources
+                   if "Our guides look at what makers publish" in p.read_text(encoding="utf-8")]
+        self.assertEqual(holders, ["_includes/method-sentence.html"])
+        for rel in ("_layouts/home.html", "about.md"):
+            with self.subTest(page=rel):
+                self.assertIn("{% include method-sentence.html %}", (REPO / rel).read_text(encoding="utf-8"))
+        copy = json.loads((REPO / "_data" / "hub_copy.json").read_text(encoding="utf-8"))
+        self.assertEqual({e["how_we_choose"] for e in copy.values()}, {"ingredients", "materials"})
 
     def test_the_rendered_copy_check_catches_copy_that_drifted(self):
         """Prove the check above can fail: a hub whose intro was edited in the
@@ -14574,16 +14666,34 @@ class TestTopicHubs(unittest.TestCase):
             tmp = Path(d)
             _scratch_site_with_posts(tmp, {"toys": n, "dental": n, "tech": n - 1}, drafts=["tech"],
                                      hub_copy={"dental": {"title": "Dental Gear", "description": "Desc.",
-                                                          "intro": "Intro.", "how_we_choose": "Method."}})
+                                                          "intro": "Intro.", "how_we_choose": "ingredients"}})
             self.assertEqual(hub_pages.missing_hubs(tmp), ["dental"])   # drafts do not count
             self.assertEqual(self._main(hub_pages, tmp)[0], 0)
             self.assertEqual((tmp / "hubs" / "dental.md").read_text(encoding="utf-8"),
                              '---\nlayout: hub\nhub_topic: dental\npermalink: /dental/\n'
                              'title: "Dental Gear"\ndescription: "Desc."\nintro: "Intro."\n'
-                             'how_we_choose: "Method."\n---\n')
+                             'how_we_choose: "ingredients"\n---\n')
             self.assertEqual((tmp / "hubs" / "toys.md").read_text(encoding="utf-8"),
                              "---\nlayout: hub\n---\n", "an existing hub is left alone")
             self.assertEqual(hub_pages.missing_hubs(tmp), [])
+
+    def test_hub_pages_refuses_a_method_noun_the_layout_has_no_wording_for(self):
+        import hub_pages
+        n = hub_pages.HUB_MIN
+        entry = {"title": "Dental Gear", "description": "Desc.", "intro": "Intro."}
+        for value in ("Method.", "Ingredients", "ingredients ", "fabric", "materials, ingredients"):
+            with self.subTest(value=value), tempfile.TemporaryDirectory() as d:
+                tmp = Path(d)
+                _scratch_site_with_posts(tmp, {"dental": n}, hub_copy={
+                    "dental": dict(entry, how_we_choose=value)})
+                rc, _, err = self._main(hub_pages, tmp)
+                self.assertEqual(rc, 1)
+                self.assertIn("ERROR dental: how_we_choose", err)
+                self.assertFalse((tmp / "hubs" / "dental.md").exists())
+        for value in hub_pages.HOW_WE_CHOOSE:
+            with self.subTest(value=value):
+                self.assertEqual(hub_pages.copy_problems(
+                    "dental", {"dental": dict(entry, how_we_choose=value)}), [])
 
     def test_hub_pages_writes_no_hub_for_a_topic_without_copy(self):
         import hub_pages
@@ -14605,7 +14715,8 @@ class TestTopicHubs(unittest.TestCase):
         import hub_pages
         n = hub_pages.HUB_MIN
         copy_of = lambda t: {f: f"{t} {f}" for f in hub_pages.COPY_FIELDS}
-        hub_copy = {t: copy_of(t) for t in ("toys", "beds", "dental")}
+        hub_copy = {t: dict(copy_of(t), how_we_choose="materials")
+                    for t in ("toys", "beds", "dental")}
         with tempfile.TemporaryDirectory() as d:
             tmp = Path(d)
             _scratch_site_with_posts(tmp, {"toys": n, "beds": n, "dental": n}, hub_copy=hub_copy)
@@ -14864,9 +14975,7 @@ class TestPublishWritesTheHub(unittest.TestCase):
             self.assertIn('title: "Dog and Cat Treats: Picks by Purpose"\n', hub)
             self.assertIn('intro: "A treat does a job, whether that job is rewarding a sit, '
                           'hiding a pill or filling a stocking.', hub)
-            self.assertIn('how_we_choose: "Every pick is compared on its ingredient list, '
-                          'owner ratings and what reviews say again and again about how pets '
-                          'take to it."\n', hub)
+            self.assertIn('how_we_choose: "ingredients"\n', hub)
 
     def test_the_publish_of_a_second_treats_post_writes_no_hub(self):
         import hub_pages
@@ -15214,11 +15323,134 @@ class TestSitemapInputs(unittest.TestCase):
                 self.assertIn(url, canonical)
 
 
+class TestReviewSummaryBlocks(unittest.TestCase):
+    """A post outside section B that carries a customer_summary in front
+    matter shows it in exactly one verbatim block, and no post shows a block
+    without one. Checked without the sentence-selection rule, which belongs
+    to the generator: the lead dates the block with customer_summary_read_on,
+    and each quoted line is a whole sentence of the summary, the first one
+    first."""
+
+    LEAD = re.compile(r"Amazon's customer review summary, read (" + MONTH_NAME + r" \d{1,2}, \d{4}):")
+
+    @staticmethod
+    def _field(text, key):
+        m = re.search(r"^" + key + r": (.+)$", text.split("---", 2)[1], re.M)
+        return m.group(1).strip() if m else None
+
+    def test_each_summary_shows_once_verbatim_and_dated(self):
+        import datetime
+        section_b = set(TestPublishedPostsVoiceIntegrity.SECTION_B_EXEMPT)
+        with_block = 0
+        for p in sorted((REPO / "_posts").glob("*.md")):
+            if p.name in section_b:
+                continue
+            text = p.read_text(encoding="utf-8").replace("\r\n", "\n")
+            raw = self._field(text, "customer_summary")
+            found = REVIEW_SUMMARY_BLOCK.findall(text)
+            with self.subTest(post=p.name):
+                if raw is None:
+                    self.assertEqual(found, [], "a block with no customer_summary to quote")
+                    continue
+                with_block += 1
+                summary = json.loads(raw)
+                self.assertEqual(len(found), 1)
+                lead = self.LEAD.search(found[0])
+                self.assertIsNotNone(lead, "the block has no dated lead")
+                read = datetime.datetime.strptime(lead.group(1), "%b %d, %Y").date()
+                self.assertEqual(read.isoformat(), self._field(text, "customer_summary_read_on"))
+                quotes = re.findall(r'^> "(.*)"$', found[0], re.M)
+                self.assertIn(len(quotes), (1, 2))
+                self.assertTrue(summary.startswith(quotes[0]), quotes[0])
+                for q in quotes:
+                    self.assertIn(q, summary)
+                    self.assertRegex(q, r"[.!?]$")
+        self.assertGreater(with_block, 50, "the scan found too few blocks to mean anything")
+
+
+class TestPublishedCopyAvoidsBannedVocabulary(unittest.TestCase):
+    """The generator's own word lists (BANNED_WORDS, BANNED_PHRASES and
+    BANNED_INTENSIFIERS) hold for published copy too: every post outside
+    section B, the hubs, the hub copy file, the About page, the home page and
+    the method-sentence include. A banned word that reached a post before the
+    lists existed, or by hand, fails here. Words match with common inflections
+    ("crucially", "prioritizing"); phrases match across whitespace and either
+    apostrophe.
+
+    Skipped, each for a stated reason: the verbatim review-summary block and
+    its customer_summary source field (Amazon's words, quoted, not ours); link
+    targets and URLs; the form "elevated" (the product category in "elevated
+    dog bed"); and three literal names or quotes listed in EXEMPT_TEXT."""
+
+    # A study's own words, quoted, and two proper names.
+    EXEMPT_TEXT = ('"a very marked non-effect"', "Texsens Innovative Traveler", "Embark")
+    PAGES = ("about.md", "index.md", "_layouts/home.html", "_data/hub_copy.json",
+             "_includes/method-sentence.html")
+
+    @staticmethod
+    def _pattern(term):
+        if " " in term or "'" in term or "-" in term:
+            body = re.escape(term).replace(r"\ ", r"\s+").replace("'", "['\u2019]")
+            return r"(?<![\w-])" + body + r"(?![\w-])"
+        if term.endswith("e"):
+            return r"\b" + re.escape(term[:-1]) + r"(?:e|es|ed|ing|ely)\b"
+        return r"\b" + re.escape(term) + r"(?:s|es|ed|ing|ly)?\b"
+
+    @classmethod
+    def setUpClass(cls):
+        import generate_posts as gp
+        terms = gp.BANNED_WORDS + gp.BANNED_PHRASES + gp.BANNED_INTENSIFIERS
+        cls.rx = [(t, re.compile(cls._pattern(t), re.I)) for t in terms]
+        section_b = set(TestPublishedPostsVoiceIntegrity.SECTION_B_EXEMPT)
+        paths = [p for p in sorted((REPO / "_posts").glob("*.md")) if p.name not in section_b]
+        paths += sorted((REPO / "hubs").glob("*.md")) + [REPO / p for p in cls.PAGES]
+        cls.pages = {p.relative_to(REPO).as_posix(): p.read_text(encoding="utf-8") for p in paths}
+
+    def _hits(self, text):
+        text = REVIEW_SUMMARY_BLOCK.sub("", text)
+        text = re.sub(r"^customer_summary:.*$", "", text, flags=re.M)
+        text = re.sub(r"\]\([^)]*\)", "]", text)
+        text = re.sub(r"https?://\S+", "", text)
+        for literal in self.EXEMPT_TEXT:
+            text = text.replace(literal, "")
+        return [m.group(0) for _, rx in self.rx for m in rx.finditer(text)
+                if m.group(0).lower() != "elevated"]
+
+    def test_no_published_copy_uses_banned_vocabulary(self):
+        self.assertGreater(len(self.pages), 60, "the scan found too few pages to mean anything")
+        offenders = [f"{name}: {hit!r}" for name, text in self.pages.items()
+                     for hit in self._hits(text)]
+        self.assertEqual(offenders, [], f"{len(offenders)} banned word(s)")
+
+    def test_a_banned_word_added_to_a_real_post_is_caught(self):
+        """Prove the corpus check can fail: one inserted word in a real post."""
+        name = next(n for n in self.pages if n.startswith("_posts/"))
+        self.assertEqual(self._hits(self.pages[name]), [])
+        self.assertEqual(self._hits(self.pages[name] + "\nLet us delve into it."), ["delve"])
+
+    def test_the_matcher_catches_each_list_and_its_inflections(self):
+        for text in ("We delve in.", "Crucially, it folds.", "Prioritizing fit helps.",
+                     "When it comes to size, measure.", "Let\u2019s face it, pads leak.",
+                     "It is truly soft.", "A comprehensive guide.", "A game-changer."):
+            with self.subTest(text=text):
+                self.assertTrue(self._hits(text), text)
+
+    def test_the_matcher_leaves_ordinary_and_exempt_words_alone(self):
+        for text in ("Every dog needs a bed.", "An elevated dog bed lifts a dog.",
+                     "The Embark kit covers breeds.", 'It found "a very marked non-effect".',
+                     "Navy fabric hides fur.", "It sits flat.",
+                     "<!-- amazon-review-summary -->\n> \"It is very soft.\"\n<!-- /amazon-review-summary -->"):
+            with self.subTest(text=text):
+                self.assertEqual(self._hits(text), [], text)
+
+
 class TestUpdatedDate(unittest.TestCase):
-    """A post prints "Updated <date>" beside "Reviewed <date>" only when its
-    front matter sets last_modified_at, the field jekyll-sitemap reads for
-    <lastmod>. It is set by hand for a substantive edit, so nothing automated
-    may write it: a date that moves on every pipeline commit is noise."""
+    """A post shows one date. "Updated on <date>" replaces "Reviewed <date>"
+    when its front matter sets last_modified_at, never both (HappyPet
+    copy decision, 2026-10-29: "the 'Updated on' should replace the original post date").
+    jekyll-sitemap reads the same field for <lastmod>. It is set by hand for a
+    substantive edit, so nothing automated may write it: a date that moves on
+    every pipeline commit is noise."""
 
     FIELD = "last_modified_at"
 
@@ -15232,10 +15464,10 @@ class TestUpdatedDate(unittest.TestCase):
         self.assertEqual(self._date_line({"date": "2026-10-05"}),
                          '<p class="piece-date">Reviewed October 5, 2026</p>')
 
-    def test_updated_prints_beside_reviewed_when_set(self):
-        self.assertEqual(
-            self._date_line({"date": "2026-10-05", self.FIELD: "2026-10-20"}),
-            '<p class="piece-date">Reviewed October 5, 2026 &middot; Updated October 20, 2026</p>')
+    def test_updated_on_replaces_reviewed_when_set(self):
+        line = self._date_line({"date": "2026-10-05", self.FIELD: "2026-10-20"})
+        self.assertEqual(line, '<p class="piece-date">Updated on October 20, 2026</p>')
+        self.assertNotIn("October 5", line)
 
     def test_no_pipeline_script_workflow_or_routine_writes_the_field(self):
         sources = [p for p in REPO.glob("*.py") if not p.name.startswith("test_")]
@@ -15273,6 +15505,63 @@ class TestUpdatedDate(unittest.TestCase):
             with self.subTest(post=p.name):
                 updated = datetime.date.fromisoformat(str(value).strip("'\"")[:10])
                 self.assertGreaterEqual(updated, datetime.date.fromisoformat(p.name[:10]))
+
+    # A visible date in a post: "Updated on October 20, 2026", "Reviewed Oct 5,
+    # 2026", "Last updated: Oct 2026". Amazon figures keep their own "(as of
+    # Oct 25, 2026)" stamps, which this does not match.
+    VISIBLE_DATE = re.compile(
+        r"\b(?:last\s+)?(?:updated|reviewed|published)(?:\s+on)?\s*:?\s*" + MONTH_NAME
+        + r"\s+(?:\d{1,2},?\s+)?(?:19|20)\d\d", re.IGNORECASE)
+    MONTH_DATE = re.compile(r"\b" + MONTH_NAME + r" \d{1,2}, (?:19|20)\d\d")
+
+    def test_every_post_renders_exactly_one_date(self):
+        """The date line as each real post renders it carries one date: the
+        "Updated on" date when the post sets the field, else the post date."""
+        from validate_published_chewy_links import parse_frontmatter
+        posts = sorted((REPO / "_posts").glob("[0-9]*.md"))
+        self.assertGreater(len(posts), 40, "the scan found too few posts to mean anything")
+        for p in posts:
+            fm = parse_frontmatter(p)
+            page = {"date": p.name[:10]}
+            if fm.get(self.FIELD) is not None:
+                page[self.FIELD] = str(fm[self.FIELD]).strip("'\"")[:10]
+            with self.subTest(post=p.name):
+                line = self._date_line(page)
+                self.assertEqual(len(self.MONTH_DATE.findall(line)), 1, line)
+                self.assertEqual(line.startswith('<p class="piece-date">Updated on '),
+                                 self.FIELD in page, line)
+
+    def test_the_layout_prints_a_post_date_only_on_the_date_line(self):
+        """The layout has one piece-date line, and outside comments and the
+        JSON-LD block, page.date and the field appear only on it. The Review
+        JSON-LD keeps datePublished as the original date."""
+        layout = (REPO / "_layouts" / "post.html").read_text(encoding="utf-8")
+        self.assertEqual(layout.count('class="piece-date"'), 1)
+        self.assertIn('"datePublished": {{ page.date | date: "%Y-%m-%d" | jsonify }}', layout)
+        visible = re.sub(r"\{%-?\s*comment\s*-?%\}.*?\{%-?\s*endcomment\s*-?%\}", "",
+                         layout, flags=re.DOTALL)
+        visible = re.sub(r"<script\b.*?</script>", "", visible, flags=re.DOTALL)
+        visible = re.sub(r'<p class="piece-date">.*?</p>', "", visible, count=1)
+        self.assertEqual(re.findall(r"page\.(?:date|last_modified_at)\b", visible), [])
+
+    def test_no_post_carries_a_date_line_of_its_own(self):
+        """A post's markdown never prints a date line beside the layout's."""
+        offenders = []
+        for p in sorted((REPO / "_posts").glob("[0-9]*.md")):
+            text = p.read_text(encoding="utf-8")
+            body = text.split("---", 2)[2] if text.startswith("---") else text
+            offenders += [f"{p.name}: {m.group(0)!r}" for m in self.VISIBLE_DATE.finditer(body)]
+        self.assertEqual(offenders, [])
+
+    def test_the_visible_date_pattern_catches_the_shapes_it_names(self):
+        for line in ("Updated on October 20, 2026", "*Last updated: Oct 2026*",
+                     "Reviewed Oct. 5, 2026", "**Published on November 2, 2026**"):
+            with self.subTest(line=line):
+                self.assertRegex(line, self.VISIBLE_DATE)
+        for line in ("It sells for $16.11 (as of Oct 25, 2026).",
+                     "The formula was updated in 2024.", "Reviewers in October 2026 said"):
+            with self.subTest(line=line):
+                self.assertNotRegex(line, self.VISIBLE_DATE)
 
 
 class TestOldPermalinksStillResolve(unittest.TestCase):

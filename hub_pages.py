@@ -33,6 +33,9 @@ REPO_DIR = Path(__file__).parent.resolve()
 HUB_MIN = 3
 COPY_FILE = "_data/hub_copy.json"
 COPY_FIELDS = ("title", "description", "intro", "how_we_choose")
+# how_we_choose names the noun the hub layout's method line fills in; the
+# layout has wording for these two only.
+HOW_WE_CHOOSE = ("ingredients", "materials")
 _DATED = re.compile(r"\d{4}-\d{2}-\d{2}-.+\.md")
 
 
@@ -64,7 +67,12 @@ def copy_problems(slug: str, hub_copy: dict) -> list:
     entry = entry if isinstance(entry, dict) else {}
     missing = [f for f in COPY_FIELDS
                if not (isinstance(entry.get(f), str) and entry[f].strip())]
-    return [f"{slug}: no {', '.join(missing)} in {COPY_FILE}"] if missing else []
+    if missing:
+        return [f"{slug}: no {', '.join(missing)} in {COPY_FILE}"]
+    if entry["how_we_choose"] not in HOW_WE_CHOOSE:
+        return [f"{slug}: how_we_choose is {entry['how_we_choose']!r} in {COPY_FILE}, "
+                f"not one of {', '.join(HOW_WE_CHOOSE)}"]
+    return []
 
 
 def hub_text(slug: str, hub_copy: dict) -> str:

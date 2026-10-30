@@ -2,7 +2,7 @@
 layout: post
 title: "Best Grain-Free Cat Food"
 date: 2026-04-07
-last_modified_at: 2026-10-28
+last_modified_at: 2026-10-29
 categories: [food]
 redirect_from:
   - /cat-food/best-grain-free-cat-food/
@@ -23,6 +23,8 @@ faq:
     a: "In our checklist, look for a named animal protein, such as deboned chicken, as the first ingredient, and an AAFCO statement that the food is complete and balanced for your cat's life stage. Taurine deficiency can cause heart disease in cats, so ask your vet if you are unsure a food supplies enough."
   - q: "How do I switch my cat to a grain-free food?"
     a: "Change over several days, mixing a little more of the new food into the old food each day. Cornell's Feline Health Center advises continuing some of the old food while you switch. This guide suggests about 7 to 10 days."
+customer_summary: "Customers find this cat food to be of high quality with better ingredients than most, and appreciate its health benefits, noting their pets look healthier while thriving on it. The taste receives positive feedback, with one customer mentioning their cat prefers it over canned food. While some cats enjoy eating it, others refuse to consume it, and there are mixed experiences with digestibility, with some reporting no vomiting while others experience frequent vomiting. Value for money opinions are divided between those who find it worth the price and those who consider it expensive."
+customer_summary_read_on: 2026-10-29
 ---
 
 **Quick pick:** For most cats making the switch to grain-free, start with the [Blue Buffalo Wilderness Grain-Free Cat Food on Amazon](https://www.amazon.com/dp/B002UT92EY?tag=happypetdc-20).
@@ -47,6 +49,16 @@ It is listed on Amazon as grain-free, and it is a chicken recipe. It comes with 
 * A chicken recipe, which matters if you're switching for a suspected allergy
 
 [Blue Buffalo Wilderness Grain-Free Cat Food](https://www.amazon.com/dp/B002UT92EY?tag=happypetdc-20)
+
+<!-- amazon-review-summary -->
+
+Amazon's customer review summary, read Oct 29, 2026:
+
+> "Customers find this cat food to be of high quality with better ingredients than most, and appreciate its health benefits, noting their pets look healthier while thriving on it."
+>
+> "While some cats enjoy eating it, others refuse to consume it, and there are mixed experiences with digestibility, with some reporting no vomiting while others experience frequent vomiting."
+
+<!-- /amazon-review-summary -->
 
 ### Additional Pick: Merrick Purrfect Bistro Grain-Free Dry Cat Food
 

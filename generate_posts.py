@@ -171,7 +171,7 @@ BANNED_INTENSIFIERS = ["very", "truly", "really", "incredibly", "absolutely", "d
 
 # --- Firsthand-experience claims (advertising exposure, not a style rule) ---
 # Happy Pet Product Reviews does not test, try, own or handle any product
-# (HappyPet copy decisions 2026-10-28, recorded in the vault session log). An
+# (HappyPet copy decision, 2026-10-28). An
 # article that says it tested a product is a false advertising claim on a
 # monetized affiliate page, so this is a HOLD, never a style nit.
 #

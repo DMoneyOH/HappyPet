@@ -1,0 +1,5 @@
+{%- comment -%}
+  The one copy of the site's method sentence. A hub passes its own noun
+  ("ingredients" or "materials") from the how_we_choose field in
+  _data/hub_copy.json; every other page uses the default.
+{%- endcomment -%}Our guides look at what makers publish, such as specs, {{ include.noun | default: "ingredients" }} and price, and, where Amazon publishes one, the product's customer review summary.
