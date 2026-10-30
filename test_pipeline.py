@@ -14766,16 +14766,34 @@ class TestTopicHubs(unittest.TestCase):
             tmp = Path(d)
             _scratch_site_with_posts(tmp, {"toys": n, "dental": n, "tech": n - 1}, drafts=["tech"],
                                      hub_copy={"dental": {"title": "Dental Gear", "description": "Desc.",
-                                                          "intro": "Intro.", "how_we_choose": "Method."}})
+                                                          "intro": "Intro.", "how_we_choose": "ingredients"}})
             self.assertEqual(hub_pages.missing_hubs(tmp), ["dental"])   # drafts do not count
             self.assertEqual(self._main(hub_pages, tmp)[0], 0)
             self.assertEqual((tmp / "hubs" / "dental.md").read_text(encoding="utf-8"),
                              '---\nlayout: hub\nhub_topic: dental\npermalink: /dental/\n'
                              'title: "Dental Gear"\ndescription: "Desc."\nintro: "Intro."\n'
-                             'how_we_choose: "Method."\n---\n')
+                             'how_we_choose: "ingredients"\n---\n')
             self.assertEqual((tmp / "hubs" / "toys.md").read_text(encoding="utf-8"),
                              "---\nlayout: hub\n---\n", "an existing hub is left alone")
             self.assertEqual(hub_pages.missing_hubs(tmp), [])
+
+    def test_hub_pages_refuses_a_method_noun_the_layout_has_no_wording_for(self):
+        import hub_pages
+        n = hub_pages.HUB_MIN
+        entry = {"title": "Dental Gear", "description": "Desc.", "intro": "Intro."}
+        for value in ("Method.", "Ingredients", "ingredients ", "fabric", "materials, ingredients"):
+            with self.subTest(value=value), tempfile.TemporaryDirectory() as d:
+                tmp = Path(d)
+                _scratch_site_with_posts(tmp, {"dental": n}, hub_copy={
+                    "dental": dict(entry, how_we_choose=value)})
+                rc, _, err = self._main(hub_pages, tmp)
+                self.assertEqual(rc, 1)
+                self.assertIn("ERROR dental: how_we_choose", err)
+                self.assertFalse((tmp / "hubs" / "dental.md").exists())
+        for value in hub_pages.HOW_WE_CHOOSE:
+            with self.subTest(value=value):
+                self.assertEqual(hub_pages.copy_problems(
+                    "dental", {"dental": dict(entry, how_we_choose=value)}), [])
 
     def test_hub_pages_writes_no_hub_for_a_topic_without_copy(self):
         import hub_pages
@@ -14797,7 +14815,8 @@ class TestTopicHubs(unittest.TestCase):
         import hub_pages
         n = hub_pages.HUB_MIN
         copy_of = lambda t: {f: f"{t} {f}" for f in hub_pages.COPY_FIELDS}
-        hub_copy = {t: copy_of(t) for t in ("toys", "beds", "dental")}
+        hub_copy = {t: dict(copy_of(t), how_we_choose="materials")
+                    for t in ("toys", "beds", "dental")}
         with tempfile.TemporaryDirectory() as d:
             tmp = Path(d)
             _scratch_site_with_posts(tmp, {"toys": n, "beds": n, "dental": n}, hub_copy=hub_copy)
