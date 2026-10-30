@@ -108,7 +108,7 @@ This depends entirely on the product. Most oral and topical treatments are given
 
 ### Are natural flea preventatives effective?
 
-While some natural remedies like essential oils (diluted and used with extreme caution) or diatomaceous earth are touted for flea prevention, their efficacy is often inconsistent and much less reliable than veterinary-approved products. For established infestations or high-risk areas, stick with scientifically proven methods for the best results and your dog's safety.
+While some natural remedies like essential oils (diluted and used with extreme caution) or diatomaceous earth are touted for flea prevention, their efficacy is often inconsistent and much less reliable than the flea products your vet recommends. For established infestations or high-risk areas, stick with scientifically proven methods for the best results and your dog's safety.
 
 ### What should you do if you see fleas on a dog?
 

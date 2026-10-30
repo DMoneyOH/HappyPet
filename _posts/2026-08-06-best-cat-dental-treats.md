@@ -11,6 +11,7 @@ tags: [best cat dental treats]
 description: "Three cat dental treats compared on texture, flavor and price, led by a crunchy Greenies pick."
 affiliate_url: "https://www.amazon.com/dp/B0828WNJXC?tag=happypetdc-20"
 product_short: "Greenies Cat Dental Treats"
+listing_title: "Greenies Cat Treats, Feline Veterinarian-Recommended Adult Natural Dental Cat Treats, Oven Roasted Chicken Flavor, 9.75 oz Tub"
 chewy_url: "https://chewy.sjv.io/c/7160344/3054490/32975?prodsku=214730&u=https%3A%2F%2Fwww.chewy.com%2Fgreenies-feline-oven-roasted-chicken%2Fdp%2F241298%3Futm_source%3Dgoogle-product%26utm_medium%3Dorganic%26utm_content%3DGreenies&intsrc=APIG_24727"
 image: "https://m.media-amazon.com/images/I/813I0J6fTrL._AC_SY300_SX300_QL70_FMwebp_.jpg"
 pin_image: "https://happypetproductreviews.com/assets/images/pins/best-cat-dental-treats.jpg?v=20260806"
