@@ -48,6 +48,8 @@ It is listed on Amazon as grain-free, and it is a chicken recipe. It comes with 
 **Cons:**
 * A chicken recipe, which matters if you're switching for a suspected allergy
 
+[Blue Buffalo Wilderness Grain-Free Cat Food](https://www.amazon.com/dp/B002UT92EY?tag=happypetdc-20)
+
 <!-- amazon-review-summary -->
 
 Amazon's customer review summary, read Oct 29, 2026:
@@ -57,8 +59,6 @@ Amazon's customer review summary, read Oct 29, 2026:
 > "While some cats enjoy eating it, others refuse to consume it, and there are mixed experiences with digestibility, with some reporting no vomiting while others experience frequent vomiting."
 
 <!-- /amazon-review-summary -->
-
-[Blue Buffalo Wilderness Grain-Free Cat Food](https://www.amazon.com/dp/B002UT92EY?tag=happypetdc-20)
 
 ### Additional Pick: Merrick Purrfect Bistro Grain-Free Dry Cat Food
 

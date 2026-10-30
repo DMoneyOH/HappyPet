@@ -47,7 +47,7 @@ The Depets tunnel is the standout of this roundup because it delivers space, sur
 - Amazon's summary reports the metal wires popping through the fabric.  
 - Not ideal for large cats.
 
-Overall, the Depets tunnel hits the sweet spot of interactive design and affordability, making it the best cat tunnel toys choice for families with active indoor kitties.
+Overall, the Depets tunnel hits the sweet spot of interactive design and affordability, making it the best cat tunnel toys choice for active indoor cats.
 
 <!-- amazon-review-summary -->
 

@@ -27,7 +27,7 @@ Your puppy nails a clean sit for the first time and you reach into your pocket, 
 
 Here are the best dog training treats for a real session, ranked on size, texture and price.
 
-### Blue Buffalo Bits beef soft and chewy dog treats
+### Featured pick: Blue Buffalo Bits beef soft and chewy dog treats
 
 The [Blue Buffalo Bits Beef Training Treats](https://www.amazon.com/dp/B08XY6CFFW?tag=happypetdc-20) earn a 4.8/5 rating (as of Jul 3, 2026) on Amazon. Each piece runs small and stays soft, so it goes down fast. Real beef sits first on the label, and the bites carry added DHA. At $14.99 (as of Jul 3, 2026) a bag, the price stays low enough that you can hand them out freely across a long session rather than doling out one at a time.
 

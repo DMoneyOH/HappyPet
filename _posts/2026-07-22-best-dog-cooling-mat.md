@@ -27,7 +27,7 @@ Your dog sprawls flat on the kitchen tile at noon, panting, hunting for the one 
 
 Three mats made the short list. Each one cools through a pressure-activated gel rather than water or electricity, so your dog lies down and the mat handles the rest. The picks below span a compact travel size up to a roomy pad built for giant breeds, so the best dog cooling mat for a Chihuahua and the one for a Great Dane both show up here.
 
-### EHEYCIGA cooling mat for dogs
+### Featured pick: EHEYCIGA cooling mat for dogs
 
 The [EHEYCIGA Dog Cooling Mat](https://www.amazon.com/dp/B0GG8LR3RW?th=1&tag=happypetdc-20) tops the list, and its 4.8 out of 5 star rating (as of Apr 16, 2026) backs that up. At 41 by 28 inches, the mat gives a medium or large dog room to stretch without hanging off the edge. The gel activates under your dog's weight, pulls heat away from the belly, then resets on its own once your dog steps off. A non-slip backing is meant to keep the pad planted on tile and hardwood, which counts for a lot with dogs who circle three times before they settle. You can wipe it down, or rinse it when muddy paws get involved. At $34.99 (as of Apr 16, 2026) the mat lands in the middle of the price range, not the cheapest slab on the shelf but nowhere near the priciest.
 

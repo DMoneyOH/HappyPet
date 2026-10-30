@@ -47,6 +47,8 @@ The top choice earns a solid 4.6/5 star rating on Amazon and costs $37.99 (as of
 - No built‑in self‑cleaning mechanism; still requires manual scooping  
 - Amazon's summary also mentions the plastic top extension popping loose  
 
+---
+
 <!-- amazon-review-summary -->
 
 Amazon's customer review summary, read Oct 28, 2026:
@@ -57,11 +59,11 @@ Amazon's customer review summary, read Oct 28, 2026:
 
 <!-- /amazon-review-summary -->
 
----
+### Other picks
 
 #### Eco-Friendly Recycled Plastic Box with Replaceable Carbon Filter  
 
-This box is made from post‑consumer recycled plastic, giving you a greener option without sacrificing sturdiness. The carbon filter slot is a nice touch for extra odor control, and the low‑profile design slides neatly under furniture. However, the plastic can become scratched over time, which may let a little dust escape, and the filter needs replacement every few weeks to stay effective.
+This box is made from recycled plastic, giving you a greener option without sacrificing sturdiness. The carbon filter slot is a nice touch for extra odor control, and the low‑profile design slides neatly under furniture. However, the plastic can become scratched over time, which may let a little dust escape, and the filter needs replacement every few weeks to stay effective.
 
 #### Self‑Cleaning Automatic Litter Box with Adjustable Cycle  
 

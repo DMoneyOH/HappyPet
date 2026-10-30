@@ -2,6 +2,7 @@
 layout: post
 title: "Best Cat Advent Calendars With Treats for a Purr-fect Christmas Countdown"
 date: 2026-10-26
+last_modified_at: 2026-10-29
 categories: [treats]
 species: cat
 tags: [cat advent calendar with treats]

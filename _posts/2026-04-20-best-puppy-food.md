@@ -65,11 +65,11 @@ Blue Buffalo’s puppy formula focuses on large‑breed growth, offering a balan
 Wellness delivers a grain‑inclusive recipe. It includes added probiotics, and the kibble’s moderate size works well for growing teeth.  
 
 **NutriSource Puppy Food**  
-NutriSource offers a budget‑friendly option that still hits the basics: protein, DHA, and essential vitamins. It’s a solid starter food for rescue puppies or anyone looking to keep costs low while providing adequate nutrition. The formula tends to be slightly softer, which can be easier for young pups.  
+NutriSource offers a budget‑friendly option that still hits the basics: protein, DHA, and essential vitamins. It’s a solid starter food for rescue puppies or for keeping costs low while providing adequate nutrition. The formula tends to be slightly softer, which can be easier for young pups.  
 
 ## Buying Guide  
 
-Choosing the *best puppy food* isn’t just about picking the highest‑rated bag on Amazon; it’s about matching a formula to your puppy’s size, breed, and lifestyle. Here are the factors that decide every recommendation on this page.  
+Choosing the *best puppy food* isn’t just about picking the bag with the most stars on Amazon; it’s about matching a formula to your puppy’s size, breed, and lifestyle. Here are the factors that decide every recommendation on this page.  
 
 **1. Size‑Specific Nutrition** – Small breeds have faster metabolisms and need more calories per pound than larger dogs. Look for kibble sized for tiny mouths and a calorie density that supports rapid growth without excess fat.  
 

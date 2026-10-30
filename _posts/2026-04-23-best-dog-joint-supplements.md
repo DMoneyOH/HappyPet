@@ -33,7 +33,7 @@ Your dog takes the stairs slower than she used to, and you want to help. Three o
 
 ## Does glucosamine work for dogs? What the research shows
 
-The best evidence so far finds no pain-relief effect from glucosamine and chondroitin, and a pain-relief benefit from omega-3 fatty acids. Two reviews and one trial are worth knowing.
+The best evidence so far finds no pain-relief effect from glucosamine and chondroitin, and a pain-relief benefit from omega-3 fatty acids. Two research reviews and one trial are worth knowing.
 
 **A 2022 review found no pain-relief effect.** This review of dog and cat osteoarthritis trials found that omega-3 diets and supplements gave a pain-relief benefit. It found "a very marked non-effect" for chondroitin-glucosamine, and the authors say it should no longer be recommended for pain management. Its conclusions cover dogs and cats together. (Barbeau-Grégoire et al., *International Journal of Molecular Sciences*, 2022, [doi:10.3390/ijms231810384](https://doi.org/10.3390/ijms231810384))
 
@@ -64,6 +64,8 @@ Welactin carries a **4.6/5** rating on Amazon from **5,241 ratings** (as of Oct 
 - No study on this page tested Welactin itself. The evidence covers omega-3 in general
 - Amazon's summary for these softgels includes reports of diarrhea
 
+If you and your vet decide to try a joint supplement, start with [Nutramax Welactin Canine Softgels](https://www.amazon.com/dp/B001L1BM2W?th=1&tag=happypetdc-20).
+
 <!-- amazon-review-summary -->
 
 Amazon's customer review summary, read Oct 29, 2026:
@@ -73,8 +75,6 @@ Amazon's customer review summary, read Oct 29, 2026:
 > "However, there are mixed experiences regarding digestibility, with some pets eating them easily while others refuse them."
 
 <!-- /amazon-review-summary -->
-
-If you and your vet decide to try a joint supplement, start with [Nutramax Welactin Canine Softgels](https://www.amazon.com/dp/B001L1BM2W?th=1&tag=happypetdc-20).
 
 ### The glucosamine option: Nutramax Cosequin Joint Supplement for Dogs, Chewable Tablets, 132ct
 

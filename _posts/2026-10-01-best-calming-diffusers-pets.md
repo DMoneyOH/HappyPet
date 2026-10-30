@@ -86,7 +86,7 @@ Dosing differs by product and by a cat's weight, so follow the label on the pack
 
 ## Buying guide
 
-Start with the species. This sounds obvious, but it is easy to get wrong in a mixed home, and nobody wants to spend a month waiting on a product their pet can't even detect. A calming diffuser for pets works through species-specific pheromones, so match the product to the animal showing stress. If both your dog and your cat seem on edge, buy one of each and place them in different rooms.
+Start with the species. This sounds obvious, but it is easy to get wrong in a mixed home, and a month is a long wait for a product your pet can't even detect. A calming diffuser for pets works through species-specific pheromones, so match the product to the animal showing stress. If both your dog and your cat seem on edge, buy one of each and place them in different rooms.
 
 Placement decides a lot. Plug the diffuser into the room where your pet spends the most time, not a hallway they pass through. Avoid outlets hidden behind couches or curtains, since furniture blocks the airflow the unit depends on. Keep it away from open windows and air vents too.
 

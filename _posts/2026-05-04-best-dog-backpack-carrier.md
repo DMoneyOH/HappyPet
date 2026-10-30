@@ -18,10 +18,11 @@ pin_image: "https://happypetproductreviews.com/assets/images/pins/best-dog-backp
 customer_summary: "Customers find the backpack carrier to be well-made and worth the price, appreciating its comfort, with one customer noting it doesn't hurt their back or shoulders. Moreover, the carrier is sturdy, with one customer mentioning it holds up well to their 8-pound cat's weight. Additionally, they value its safety features, including a leash attachment for extra security, and its portability, particularly for airplane travel. However, opinions about size are mixed, with some finding it roomy while others say it's too big for their pets."
 customer_summary_read_on: 2026-10-29
 ---
+
 **Quick pick:** For a small dog who can't cover the whole hike on foot, start with the [PetAmi Dog Backpack Carrier on Amazon](https://www.amazon.com/dp/B07B61HMRT?th=1&tag=happypetdc-20).
 {: .quick-pick}
 
-**Good gift for:** anyone with a small dog who hikes or travels.
+**Good gift for:** someone with a small dog who hikes or travels.
 
 A dog backpack carrier answers a narrow problem: a small dog who cannot cover the whole distance on foot, and hands you need for something other than a leash. On a trail that narrows, a leashed small dog is a snag risk rather than a companion; at an airport, a carrier is usually what the airline asks for before the dog goes any further. The pick below is judged on ventilation, how the weight sits on the shoulders, and whether it packs down for travel.  
 
@@ -35,6 +36,8 @@ Why it is the pick here: mesh panels on more than one side keep air moving throu
 - **Comfort:** Padded straps and interior.  
 - **Travel‑ready:** Listed as airline approved, and folds flat.  
 
+---  
+
 <!-- amazon-review-summary -->
 
 Amazon's customer review summary, read Oct 29, 2026:
@@ -44,8 +47,6 @@ Amazon's customer review summary, read Oct 29, 2026:
 > "However, opinions about size are mixed, with some finding it roomy while others say it's too big for their pets."
 
 <!-- /amazon-review-summary -->
-
----  
 
 ### How to Choose the Right Carrier for You  
 

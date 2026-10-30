@@ -18,7 +18,7 @@ customer_summary_read_on: 2026-10-28
 **Quick pick:** For an indoor cat with heavy seasonal shedding, start with the [Aumuca Cat Shedding Brush on Amazon](https://www.amazon.com/dp/B098P6164W?tag=happypetdc-20).
 {: .quick-pick}
 
-**Good gift for:** anyone whose indoor cat leaves fur on everything.
+**Good gift for:** someone whose indoor cat leaves fur on everything.
 
 You sit down on the couch in a dark sweater, your cat hops up for a minute of attention, and you stand up wearing half of her coat. A week later you find a damp hairball on the hallway rug, right where your bare foot lands at 6 a.m. Loose fur has to go somewhere, and if you don't pull it out with a brush, it ends up on your furniture or in your cat's stomach. A decent brush costs less than a lint roller refill habit and takes about five minutes a few times a week. Below, three of the best cat grooming brushes for a tight budget on Amazon, each matched to a different kind of coat.
 
@@ -66,7 +66,7 @@ Short-haired cats that leave a film of hair on every dark surface fit the SleekE
 
 Picking the best cat grooming brushes for your household starts with your cat's coat. Short-haired cats shed plenty, but their fur rarely tangles, so a de-shedding tool covers most of the job. Long-haired cats need something that reaches the undercoat and works out knots before they turn into mats. If your cat has a long coat, plan on a slicker or a comb as part of the routine.
 
-Think about your cat's patience. Some cats lean into a brush and purr, while others tolerate about thirty seconds before they bolt. For a skittish cat, a lighter tool and short sessions win over a heavy-duty brush that pulls. Brush in the direction the fur grows and stop before your cat gets annoyed.
+Think about your cat's patience. Some cats lean into a brush and purr, while others tolerate about thirty seconds before they bolt. For a skittish cat, a lighter tool and short sessions beat a heavy-duty brush that pulls. Brush in the direction the fur grows and stop before your cat gets annoyed.
 
 Check how the brush cleans. A brush packed with fur stops collecting more, and if cleaning it feels like a chore, the brush ends up in a drawer. Self-cleaning designs tend to cut that chore down, while a standard head needs a quick pick or comb after each session.
 

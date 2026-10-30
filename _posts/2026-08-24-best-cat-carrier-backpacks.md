@@ -30,7 +30,7 @@ customer_summary_read_on: 2026-10-29
 **Quick pick:** In our judgment, the [Texsens Bubble Backpack Carrier on Amazon](https://www.amazon.com/dp/B07KHPLFMS?tag=happypetdc-20) may suit a calm cat who likes to watch.
 {: .quick-pick}
 
-**Good gift for:** anyone with a cat who travels, or who wants both hands free on the way to the vet.
+**Good gift for:** someone with a cat who travels, or who wants both hands free on the way to the vet.
 
 You clip a harness on your cat, load them into a soft bag, and realize both hands are already full with keys, a water bottle, and the leash. A carrier backpack moves the weight to your shoulders and frees your hands for stairs, doors, and everything else a trip throws at you. Your cat rides at your back, close enough to feel you move. This guide compares three bags.
 

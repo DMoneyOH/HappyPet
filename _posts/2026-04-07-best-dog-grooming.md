@@ -20,11 +20,11 @@ customer_summary_read_on: 2026-10-29
 **Quick pick:** For a double-coated dog that sheds its undercoat, start with the [FURminator Undercoat Deshedding Tool on Amazon](https://www.amazon.com/dp/B07MZDTG76?th=1&tag=happypetdc-20).
 {: .quick-pick}
 
-**Good gift for:** anyone with a double-coated dog who sheds by the handful.
+**Good gift for:** someone with a double-coated dog who sheds by the handful.
 
 The most common grooming mistake isn't skipping baths, it's using the wrong brush. A slicker brush on a double-coated Husky moves surface hair around without touching the undercoat. A deshedding tool used on a Poodle can damage the curls. The tools matter, and they're not interchangeable.
 
-This guide covers brushes, clippers, and deshedders across different coat types, so the recommendations actually match the dog they're meant for. No single tool works for every breed, which is why it is organized around coat type rather than popularity rankings.
+This guide covers brushes, clippers, and deshedders across different coat types, so the recommendations actually match the dog they're meant for. No single tool works for every breed, which is why it is organized around coat type rather than sales rank.
 
 ## Quick Picks by Coat Type
 
@@ -50,6 +50,8 @@ A few honest caveats: it's more expensive than a basic brush. It also comes in m
 - Wrong size or coat type will underperform or cause damage
 - Requires some technique, pressing too hard irritates skin
 
+---
+
 <!-- amazon-review-summary -->
 
 Amazon's customer review summary, read Oct 29, 2026:
@@ -57,8 +59,6 @@ Amazon's customer review summary, read Oct 29, 2026:
 > "Customers find this de-shedding tool effective, particularly for long-haired dogs, and appreciate its ability to remove undercoat and reduce shedding."
 
 <!-- /amazon-review-summary -->
-
----
 
 ## Additional Picks
 

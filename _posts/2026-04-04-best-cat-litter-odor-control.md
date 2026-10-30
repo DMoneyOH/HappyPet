@@ -28,7 +28,7 @@ customer_summary: "Customers find this cat litter to be the best, with good clum
 customer_summary_read_on: 2026-10-29
 ---
 
-**Quick pick:** For a multi-cat home where odor is the main complaint, start with the [Fresh Step Odor Shield Multi Cat Clumping Cat Litter on Amazon](https://www.amazon.com/dp/B000VDR8LA?th=1&tag=happypetdc-20).
+**Quick pick:** For a multi-cat home where odor is the main problem, start with the [Fresh Step Odor Shield Multi Cat Clumping Cat Litter on Amazon](https://www.amazon.com/dp/B000VDR8LA?th=1&tag=happypetdc-20).
 {: .quick-pick}
 
 A litter box smells when used litter stays in it. That's why this guide puts clumping first: a clump that holds together comes out in one scoop instead of crumbling back into the box. Scent comes second, and it's optional. We compare three clumping litters here on what their makers and listings say. Fresh Step Odor Shield is our pick for a busy box, Dr. Elsey's Ultra Unscented Clumping Clay Cat Litter is our choice for a cat that avoids perfume, and Arm & Hammer Clump & Seal is the scented alternative.
@@ -60,7 +60,7 @@ Amazon's customer review summary, read Oct 29, 2026:
 
 ### Dr. Elsey's Ultra Unscented Clumping Clay Cat Litter
 
-As the name says, Dr. Elsey's Ultra Unscented is unscented. Its listing says it is hard clumping and made with 100% bentonite clay. For one cat, or for anyone in the house who finds fragrance hard to live with, this is where we'd start.
+As the name says, Dr. Elsey's Ultra Unscented is unscented. Its listing says it is hard clumping and made with 100% bentonite clay. For one cat, or for a home where fragrance is hard to live with, this is where we'd start.
 
 **Pros:**
 *   Unscented

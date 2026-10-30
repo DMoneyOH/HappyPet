@@ -24,7 +24,7 @@ You load your dog into the back seat for a quick vet run, and twenty minutes lat
 
 ## Quick picks
 
-Three covers handle most needs and budgets. The best dog car seat cover for a heavy shedder or an anxious rider is the URPOWER hammock, which walls off the footwell. The Honest cover with a side flap fits if you want extra door protection. The second URPOWER model lays flat and works for anyone who wants a simple bench-style fit that swaps out fast.
+Three covers handle most needs and budgets. The best dog car seat cover for a heavy shedder or an anxious rider is the URPOWER hammock, which walls off the footwell. The Honest cover with a side flap fits if you want extra door protection. The second URPOWER model lays flat and works if you want a simple bench-style fit that swaps out fast.
 
 ### Featured pick: URPOWER Dog Car Seat Cover Hammock, 100% Waterproof, 600D Heavy Duty, Nonslip
 

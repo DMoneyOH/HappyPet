@@ -55,7 +55,7 @@ While not strictly necessary for all situations, adhesive strips on the corners 
 
 ## The Top Pick -- Amazon Basics Puppy Training Pads 100 Count
 
-After weighing all the factors above, our top budget-friendly recommendation for new puppy parents are the [Amazon Basics Puppy Training Pads](https://www.amazon.com/dp/B00MW8G62E?th=1&tag=happypetdc-20). The maker describes a 5-layer design built around a super-absorbent core, with a leak-proof plastic backing and a built-in attractant. The 100-count pack keeps the cost down during puppyhood.
+After weighing all the factors above, our top budget-friendly recommendation for a new puppy is the [Amazon Basics Puppy Training Pads](https://www.amazon.com/dp/B00MW8G62E?th=1&tag=happypetdc-20). The maker describes a 5-layer design built around a super-absorbent core, with a leak-proof plastic backing and a built-in attractant. The 100-count pack keeps the cost down during puppyhood.
 
 <!-- amazon-review-summary -->
 
@@ -75,9 +75,9 @@ Even with the best puppy training pads, success often hinges on how you use them
 
 One of the biggest mistakes is frequently moving the puppy training pads. Puppies learn through repetition and consistency. If you constantly change the pad's location, your puppy will become confused about where their designated potty spot is. Choose a quiet, accessible area for the pad and stick with it. As your puppy progresses, you can gradually move the pad closer to the door, eventually transitioning them outdoors.
 
-### 2. Not Praising Success
+### 2. Not Rewarding Success
 
-Positive reinforcement is the cornerstone of effective puppy training. When your puppy successfully uses the pad, make a big deal out of it! Offer enthusiastic praise, a happy voice, and a small, high-value treat immediately after they finish. This helps them associate using the pad with positive rewards and encourages them to repeat the desired behavior. Missing these moments means missing opportunities to reinforce good habits.
+Positive reinforcement is the cornerstone of effective puppy training. When your puppy successfully uses the pad, make a big deal out of it! Praise your puppy in a happy voice and give a small, high-value treat immediately after they finish. This helps them associate using the pad with positive rewards and encourages them to repeat the desired behavior. Missing these moments means missing opportunities to reinforce good habits.
 
 ### 3. Punishing Accidents
 

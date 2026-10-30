@@ -20,7 +20,7 @@ customer_summary_read_on: 2026-10-28
 
 **Good gift for:** the neighbor who looks after outdoor or community cats all winter.
 
-You step outside at 6 a.m. to fill the food bowl, and the water dish next to it has a skin of ice on top. The orange tom who shows up every morning hangs back under the deck, fur puffed out, waiting for you to leave. Feral and community cats can handle a lot, but a long cold snap wears them down fast, and a cardboard box with a towel inside soaks through after one wet night. A heated shelter gives them a dry spot that stays warm without you running outside every few hours. This roundup compares the best heated outdoor cat house options for caretakers of colony cats and porch regulars, based on retailer specs and Amazon ratings. Nobody here has set one up in a yard, so treat this as a side-by-side comparison you can check against your own yard and your own cats.
+You step outside at 6 a.m. to fill the food bowl, and the water dish next to it has a skin of ice on top. The orange tom who shows up every morning hangs back under the deck, fur puffed out, waiting for you to leave. Feral and community cats can handle a lot, but a long cold snap wears them down fast, and a cardboard box with a towel inside soaks through after one wet night. A heated shelter gives them a dry spot that stays warm without you running outside every few hours. This roundup compares the best heated outdoor cat house options for caretakers of colony cats and porch regulars, based on retailer specs and Amazon ratings. It is a side-by-side comparison of listed specs, not a hands-on test, so check it against your own yard and your own cats.
 
 ## Quick picks
 

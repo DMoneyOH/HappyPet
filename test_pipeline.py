@@ -9702,23 +9702,36 @@ class TestPublishedPostsVoiceIntegrity(unittest.TestCase):
                     scan = scan.replace(sentence, " ")
         return scan
 
-    # Expected to fail on this branch: every post outside section B still
-    # carries crowd wording (635 hits across 67 posts at this commit, with the
-    # owner lines the cleanup is removing). Merge order is this branch, then
-    # content/buyer-feedback-cleanup, which converts the posts to the summary
-    # block and removes this marker. Marked rather than skipped so it cannot
-    # rot quietly: a clean corpus here is an unexpected success, which pytest
-    # fails.
-    @unittest.expectedFailure
+    @staticmethod
+    def _product_names(name):
+        """The post's product names from _data/verified_products.json, as the
+        gate reads an entry's names: a name is a name, not a word. Each also
+        without a trailing "(2-pack)"-style note, the form the prose uses."""
+        verified = json.loads((REPO / "_data" / "verified_products.json").read_text(encoding="utf-8"))
+        names = [p["name"] for p in verified.get(name[11:-3], [])]
+        return tuple(names) + tuple(re.sub(r"\s*\([^)]*\)$", "", n) for n in names)
+
+    def _crowd_claims(self, name, text, names=None):
+        import buyer_feedback as bf
+        names = self._product_names(name) if names is None else names
+        return bf.find_crowd_claims(self._reader_text(name, text), names=names, allow_block=True)
+
     def test_no_published_post_carries_crowd_claims_outside_the_summary_block(self):
         """Buyer feedback appears only inside the marked summary block. Uses
         the gate's own detector, so the corpus and new output cannot drift."""
-        import buyer_feedback as bf
         offenders = [f"{name}: {hit}" for name, text in self.posts.items()
                      if name not in self.SECTION_B_EXEMPT
-                     for hit in bf.find_crowd_claims(self._reader_text(name, text),
-                                                     allow_block=True)]
+                     for hit in self._crowd_claims(name, text)]
         self.assertEqual(offenders, [], f"{len(offenders)} crowd claim(s)")
+
+    def test_the_corpus_crowd_check_can_fail(self):
+        """Prove the check above can fail: one crowd line added to a clean post,
+        and a product name read as words once the post's names are withheld."""
+        name = "2026-09-03-best-dog-training-treats.md"
+        text = self.posts[name]
+        self.assertEqual(self._crowd_claims(name, text), [])
+        self.assertTrue(self._crowd_claims(name, text + "\n\nOwners love the bacon flavor.\n"))
+        self.assertTrue(self._crowd_claims(name, text, names=()))
 
     def test_section_b_exemptions_are_still_needed(self):
         import buyer_feedback as bf
@@ -14996,6 +15009,82 @@ class TestReviewSummaryBlocks(unittest.TestCase):
                     self.assertIn(q, summary)
                     self.assertRegex(q, r"[.!?]$")
         self.assertGreater(with_block, 50, "the scan found too few blocks to mean anything")
+
+
+class TestPublishedCopyAvoidsBannedVocabulary(unittest.TestCase):
+    """The generator's own word lists (BANNED_WORDS, BANNED_PHRASES and
+    BANNED_INTENSIFIERS) hold for published copy too: every post outside
+    section B, the hubs, the hub copy file, the About page, the home page and
+    the method-sentence include. A banned word that reached a post before the
+    lists existed, or by hand, fails here. Words match with common inflections
+    ("crucially", "prioritizing"); phrases match across whitespace and either
+    apostrophe.
+
+    Skipped, each for a stated reason: the verbatim review-summary block and
+    its customer_summary source field (Amazon's words, quoted, not ours); link
+    targets and URLs; the form "elevated" (the product category in "elevated
+    dog bed"); and three literal names or quotes listed in EXEMPT_TEXT."""
+
+    # A study's own words, quoted, and two proper names.
+    EXEMPT_TEXT = ('"a very marked non-effect"', "Texsens Innovative Traveler", "Embark")
+    PAGES = ("about.md", "index.md", "_layouts/home.html", "_data/hub_copy.json",
+             "_includes/method-sentence.html")
+
+    @staticmethod
+    def _pattern(term):
+        if " " in term or "'" in term or "-" in term:
+            body = re.escape(term).replace(r"\ ", r"\s+").replace("'", "['\u2019]")
+            return r"(?<![\w-])" + body + r"(?![\w-])"
+        if term.endswith("e"):
+            return r"\b" + re.escape(term[:-1]) + r"(?:e|es|ed|ing|ely)\b"
+        return r"\b" + re.escape(term) + r"(?:s|es|ed|ing|ly)?\b"
+
+    @classmethod
+    def setUpClass(cls):
+        import generate_posts as gp
+        terms = gp.BANNED_WORDS + gp.BANNED_PHRASES + gp.BANNED_INTENSIFIERS
+        cls.rx = [(t, re.compile(cls._pattern(t), re.I)) for t in terms]
+        section_b = set(TestPublishedPostsVoiceIntegrity.SECTION_B_EXEMPT)
+        paths = [p for p in sorted((REPO / "_posts").glob("*.md")) if p.name not in section_b]
+        paths += sorted((REPO / "hubs").glob("*.md")) + [REPO / p for p in cls.PAGES]
+        cls.pages = {p.relative_to(REPO).as_posix(): p.read_text(encoding="utf-8") for p in paths}
+
+    def _hits(self, text):
+        text = REVIEW_SUMMARY_BLOCK.sub("", text)
+        text = re.sub(r"^customer_summary:.*$", "", text, flags=re.M)
+        text = re.sub(r"\]\([^)]*\)", "]", text)
+        text = re.sub(r"https?://\S+", "", text)
+        for literal in self.EXEMPT_TEXT:
+            text = text.replace(literal, "")
+        return [m.group(0) for _, rx in self.rx for m in rx.finditer(text)
+                if m.group(0).lower() != "elevated"]
+
+    def test_no_published_copy_uses_banned_vocabulary(self):
+        self.assertGreater(len(self.pages), 60, "the scan found too few pages to mean anything")
+        offenders = [f"{name}: {hit!r}" for name, text in self.pages.items()
+                     for hit in self._hits(text)]
+        self.assertEqual(offenders, [], f"{len(offenders)} banned word(s)")
+
+    def test_a_banned_word_added_to_a_real_post_is_caught(self):
+        """Prove the corpus check can fail: one inserted word in a real post."""
+        name = next(n for n in self.pages if n.startswith("_posts/"))
+        self.assertEqual(self._hits(self.pages[name]), [])
+        self.assertEqual(self._hits(self.pages[name] + "\nLet us delve into it."), ["delve"])
+
+    def test_the_matcher_catches_each_list_and_its_inflections(self):
+        for text in ("We delve in.", "Crucially, it folds.", "Prioritizing fit helps.",
+                     "When it comes to size, measure.", "Let\u2019s face it, pads leak.",
+                     "It is truly soft.", "A comprehensive guide.", "A game-changer."):
+            with self.subTest(text=text):
+                self.assertTrue(self._hits(text), text)
+
+    def test_the_matcher_leaves_ordinary_and_exempt_words_alone(self):
+        for text in ("Every dog needs a bed.", "An elevated dog bed lifts a dog.",
+                     "The Embark kit covers breeds.", 'It found "a very marked non-effect".',
+                     "Navy fabric hides fur.", "It sits flat.",
+                     "<!-- amazon-review-summary -->\n> \"It is very soft.\"\n<!-- /amazon-review-summary -->"):
+            with self.subTest(text=text):
+                self.assertEqual(self._hits(text), [], text)
 
 
 class TestUpdatedDate(unittest.TestCase):

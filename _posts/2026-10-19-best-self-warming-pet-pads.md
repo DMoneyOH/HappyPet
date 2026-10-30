@@ -15,7 +15,7 @@ customer_summary: "Customers find the cat bed pad keeps their pets warm and appr
 customer_summary_read_on: 2026-10-28
 ---
 
-You come home on a January evening and find your cat folded into a tight loaf on the one sunny patch of carpet, long after the sun has moved off it. Your small dog has claimed the heating vent again and refuses to budge. Older pets and short-haired breeds feel a cold house more than you do, and a plain bed does little once the floor chills overnight. A self warming pet pad offers a simple fix. It has no cord or plug, and it holds nothing that can overheat. A reflective layer inside the pad bounces your pet's own body heat back at them, so the bed warms up as soon as they settle in. The three pads below come from retailer listings and Amazon ratings, not from anyone here handling them, so check each one against your own pet and the coldest spot in your house.
+You come home on a January evening and find your cat folded into a tight loaf on the one sunny patch of carpet, long after the sun has moved off it. Your small dog has claimed the heating vent again and refuses to budge. Older pets and short-haired breeds feel a cold house more than you do, and a plain bed does little once the floor chills overnight. A self warming pet pad offers a simple fix. It has no cord or plug, and it holds nothing that can overheat. A reflective layer inside the pad bounces your pet's own body heat back at them, so the bed warms up as soon as they settle in. The three pads below come from retailer listings and Amazon ratings, not from a hands-on test, so check each one against your own pet and the coldest spot in your house.
 
 ## Quick picks
 

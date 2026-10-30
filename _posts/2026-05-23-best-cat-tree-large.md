@@ -80,6 +80,6 @@ Finally, think about maintenance. Removable, washable covers make cleaning easie
 
 ## Closing  
 
-A tall, well‑built cat tree gives a climber somewhere to go. The **Globlazer Heavy Duty Cat Tree, 74in, 7 Sisal Posts, 2 Padded Condos, Dark Grey** offers a blend of durability, height, and cozy hideaways, making it our top choice for anyone seeking the **best large cat tree**.  
+A tall, well‑built cat tree gives a climber somewhere to go. The **Globlazer Heavy Duty Cat Tree, 74in, 7 Sisal Posts, 2 Padded Condos, Dark Grey** offers a blend of durability, height, and cozy hideaways, making it our top choice for the **best large cat tree**.  
 
 For more ideas on keeping your kitty entertained, check out our roundup of [cat tunnel toys](https://happypetproductreviews.com/toys/best-cat-tunnel-toys/).

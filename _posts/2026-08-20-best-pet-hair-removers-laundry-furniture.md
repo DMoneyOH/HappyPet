@@ -21,7 +21,7 @@ customer_summary_read_on: 2026-10-28
 **Quick pick:** For fur on furniture and car seats, start with the [ChomChom Pet Hair Roller on Amazon](https://www.amazon.com/dp/B00BAGTNAQ?tag=happypetdc-20).
 {: .quick-pick}
 
-**Good gift for:** anyone with a shedding pet, a couch and holiday guests on the way.
+**Good gift for:** someone with a shedding pet, a couch and holiday guests on the way.
 
 You pull a clean black shirt out of the dryer and it comes out wearing a gray coat of fur the wash somehow baked in tighter. Your couch cushions hold a permanent layer. The back seat of the car looks like a second pet lives there. Shedding is the tax you pay for a dog or cat, and the sticky lint sheet you keep grabbing runs dry halfway through one cushion. A good pet hair remover changes that math. The right tool lifts fur off fabric fast and keeps working without refills, week after week. This roundup covers three that earn their spot, starting with our top pick.
 

@@ -35,7 +35,7 @@ This checklist takes each item in the order you will need it and links our full 
 | 5 | Carrier | The first trip out is usually to the vet | [Cat carriers](/carriers/best-cat-carrier-travel/) |
 | 6 | A feeding schedule | Kittens eat several small meals a day | [Automatic cat feeder](/feeding/best-automatic-cat-feeder/) |
 
-## 1. Kitten food
+## 1. Kitten food, with our featured pick
 
 Kitten food exists as its own shelf for one reason: a kitten is building bone and muscle on a deadline, and an adult recipe does not carry enough protein or calories per mouthful. Three checks sort a real kitten food from an adult food in a kitten bag:
 
@@ -71,7 +71,7 @@ The first trip out of the house is usually to the vet, so have the carrier befor
 
 ## 6. A feeding schedule
 
-A kitten needs several small meals a day, and a bowl that is always full teaches a habit that costs you later. If everyone is out before the second meal, an automatic feeder handles the timing. The [PETLIBRO WiFi Cat Feeder](https://www.amazon.com/dp/B09S8WMJY9?th=1&tag=happypetdc-20) is app-controlled and holds 5 liters of dry food. Our [automatic feeder guide](/feeding/best-automatic-cat-feeder/) covers setup and portions. If someone is home all day, a schedule and a measuring cup do the same job.
+A kitten needs several small meals a day, and a bowl that is always full teaches a habit that costs you later. If the house is empty at the second mealtime, an automatic feeder handles the timing. The [PETLIBRO WiFi Cat Feeder](https://www.amazon.com/dp/B09S8WMJY9?th=1&tag=happypetdc-20) is app-controlled and holds 5 liters of dry food. Our [automatic feeder guide](/feeding/best-automatic-cat-feeder/) covers setup and portions. If someone is home all day, a schedule and a measuring cup do the same job.
 
 ## Worth adding in the first month
 

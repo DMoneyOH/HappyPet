@@ -40,6 +40,8 @@ This 42-inch wire crate gives a large dog room to move at a budget price. It has
 * Single door, so placement is less flexible
 * Durability is mixed in Amazon's summary below, including dogs breaking out and the top latch coming undone
 
+[MidWest New World Dog Crate](https://www.amazon.com/dp/B01DLS2EX8?th=1&tag=happypetdc-20)
+
 <!-- amazon-review-summary -->
 
 Amazon's customer review summary, read Oct 29, 2026:
@@ -49,8 +51,6 @@ Amazon's customer review summary, read Oct 29, 2026:
 > "While the durability and ease of use receive mixed reviews, with some customers reporting the cage holding up well while others mention their dogs breaking out of it and the top latch coming undone."
 
 <!-- /amazon-review-summary -->
-
-[MidWest New World Dog Crate](https://www.amazon.com/dp/B01DLS2EX8?th=1&tag=happypetdc-20)
 
 ### Frisco Fold & Carry Double Door Collapsible Wire Dog Crate
 

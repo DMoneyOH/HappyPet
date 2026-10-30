@@ -21,7 +21,7 @@ customer_summary_read_on: 2026-10-28
 **Quick pick:** For a daily dental treat, start with the [Greenies Cat Dental Treats on Amazon](https://www.amazon.com/dp/B0828WNJXC?tag=happypetdc-20).
 {: .quick-pick}
 
-Your cat leans in for a head bump, opens her mouth in a wide yawn, and the smell that drifts out could clear a room. Bad breath in cats rarely fixes itself. It usually points to plaque building along the gumline, and left alone that plaque hardens into tartar that no treat can scrape off. Dental treats will not replace a vet cleaning, but they give the teeth a daily scrub between visits. The trick is picking treats your cat will actually eat while getting some real mechanical cleaning in return. A treat that sits untouched in the bowl does nothing for anyone. This roundup of the best cat dental treats walks through three options worth your money, what each one does well, and where each falls short, so you can match a pick to the cat you actually own.
+Your cat leans in for a head bump, opens her mouth in a wide yawn, and the smell that drifts out could clear a room. Bad breath in cats rarely fixes itself. It usually points to plaque building along the gumline, and left alone that plaque hardens into tartar that no treat can scrape off. Dental treats will not replace a vet cleaning, but they give the teeth a daily scrub between visits. The trick is picking treats your cat will actually eat while getting some real mechanical cleaning in return. A treat that sits untouched in the bowl does nothing for the teeth. This roundup of the best cat dental treats walks through three options worth your money, what each one does well, and where each falls short, so you can match a pick to the cat you actually own.
 
 ## Quick picks
 

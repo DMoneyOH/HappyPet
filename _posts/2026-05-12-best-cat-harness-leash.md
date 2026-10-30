@@ -39,6 +39,8 @@ Rated 4.4 / 5 on Amazon, this set comes at a budget‑friendly price of $12.
 - Leash length is fixed, limiting how far your cat can roam in larger outdoor spaces  
 - Amazon's summary is mixed on sizing, so measure your cat's chest before ordering  
 
+We chose this set as our top pick because it balances safety and cost, key factors for a cat's first trips beyond the windowsill.  
+
 <!-- amazon-review-summary -->
 
 Amazon's customer review summary, read Oct 28, 2026:
@@ -48,8 +50,6 @@ Amazon's customer review summary, read Oct 28, 2026:
 > "While some customers say their cats are comfortable wearing it, others find it uncomfortable."
 
 <!-- /amazon-review-summary -->
-
-We chose this set as our top pick because it balances safety and cost, key factors for a cat's first trips beyond the windowsill.  
 
 ## Buying Guide  
 

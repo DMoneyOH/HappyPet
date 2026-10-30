@@ -30,7 +30,7 @@ This roundup compares fabrics and construction across five beds, along with Amaz
 
 | Rank | Product | Why It Stands Out |
 |------|---------|-------------------|
-| 1 | **[Bedsure ComfyFleece Cat Couch](https://www.amazon.com/dp/B0D31SZC4L?th=1&tag=happypetdc-20)** | Soft fleece, sturdy base, high rating |
+| 1 | **[Bedsure ComfyFleece Cat Couch](https://www.amazon.com/dp/B0D31SZC4L?th=1&tag=happypetdc-20)** | Soft fleece, sturdy base |
 | 2 | Cozy Cave Cat Bed | Enclosed design, warm interior |
 | 3 | PetFusion Ultra‑Plush Cat Bed | Orthopedic foam, modern look |
 | 4 | K&H Pet Products Original Pet Cot | Elevated, breathable mesh |

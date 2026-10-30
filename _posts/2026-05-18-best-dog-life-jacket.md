@@ -90,4 +90,3 @@ Conversely, if you have a large breed (over 70 lb) or a dog that prefers staying
 Across the vests compared here, the **[VIVAGLORY Dog Life Vest](https://www.amazon.com/dp/B01K4TUIBM?th=1&tag=happypetdc-20)** is our pick for the best dog life jacket for everyday water fun. Its adjustable fit, rated buoyancy and safety details are why we picked it. While color and size options could stand to expand, the vest's performance outweighs those minor drawbacks.
 
 **Our Rating: 4.5/5**  
-

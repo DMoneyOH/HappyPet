@@ -23,7 +23,7 @@ customer_summary_read_on: 2026-10-28
 **Quick pick:** For a dog who panics in thunderstorms or fireworks, start with the [ThunderShirt Calming Vest for Dogs on Amazon](https://www.amazon.com/dp/B01FN4GW2M?th=1&tag=happypetdc-20).
 {: .quick-pick}
 
-Picture a rainy Saturday: a golden retriever trembling by the front door as the thunder rolls in. He was never a fan of loud noises, and this storm has turned that into full-blown panic. Soothing words, treats, even a cozy blanket do nothing. That is the moment the **best dog anxiety vest** is made for: a storm, a firework, or a vet visit.
+Picture a rainy Saturday: a golden retriever trembling by the front door as the thunder rolls in. Loud noises always bothered him, and this storm has turned that into full-blown panic. Soothing words, treats, even a cozy blanket do nothing. That is the moment the **best dog anxiety vest** is made for: a storm, a firework, or a vet visit.
 
 ## Product Overview  
 

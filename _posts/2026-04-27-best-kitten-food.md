@@ -37,7 +37,7 @@ The bowl you fill three times a day until about six months old is feeding an ani
 
 The featured pick carries a dated price and rating. The three alternatives carry dated Amazon ratings, listed under the brands question below the picks.
 
-### Best dry kitten food: [Purina ONE High Protein Kitten Food](https://www.amazon.com/dp/B0000AH3RP?th=1&tag=happypetdc-20)
+### Our featured pick for dry kitten food: [Purina ONE High Protein Kitten Food](https://www.amazon.com/dp/B0000AH3RP?th=1&tag=happypetdc-20)
 
 At $17.97 for a 7 lb bag and rated 4.8/5 (as of Oct 28, 2026) on Amazon, this is the featured dry pick. What it won't do is add much water to a kitten's diet, and that gap is the reason the wet alternatives below are on this page at all.
 
@@ -79,7 +79,7 @@ Run these on any bag before you buy it.
 2. **Look for a named animal protein first in the ingredients.** "Chicken" or "salmon" tells you exactly what the protein is.
 3. **Plan the moisture.** Dry kibble is about 6 to 10 percent water, so pair it with wet food if your kitten drinks little from a bowl.
 
-## Which kitten food brands are top rated?
+## How do the kitten food brands here rate on Amazon?
 
 Purina ONE High Protein Kitten Food leads this page on Amazon: 4.8/5 for the 7 lb bag (as of Oct 28, 2026), and 4.8/5 for the 3.5 lb bag (as of Oct 28, 2026). Purina Fancy Feast Wet Kitten Variety 24pk is rated 4.7/5 (as of Oct 28, 2026), and Tiki Cat Baby Shreds Variety 12pk is rated 4.5/5 (as of Oct 28, 2026). A star rating doesn't replace the AAFCO check above, so read the label on whichever one you pick.
 
