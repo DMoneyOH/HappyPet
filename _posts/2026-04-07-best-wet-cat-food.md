@@ -79,7 +79,6 @@ If you're looking for a step up in targeted nutrition while still keeping an eye
 * Offers targeted nutritional formulas (e.g., sensitive stomach, indoor)
 * Higher quality ingredients, often with real meat first
 * Several textures
-* Backed by veterinary nutritionists
 
 **Cons:**
 * Slightly higher price point than other budget options

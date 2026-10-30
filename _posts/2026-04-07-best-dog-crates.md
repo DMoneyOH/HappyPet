@@ -120,6 +120,6 @@ Selecting the right dog crate matters for your pet's comfort, safety, and your p
 
 ## The Final Recommendation
 
-Choosing the right dog crate is an investment in your dog's well-being and your home's harmony. After all the comparisons, if it came down to just one all-around winner, it would be the **MidWest Homes for Pets New World Dog Crate**. Its roomy size, included divider panel and value make it our pick, from puppyhood through adulthood. Check the latches regularly, given the mixed durability reports. Make the crate a positive experience, and you'll both reap the benefits!
+Choosing the right dog crate is an investment in your dog's well-being and your home's harmony. After all the comparisons, if it came down to just one all-around winner, it would be the **MidWest Homes for Pets New World Dog Crate**. Its roomy size, included divider panel and value make it our pick, from puppyhood through adulthood. Make the crate a positive experience, and you'll both reap the benefits!
 
 [MidWest New World Dog Crate](https://www.amazon.com/dp/B01DLS2EX8?th=1&tag=happypetdc-20)

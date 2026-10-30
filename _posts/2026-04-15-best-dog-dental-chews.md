@@ -45,7 +45,7 @@ Amazon's customer review summary, read Oct 28, 2026:
 
 ### Additional Picks:
 #### OraVet Dental Chews
-OraVet Dental Chews use delmopinol, a unique ingredient that works by creating a barrier on teeth and gum surfaces to prevent bacteria from attaching and forming plaque. That mechanism makes them stand out from enzyme-based competitors.
+OraVet Dental Chews use delmopinol, which OraVet says forms a barrier on teeth and gum surfaces that keeps bacteria from attaching and forming plaque. That mechanism makes them stand out from enzyme-based competitors.
 
 #### Purina Pro Plan Dental Chews
 Purina Pro Plan Dental Chews are affordable and easy to find.

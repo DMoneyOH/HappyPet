@@ -30,7 +30,7 @@ For eye coverage on a budget, the [Lewondr Dog Sunglasses](https://www.amazon.co
 
 These heart-shaped goggles carry a 4.5/5 star rating and sell for around $9.99 (as of Jul 7, 2026), which puts real eye coverage within reach of almost any budget. The frames wrap close to the face, and the adjustable strap is meant to hold them in place. Anti-fog lenses help on humid mornings when cheaper lenses cloud over. The pink heart styling reads as a novelty, but the UV shielding does a job that matters for light-eyed and older dogs.
 
-Fit takes patience. Measure your dog's head before ordering, since these run big on some small breeds. Start indoors where there are fewer distractions, then move to the yard before a real outing.
+Fit takes patience. Measure your dog's head before ordering. Start indoors where there are fewer distractions, then move to the yard before a real outing.
 
 Pros:
 
@@ -41,7 +41,6 @@ Pros:
 Cons:
 
 - Novelty styling will not suit every taste
-- Fit varies, and they run big on some small breeds, so measure first
 
 <!-- amazon-review-summary -->
 

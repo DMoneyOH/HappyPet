@@ -1,8 +1,8 @@
 ---
 layout: post
-title: "Pawsitively Protected: The Best Dog Boots for Hot Pavement"
+title: "Best Dog Boots for Hot Pavement"
 date: 2026-09-21
-last_modified_at: 2026-10-29
+last_modified_at: 2026-10-30
 categories: [outdoor]
 redirect_from:
   - /dog-health/best-dog-boots-hot-pavement/

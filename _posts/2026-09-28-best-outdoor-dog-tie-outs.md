@@ -1,8 +1,8 @@
 ---
 layout: post
-title: "Freedom & Safety: Top Outdoor Dog Tie-Outs for Backyard Fun"
+title: "Best Outdoor Dog Tie-Outs Compared"
 date: 2026-09-28
-last_modified_at: 2026-10-29
+last_modified_at: 2026-10-30
 categories: [outdoor]
 redirect_from:
   - /dog-collars/best-outdoor-dog-tie-outs/
