@@ -2,7 +2,7 @@
 layout: post
 title: "Best Hip and Joint Supplements for Dogs"
 date: 2026-04-23
-last_modified_at: 2026-10-28
+last_modified_at: 2026-10-29
 categories: [supplements]
 redirect_from:
   - /dog-health/best-dog-joint-supplements/
@@ -22,12 +22,14 @@ faq:
     a: "Nothing in the research on this page suggests a pricier formula works better. Pay for a clear label that lists each ingredient's amount per dose, and treat claims like 'clinically proven' as marketing unless the brand names a study that tested that formula."
   - q: "What if my dog won't take a supplement tablet?"
     a: "Joint supplements come in several forms, including softgels and soft chews. A supplement your dog refuses can't help much, so choose a form your dog accepts. This guide lists Zesty Paws Hip & Joint Bites for dogs that refuse tablets."
+customer_summary: "Customers report that the fish oil supplement improves their pets' skin and coat health, with one noting a difference in dry skin and dandruff, while also helping with arthritis and inflammation. The product receives positive feedback for its taste and appearance, with pets eating them like treats and their fur becoming shinier. However, there are mixed experiences regarding digestibility, with some pets eating them easily while others refuse them. Additionally, while some customers report their pets' allergies calming down, others experienced diarrhea."
+customer_summary_read_on: 2026-10-29
 ---
 
 **Quick pick:** The strongest research favors omega-3 fatty acids over glucosamine. Our pick is [Nutramax Welactin Canine Softgels on Amazon](https://www.amazon.com/dp/B001L1BM2W?th=1&tag=happypetdc-20), an omega-3 fish oil softgel with its EPA and DHA on the label. Ask your vet about the dose before you start.
 {: .quick-pick}
 
-Your dog takes the stairs slower than she used to, and you want to help. Three of the four supplements in this guide rest on the same three ingredients: glucosamine, chondroitin and MSM. A 2022 review of dog and cat studies found no pain-relief effect from glucosamine and chondroitin, and found one from omega-3 fatty acids. So this guide starts with that research, then covers four joint supplements, omega-3 first, for owners who decide with their vet to try one.
+Your dog takes the stairs slower than she used to, and you want to help. Three of the four supplements in this guide rest on the same three ingredients: glucosamine, chondroitin and MSM. A 2022 review of dog and cat studies found no pain-relief effect from glucosamine and chondroitin, and found one from omega-3 fatty acids. So this guide starts with that research, then covers four joint supplements, omega-3 first, in case you and your vet decide to try one.
 
 ## Does glucosamine work for dogs? What the research shows
 
@@ -45,9 +47,9 @@ The best evidence so far finds no pain-relief effect from glucosamine and chondr
 
 | Product | Best for | Form | Main ingredients | Check price |
 |---|---|---|---|---|
-| Nutramax Welactin Canine Softgels | Owners who want the ingredient the research backs | Softgel capsule | Omega-3 fish oil: EPA and DHA | [On Amazon](https://www.amazon.com/dp/B001L1BM2W?th=1&tag=happypetdc-20) |
+| Nutramax Welactin Canine Softgels | The ingredient the research backs | Softgel capsule | Omega-3 fish oil: EPA and DHA | [On Amazon](https://www.amazon.com/dp/B001L1BM2W?th=1&tag=happypetdc-20) |
 | Nutramax Cosequin Joint Supplement for Dogs, Chewable Tablets, 132ct | A simple glucosamine formula | Chewable tablet | Glucosamine, chondroitin, MSM | [On Amazon](https://www.amazon.com/dp/B003ULL1NQ?th=1&tag=happypetdc-20) |
-| Dasuquin With MSM | Owners who want more than the core three | Soft chew | Glucosamine, chondroitin, MSM, ASU, Boswellia, green tea extract | [On Amazon](https://www.amazon.com/dp/B0041OOPK2?th=1&tag=happypetdc-20) |
+| Dasuquin With MSM | More than the core three | Soft chew | Glucosamine, chondroitin, MSM, ASU, Boswellia, green tea extract | [On Amazon](https://www.amazon.com/dp/B0041OOPK2?th=1&tag=happypetdc-20) |
 | Zesty Paws Hip & Joint Bites for Dogs | Dogs who refuse tablets | Soft chew | Glucosamine, chondroitin, OptiMSM, vitamins E and C | [On Amazon](https://www.amazon.com/dp/B07RM62JYB?th=1&tag=happypetdc-20) |
 
 ### Featured pick: Nutramax Welactin Canine Softgels
@@ -60,6 +62,17 @@ Welactin carries a **4.6/5** rating on Amazon from **5,241 ratings** (as of Oct 
 
 **Cons**
 - No study on this page tested Welactin itself. The evidence covers omega-3 in general
+- Amazon's summary for these softgels includes reports of diarrhea
+
+<!-- amazon-review-summary -->
+
+Amazon's customer review summary, read Oct 29, 2026:
+
+> "Customers report that the fish oil supplement improves their pets' skin and coat health, with one noting a difference in dry skin and dandruff, while also helping with arthritis and inflammation."
+>
+> "However, there are mixed experiences regarding digestibility, with some pets eating them easily while others refuse them."
+
+<!-- /amazon-review-summary -->
 
 If you and your vet decide to try a joint supplement, start with [Nutramax Welactin Canine Softgels](https://www.amazon.com/dp/B001L1BM2W?th=1&tag=happypetdc-20).
 

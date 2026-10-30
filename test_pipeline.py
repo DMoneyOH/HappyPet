@@ -9133,6 +9133,13 @@ class TestProductReviewStructuredData(unittest.TestCase):
                     self.assertIsNone(declared, "front matter rating with nothing shown on the page")
 
 
+# The verbatim Amazon review-summary block a post carries after its featured
+# pick (generate_posts renders it from the post's customer_summary front
+# matter). Its quoted text and its "read <date>" lead are the one place a post
+# names customers or dates a summary, so the corpus checks skip it.
+REVIEW_SUMMARY_BLOCK = re.compile(
+    r"<!-- amazon-review-summary -->.*?<!-- /amazon-review-summary -->", re.S)
+
 # The five section A posts: the FAQ fixture covers them, and each dates its
 # prices and ratings to one listing reading.
 SECTION_A_POSTS = frozenset({
@@ -9710,18 +9717,34 @@ class TestPublishedPostsVoiceIntegrity(unittest.TestCase):
                 self.assertTrue(gp.find_owner_attribution(self.posts[name]),
                                 f"{name} is clean: take it off SECTION_B_EXEMPT")
 
+    # A per-line summary cite: "(Amazon review summary, Oct 2026)" or "read
+    # Oct 28, 2026" after a customer line.
+    SUMMARY_CITE = re.compile(
+        r"\([^()\n]{0,40}summar(?:y|ies)\b[^()\n]{0,60}\b(?:19|20)\d\d\)"
+        r"|\bread\s+(?:on\s+)?(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)"
+        r"[a-z]*\.?\s+\d{1,2},?\s+(?:19|20)\d\d", re.IGNORECASE)
+
+    def _dated_summary_lines(self, text):
+        """Per-line cites outside the review-summary block, whose lead is the
+        one place a summary carries its read date."""
+        return [m.group(0) for m in self.SUMMARY_CITE.finditer(REVIEW_SUMMARY_BLOCK.sub("", text))]
+
     def test_no_published_customer_line_is_dated_per_line(self):
-        """One date per post: the "Reviewed" or "Updated on" line (Director,
-        2026-10-29). The per-paragraph cite, "(Amazon review summary, Oct
-        2026)" or "read Oct 28, 2026" after a customer line, is gone and must
-        not come back."""
-        cite = re.compile(
-            r"\([^()\n]{0,40}summar(?:y|ies)\b[^()\n]{0,60}\b(?:19|20)\d\d\)"
-            r"|\bread\s+(?:on\s+)?(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)"
-            r"[a-z]*\.?\s+\d{1,2},?\s+(?:19|20)\d\d", re.IGNORECASE)
-        offenders = [f"{name}: {m.group(0)!r}" for name, text in self.posts.items()
-                     if name not in self.SECTION_B_EXEMPT for m in cite.finditer(text)]
+        """One date per post: the "Reviewed" or "Updated on" line (HappyPet
+        copy decision, 2026-10-29). The per-paragraph cite is gone and must not
+        come back; only the review-summary block's lead names its read date."""
+        offenders = [f"{name}: {hit!r}" for name, text in self.posts.items()
+                     if name not in self.SECTION_B_EXEMPT
+                     for hit in self._dated_summary_lines(text)]
         self.assertEqual(offenders, [])
+
+    def test_the_dated_line_check_skips_only_the_review_summary_block(self):
+        block = ('<!-- amazon-review-summary -->\n\nAmazon\'s customer review summary, '
+                 'read Oct 29, 2026:\n\n> "Customers like it."\n\n<!-- /amazon-review-summary -->')
+        self.assertEqual(self._dated_summary_lines("Intro.\n\n" + block), [])
+        self.assertEqual(self._dated_summary_lines(
+            block + "\n\nThe summary, read Oct 29, 2026, says it is sturdy."),
+            ["read Oct 29, 2026"])
 
     def test_no_published_post_carries_a_placeholder_affiliate_link(self):
         """The six "Buy now: [amzn.to/xyz1]" links shipped for four months. A

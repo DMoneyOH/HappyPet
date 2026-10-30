@@ -6,26 +6,28 @@ last_modified_at: 2026-10-29
 categories: [treats]
 species: dog
 tags: [dog advent calendar with treats]
-description: "Advent countdown treats your small dog will wait by the shelf for, rawhide-free and budget friendly."
+description: "A rawhide-free advent calendar for small dogs, compared with two holiday alternatives."
 affiliate_url: "https://www.amazon.com/dp/B097FCQ1MK?tag=happypetdc-20"
 product_short: "SmartBones Advent Calendar with Rawhide-Free Dog Treats"
 image: "https://m.media-amazon.com/images/I/91WZEPmCxaL._AC_SL1500_.jpg"
 pin_image: "https://happypetproductreviews.com/assets/images/pins/best-dog-advent-calendars.jpg?v=20261029"
+customer_summary: "Customers find the advent calendar cute and appreciate that their pets love the treats. The size receives mixed feedback - while some find them perfectly sized for small dogs, others say they're too tiny. The palatability and variety aspects also get mixed reviews, with some customers reporting their dogs won't eat them and wishing for more variety. Several customers report digestive issues, including immediate diarrhea."
+customer_summary_read_on: 2026-10-29
 ---
 
 The [SmartBones Advent Calendar with Rawhide-Free Dog Treats](https://www.amazon.com/dp/B097FCQ1MK?tag=happypetdc-20) earns the top spot as the dog advent calendar with treats to buy this year. It skips rawhide and sizes its chews for small dogs, and its $16.11 price (as of Oct 25, 2026) keeps a holiday treat from turning into a splurge.
 
-You pull the first cardboard door open on a cold December morning, and your dog already sits at your feet, tail sweeping the floor. By the second week, that tiny ritual turns into a daily appointment, and your dog knows the sound of the perforated tab before you finish your coffee. A dog advent calendar with treats turns the holiday countdown into something your dog takes part in, not just watches. The catch: these calendars vary a lot in treat size and in how well the packaging survives a curious nose. Some hold a modest biscuit behind each door. Others pack chews that suit a Chihuahua but vanish in one gulp for a Labrador. The picks below sort out which calendar fits which dog, and where each one falls short.
+You pull the first cardboard door open on a cold December morning, and your dog already sits at your feet, tail sweeping the floor. A dog advent calendar with treats turns the holiday countdown into something your dog takes part in, not just watches. The catch: these calendars vary a lot in treat size and in how well the packaging survives a curious nose. Some hold a modest biscuit behind each door. Others pack chews that suit a Chihuahua but vanish in one gulp for a Labrador. The picks below sort out which calendar fits which dog, and where each one falls short.
 
 ## Quick picks
 
 - Top pick for small dogs: SmartBones Advent Calendar with Rawhide-Free Dog Treats for Small Dogs
-- Holiday option for Disney fans: Table Scraps Disney Christmas Bark Dog Advent Calendar
+- Disney-themed holiday option: Table Scraps Disney Christmas Bark Dog Advent Calendar
 - Plain daily countdown: MON2SUN Dog Treats, 24 Day Christmas Advent Calendar
 
 ### SmartBones Advent Calendar with Rawhide-Free Dog Treats for Small Dogs
 
-SmartBones built its name on chews that skip rawhide, and this calendar carries that idea into the holidays. The treats target small dogs, which matters if your dog tends to gulp down anything bigger than a piece of kibble. On Amazon, the calendar holds a 4.3 out of 5 star rating, and it sells for $16.11 (as of Oct 25, 2026). Amazon's summary of customer reviews says buyers find the calendar cute and their dogs love the treats. Size gets mixed feedback, with some calling the pieces right for small dogs and others calling them too tiny, and some customers say their dogs won't eat them. Several customers report digestive issues, including diarrhea. The [SmartBones Advent Calendar with Rawhide-Free Dog Treats](https://www.amazon.com/dp/B097FCQ1MK?tag=happypetdc-20) suits toy and small breeds best.
+SmartBones built its name on chews that skip rawhide, and this calendar carries that idea into the holidays. The treats target small dogs, which matters if your dog tends to gulp down anything bigger than a piece of kibble. On Amazon, the calendar holds a 4.3 out of 5 star rating, and it sells for $16.11 (as of Oct 25, 2026). The [SmartBones Advent Calendar with Rawhide-Free Dog Treats](https://www.amazon.com/dp/B097FCQ1MK?tag=happypetdc-20) suits toy and small breeds best.
 
 Pros:
 
@@ -37,10 +39,21 @@ Cons:
 
 - Chews run small for medium and large breeds
 - Cardboard doors may not survive a dog that finds the calendar first
+- Amazon's summary includes reports of diarrhea, so start with one treat and watch your dog's stomach
+
+<!-- amazon-review-summary -->
+
+Amazon's customer review summary, read Oct 29, 2026:
+
+> "Customers find the advent calendar cute and appreciate that their pets love the treats."
+>
+> "The size receives mixed feedback - while some find them perfectly sized for small dogs, others say they're too tiny."
+
+<!-- /amazon-review-summary -->
 
 ### Table Scraps Disney Christmas Bark Dog Advent Calendar
 
-The Table Scraps Disney calendar leans on character art, which makes it a fun choice for households that already decorate around Disney movies. Read the ingredient panel before you hand a treat to a dog with allergies.
+The Table Scraps Disney calendar leans on character art, which makes it a fun choice for a household that already decorates around Disney movies. Read the ingredient panel before you hand a treat to a dog with allergies.
 
 ### MON2SUN Dog Treats, 24 Day Christmas Advent Calendar
 
@@ -78,4 +91,4 @@ Prices vary by brand and treat type. The SmartBones Advent Calendar with Rawhide
 | Table Scraps Disney Christmas Bark Dog Advent Calendar | Disney-themed decor | Holiday-themed treats |
 | MON2SUN Dog Treats, 24 Day Christmas Advent Calendar | A no-frills daily countdown | One treat per day for 24 days |
 
-A dog advent calendar with treats won't change your dog's life, but it gives each December morning a small, reliable moment the two of you share. For small dogs, or if you want to skip rawhide, the [SmartBones Advent Calendar with Rawhide-Free Dog Treats](https://www.amazon.com/dp/B097FCQ1MK?tag=happypetdc-20) earns the top spot because its chews are sized for small dogs. Disney fans can lean toward Table Scraps, and the MON2SUN calendar covers a plain countdown. Order in November so the box arrives before the first door, then park it on a high shelf. Your dog will likely figure out where it lives anyway.
+A dog advent calendar with treats won't change your dog's life, but it gives each December morning a small, reliable moment the two of you share. For small dogs, or if you want to skip rawhide, the [SmartBones Advent Calendar with Rawhide-Free Dog Treats](https://www.amazon.com/dp/B097FCQ1MK?tag=happypetdc-20) earns the top spot because its chews are sized for small dogs. For a Disney theme, look at Table Scraps, and the MON2SUN calendar covers a plain countdown. Order in November so the box arrives before the first door, then park it on a high shelf. Your dog will likely figure out where it lives anyway.
