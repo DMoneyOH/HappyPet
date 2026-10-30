@@ -11,13 +11,14 @@ Happy Pet Product Reviews Generator v22.0 — 3-stage Writer-Judge-Fixer routing
 - Pin queue staged for publish.yml -> post_pins.py
 - DONE log includes held count
 """
-import os, re, json, datetime, time, urllib.request, urllib.error, urllib.parse, subprocess, html, unicodedata
+import os, re, json, datetime, time, urllib.request, urllib.error, urllib.parse, subprocess
 from pathlib import Path
 from typing import NamedTuple
 
-from json_io import atomic_write_json, read_json
+from json_io import read_json, write_products
 import categories
-from buyer_feedback import (find_crowd_claims, find_summary_block_problems, insert_summary_block,
+from buyer_feedback import (clean_customer_summary, find_crowd_claims,
+                            find_summary_block_problems, insert_summary_block,
                             normalize as normalize_text, prompt_term_list, render_summary_block)
 
 try:
@@ -318,14 +319,12 @@ def find_firsthand_claims(text: str) -> list:
     return _collect_hits(_FIRSTHAND_CLAIM_RE, text)
 
 
-def _collect_hits(patterns, text, keep=None) -> list:
+def _collect_hits(patterns, text) -> list:
     """Every match of `patterns` in `text`, whitespace-collapsed, deduped
-    case-insensitively, in order. `keep(match)` can veto a match."""
+    case-insensitively, in order."""
     found, seen = [], set()
     for rx in patterns:
         for m in rx.finditer(text or ""):
-            if keep is not None and not keep(m):
-                continue
             phrase = " ".join(m.group(0).split())
             if phrase.lower() not in seen:
                 seen.add(phrase.lower())
@@ -450,7 +449,9 @@ def find_named_testimonials(text: str) -> list:
 # Amazon customer review summary, quoted word for word in a marked block that
 # stage_article adds (buyer_feedback.render_summary_block). The writer, the
 # reviewer and the rewriter never see the summary, and any crowd, opinion or
-# popularity term in what they write is refused (buyer_feedback.CROWD_TERMS).
+# popularity term in what they write is refused (buyer_feedback.CROWD_TERMS),
+# unless the featured product's own listing title carries it and the sentence
+# credits the listing.
 # The post carries one date for the summary: the block's "read <date>" lead.
 
 # The reviewer prompt's audit category for buyer feedback. The prompt and the
@@ -467,8 +468,10 @@ BUYER_FEEDBACK_RULE = (
     "popular, a favorite or a best seller. These terms are refused anywhere in "
     "the article and the pin description: " + prompt_term_list() + ". Allowed: "
     "the star rating and review count you were given, written as figures; "
-    "\"ask your vet\"; and advice in second person (\"if your dog chews hard, "
-    "pick the XL\")."
+    "\"ask your vet\"; advice in second person (\"if your dog chews hard, "
+    "pick the XL\"); and words the featured product's own listing title "
+    "carries, repeated exactly and credited to the listing first (\"the "
+    "listing calls it vet recommended\")."
 )
 
 # First person is the site's own voice for its picks and judgments (HappyPet
@@ -512,33 +515,7 @@ def find_first_person_singular(text: str) -> list:
     return found
 
 
-CUSTOMER_SUMMARY_MAX_CHARS = 900
 _STRICT_ISO_DATE = re.compile(r"\d{4}-\d{2}-\d{2}")
-_SUMMARY_DROP = re.compile("[<>{}\x00-\x1f\x7f\u00ad\u200b-\u200f\u202a-\u202e"
-                           "\u2060-\u2064\u2066-\u2069\ufeff]")
-
-
-def clean_customer_summary(text) -> str:
-    """Untrusted Amazon page text -> one plain line safe to store and quote.
-
-    NFKC first (a fullwidth less-than sign becomes "<" and is then stripped), then markup
-    and entities, then every character that could open markup, a placeholder
-    brace or reorder text (bidi controls), then the site's dash scrub.
-    Collapses whitespace and caps the length at a sentence or word boundary.
-    Returns "" for anything that is not a non-empty string. Idempotent, so a
-    stored summary cleans to itself and a quote of it stays exact."""
-    if not isinstance(text, str):
-        return ""
-    s = unicodedata.normalize("NFKC", text)
-    s = re.sub(r"<[^>]*>", " ", s)
-    s = unicodedata.normalize("NFKC", html.unescape(s))
-    s = _SUMMARY_DROP.sub(" ", s)
-    s = " ".join(scrub_typography(s).split())
-    if len(s) > CUSTOMER_SUMMARY_MAX_CHARS:
-        cut = s[:CUSTOMER_SUMMARY_MAX_CHARS]
-        end = max(cut.rfind(". "), cut.rfind("! "), cut.rfind("? "))
-        s = cut[:end + 1] if end > 0 else cut.rsplit(" ", 1)[0]
-    return s
 
 
 def strict_iso_date(value) -> str:
@@ -553,18 +530,19 @@ def strict_iso_date(value) -> str:
 
 
 class FeedbackSources(NamedTuple):
-    """What a post's summary block may quote, and the names the crowd-term
-    gate reads as names. The default is "nothing to quote"."""
+    """What a post's summary block may quote, the names the crowd-term gate
+    reads as names, and the listing title it may credit. The default is
+    "nothing to quote"."""
     summary: str = ""          # cleaned Amazon summary; "" = none usable
     read_on: str = ""          # YYYY-MM-DD; "" whenever summary is ""
-    featured: str = ""         # the featured product's name
+    featured: str = ""         # the featured product's stored listing title
     alternatives: tuple = ()   # runner-up names
 
     @property
     def usable(self) -> bool:
-        """The one test of "there is a summary to quote": non-empty after
-        cleaning, with a real YYYY-MM-DD read date."""
-        return bool(clean_customer_summary(self.summary) and strict_iso_date(self.read_on))
+        """The one test of "there is a summary to quote": a summary (cleaned
+        by feedback_sources) with a real YYYY-MM-DD read date."""
+        return bool(self.summary and strict_iso_date(self.read_on))
 
     @property
     def names(self) -> tuple:
@@ -594,14 +572,15 @@ def summary_block_for(sources: FeedbackSources) -> str:
     usable summary."""
     if not sources.usable:
         return ""
-    return render_summary_block(clean_customer_summary(sources.summary),
-                                as_of_text(sources.read_on))
+    return render_summary_block(sources.summary, as_of_text(sources.read_on))
 
 
 def find_crowd_claims_for(text: str, sources: FeedbackSources = None,
                           allow_block: bool = False) -> list:
-    """find_crowd_claims with the entry's product names read as names."""
-    return find_crowd_claims(text, (sources or FeedbackSources()).names, allow_block)
+    """find_crowd_claims with the entry's product names read as names and its
+    listing title as the one source a crowd term may be credited to."""
+    sources = sources or FeedbackSources()
+    return find_crowd_claims(text, sources.names, allow_block, listing=sources.featured)
 
 
 def find_pin_desc_problems(pin_desc: str, sources: FeedbackSources = None) -> list:
@@ -1390,7 +1369,7 @@ def enrich_with_chewy(slug: str, product: dict) -> bool:
                 entry["chewy_stock"]  = result.get("chewy_stock")
                 entry["chewy_rating"] = result.get("chewy_rating")
                 break
-        atomic_write_json(json_path, raw)
+        write_products(json_path, raw)
         log(f"  [chewy] products.json updated for {slug}: {url[:60]}")
         return True
     except Exception as e:
@@ -1892,8 +1871,9 @@ def evaluate_scorecard(scorecard: dict, content: str, sources: FeedbackSources =
     if flags and any(kw in " ".join(str(f) for f in flags).lower() for kw in accuracy_keywords):
         passed = False
 
-    # Em dashes are trusted ONLY from the real body: reviewer LLMs mislabel
-    # hyphenated compounds ("extra-large") as em dashes.
+    # The hard rules are read off the real body, never the reviewer's word
+    # (reviewer LLMs mislabel hyphenated compounds such as "extra-large" as
+    # em dashes, for one).
     for flag in body_rule_flags(scorecard, content, sources):
         passed = False
         flags.append(flag)
@@ -2702,9 +2682,11 @@ def review_and_rewrite(title: str, keyword: str, content: str, api_key: str, or_
             instructions = "Fix each of these reviewer findings: " + "; ".join(str(p) for p in problems[:12])
             log_reviewer("  rewrite_instructions empty -- synthesized from flags/patterns", "WARN")
         else:
-            # A reviewer that passes the prose while code refuses a sentence
-            # would otherwise never tell the rewriter what to fix, and the
-            # same sentence would hold the article three times over.
+            # The reviewer wrote instructions, or reported nothing at all.
+            # Either way, append what code found that the reviewer did not
+            # flag: a reviewer that passes the prose while code refuses a
+            # sentence would otherwise never tell the rewriter what to fix, and
+            # the same sentence would hold the article three times over.
             found_in_code = [f for f in flags if f not in (scorecard.get("flags") or [])]
             if found_in_code:
                 instructions += ("\nAlso fix these, found in code: "
@@ -2944,9 +2926,7 @@ def assert_amazon_figures_labelled(stage: str, body: str, slug: str, price, star
 def front_matter(title: str, keyword: str, affiliate_url: str, slug: str,
                  species: str, category: str, description: str, image: str = "",
                  pin_image: str = "", chewy_url: str = "",
-                 product_short: str = "", customer_summary: str = "",
-                 customer_summary_read_on: str = "",
-                 sources: FeedbackSources = None) -> str:
+                 product_short: str = "", sources: FeedbackSources = None) -> str:
     # `description` is the pin description, and it is the field that published
     # "We tested the top litters so you can finally say goodbye to that smell"
     # on a live monetized page. Every path that writes a post goes through here,
@@ -2968,11 +2948,15 @@ def front_matter(title: str, keyword: str, affiliate_url: str, slug: str,
         fm += f'image: "{image}"\n'
     if pin_image:
         fm += f'pin_image: "{pin_image}"\n'
-    # The summary the post's block quotes travels with the post, so the
-    # published-post test can check the quote after the entry is retired.
-    if customer_summary and customer_summary_read_on:
-        fm += (f'customer_summary: "{yaml_quote(customer_summary)}"\n'
-               f'customer_summary_read_on: {customer_summary_read_on}\n')
+    # The sources the post may cite travel with it, so the published-post
+    # tests can check them after the entry is retired: the summary the block
+    # quotes, and the listing title a credited crowd term must come from.
+    sources = sources or FeedbackSources()
+    if sources.featured:
+        fm += f'listing_title: "{yaml_quote(sources.featured)}"\n'
+    if sources.usable:
+        fm += (f'customer_summary: "{yaml_quote(sources.summary)}"\n'
+               f'customer_summary_read_on: {sources.read_on}\n')
     fm += '---\n'
     return fm
 
@@ -3023,15 +3007,12 @@ def stage_article(slug: str, product: dict, body: str, pin_desc: str,
     species  = product.get("species", "dog")
     category = product.get("category", "")
     block    = summary_block_for(sources)
-    summary  = clean_customer_summary(sources.summary) if block else ""
 
     fm = front_matter(title, keyword, product.get("affiliate_url", ""), slug,
                       species, category, pin_desc, product.get("image", ""),
                       build_pin_image_url_for_queue(slug),
                       chewy_url=product.get("chewy_url") or "",
                       product_short=short_product_name(product.get("name", "")),
-                      customer_summary=summary,
-                      customer_summary_read_on=sources.read_on if block else "",
                       sources=sources)
 
     content_clean = body.lstrip()
@@ -3049,7 +3030,7 @@ def stage_article(slug: str, product: dict, body: str, pin_desc: str,
     # checked again, block included.
     content_clean = insert_summary_block(content_clean, block)
     problems = (find_summary_block_problems(
-                    content_clean, summary, as_of_text(sources.read_on) if block else "")
+                    content_clean, sources.summary, as_of_text(sources.read_on) if block else "")
                 + find_crowd_claims_for(content_clean, sources, allow_block=True))
     if problems:
         raise GenerationStageError(f"[stage_article] {slug}: summary block: {problems}")

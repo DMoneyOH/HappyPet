@@ -1991,8 +1991,8 @@ class TestRefillPlaceholdersOnlyMode(unittest.TestCase):
                  patch.object(rp, "ideate_topics", lambda *a, **k: list(candidates)), \
                  patch.object(rp, "resolve_product",
                               lambda *a, **k: resolver_calls.append(a)), \
-                 patch.object(rp, "atomic_write_json",
-                              lambda path, data, **k: written.update(data=list(data))), \
+                 patch.object(rp, "write_products",
+                              lambda path, data: written.update(data=list(data))), \
                  patch.object(rp, "RESULT_PATH", Path(tmp) / "REFILL_RESULT.json"), \
                  patch.object(rp, "log", lambda *a, **k: None), \
                  patch.object(rp.time, "sleep", lambda *_: None):
@@ -2078,8 +2078,11 @@ class TestManualResolve(unittest.TestCase):
                     "--price", "249.99", "--stars", "4.5",
                     "--runners-up", "Litter-Robot 4; PetSafe ScoopFree",
                 ])
-            written = json.loads(path.read_text(encoding="utf-8"))
+            text = path.read_text(encoding="utf-8")
+            written = json.loads(text)
 
+        # The one products.json shape (json_io.write_products): no trailing newline.
+        self.assertEqual(text, json.dumps(written, indent=2))
         entry = written[0]
         self.assertEqual(entry["asin"], "B0ABCD1234")
         self.assertEqual(entry["name"], "PETLIBRO Automatic Self-Cleaning Litter Box")
@@ -2359,6 +2362,26 @@ class TestJsonIO(unittest.TestCase):
         self.json_io.atomic_write_json(self.path, {"v": 1})
         self.json_io.atomic_write_json(self.path, {"v": 2})
         self.assertEqual(json.loads(self.path.read_text(encoding="utf-8")), {"v": 2})
+
+    def test_write_products_writes_the_one_products_json_shape(self):
+        """2-space indent and no trailing newline, the shape the publish path
+        has always written. Expected text written out by hand."""
+        self.json_io.write_products(self.path, [{"topic": "x", "stars": 4.5}])
+        self.assertEqual(self.path.read_text(encoding="utf-8"),
+                         '[\n  {\n    "topic": "x",\n    "stars": 4.5\n  }\n]')
+
+    def test_every_products_json_writer_goes_through_write_products(self):
+        """Four writers used to add a trailing newline the publish path never
+        wrote, so a refill then a publish left a whitespace-only diff."""
+        writers = ("refill_cli.py", "refill_products.py", "manual_resolve.py",
+                   "load_customer_summaries.py", "generate_posts.py",
+                   "push_pins_to_sheets.py", "validate_published_chewy_links.py")
+        for name in writers:
+            src = (REPO / name).read_text(encoding="utf-8")
+            with self.subTest(module=name):
+                self.assertIn("write_products(", src)
+                self.assertNotIn("atomic_write_json(", src)
+                self.assertNotIn("trailing_newline", src)
 
     def test_read_json_missing_returns_default(self):
         self.assertEqual(self.json_io.read_json(self.path, default=[]), [])
@@ -3207,6 +3230,14 @@ class TestBuyerFeedbackGuard(unittest.TestCase):
         "It is the top choice for most dog owners, from puppyhood through adulthood.",
         "Reach for the small size if your dog is under 10 pounds.",
         "It suits busy households and multi-cat homes.",
+        # Round 4 (Talon): a crowd's possessive favorite, and the singular
+        # professional compound.
+        "It is America's favorite chew toy.", "It is Amazon's favorite water bowl.",
+        "It is the internet's favorite cat tree.", "It is everybody's favorite.",
+        "A shopper's favorite for road trips.",
+        "A veterinarian-recommended formula for seniors.",
+        "It is veterinarian approved.", "It is a veterinarian-trusted option.",
+        "Choose veterinary-approved products.",
     )
     ALLOW = (
         "We recommend it for heavy chewers; our pick for small dogs.",
@@ -3224,7 +3255,17 @@ class TestBuyerFeedbackGuard(unittest.TestCase):
         "## Verdict", "Our verdict: buy the medium.", "Here are a few points to check.",
         "Beef, fish and chicken are the most commonly reported food allergens in cats.",
         "Most dogs settle into a new crate within a few nights.",
+        "It may become your dog's favorite chew.", "Find your cat's very favorite spot.",
+        "A puppy will pick its favorite corner.", "Your pets' favorite room is fine.",
+        "Ask a veterinarian before switching foods.",
     )
+
+    # The sourced mask. Oxyfresh's stored listing title carries "Vet Recommended".
+    OXYFRESH = ("Oxyfresh Premium Pet Dental Care Solution Pet Water Additive: Best Way "
+                "to Eliminate Bad Dog Breath and Cat Bad Breath - Fights Tartar & Plaque "
+                "- So Easy, Just Add to Water! Vet Recommended 16 oz.")
+    OTHER = "TropiClean Fresh Breath Dental Health Solution for Pets, 16oz"
+    CREDITED = "The listing calls it vet recommended, and it mixes into water."
 
     def setUp(self):
         import buyer_feedback as bf
@@ -3288,6 +3329,68 @@ class TestBuyerFeedbackGuard(unittest.TestCase):
         self.assertTrue(self.gp.find_crowd_claims_for(
             "Pet parents love the Pet Parents Washable Dog Diapers.", sources))
 
+    # --- the sourced mask: a crowd term the listing title carries ---------------
+    def test_a_term_from_the_listing_title_is_allowed_when_credited(self):
+        oxy = self.gp.FeedbackSources(featured=self.OXYFRESH)
+        zw = chr(0x200b)
+        for s in (self.CREDITED, "Its listing title says Vet Recommended.",
+                  "The Amazon listing bills it as vet-recommended.",
+                  "It is listed as vet recommended.",
+                  f"The listing calls it **vet{zw} recommended**."):
+            with self.subTest(s=s):
+                self.assertEqual(self.gp.find_crowd_claims_for(s, oxy), [])
+                self.assertEqual(self.bf.find_crowd_claims(s, listing=self.OXYFRESH), [])
+
+    def test_the_same_phrase_with_no_source_is_refused(self):
+        for sources in (None, self.gp.FeedbackSources(),
+                        self.gp.FeedbackSources(summary=self.SUMMARY, read_on=self.READ_ON)):
+            with self.subTest(sources=sources):
+                self.assertTrue(self.gp.find_crowd_claims_for(self.CREDITED, sources))
+
+    def test_a_sourced_phrase_under_another_products_listing_is_refused(self):
+        other = self.gp.FeedbackSources(featured=self.OTHER,
+                                        alternatives=(self.OXYFRESH,))
+        # An alternative's name is a name, never a source to credit.
+        self.assertTrue(self.gp.find_crowd_claims_for(self.CREDITED, other))
+        self.assertTrue(self.bf.find_crowd_claims(self.CREDITED, listing=self.OTHER))
+
+    def test_a_sourced_phrase_without_the_credit_is_refused(self):
+        oxy = self.gp.FeedbackSources(featured=self.OXYFRESH)
+        for s in ("It is vet recommended.", "Vet recommended, the listing says.",
+                  "The listing is long. It is vet recommended.",
+                  "Vets recommend it, the listing says.",
+                  "The listing calls it vet approved.",
+                  "The listing calls it a best seller.",
+                  "The listing calls it vet recommended, and owners love it."):
+            with self.subTest(s=s):
+                self.assertTrue(self.gp.find_crowd_claims_for(s, oxy), s)
+
+    def test_a_term_must_match_whole_listing_words(self):
+        """A term that is only part of a longer listing word is no match:
+        "favorite" is not "Favoritest", and "popular" is not "Popularity"."""
+        listing = "Chewbox Favoritest Toy, Popularity Pack"
+        for s in ("The listing calls it a favorite.", "The listing calls it popular."):
+            with self.subTest(s=s):
+                self.assertTrue(self.bf.find_crowd_claims(s, listing=listing), s)
+        self.assertEqual(self.bf.find_crowd_claims(
+            "The listing calls it a Popularity Pack.", listing=listing), [])
+
+    def test_the_gates_and_staging_read_the_listing_from_the_entry(self):
+        product = dict(self.PRODUCT, name=self.OXYFRESH)
+        sources = self.gp.feedback_sources(product)
+        self.gp.validate_output("review", self._body(self.CREDITED), "slug",
+                                affiliate_url=self.LINK, sources=sources)
+        self.assertTrue(self.gp.authoritative_gate(self.CLEAN_CARD, self.CREDITED, sources)[0])
+        err, text, _ = self._stage(product, self.BODY + "\n" + self.CREDITED + "\n")
+        self.assertIsNone(err)
+        fm = text.split("---", 2)[1]
+        self.assertIn('listing_title: "Oxyfresh Premium Pet Dental Care Solution', fm)
+        # The same body under another entry is held.
+        err, text, _ = self._stage(dict(self.PRODUCT, name=self.OTHER),
+                                   self.BODY + "\n" + self.CREDITED + "\n")
+        self.assertIsNotNone(err)
+        self.assertIsNone(text)
+
     def test_a_written_summary_block_is_refused(self):
         """The writer cannot forge the block: outside staging, its lead is just
         text naming a customer review summary."""
@@ -3314,11 +3417,12 @@ class TestBuyerFeedbackGuard(unittest.TestCase):
                 self.gp.validate_output(stage, self._body("The lid locks."), "slug",
                                         affiliate_url=self.LINK, sources=self.sources)
 
-    def test_main_passes_the_entrys_sources_to_both_gates_and_the_reviewer(self):
+    def test_main_reads_the_entrys_sources_once_and_passes_them_to_every_gate(self):
         source = (REPO / "generate_posts.py").read_text(encoding="utf-8")
         main_src = source[source.index("def main()"):]
         self.assertEqual(main_src.count("sources = feedback_sources(product)"), 1)
-        # validate_output twice, review_and_rewrite once, the pin check once.
+        # By keyword: validate_output twice and review_and_rewrite's scorecard
+        # gate once. The pin check passes sources positionally, asserted next.
         self.assertEqual(main_src.count("sources=sources)"), 3)
         self.assertIn('assert_pin_desc_clean("pin_desc", pin_desc, slug, sources)', main_src)
 
@@ -3408,9 +3512,13 @@ class TestBuyerFeedbackGuard(unittest.TestCase):
             self.assertIn(self.gp.FIRST_PERSON_RULE, p)
 
     def test_the_rule_lists_every_refused_term(self):
-        for label, _ in self.bf.CROWD_TERMS:
-            with self.subTest(label=label):
-                self.assertIn(label, self.gp.BUYER_FEEDBACK_RULE)
+        for text, _ in self.bf.CROWD_TERMS:
+            with self.subTest(text=text):
+                self.assertIn(text, self.gp.BUYER_FEEDBACK_RULE)
+                self.assertNotIn(";", text)
+        # Groups join with "; " because a group's own terms join with ", ".
+        self.assertIn("everyone, anyone, no one; feedback", self.gp.BUYER_FEEDBACK_RULE)
+        self.assertIn("credited to the listing first", self.gp.BUYER_FEEDBACK_RULE)
         for clause in ("Write no buyer feedback", "quoted word for word",
                        "never paraphrase it", "ask your vet"):
             self.assertIn(clause, self.gp.BUYER_FEEDBACK_RULE)
@@ -3642,6 +3750,17 @@ class TestSummaryBlock(unittest.TestCase):
         with self.subTest(case="no usable summary"):
             self.assertTrue(self._problems(self.BLOCK, summary=""))
 
+    def test_raw_page_text_is_cleaned_at_every_reader(self):
+        """The renderer, the checker and the entry accessor each clean what
+        they are given, so raw page text never reaches a quote."""
+        raw = self.SUMMARY.replace("dog coat", "dog <b>coat</b>").replace(
+            "velcro", "velcro​")
+        self.assertEqual(self.bf.render_summary_block(raw, self.DATE), self.BLOCK)
+        self.assertEqual(self._problems(self.BLOCK, summary=raw), [])
+        sources = self.gp.feedback_sources(
+            {"customer_summary": raw, "customer_summary_read_on": "2026-10-29"})
+        self.assertEqual(sources.summary, self.SUMMARY)
+
     def test_a_crlf_checkout_reads_the_same(self):
         self.assertEqual(self._problems(self.BLOCK.replace("\n", "\r\n")), [])
 
@@ -3867,13 +3986,16 @@ class TestStage1CliBuyerFeedback(unittest.TestCase):
 
 class TestCustomerSummaryLoader(unittest.TestCase):
     """load_customer_summaries.py copies Amazon "Customers say" summaries into
-    products.json. The summary is untrusted page text, so it is cleaned before
-    it is stored and again before it reaches a prompt."""
+    products.json. The summary is untrusted page text, so it is cleaned
+    (buyer_feedback.clean_customer_summary) before it is stored, when an entry
+    is read (generate_posts.feedback_sources), and by the block renderer and
+    checker. It reaches no prompt."""
 
     def setUp(self):
+        import buyer_feedback as bf
         import generate_posts as gp
         import load_customer_summaries as lcs
-        self.gp, self.lcs = gp, lcs
+        self.bf, self.gp, self.lcs = bf, gp, lcs
 
     def _file(self, products):
         return {"source": "test", "read_on": "2026-10-28", "products": products}
@@ -3944,21 +4066,47 @@ class TestCustomerSummaryLoader(unittest.TestCase):
         for bad in ("<", ">", lt, gt):
             self.assertNotIn(bad, clean)
 
-    def test_dashes_are_scrubbed_the_way_the_site_scrubs_them(self):
-        """The old local rule turned an em dash into ", " and left "durable ,
-        great" behind; the site's own scrub_typography does not."""
-        self.assertEqual(self.gp.clean_customer_summary("Durable — great for chewers."),
-                         self.gp.scrub_typography("Durable — great for chewers."))
-        self.assertNotIn(" ,", self.gp.clean_customer_summary("Durable — great."))
+    def test_dashes_and_punctuation_stay_as_amazon_wrote_them(self):
+        """The block quotes the cleaned text as Amazon's, so cleaning changes
+        no character inside a sentence: an em dash stays an em dash."""
+        for s in ("Durable — great for chewers.", "Sizes 5–10 lb fit.",
+                  "It’s sturdy… mostly.", "Mixed feedback - while some like it."):
+            with self.subTest(s=s):
+                self.assertEqual(self.bf.clean_customer_summary(s), s)
 
-    def test_the_length_is_capped_at_900_characters_on_a_boundary(self):
+    def test_the_length_is_capped_at_900_characters_on_a_sentence_end(self):
         long = "Customers like it. " * 200
-        clean = self.gp.clean_customer_summary(long)
+        clean = self.bf.clean_customer_summary(long)
         self.assertLessEqual(len(clean), 900)
         self.assertGreater(len(clean), 800)
         self.assertTrue(clean.endswith("."))
-        one_run = "word " * 400
-        self.assertLessEqual(len(self.gp.clean_customer_summary(one_run)), 900)
+
+    def test_a_sentence_ending_exactly_at_the_cap_is_kept(self):
+        first = "A" * 898 + "."                      # 899 characters
+        kept = first[:-1] + "x."                     # 900 characters, ends at the cap
+        for head in (first, kept):
+            with self.subTest(length=len(head)):
+                self.assertEqual(self.bf.clean_customer_summary(head + " Then more text."), head)
+        over = "A" * 900 + "."                       # 901 characters
+        self.assertEqual(self.bf.clean_customer_summary(
+            "Short one. " + over + " Tail."), "Short one.")
+
+    def test_no_sentence_under_the_cap_stores_nothing(self):
+        """A quote is never a cut sentence, so a summary with no sentence end
+        inside the cap is not stored."""
+        for s in ("word " * 400, "word " * 300 + "end. More."):
+            with self.subTest(s=s[-12:]):
+                self.assertEqual(self.bf.clean_customer_summary(s), "")
+        self.assertEqual(self.bf.clean_customer_summary("word " * 100 + "end."),
+                         ("word " * 100 + "end.").strip())
+
+    def test_every_stored_summary_is_already_in_its_cleaned_form(self):
+        products = json.loads((REPO / "products.json").read_text(encoding="utf-8"))
+        stored = [e["customer_summary"] for e in products if e.get("customer_summary")]
+        self.assertGreater(len(stored), 10)
+        for s in stored:
+            with self.subTest(s=s[:40]):
+                self.assertEqual(self.bf.clean_customer_summary(s), s)
 
     def test_a_bad_read_date_refuses_the_whole_file(self):
         for bad in (None, "", "Oct 28, 2026", "20261028", "2026-10-28T00:00", 20261028):
@@ -9411,12 +9559,25 @@ class TestSectionACopyPins(unittest.TestCase):
         self.assertIn("As an Amazon Associate we earn from qualifying purchases.", layout)
         self.assertNotIn("We only recommend", layout)
 
+    # The price and rating labels' date. The summary block's "read <date>" lead
+    # dates Amazon's summary, a different source, and is not counted here.
+    FIGURE_DATE = re.compile(r"\bas of ([A-Z][a-z]{2} \d{1,2}, \d{4})")
+
     def test_each_section_a_post_uses_one_reading_date(self):
         for name in self.SECTION_A:
             text = (REPO / "_posts" / name).read_text(encoding="utf-8")
-            dates = set(re.findall(r"\bas of ([A-Z][a-z]{2} \d{1,2}, \d{4})", text))
+            dates = set(self.FIGURE_DATE.findall(text))
             with self.subTest(post=name):
                 self.assertEqual(len(dates), 1, f"{name} has reading dates {sorted(dates)}")
+
+    def test_the_summary_blocks_read_date_is_not_a_second_figure_date(self):
+        """Ruled to stay (section 16 round 1): the block's lead carries the
+        summary's own read date beside the post's figure date."""
+        import buyer_feedback as bf
+        block = bf.render_summary_block("Customers find it sturdy.", "Oct 29, 2026")
+        text = "It costs $20 (as of Oct 28, 2026).\n\n" + block
+        self.assertIn("read Oct 29, 2026", text)
+        self.assertEqual(set(self.FIGURE_DATE.findall(text)), {"Oct 28, 2026"})
 
 
 class TestPublishedPostsVoiceIntegrity(unittest.TestCase):
@@ -9653,14 +9814,20 @@ class TestPublishedPostsVoiceIntegrity(unittest.TestCase):
         "2026-09-24-best-odor-eliminators-pet-stains.md",
     )
     # Front matter that is data rather than prose a reader sees.
-    DATA_KEYS = ("affiliate_url:", "image:", "pin_image:", "chewy_url:",
+    DATA_KEYS = ("affiliate_url:", "image:", "pin_image:", "chewy_url:", "listing_title:",
                  "customer_summary:", "customer_summary_read_on:")
 
     def _reader_text(self, name, text):
         """The post as a reader sees it: title, description, FAQ and body, with
-        the data fields left out. In a section A post the approved FAQ copy
-        (_test_fixtures/faq_section_a.json) is read as approved, wherever it
-        appears, since changing it needs the fixture changed on purpose."""
+        the data fields left out.
+
+        One mask, ruled to stay (section 16 round 1): in a section A post every
+        sentence of the approved FAQ copy (_test_fixtures/faq_section_a.json)
+        is blanked wherever it appears, in the front matter FAQ and in the body
+        alike, so a body sentence identical to an approved one is exempt too.
+        That copy was approved word for word, and changing it needs the
+        fixture changed on purpose. A body sentence that differs by one word
+        is not exempt."""
         lines = [ln for ln in text.splitlines() if not ln.startswith(self.DATA_KEYS)]
         scan = "\n".join(lines)
         approved = json.loads((REPO / "_test_fixtures" / "faq_section_a.json")
@@ -9681,14 +9848,39 @@ class TestPublishedPostsVoiceIntegrity(unittest.TestCase):
     # fails.
     @unittest.expectedFailure
     def test_no_published_post_carries_crowd_claims_outside_the_summary_block(self):
-        """Buyer feedback appears only inside the marked summary block. Uses
-        the gate's own detector, so the corpus and new output cannot drift."""
-        import buyer_feedback as bf
+        """Buyer feedback appears only inside the marked summary block, or as a
+        listing-title term credited to the listing. Uses the gate's own
+        detector, so the corpus and new output cannot drift."""
         offenders = [f"{name}: {hit}" for name, text in self.posts.items()
                      if name not in self.SECTION_B_EXEMPT
-                     for hit in bf.find_crowd_claims(self._reader_text(name, text),
-                                                     allow_block=True)]
+                     for hit in self._crowd_claims(name, text)]
         self.assertEqual(offenders, [], f"{len(offenders)} crowd claim(s)")
+
+    @staticmethod
+    def _listing_title(text):
+        """The listing title the post's front matter stores, or ""."""
+        fm = text.split("---", 2)[1] if text.startswith("---") else ""
+        m = re.search(r'^listing_title: (".*")\s*$', fm, re.MULTILINE)
+        return json.loads(m.group(1)) if m else ""
+
+    def _crowd_claims(self, name, text):
+        """The gate's crowd check over the reader's text, with the post's
+        stored listing title as its names and its one creditable source."""
+        import generate_posts as gp
+        sources = gp.FeedbackSources(featured=self._listing_title(text))
+        return gp.find_crowd_claims_for(self._reader_text(name, text), sources,
+                                        allow_block=True)
+
+    def test_the_corpus_check_reads_the_posts_listing_title(self):
+        """A credited listing term passes only with the title in the post's
+        own front matter, and only in the reader's text."""
+        title = TestBuyerFeedbackGuard.OXYFRESH
+        body = "\n\n" + TestBuyerFeedbackGuard.CREDITED + "\n"
+        with_title = f'---\ntitle: "T"\nlisting_title: "{title}"\n---' + body
+        without = '---\ntitle: "T"\n---' + body
+        self.assertEqual(self._crowd_claims("x.md", with_title), [])
+        self.assertTrue(self._crowd_claims("x.md", without))
+        self.assertEqual(self._listing_title(with_title), title)
 
     def test_section_b_exemptions_are_still_needed(self):
         import buyer_feedback as bf

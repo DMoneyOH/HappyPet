@@ -103,7 +103,7 @@ from pathlib import Path
 
 REPO_DIR            = Path(__file__).parent
 import sys as _sys; _sys.path.insert(0, str(REPO_DIR))
-from json_io import atomic_write_json
+from json_io import write_products
 try:
     from brain_secrets import (get_sheets_creds as _vault_sheets_creds,
                                get_secret as _vault_get_secret,
@@ -243,7 +243,7 @@ def retire_from_products(slug: str) -> int:
         # read-modify-write of products.json on an ephemeral CI runner that can be
         # cancelled or OOM-killed mid-step, and a truncated products.json takes the
         # whole pipeline down until a human repairs it. Same reason json_io exists.
-        atomic_write_json(p, products, indent=2)
+        write_products(p, products)
         log(f'  RETIRED: {slug} removed from products.json ({before} -> {len(products)} entries)')
         try:
             import sqlite3 as _sq

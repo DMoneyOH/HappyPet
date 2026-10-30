@@ -8,7 +8,7 @@ saved as JSON of this shape:
      "products": {"<ASIN>": {"summary": "<page text>", ...}, ...}}
 
 For every products.json entry whose ASIN is in the file, this writes
-`customer_summary` (cleaned with generate_posts.clean_customer_summary) and
+`customer_summary` (cleaned with buyer_feedback.clean_customer_summary) and
 `customer_summary_read_on`. An empty summary in the file removes both fields,
 because the newest reading found no summary to cite. An ASIN missing from the
 file leaves its entry untouched. Re-run it after every fresh pull:
@@ -24,8 +24,9 @@ import argparse
 import sys
 from pathlib import Path
 
-from generate_posts import clean_customer_summary, strict_iso_date
-from json_io import CorruptJSONError, atomic_write_json, read_json
+from buyer_feedback import clean_customer_summary
+from generate_posts import strict_iso_date
+from json_io import CorruptJSONError, read_json, write_products
 
 PRODUCTS_PATH = Path(__file__).resolve().parent / "products.json"
 
@@ -84,9 +85,7 @@ def main(argv=None) -> int:
         print(f"ERROR: {e}", file=sys.stderr)
         return 2
     if products != before:
-        # No trailing newline: the shape the publish path (push_pins_to_sheets)
-        # writes, so a load followed by a publish leaves no whitespace diff.
-        atomic_write_json(products_path, products)
+        write_products(products_path, products)
     print(f"{counts['loaded']} loaded, {counts['cleared']} cleared (empty summary), "
           f"{counts['missing']} not in the file; products.json "
           f"{'updated' if products != before else 'unchanged'}")
