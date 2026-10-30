@@ -2,7 +2,7 @@
 layout: post
 title: "Best Dog Nail Grinder for Grooming at Home"
 date: 2026-05-18
-last_modified_at: 2026-10-29
+last_modified_at: 2026-10-30
 categories: [grooming]
 redirect_from:
   - /dog-health/best-dog-nail-grinder/

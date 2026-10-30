@@ -2,7 +2,7 @@
 layout: post
 title: "Best Automatic Litter Boxes: 3 Picks Compared"
 date: 2026-07-23
-last_modified_at: 2026-10-29
+last_modified_at: 2026-10-30
 categories: [litter]
 redirect_from:
   - /cat-litter/best-automatic-litter-box/

@@ -2,7 +2,7 @@
 layout: post
 title: "Best Slow Feeder Dog Bowls for Dogs That Gulp Their Food"
 date: 2026-08-10
-last_modified_at: 2026-10-29
+last_modified_at: 2026-10-30
 categories: [feeding]
 redirect_from:
   - /pet-feeding/best-slow-feeder-dog-bowls/

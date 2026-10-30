@@ -2,7 +2,7 @@
 layout: post
 title: "Best Dog Collars for Walks After Dark"
 date: 2026-10-22
-last_modified_at: 2026-10-29
+last_modified_at: 2026-10-30
 categories: [collars]
 species: dog
 tags: [dog collar for night walks]
