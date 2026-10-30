@@ -431,9 +431,7 @@ def resolve_product(topic_title: str, query: str) -> dict | None:
             runners.append(c["name"])
         if len(runners) == 2:
             break
-    # The title came from PA-API or the search page, as read by code: a held
-    # source the post may credit (generate_posts.feedback_sources).
-    return {**top, "runners_up": "; ".join(runners), "name_source": "amazon"}
+    return {**top, "runners_up": "; ".join(runners)}
 
 
 def chewy_enrich(name: str, upc: str | None = None) -> dict:
@@ -490,13 +488,6 @@ def apply_resolution(entry: dict, resolved: dict, enrich_chewy: bool = True) -> 
         entry["runners_up"] = resolved["runners_up"]
     if resolved.get("upc"):
         entry["upc"] = resolved["upc"]
-    # Only a title code read off Amazon (resolve_product) is marked. A name
-    # typed by hand (manual_resolve) or carried in a refill plan is not, and
-    # an unmarked name is never a held source.
-    if resolved.get("name_source") == "amazon":
-        entry["name_source"] = "amazon"
-    else:
-        entry.pop("name_source", None)
     if enrich_chewy:
         entry.update(chewy_enrich(resolved["name"], resolved.get("upc")))
 

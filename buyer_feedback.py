@@ -207,6 +207,18 @@ def find_summary_block_problems(text: str, summary: str, read_on_label: str) -> 
 _PRO = r"(?:vet|veterinarian|veterinary|doctor|dentist|dr\.?)"
 _RANK = r"(?:top|first|number[\s-]+one|#1)"
 _ENDORSE = r"(?:proven|pick|choice|favou?rite|grade|strength|quality)"
+# Professionals as a crowd ("many vets") or as an endorsement, refused
+# everywhere, a listing title's own words included. A hyphenated or possessive
+# compound is an endorsement whatever its participle ("vet-backed",
+# "doctor-tested", "the vet's choice"), so that half is general. A spaced one
+# is often a subject and its verb ("your vet prescribed"), so only endorsement
+# words count there. "Ask your vet", "a trip to the vet" and "your vet's
+# advice" stay.
+_VET_TERM = (
+    rf"vets|veterinarians|{_PRO}(?:-{_PRO})*(?:-|(?:'s|s')[\s-]+(?:{_RANK}[\s-]+)?)"
+    rf"(?:\w{{3,}}ed|{_ENDORSE})|{_PRO}\s+(?:{_RANK}\s+)?(?:{_ENDORSE}|recommended|approved|"
+    r"endorsed|trusted|tested|backed|preferred|certified|verified|formulated|developed|"
+    r"designed|reviewed|loved)")
 CROWD_TERMS = (
     # People credited with an opinion or a choice.
     ("customers", r"customers?"), ("consumers", r"consumers?"), ("buyers", r"buyers?"),
@@ -228,17 +240,8 @@ CROWD_TERMS = (
     ("households", r"households"), ("homes", r"homes"), ("families", r"families"),
     ("breeders, dog walkers, parents, community",
      r"breeders|walkers|parents|communit(?:y|ies)"),
-    # Professionals as a crowd ("many vets", "trainers swear by") or as an
-    # endorsement. A hyphenated or possessive vet compound is an endorsement
-    # whatever its participle ("vet-backed", "doctor-tested", "the vet's
-    # choice"), so that half is general. A spaced one is often a subject and
-    # its verb ("your vet prescribed"), so only endorsement words count there.
-    # "Ask your vet", "a trip to the vet" and "your vet's advice" stay.
     ("vets, veterinarians, vet-approved, vet-backed, doctor-recommended, the vet's pick",
-     rf"vets|veterinarians|{_PRO}(?:-{_PRO})*(?:-|(?:'s|s')[\s-]+(?:{_RANK}[\s-]+)?)"
-     rf"(?:\w{{3,}}ed|{_ENDORSE})|{_PRO}\s+(?:{_RANK}\s+)?(?:{_ENDORSE}|recommended|approved|"
-     r"endorsed|trusted|tested|backed|preferred|certified|verified|formulated|developed|"
-     r"designed|reviewed|loved)"),
+     _VET_TERM),
     ("trainers", r"trainers"), ("groomers", r"groomers"), ("behaviorists", r"behaviou?rists"),
     ("everyone, anyone, no one",
      r"everyone|everybody|anyone|anybody|nobody|no\s+one(?![\s-]size)"),
@@ -353,22 +356,8 @@ _LOOKALIKES = dict(zip(
 _DASHES = re.compile("[\u2010-\u2015\u2212]")
 _BLOCK_BREAK = re.compile(r"\n\s*\n|\n(?=\s*(?:#|\||>|[-+]\s|\d+[.)]\s))")
 _BOUNDARY = re.compile(r"[.!?](?=\s|$)|" + _BLOCK_BREAK.pattern)
-# The sourced mask. A crowd term the featured product's own listing title
-# carries ("Vet Recommended") may be repeated when the same clause credits the
-# listing with it: the listing, a verb of saying, then the term within a few
-# words ("the listing calls it vet recommended", "listed as vet recommended").
-# A mention of the listing elsewhere in the sentence credits nothing.
-_LISTING_CREDIT = re.compile(
-    r"\b(?:(?:the|its|this|amazon's|the\s+amazon)\s+(?:product\s+)?listing(?:'s)?"
-    r"(?:\s+title)?\s+(?:calls|describes|labels|bills|lists|names|markets|says|reads)|"
-    r"listed\s+as)\b", re.IGNORECASE)
-# Between the credit and the term: at most this many words, and nothing that
-# starts another clause or item.
-_CREDIT_GAP_WORDS = 4
-_CLAUSE_BREAK = re.compile(
-    r"[,;:()\[\]!?]|\s-+\s|\b(?:and|but|or|nor|plus|also|while|though|although|"
-    r"because|since|so|yet|which|who|where|when|if)\b", re.IGNORECASE)
-_WORD = re.compile(r"[\w']+")
+_VET_RE = re.compile(r"\b(?:" + _VET_TERM + r")\b", re.IGNORECASE)
+_HEADING_LINE = re.compile(r"^[ \t]*#{1,6}[ \t].*$", re.MULTILINE)
 
 
 def normalize(text) -> str:
@@ -396,11 +385,6 @@ def _snippet(text: str, start: int, end: int) -> str:
     return " ".join(text[left:right].split())[:140]
 
 
-def _words(text: str) -> list:
-    """Lower-cased words, so case, spacing and hyphens never decide a match."""
-    return _WORD.findall(normalize(text).lower())
-
-
 def _crosses_a_block(text: str, m) -> bool:
     """True when term match `m` runs from one block into the next: across a
     blank line, out of a heading, or into a heading, list item, table row or
@@ -413,33 +397,26 @@ def _crosses_a_block(text: str, m) -> bool:
                 or re.match(r"\s*#", text[line_start:m.start()]))
 
 
-def _is_sourced(text: str, m, listing_words: list) -> bool:
-    """True when term match `m` repeats the listing title's own words, in
-    order and whole, and the nearest credit before it in its sentence credits
-    the listing with this term: a short gap with no clause break."""
-    term = _words(m.group(0))
-    n = len(term)
-    if not any(listing_words[i:i + n] == term for i in range(len(listing_words) - n + 1)):
-        return False
-    credit = None
-    for credit in _LISTING_CREDIT.finditer(text, _sentence_start(text, m.start()), m.start()):
-        pass
-    if credit is None:
-        return False
-    gap = text[credit.end():m.start()]
-    return len(_WORD.findall(gap)) <= _CREDIT_GAP_WORDS and not _CLAUSE_BREAK.search(gap)
+def _blank_names(text: str, names, headings_only: bool = False) -> str:
+    for name in names:
+        words = normalize(name).split()
+        rx = re.compile(r"\b" + r"\s+".join(map(re.escape, words)) + r"(?!\w)", re.IGNORECASE)
+        for m in rx.finditer(text):
+            if headings_only and not any(h.start() <= m.start() and m.end() <= h.end()
+                                         for h in _HEADING_LINE.finditer(text)):
+                continue
+            text = _blank(text, *m.span())
+    return text
 
 
-def find_crowd_claims(text: str, names=(), allow_block: bool = False,
-                      listing: str = "") -> list:
+def find_crowd_claims(text: str, names=(), allow_block: bool = False) -> list:
     """Every crowd, opinion or popularity term in `text`, as '"term": sentence'
     (deduped by sentence, in order). Empty list = clean.
 
     `names` are the entry's product names, read as names and not as words.
-    `listing` is the featured product's stored listing title. A term the
-    title carries word for word is allowed where its sentence credits the
-    listing first ("the listing calls it vet recommended"). The same words
-    with no credit, or under another product's title, are refused.
+    A vet or doctor endorsement is the exception: it is refused even inside a
+    product name, except where the verbatim name is a heading (the featured
+    pick's own heading). No listing title or other source makes one sayable.
     `allow_block` exempts well-formed summary blocks; whether a block is right
     is find_summary_block_problems' job. Without it, a block is just more
     text, and its lead names a customer review summary, so the writer cannot
@@ -453,17 +430,12 @@ def find_crowd_claims(text: str, names=(), allow_block: bool = False,
         for m in rx.finditer(masked):
             span = m.span("m") if "m" in rx.groupindex and m.group("m") else m.span()
             masked = _blank(masked, *span)
-    for name in tuple(PRODUCT_NAMES) + tuple(n for n in names if n and n.strip()):
-        words = normalize(name).split()
-        rx = re.compile(r"\b" + r"\s+".join(map(re.escape, words)) + r"(?!\w)", re.IGNORECASE)
-        for m in rx.finditer(masked):
-            masked = _blank(masked, *m.span())
-    listing_words = _words(listing)
+    all_names = tuple(PRODUCT_NAMES) + tuple(n for n in names if n and n.strip())
+    hits = [m for m in _TERM_RE.finditer(_blank_names(masked, all_names))]
+    hits += [m for m in _VET_RE.finditer(_blank_names(masked, all_names, headings_only=True))]
     found, seen = [], set()
-    for m in _TERM_RE.finditer(masked):
+    for m in sorted(hits, key=lambda m: m.start()):
         if _crosses_a_block(masked, m):
-            continue
-        if listing_words and _is_sourced(masked, m, listing_words):
             continue
         snippet = _snippet(t, m.start(), m.end())
         if snippet.lower() in seen:
