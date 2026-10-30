@@ -1,8 +1,8 @@
 ---
 layout: post
-title: "Best Puppy Food for Healthy Growth and Development"
+title: "Best Puppy Food Compared"
 date: 2026-04-20
-last_modified_at: 2026-10-29
+last_modified_at: 2026-10-30
 categories: [food]
 redirect_from:
   - /dog-food/best-puppy-food/

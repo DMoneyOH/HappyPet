@@ -38,7 +38,6 @@ The [Blue Buffalo Bits Beef Training Treats](https://www.amazon.com/dp/B08XY6CFF
 
 - Softer texture can leave a little residue on your fingers
 - Beef-only flavor gives you no backup if your dog tires of one taste
-- Strong beef smell, Amazon's summary notes
 
 <!-- amazon-review-summary -->
 

@@ -1,8 +1,8 @@
 ---
 layout: post
-title: "Adventure Ready: Top Portable Pet Playpens for Safe Outdoor Fun"
+title: "Best Portable Pet Playpens Compared"
 date: 2026-09-07
-last_modified_at: 2026-10-29
+last_modified_at: 2026-10-30
 categories: [crates]
 redirect_from:
   - /dog-crates/best-portable-pet-playpens/

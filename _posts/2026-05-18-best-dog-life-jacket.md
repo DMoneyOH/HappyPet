@@ -1,8 +1,8 @@
 ---
 layout: post
-title: "Best Dog Life Jacket for Safe Swimming and Water Adventures"
+title: "Best Dog Life Jacket: Pros, Cons and Who It Suits"
 date: 2026-05-18
-last_modified_at: 2026-10-29
+last_modified_at: 2026-10-30
 categories: [outdoor]
 redirect_from:
   - /dog-gear/best-dog-life-jacket/

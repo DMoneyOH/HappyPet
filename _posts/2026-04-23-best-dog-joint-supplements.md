@@ -39,7 +39,7 @@ The best evidence so far finds no pain-relief effect from glucosamine and chondr
 
 **An earlier review pointed the same way.** It covered controlled trials in horses, dogs and cats and judged the evidence for most nutraceuticals poor. The exception was diets supplemented with omega-3 fatty acids in dogs. (Vandeweerd et al., *Journal of Veterinary Internal Medicine*, 2012, [doi:10.1111/j.1939-1676.2012.00901.x](https://doi.org/10.1111/j.1939-1676.2012.00901.x))
 
-**One trial found a benefit, with real limits.** 35 dogs with hip or elbow osteoarthritis got glucosamine/chondroitin or the drug carprofen. Vet-rated pain scores improved by day 70, more slowly than with carprofen. It compared the supplement with the drug carprofen, not a placebo. (McCarthy et al., *The Veterinary Journal*, 2007, [doi:10.1016/j.tvjl.2006.02.015](https://doi.org/10.1016/j.tvjl.2006.02.015))
+**One trial found a benefit, with real limits.** 35 dogs with hip or elbow osteoarthritis got glucosamine/chondroitin or the drug carprofen. Pain scores from veterinary exams improved by day 70, more slowly than with carprofen. It compared the supplement with the drug carprofen, not a placebo. (McCarthy et al., *The Veterinary Journal*, 2007, [doi:10.1016/j.tvjl.2006.02.015](https://doi.org/10.1016/j.tvjl.2006.02.015))
 
 **What we take from this:** if your dog is stiff, talk to your vet about omega-3 first. We'd treat a glucosamine supplement as an optional extra, not a treatment.
 
@@ -62,7 +62,6 @@ Welactin carries a **4.6/5** rating on Amazon from **5,241 ratings** (as of Oct 
 
 **Cons**
 - No study on this page tested Welactin itself. The evidence covers omega-3 in general
-- Amazon's summary for these softgels includes reports of diarrhea
 
 If you and your vet decide to try a joint supplement, start with [Nutramax Welactin Canine Softgels](https://www.amazon.com/dp/B001L1BM2W?th=1&tag=happypetdc-20).
 

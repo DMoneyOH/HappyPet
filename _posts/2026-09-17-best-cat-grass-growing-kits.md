@@ -48,7 +48,6 @@ Cons:
 
 - Grass wilts fast if you overwater it or let it dry out
 - One tray disappears quickly in a busy multi-cat home
-- Amazon's summary for this kit includes reports of mold, so water lightly and throw out any tray that grows fuzz
 
 <!-- amazon-review-summary -->
 

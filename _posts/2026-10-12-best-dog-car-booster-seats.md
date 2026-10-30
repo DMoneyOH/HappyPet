@@ -42,7 +42,6 @@ Pros:
 
 Cons:
 - Built only for dogs up to 25 pounds
-- Can tilt forward and back, Amazon's summary notes
 
 <!-- amazon-review-summary -->
 

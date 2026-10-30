@@ -42,7 +42,6 @@ Pros:
 Cons:
 - Opens long, so it needs room behind the car
 - Some large dogs need coaxing before the first trip up
-- Runs a bit narrow for larger dogs, Amazon's summary notes
 
 <!-- amazon-review-summary -->
 

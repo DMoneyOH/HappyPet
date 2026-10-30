@@ -45,7 +45,6 @@ Pros:
 Cons:
 
 - A determined chewer can gnaw the raised ridges over time
-- Amazon's summary is mixed on size, with some saying it doesn't suit big dogs
 
 <!-- amazon-review-summary -->
 

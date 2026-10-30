@@ -41,7 +41,6 @@ Hill's Science Diet Adult 7+ Senior Dry Dog Food is formulated for aging dogs. H
 **Cons:**
 * Contains corn.
 * Can be a bit pricier than some budget brands.
-* Digestion is mixed in Amazon's summary below, with some dogs getting diarrhea, so switch over slowly.
 
 [Hill's Science Diet Senior 7+ Dry Food](https://www.amazon.com/dp/B009B87TKG?th=1&tag=happypetdc-20)
 

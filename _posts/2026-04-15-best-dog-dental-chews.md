@@ -1,8 +1,8 @@
 ---
 layout: post
-title: "Best Dog Dental Chews for Clean Teeth and Fresh Breath"
+title: "Best Dog Dental Chews Compared"
 date: 2026-04-15
-last_modified_at: 2026-10-29
+last_modified_at: 2026-10-30
 categories: [dental]
 redirect_from:
   - /dog-health/best-dog-dental-chews/

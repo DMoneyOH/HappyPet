@@ -46,9 +46,7 @@ Pros:
 - All-in-one kit format keeps the first purchase simple
 
 Cons:
-- Results vary; see Amazon's summary below
 - Works for cats only, so dogs in the home get no benefit
-- Amazon's summary includes reports of the diffuser leaking oil and a refill lasting about 21 of its 30 days
 
 <!-- amazon-review-summary -->
 

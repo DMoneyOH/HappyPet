@@ -38,7 +38,6 @@ Pros:
 Cons:
 - Small size suits cats and toy breeds, not bigger dogs
 - Adds warmth only from your pet's own body heat
-- Amazon's summary is mixed on size, with some finding it smaller than expected
 
 <!-- amazon-review-summary -->
 

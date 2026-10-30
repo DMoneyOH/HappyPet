@@ -1,8 +1,8 @@
 ---
 layout: post
-title: "Best Cat Harness and Leash for Safe Outdoor Adventures"
+title: "Best Cat Harness and Leash: Our Pick and Buying Guide"
 date: 2026-05-12
-last_modified_at: 2026-10-29
+last_modified_at: 2026-10-30
 categories: [harnesses]
 redirect_from:
   - /cat-gear/best-cat-harness-leash/
@@ -37,7 +37,6 @@ Rated 4.4 / 5 on Amazon, this set comes at a budget‑friendly price of $12.
 **Cons**  
 - Some cats may need a short acclimation period to accept the harness  
 - Leash length is fixed, limiting how far your cat can roam in larger outdoor spaces  
-- Amazon's summary is mixed on sizing, so measure your cat's chest before ordering  
 
 We chose this set as our top pick because it balances safety and cost, key factors for a cat's first trips beyond the windowsill.  
 

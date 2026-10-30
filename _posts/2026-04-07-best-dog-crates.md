@@ -38,7 +38,6 @@ This 42-inch wire crate gives a large dog room to move at a budget price. It has
 * Plastic pan can be noisy if not secured well
 * Heavier than fabric or plastic crates
 * Single door, so placement is less flexible
-* Durability is mixed in Amazon's summary below, including dogs breaking out and the top latch coming undone
 
 [MidWest New World Dog Crate](https://www.amazon.com/dp/B01DLS2EX8?th=1&tag=happypetdc-20)
 

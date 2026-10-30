@@ -45,7 +45,6 @@ The top choice earns a solid 4.6/5 star rating on Amazon and costs $37.99 (as of
 **Cons**
 - Heavier than plastic boxes; may take two sets of hands to move initially  
 - No built‑in self‑cleaning mechanism; still requires manual scooping  
-- Amazon's summary also mentions the plastic top extension popping loose  
 
 ---
 

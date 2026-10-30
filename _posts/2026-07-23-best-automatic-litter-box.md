@@ -42,7 +42,6 @@ Cons:
 
 - The $199.95 price (as of Jul 7, 2026) sits well above a manual pan
 - Larger footprint needs dedicated floor space
-- Amazon's summary reports units breaking after about a year and getting stuck mid-cycle
 
 <!-- amazon-review-summary -->
 

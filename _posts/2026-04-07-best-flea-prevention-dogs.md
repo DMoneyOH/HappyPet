@@ -60,7 +60,7 @@ Many flea prevention products offer broader protection against other parasites, 
 
 ## The Top Pick -- Seresto Flea & Tick Collar for Large Dogs
 
-For long-acting, budget-friendly flea prevention for dogs, the Seresto Flea & Tick Collar is our pick. It is rated for 8 months of continuous protection against both fleas and ticks. It uses two active ingredients, Imidacloprid and Flumethrin, which the maker says are released slowly over your dog's skin and coat. Its convenience is the draw – put it on and forget about monthly applications. The maker says it is water-resistant. Amazon's summary for this collar is mixed on side effects and includes reports of rashes and seizures. Watch your dog's skin after you fit it, take the collar off if you see a reaction, and ask your vet before using it on a dog with a history of seizures.
+For long-acting, budget-friendly flea prevention for dogs, the Seresto Flea & Tick Collar is our pick. It is rated for 8 months of continuous protection against both fleas and ticks. It uses two active ingredients, Imidacloprid and Flumethrin, which the maker says are released slowly over your dog's skin and coat. Its convenience is the draw – put it on and forget about monthly applications. The maker says it is water-resistant. Watch your dog's skin after you fit it, take the collar off if you see a reaction, and ask your vet before using it on a dog with a history of seizures.
 
 [Seresto Large Dog Flea & Tick Collar](https://www.amazon.com/dp/B00B8CG602?th=1&tag=happypetdc-20)
 

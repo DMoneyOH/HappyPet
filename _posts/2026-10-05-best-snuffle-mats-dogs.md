@@ -47,7 +47,6 @@ Pros:
 Cons:
 - Strips can come loose with dogs that chew instead of sniff
 - Crumbs and food dust settle deep in the fabric and need regular washing
-- Amazon's summary is mixed on durability and criticizes the thin, felt-like material
 
 <!-- amazon-review-summary -->
 

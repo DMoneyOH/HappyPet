@@ -42,7 +42,6 @@ Cons:
 
 - The taut fabric can tempt a heavy chewer
 - Assembly takes a few minutes and the corners fit snugly
-- Amazon's summary includes reports of the bed sagging almost to the ground
 
 <!-- amazon-review-summary -->
 

@@ -45,7 +45,6 @@ Cons:
 
 - The 19oz size runs short for a large dog on an all-day hike
 - The plastic body picks up scratches with heavy use
-- The button and water flow get mixed marks in Amazon's summary
 
 <!-- amazon-review-summary -->
 

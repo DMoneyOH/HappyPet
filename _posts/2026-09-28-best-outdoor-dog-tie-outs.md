@@ -41,7 +41,6 @@ Pros:
 Cons:
 - A 16-inch stake can loosen in sandy or rain-soaked soil
 - Coated cable may fray over time if a determined chewer gets bored
-- Amazon's summary is mixed on weight limits, including warnings that it isn't for large dogs
 
 <!-- amazon-review-summary -->
 

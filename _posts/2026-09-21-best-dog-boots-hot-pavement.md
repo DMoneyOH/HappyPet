@@ -43,7 +43,6 @@ Cons:
 
 - Size 2 fits only smaller paws, so larger breeds need a different pick
 - Straps can loosen on active dogs and need a mid-walk check
-- Amazon's summary is mixed on durability, with some boots tearing apart
 
 <!-- amazon-review-summary -->
 

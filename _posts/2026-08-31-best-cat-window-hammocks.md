@@ -44,7 +44,6 @@ Cons:
 
 - Suction needs clean glass and occasional resticking
 - Beige fabric shows fur and dirt sooner than a darker color would
-- Amazon's summary includes reports of it breaking within a week
 
 <!-- amazon-review-summary -->
 

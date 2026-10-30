@@ -39,7 +39,6 @@ Cons:
 
 - Chews run small for medium and large breeds
 - Cardboard doors may not survive a dog that finds the calendar first
-- Amazon's summary includes reports of diarrhea, so start with one treat and watch your dog's stomach
 
 <!-- amazon-review-summary -->
 

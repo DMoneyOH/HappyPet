@@ -1,8 +1,8 @@
 ---
 layout: post
-title: "Brush Away the Fur: Top Cat Grooming Brushes for a Happy, Healthy Coat"
+title: "Best Cat Grooming Brushes Compared"
 date: 2026-10-08
-last_modified_at: 2026-10-29
+last_modified_at: 2026-10-30
 categories: [grooming]
 species: cat
 tags: [best cat grooming brushes]
@@ -40,9 +40,6 @@ Pros:
 - Low price makes it an easy first brush to try
 - De-shedding head for loose fur
 - Strong Amazon rating for a budget grooming tool
-
-Cons:
-- Value is mixed in Amazon's summary below
 
 <!-- amazon-review-summary -->
 
