@@ -3186,7 +3186,7 @@ class TestBuyerFeedbackGuard(unittest.TestCase):
         "It is popular with buyers.", "Most customers pick the large size.",
         "It is a favorite of buyers.", "It is a customer favorite.", "Shoppers keep reordering it.",
         # Round 3 (Tessa): the near-miss that shared one word with the summary,
-        # and the Director's own fail-open example with the noun ending it.
+        # and the fail-open example that let a sentence-final noun through.
         "Customers who bought it say the puree cured their cat's kidney disease.",
         "Customers favor the blue colorway.",
         "It is a favorite among budget-conscious buyers",
