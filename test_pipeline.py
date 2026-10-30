@@ -3468,7 +3468,17 @@ class TestBuyerFeedbackGuard(unittest.TestCase):
                   "Over a million sold."):
             with self.subTest(s=s):
                 self.assertTrue(self.bf.find_crowd_claims(s), s)
-        for s in ("If the medium is sold out, the large fits too.",
+        for s in ("Many\nsay it runs small.", "The cat community loves it.",
+                  "Others\nsay the strap frays."):
+            with self.subTest(s=s):
+                self.assertTrue(self.bf.find_crowd_claims(s), s)
+        # Published copy these terms first flagged: a term never runs out of a
+        # heading or across a blank line, and "community cats" are cats.
+        for s in ("## The Habit That Matters Most\n\nBuying a good brush matters less.",
+                  "## Picks for Most\nBuying on a budget starts here.",
+                  "A heated house gives feral and community cats a dry spot.",
+                  "It is a third option if the other two sell out.",
+                  "If the medium is sold out, the large fits too.",
                   "Rated 4.6 stars from 12,431 Amazon reviews (as of Oct 28, 2026).",
                   "The walker's harness clips at the back.", "Choose the size by weight."):
             with self.subTest(s=s):
