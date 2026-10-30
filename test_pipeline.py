@@ -3382,7 +3382,8 @@ class TestBuyerFeedbackGuard(unittest.TestCase):
         after them; a spaced one only with an endorsement word, since "your
         vet prescribed" is a subject and its verb."""
         heads = ("vet", "Vet", "veterinarian", "veterinary", "vet's", "vets'", "doctor",
-                 "Dr.", "dentist", "veterinary-dentist")
+                 "Dr.", "dentist", "veterinary-dentist", "DVM", "dvm", "doctors", "vets",
+                 "veterinarians", "doctors'", "DVM's")
         words = ("recommended", "approved", "endorsed", "trusted", "formulated", "backed",
                  "tested", "certified", "verified", "proven", "preferred", "reviewed",
                  "loved", "grade", "strength", "quality", "pick", "choice", "favorite")
