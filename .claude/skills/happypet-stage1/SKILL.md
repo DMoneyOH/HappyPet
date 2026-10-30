@@ -31,7 +31,7 @@ step. Never call OpenRouter or any external model. Run from the repo root with
    - Dispatch a subagent with `model: sonnet` whose entire task is: read
      `LOOP/revprompt.txt`, follow it, and return ONLY the scorecard JSON. Save its
      reply to `LOOP/card.json`.
-4. **Gate (deterministic):** `python stage1_cli.py gate --slug <slug> --body LOOP/body.md --scorecard LOOP/card.json` (the slug supplies the entry's link, alternatives and Amazon customer summary; without it every buyer-feedback line is flagged). The gate also checks `LOOP/pindesc.txt`, beside the body, when it exists.
+4. **Gate (deterministic):** `python stage1_cli.py gate --slug <slug> --body LOOP/body.md --scorecard LOOP/card.json` (the slug supplies the entry's link, alternatives and product names). The body carries no buyer feedback at all: `stage` adds Amazon's customer review summary itself, quoted word for word. The gate also checks `LOOP/pindesc.txt`, beside the body, when it exists.
    - `passed: true` → go to step 6.
    - `passed: false` → note `flags`, go to step 5 (unless attempts exhausted).
 5. **Rewrite (Opus, you):** if attempts remain,

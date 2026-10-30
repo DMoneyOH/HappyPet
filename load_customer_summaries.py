@@ -15,8 +15,10 @@ file leaves its entry untouched. Re-run it after every fresh pull:
 
     python load_customer_summaries.py path/to/customer-summaries.json
 
-The summary text is untrusted page content. It is stored as data and reaches a
-prompt only inside the delimited <customer_summary> block.
+The summary text is untrusted page content. It is stored as data, reaches no
+prompt, and reaches a post only as a word-for-word quote in the summary block
+stage_article adds. An entry's `customer_summary_unusable` (the summary
+describes a different item) is left alone, and keeps the block off that post.
 """
 import argparse
 import sys
@@ -82,8 +84,9 @@ def main(argv=None) -> int:
         print(f"ERROR: {e}", file=sys.stderr)
         return 2
     if products != before:
-        # Same shape as refill_cli and refill_products write it.
-        atomic_write_json(products_path, products, trailing_newline=True)
+        # No trailing newline: the shape the publish path (push_pins_to_sheets)
+        # writes, so a load followed by a publish leaves no whitespace diff.
+        atomic_write_json(products_path, products)
     print(f"{counts['loaded']} loaded, {counts['cleared']} cleared (empty summary), "
           f"{counts['missing']} not in the file; products.json "
           f"{'updated' if products != before else 'unchanged'}")

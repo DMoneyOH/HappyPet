@@ -67,9 +67,7 @@ def cmd_review_prompt(args) -> int:
         title = title or product.get("title", "")
         keyword = keyword or product.get("keyword", "")
         verified = gp.build_verified_facts(product)
-    print(gp.make_review_prompt(
-        title, keyword, body, verified,
-        sources=gp.feedback_sources(product)))
+    print(gp.make_review_prompt(title, keyword, body, verified))
     return 0
 
 
@@ -86,8 +84,7 @@ def cmd_gate(args) -> int:
     product, err = _product_for(args.slug)
     if err:
         return err
-    # Buyer feedback is judged against the entry's customer summary; with no
-    # --slug there is none, so every customer attribution is flagged.
+    # --slug supplies the product names, read as names by the crowd-term check.
     passed, flags = gp.authoritative_gate(scorecard, scrubbed,
                                           gp.feedback_sources(product))
     product_name = ""
@@ -131,12 +128,9 @@ def cmd_gate(args) -> int:
     if pin_path.is_file():
         pin_desc = gp.clean_pin_desc(_read(pin_path),
                                      (product or {}).get("species", "dog"))
-        for claim in gp.find_firsthand_claims(pin_desc):
+        for problem in gp.find_pin_desc_problems(pin_desc, gp.feedback_sources(product)):
             passed = False
-            flags.append(f"pin_desc: firsthand claim {claim!r}")
-        for claim in gp.find_unsourced_buyer_feedback(pin_desc):
-            passed = False
-            flags.append(f"pin_desc: buyer feedback {claim!r}")
+            flags.append(f"pin_desc: {problem}")
     print(json.dumps({"passed": passed, "flags": flags, "scrubbed_body": scrubbed}))
     return 0
 
@@ -149,13 +143,12 @@ def cmd_rewrite_prompt(args) -> int:
         return err
     entry = product or {}
     # --slug means what it means on review-prompt: the entry fills every field
-    # a flag leaves empty, and supplies the customer summary.
+    # a flag leaves empty.
     print(gp.make_rewrite_prompt(
         args.title or entry.get("title", ""), args.keyword or entry.get("keyword", ""),
         body, instructions,
         affiliate_url=args.affiliate_url or entry.get("affiliate_url", ""),
-        product_name=args.product_name or entry.get("name", ""),
-        sources=gp.feedback_sources(product)))
+        product_name=args.product_name or entry.get("name", "")))
     return 0
 
 
@@ -164,7 +157,7 @@ def cmd_stage(args) -> int:
     product, err = _product_for(args.slug, required=True)
     if err:
         return err
-    pin_desc = gp.clean_pin_desc(args.pin_desc or f"{product['title']} - reviews and buying guide.",
+    pin_desc = gp.clean_pin_desc(args.pin_desc or f"{product['title']} - our picks and buying guide.",
                                  product.get("species", "dog"))
     try:
         gp.validate_output(
@@ -175,8 +168,9 @@ def cmd_stage(args) -> int:
             product_name=product.get("name", ""),
             sources=gp.feedback_sources(product))
         # The pin description becomes the published `description` and the
-        # Pinterest text, which travels without the post's date: no buyer feedback.
-        gp.assert_no_unsourced_buyer_feedback("pin_desc", pin_desc, args.slug)
+        # Pinterest text: no buyer feedback, no first person singular.
+        gp.assert_pin_desc_clean("pin_desc", pin_desc, args.slug,
+                                 gp.feedback_sources(product))
     except gp.GenerationStageError as e:
         print(f"ERROR: content contract failed: {e}", file=sys.stderr)
         return 3
@@ -195,17 +189,16 @@ def build_parser() -> argparse.ArgumentParser:
     rp = sub.add_parser("review-prompt")
     rp.add_argument("--body", required=True)
     rp.add_argument("--slug", default="",
-                    help="products.json entry: fills empty --title/--keyword, adds its "
-                         "verified facts and its Amazon customer summary")
+                    help="products.json entry: fills empty --title/--keyword and adds "
+                         "its verified facts")
     rp.add_argument("--title", default=""); rp.add_argument("--keyword", default="")
     rp.set_defaults(func=cmd_review_prompt)
 
     g = sub.add_parser("gate")
     g.add_argument("--body", required=True); g.add_argument("--scorecard", required=True)
     g.add_argument("--slug", default="",
-                   help="products.json entry: supplies its link, alternatives, product "
-                        "name and Amazon customer summary; without it every "
-                        "buyer-feedback line is flagged")
+                   help="products.json entry: supplies its link, alternatives and "
+                        "product names")
     g.add_argument("--pin-desc-file", dest="pin_desc_file", default="",
                    help="Pinterest description to check (default: pindesc.txt "
                         "beside --body, when it exists)")
@@ -218,8 +211,8 @@ def build_parser() -> argparse.ArgumentParser:
     rw.add_argument("--product-name", dest="product_name", default="")
     rw.add_argument("--slug", default="",
                     help="products.json entry: fills empty --title/--keyword/"
-                         "--affiliate-url/--product-name and adds its Amazon "
-                         "customer summary (same meaning as on review-prompt)")
+                         "--affiliate-url/--product-name (same meaning as on "
+                         "review-prompt)")
     rw.set_defaults(func=cmd_rewrite_prompt)
 
     st = sub.add_parser("stage")
