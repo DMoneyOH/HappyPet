@@ -50,6 +50,13 @@ def atomic_write_json(path, data, *, indent: int = 2, trailing_newline: bool = F
         raise
 
 
+def write_products(path, products) -> None:
+    """Write products.json in its one shape: 2-space indent, no trailing
+    newline. Every writer of the file calls this, so a run of one script
+    after another never leaves a whitespace-only diff."""
+    atomic_write_json(path, products, indent=2)
+
+
 def read_json(path, default=None):
     """Load JSON from ``path``.
 

@@ -43,7 +43,7 @@ import re
 import sys
 from pathlib import Path
 
-from json_io import CorruptJSONError, atomic_write_json, read_json
+from json_io import CorruptJSONError, read_json, write_products
 import automerge_gate
 import categories
 import generate_posts as gp
@@ -285,7 +285,7 @@ def cmd_seed(args) -> int:
     if not seeded:
         print("seeded nothing")
         return 1
-    atomic_write_json(Path(args.products), products, trailing_newline=True)
+    write_products(Path(args.products), products)
     print(f"seeded {len(seeded)}: {', '.join(seeded)}")
     return 0
 
@@ -318,7 +318,7 @@ def cmd_resolve(args) -> int:
         filled.append(topic)
     gone = {d["topic"] for d in dropped}
     products = [e for e in products if e.get("topic") not in gone]
-    atomic_write_json(path, products, trailing_newline=True)
+    write_products(path, products)
     if args.result:
         Path(args.result).write_text(json.dumps({"filled": filled, "dropped": dropped},
                                                 indent=2) + "\n", encoding="utf-8")

@@ -18,8 +18,51 @@ Two halves, one vocabulary:
 Pure text functions with no imports from the pipeline, so the gate, the
 staging step and the published-post tests share one implementation.
 """
+import html
 import re
 import unicodedata
+
+# --- The stored summary -------------------------------------------------------
+CUSTOMER_SUMMARY_MAX_CHARS = 900
+# Characters that could open markup or a Liquid tag in the post, or hide or
+# reorder text (controls, zero-width and bidi characters).
+_SUMMARY_DROP = re.compile("[<>{}\x00-\x1f\x7f\u00ad\u200b-\u200f\u202a-\u202e"
+                           "\u2060-\u2064\u2066-\u2069\ufeff]")
+
+
+def _plain_brackets(text: str) -> str:
+    """`text` with every look-alike of < > { } (fullwidth, small form) made
+    plain, so the strips below see it. No other character changes."""
+    return "".join(c if c.isascii() else
+                   (n if (n := unicodedata.normalize("NFKC", c)) in ("<", ">", "{", "}") else c)
+                   for c in text)
+
+
+def clean_customer_summary(text) -> str:
+    """Untrusted Amazon page text -> one plain line safe to store and quote.
+
+    Look-alike brackets are made plain first (a fullwidth less-than sign
+    becomes "<" and is then stripped), then markup and entities go, then
+    every character that could open markup or a Liquid tag, or hide or
+    reorder text (controls, zero-width and bidi characters). Whitespace
+    collapses to single spaces. Nothing else changes: the block quotes this
+    text as Amazon's, so dashes, ellipses and other punctuation stay as Amazon
+    wrote them. Past the length cap, the text ends at the last sentence that
+    fits, or is "" when no sentence fits, since a quote is never a cut
+    sentence. Returns "" for anything that is not a non-empty string.
+    Idempotent, so a stored summary cleans to itself and a quote of it stays
+    exact."""
+    if not isinstance(text, str):
+        return ""
+    s = re.sub(r"<[^>]*>", " ", _plain_brackets(text))
+    s = _plain_brackets(html.unescape(s))
+    s = " ".join(_SUMMARY_DROP.sub(" ", s).split())
+    if len(s) > CUSTOMER_SUMMARY_MAX_CHARS:
+        ends = [m.start() for m in _SENTENCE_SPLIT.finditer(s)
+                if m.start() <= CUSTOMER_SUMMARY_MAX_CHARS]
+        s = s[:ends[-1]] if ends else ""
+    return s
+
 
 # --- The summary block --------------------------------------------------------
 BLOCK_START = "<!-- amazon-review-summary -->"
@@ -56,10 +99,10 @@ def select_quotes(summary: str) -> list:
 
 
 def render_summary_block(summary: str, read_on_label: str) -> str:
-    """The block for `summary`, read on `read_on_label` ("Oct 29, 2026").
-    `summary` must already be cleaned (generate_posts.clean_customer_summary).
-    Returns "" when there is nothing to quote."""
-    quotes = select_quotes(summary)
+    """The block for `summary`, read on `read_on_label` ("Oct 29, 2026"). The
+    summary is cleaned here (clean_customer_summary), so the block never quotes
+    raw page text. Returns "" when there is nothing to quote."""
+    quotes = select_quotes(clean_customer_summary(summary))
     if not quotes or not read_on_label:
         return ""
     quoted = "\n>\n".join(f'> "{q}"' for q in quotes)
@@ -106,10 +149,12 @@ def insert_summary_block(body: str, block: str) -> str:
 
 def find_summary_block_problems(text: str, summary: str, read_on_label: str) -> list:
     """What is wrong with the summary blocks in `text`, judged against the
-    product's stored, cleaned `summary` read on `read_on_label`. Empty list =
-    no block, or exactly one block that is exactly what render_summary_block
-    makes. Each check is also reported on its own, so a held post says why."""
+    product's stored `summary` (cleaned here) read on `read_on_label`. Empty
+    list = no block, or exactly one block that is exactly what
+    render_summary_block makes. Each check is also reported on its own, so a
+    held post says why."""
     text = (text or "").replace("\r\n", "\n")
+    summary = clean_customer_summary(summary)
     starts, ends = text.count(BLOCK_START), text.count(BLOCK_END)
     if starts == 0 and ends == 0:
         return []
@@ -148,75 +193,93 @@ def find_summary_block_problems(text: str, summary: str, read_on_label: str) -> 
 
 
 # --- The default-deny gate ----------------------------------------------------
-# Each entry is (label, pattern). The labels are what the prompts list, so the
-# stated rule and the enforced gate read from one place.
+# Each entry is (prompt text, pattern). The prompt text is what the prompts
+# list, joined with "; ", so the stated rule and the enforced gate read from
+# one place.
 CROWD_TERMS = (
     # People credited with an opinion or a choice.
     ("customers", r"customers?"), ("consumers", r"consumers?"), ("buyers", r"buyers?"),
     ("owners", r"owners?"), ("shoppers", r"shoppers?"), ("purchasers", r"purchasers?"),
     ("reviewers", r"reviewers?"), ("reviews", r"reviews"),
-    ("a review", r"(?:a|an|one|another|each|every|any|this|that|the|customer|amazon|buyer|"
-                 r"user|star|positive|negative|glowing|rave|verified|top)\s+review\b(?!-)"),
+    ("a review, one review, a top review",
+     r"(?:a|an|one|another|each|every|any|this|that|the|customer|amazon|buyer|"
+     r"user|star|positive|negative|glowing|rave|verified|top)\s+review\b(?!-)"),
     # A dated star rating is a listing figure. Ratings as praise are not.
-    ("ratings as opinion", r"(?:top|highly|well|best|higher|highest)[\s-]+rated|"
-                           r"rated\s+(?:highly|well|best|top)|(?:high|strong|glowing|great|"
-                           r"excellent|stellar|solid|impressive|perfect|positive|rave)\s+"
-                           r"(?:star\s+)?(?:ratings?|marks)|"
-                           r"(?:well|highly|positively|favou?rably)[\s-]+reviewed|reviewed\s+by"),
-    ("pet parents", r"(?:pet|dog|cat|puppy|kitten|fur)[\s-]*(?:parents?|moms?|dads?|lovers?)|pawrents"),
+    ("top-rated, highly rated, high marks, well reviewed",
+     r"(?:top|highly|well|best|higher|highest)[\s-]+rated|"
+     r"rated\s+(?:highly|well|best|top)|(?:high|strong|glowing|great|"
+     r"excellent|stellar|solid|impressive|perfect|positive|rave)\s+"
+     r"(?:star\s+)?(?:ratings?|marks)|"
+     r"(?:well|highly|positively|favou?rably)[\s-]+reviewed|reviewed\s+by"),
+    ("pet parents, dog moms, cat dads, pet lovers",
+     r"(?:pet|dog|cat|puppy|kitten|fur)[\s-]*(?:parents?|moms?|dads?|lovers?)|pawrents"),
     ("people", r"people"), ("users", r"users"), ("folks", r"folks"),
     ("households", r"households"), ("homes", r"homes"), ("families", r"families"),
     # Professionals as a crowd ("many vets", "trainers swear by") or as an
-    # endorsement ("vet-approved"). "Ask your vet" and "a trip to the vet" are
-    # advice and errands, and stay.
-    ("vets as endorsers", r"vets|veterinarians|vet[\s-]+(?:recommended|approved|endorsed|"
-                          r"trusted|favou?rite|pick|choice|formulated|developed|designed)"),
+    # endorsement ("vet-approved", "veterinarian-recommended"). "Ask your vet"
+    # and "a trip to the vet" are advice and errands, and stay.
+    ("vets, veterinarians, vet-approved, veterinarian-recommended",
+     r"vets|veterinarians|(?:vet|veterinarian|veterinary)[\s-]+(?:recommended|approved|"
+     r"endorsed|trusted|favou?rite|pick|choice|formulated|developed|designed)"),
     ("trainers", r"trainers"), ("groomers", r"groomers"), ("behaviorists", r"behaviou?rists"),
-    ("everyone, anyone, no one", r"everyone|everybody|anyone|anybody|nobody|no\s+one(?![\s-]size)"),
+    ("everyone, anyone, no one",
+     r"everyone|everybody|anyone|anybody|nobody|no\s+one(?![\s-]size)"),
     ("feedback", r"feedback"), ("testimonials", r"testimonials?"),
-    ("stories and anecdotes", r"success\s+stories|stories\s+(?:abound|from|about)|anecdot\w*"),
-    ("complaints and praise", r"complain\w*|complaints?|prais(?:e|es|ed|ing)|gripes?|"
-                              r"criticism|compliments?"),
+    ("success stories, anecdotes",
+     r"success\s+stories|stories\s+(?:abound|from|about)|anecdot\w*"),
+    ("complaints, praise, gripes, criticism, compliments",
+     r"complain\w*|complaints?|prais(?:e|es|ed|ing)|gripes?|criticism|compliments?"),
     # Popularity and sentiment.
-    ("popular", r"popular\w*"), ("favorite", r"favou?rites?|faves?"),
-    ("best-selling", r"best[\s-]*sell\w*|top[\s-]*sell\w*"), ("beloved", r"beloved"),
-    ("reputation", r"reputation\w*"), ("go-to", r"go[\s-]to"), ("thumbs-up", r"thumbs[\s-]*up"),
-    ("consensus", r"consensus"), ("verdict", r"verdicts?"),
+    ("popular", r"popular\w*"), ("favorite (your pet's favorite is fine)", r"favou?rites?|faves?"),
+    ("best-selling, top-selling", r"best[\s-]*sell\w*|top[\s-]*sell\w*"),
+    ("beloved", r"beloved"), ("reputation", r"reputation\w*"), ("go-to", r"go[\s-]to"),
+    ("thumbs-up", r"thumbs[\s-]*up"), ("consensus", r"consensus"),
+    ("verdict (our verdict is fine)", r"verdicts?"),
     ("raves", r"rav(?:e|es|ed|ing)"), ("swear by", r"(?:swear\w*|swore|sworn)\s+by"),
-    ("reach for", r"reach(?:es|ed|ing)?\s+for"), ("snap up", r"snap(?:s|ped|ping)?\s+(?:\w+\s+)?up"),
-    ("repeat purchases", r"repeat\s+(?:purchase\w*|buy\w*|customers?|orders?)|"
-                         r"re-?(?:order|buy|purchas)\w*"),
+    ("reach for", r"reach(?:es|ed|ing)?\s+for"),
+    ("snap up", r"snap(?:s|ped|ping)?\s+(?:\w+\s+)?up"),
+    ("repeat purchases, reorders", r"repeat\s+(?:purchase\w*|buy\w*|customers?|orders?)|"
+                                   r"re-?(?:order|buy|purchas)\w*"),
     ("word of mouth", r"word\s+of\s+mouth"), ("vocal about", r"vocal\s+about"),
-    ("chosen or picked more often", r"(?:chosen|picked|bought|ordered|purchased|preferred)\s+"
-                                    r"(?:more|most)\s+(?:often|frequently)|most[\s-]+(?:picked|"
-                                    r"chosen|bought|ordered|purchased|loved|trusted|recommended)"),
+    ("most picked, most bought, chosen most often",
+     r"(?:chosen|picked|bought|ordered|purchased|preferred)\s+"
+     r"(?:more|most)\s+(?:often|frequently)|most[\s-]+(?:picked|"
+     r"chosen|bought|ordered|purchased|loved|trusted|recommended)"),
     ("fans", r"fans?(?!-shaped)|fanbase"),
-    ("cult following", r"cult|(?:loyal|devoted|big|huge|strong|dedicated)\s+following"),
+    ("cult following, loyal following",
+     r"cult|(?:loyal|devoted|big|huge|strong|dedicated)\s+following"),
     ("crowd-pleaser", r"crowd[\s-]*pleas\w*"), ("household name", r"household\s+name"),
-    ("loved or trusted by", r"(?:loved|trusted|adored|praised|recommended|endorsed|approved|"
-                            r"preferred|chosen)\s+by"),
-    ("well loved", r"(?:well|much|widely|universally|dearly)[\s-]+(?:loved|liked|regarded|"
-                   r"known|recommended)|highly\s+recommended|comes\s+recommended"),
-    ("hearsay", r"reportedly|by\s+all\s+accounts|they\s+say|it\s+is\s+said"),
-    ("wins over", r"wins?\s+over|won\s+over|hit\s+with"),
+    ("loved by, trusted by, recommended by",
+     r"(?:loved|trusted|adored|praised|recommended|endorsed|approved|preferred|chosen)\s+by"),
+    ("well loved, widely liked, highly recommended",
+     r"(?:well|much|widely|universally|dearly)[\s-]+(?:loved|liked|regarded|"
+     r"known|recommended)|highly\s+recommended|comes\s+recommended"),
+    ("reportedly, by all accounts, they say",
+     r"reportedly|by\s+all\s+accounts|they\s+say|it\s+is\s+said"),
+    ("wins over, a hit with", r"wins?\s+over|won\s+over|hit\s+with"),
     # A bare quantifier as the speaker: "Most agree", "Others find it too loud".
-    ("many say, most agree", r"(?:many|most|some|several|few|others|plenty|lots)\s+"
-                             r"(?:say|says|said|agree\w*|report\w*|mention\w*|note[sd]?|find|"
-                             r"found|feel|felt|claim\w*|swear\w*|swore|rave\w*|prais\w*|"
-                             r"love[sd]?|like[sd]?|prefer\w*|recommend\w*|describ\w*|"
-                             r"complain\w*|call|calls|called|consider\w*|think|thinks|thought|"
-                             r"insist\w*|reach\w*|buy|buys|bought|choose|chooses|chose|pick|"
-                             r"picks|picked|wish\w*|warn\w*|point(?:s|ed|ing)?\s+out)"),
+    ("many say, most agree, others find",
+     r"(?:many|most|some|several|few|others|plenty|lots)\s+"
+     r"(?:say|says|said|agree\w*|report\w*|mention\w*|note[sd]?|find|"
+     r"found|feel|felt|claim\w*|swear\w*|swore|rave\w*|prais\w*|"
+     r"love[sd]?|like[sd]?|prefer\w*|recommend\w*|describ\w*|"
+     r"complain\w*|call|calls|called|consider\w*|think|thinks|thought|"
+     r"insist\w*|reach\w*|buy|buys|bought|choose|chooses|chose|pick|"
+     r"picks|picked|wish\w*|warn\w*|point(?:s|ed|ing)?\s+out)"),
 )
 _TERM_RE = re.compile(r"\b(?:" + "|".join(f"(?:{p})" for _, p in CROWD_TERMS) + r")\b",
                       re.IGNORECASE)
 
-# Product names that carry a term ("MidWest Homes for Pets"). The entry's own
-# names are added per call.
+# Product names that carry a term and appear in published posts. The
+# published-post test has no products.json entry to read names from (an entry
+# is retired once its post publishes, and older posts carry no listing_title),
+# so the names it must read as names are listed here. The entry's own names
+# are added per call.
 PRODUCT_NAMES = ("MidWest Homes for Pets",)
 
 # Spans that are not a crowd claim. Where a pattern has a group named m, only
-# that group is blanked, so "owner's favorite" keeps "owner's" in view.
+# that group is blanked, so "your dog's favorite" keeps the rest in view.
+_PET = r"(?:dog|cat|pet|puppy|kitten)"
 _EXEMPT = [re.compile(p, re.IGNORECASE | re.MULTILINE) for p in (
     r"\]\([^)\s]*\)", r"https?://\S+",                               # link targets, URLs
     r"happy\s*pet\s*product\s*reviews", r"happypetproductreviews",   # the site's name
@@ -232,12 +295,22 @@ _EXEMPT = [re.compile(p, re.IGNORECASE | re.MULTILINE) for p in (
     r"\b(?:verbal|lots\s+of|plenty\s+of|with|and|or)\s+(?P<m>praise)\b",
     r"\b(?P<m>owner'?s?)\s+manual\b", r"\b(?P<m>customer)\s+(?:service|support|care)\b",
     r"\b(?P<m>buyer'?s)\s+guide\b",
-    r"\b(?:your|their|its|his|her|[a-z]+'s)\s+(?:(?:very|all-time)\s+)?(?P<m>favou?rite)\b",
+    # A pet's own favorite, never a crowd's: "your dog's favorite", "its
+    # favorite spot". "America's favorite" and "Amazon's favorite" stay refused.
+    rf"\b(?:your|their|its|(?:your|the)\s+{_PET}(?:'s|s'))\s+(?:(?:very|all-time)\s+)?"
+    r"(?P<m>favou?rite)\b",
     r"\b(?:cooling|ceiling|box|desk|electric|exhaust|oscillating)\s+(?P<m>fans?)\b",
 )]
 _DROP = re.compile("[\u00ad\u200b-\u200f\u202a-\u202e\u2060-\u2064\u2066-\u2069\ufeff*_]")
 _DASHES = re.compile("[\u2010-\u2015\u2212]")
 _BOUNDARY = re.compile(r"[.!?](?=\s|$)|\n\s*\n|\n(?=\s*(?:#|\||>|[-+]\s|\d+[.)]\s))")
+# The sourced mask. A crowd term the featured product's own listing title
+# carries ("Vet Recommended") may be repeated when its sentence credits the
+# listing before the term: "the listing calls it vet recommended".
+_LISTING_CREDIT = re.compile(
+    r"\b(?:(?:the|its|this|amazon's|the\s+amazon)\s+(?:product\s+)?listing(?:\s+title)?|"
+    r"listed\s+as)\b", re.IGNORECASE)
+_WORD = re.compile(r"[\w']+")
 
 
 def normalize(text) -> str:
@@ -253,21 +326,45 @@ def _blank(text: str, start: int, end: int) -> str:
     return text[:start] + re.sub(r"[^\n]", " ", text[start:end]) + text[end:]
 
 
+def _sentence_start(text: str, start: int) -> int:
+    return max((m.end() for m in _BOUNDARY.finditer(text, 0, start)), default=0)
+
+
 def _snippet(text: str, start: int, end: int) -> str:
-    left = max((m.end() for m in _BOUNDARY.finditer(text, 0, start)), default=0)
+    left = _sentence_start(text, start)
     right = next((m.start() + 1 for m in _BOUNDARY.finditer(text, end)), len(text))
     return " ".join(text[left:right].split())[:140]
 
 
-def find_crowd_claims(text: str, names=(), allow_block: bool = False) -> list:
+def _words(text: str) -> list:
+    """Lower-cased words, so case, spacing and hyphens never decide a match."""
+    return _WORD.findall(normalize(text).lower())
+
+
+def _is_sourced(text: str, m, listing_words: list) -> bool:
+    """True when term match `m` repeats the listing title's own words, in
+    order and whole, and its sentence credits the listing before it."""
+    term = _words(m.group(0))
+    n = len(term)
+    if not any(listing_words[i:i + n] == term for i in range(len(listing_words) - n + 1)):
+        return False
+    return bool(_LISTING_CREDIT.search(text, _sentence_start(text, m.start()), m.start()))
+
+
+def find_crowd_claims(text: str, names=(), allow_block: bool = False,
+                      listing: str = "") -> list:
     """Every crowd, opinion or popularity term in `text`, as '"term": sentence'
     (deduped by sentence, in order). Empty list = clean.
 
     `names` are the entry's product names, read as names and not as words.
+    `listing` is the featured product's stored listing title. A term the
+    title carries word for word is allowed where its sentence credits the
+    listing first ("the listing calls it vet recommended"). The same words
+    with no credit, or under another product's title, are refused.
     `allow_block` exempts well-formed summary blocks; whether a block is right
-    is find_summary_block_problems' job. Without it, a block is just more text,
-    and its lead names a customer review summary, so the writer cannot forge
-    one."""
+    is find_summary_block_problems' job. Without it, a block is just more
+    text, and its lead names a customer review summary, so the writer cannot
+    forge one."""
     t = normalize(text)
     masked = t
     if allow_block:
@@ -282,8 +379,11 @@ def find_crowd_claims(text: str, names=(), allow_block: bool = False) -> list:
         rx = re.compile(r"\b" + r"\s+".join(map(re.escape, words)) + r"(?!\w)", re.IGNORECASE)
         for m in rx.finditer(masked):
             masked = _blank(masked, *m.span())
+    listing_words = _words(listing)
     found, seen = [], set()
     for m in _TERM_RE.finditer(masked):
+        if listing_words and _is_sourced(masked, m, listing_words):
+            continue
         snippet = _snippet(t, m.start(), m.end())
         if snippet.lower() in seen:
             continue
@@ -293,5 +393,5 @@ def find_crowd_claims(text: str, names=(), allow_block: bool = False) -> list:
 
 
 def prompt_term_list() -> str:
-    """The refused terms as the prompts state them."""
-    return ", ".join(label for label, _ in CROWD_TERMS)
+    """The refused terms as the prompts state them, one group per "; "."""
+    return "; ".join(text for text, _ in CROWD_TERMS)

@@ -23,7 +23,7 @@ import argparse
 import urllib.parse
 from pathlib import Path
 
-from json_io import atomic_write_json, read_json
+from json_io import read_json, write_products
 
 REPO_DIR  = Path(__file__).parent.resolve()
 POSTS_DIR = REPO_DIR / "_posts"
@@ -529,7 +529,7 @@ def main() -> None:
                 entry["chewy_price"]  = None
                 entry["chewy_stock"]  = None
                 entry["chewy_rating"] = None
-        atomic_write_json(json_path, raw)
+        write_products(json_path, raw)
         log(f"FIX: products.json updated -- {len(cleared)} bad chewy_url entries cleared")
 
     if not args.report_only:

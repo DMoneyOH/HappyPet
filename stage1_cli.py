@@ -84,9 +84,10 @@ def cmd_gate(args) -> int:
     product, err = _product_for(args.slug)
     if err:
         return err
-    # --slug supplies the product names, read as names by the crowd-term check.
-    passed, flags = gp.authoritative_gate(scorecard, scrubbed,
-                                          gp.feedback_sources(product))
+    # --slug supplies the product names, read as names by the crowd-term check,
+    # and the listing title a credited crowd term may come from.
+    sources = gp.feedback_sources(product)
+    passed, flags = gp.authoritative_gate(scorecard, scrubbed, sources)
     product_name = ""
     # A link to a product with no record is read off the body here too, when the
     # slug is given. authoritative_gate itself cannot do it -- its signature
@@ -128,7 +129,7 @@ def cmd_gate(args) -> int:
     if pin_path.is_file():
         pin_desc = gp.clean_pin_desc(_read(pin_path),
                                      (product or {}).get("species", "dog"))
-        for problem in gp.find_pin_desc_problems(pin_desc, gp.feedback_sources(product)):
+        for problem in gp.find_pin_desc_problems(pin_desc, sources):
             passed = False
             flags.append(f"pin_desc: {problem}")
     print(json.dumps({"passed": passed, "flags": flags, "scrubbed_body": scrubbed}))
@@ -159,6 +160,7 @@ def cmd_stage(args) -> int:
         return err
     pin_desc = gp.clean_pin_desc(args.pin_desc or f"{product['title']} - our picks and buying guide.",
                                  product.get("species", "dog"))
+    sources = gp.feedback_sources(product)
     try:
         gp.validate_output(
             "review", body, args.slug,
@@ -166,11 +168,10 @@ def cmd_stage(args) -> int:
             runners_up=(product.get("runners_up", "")
                         if product.get("format") == "roundup" else None),
             product_name=product.get("name", ""),
-            sources=gp.feedback_sources(product))
+            sources=sources)
         # The pin description becomes the published `description` and the
         # Pinterest text: no buyer feedback, no first person singular.
-        gp.assert_pin_desc_clean("pin_desc", pin_desc, args.slug,
-                                 gp.feedback_sources(product))
+        gp.assert_pin_desc_clean("pin_desc", pin_desc, args.slug, sources)
     except gp.GenerationStageError as e:
         print(f"ERROR: content contract failed: {e}", file=sys.stderr)
         return 3
