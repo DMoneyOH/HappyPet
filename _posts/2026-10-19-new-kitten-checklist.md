@@ -19,7 +19,7 @@ image: "https://images-na.ssl-images-amazon.com/images/P/B0000AH3RP.01.LZZZZZZZ.
 
 A new kitten needs six things in the house before it arrives: kitten food, litter, a box it can step into, a scratching post, a carrier and a plan for small, regular meals. Everything else can wait a week. Before you buy any of it, ask the shelter or breeder which food and litter the kitten already uses. Keeping those the same for the first days means one less change in a week that is already full of them.
 
-This checklist takes each item in the order you will need it and links our full review for each one. The picks come from those reviews, which compare listing specs and patterns in owner reviews. Nobody here has used them hands-on.
+This checklist takes each item in the order you will need it and links our full review for each one. The picks come from those reviews, which look at what makers publish, such as specs, ingredients and price, along with what buyer reviews say.
 
 ## The checklist at a glance
 
@@ -38,13 +38,13 @@ Kitten food exists as its own shelf for one reason: a kitten is building bone an
 
 1. **Read the AAFCO statement.** It must say the food is formulated for growth or for all life stages.
 2. **Look for a named animal protein first** in the ingredient list.
-3. **Plan the moisture.** Dry kibble adds almost no water, so pair it with wet food if your kitten drinks little.
+3. **Plan the moisture.** Dry kibble is about 6 to 10 percent water, so pair it with wet food if your kitten drinks little.
 
-Our featured pick is [Purina ONE High Protein Kitten Food](https://www.amazon.com/dp/B0000AH3RP?th=1&tag=happypetdc-20), rated 4.8/5 (as of Apr 16, 2026) on Amazon. If the shelter fed something else, mix the new food into the old over about a week. The [full kitten food review](/food/best-kitten-food/) compares it with wet and dry alternatives.
+Our featured pick is [Purina ONE High Protein Kitten Food](https://www.amazon.com/dp/B0000AH3RP?th=1&tag=happypetdc-20), rated 4.8/5 (as of Oct 28, 2026) on Amazon. If the shelter fed something else, mix the new food into the old over about 7 to 10 days. The [full kitten food review](/food/best-kitten-food/) compares it with wet and dry alternatives.
 
 ## 2. Litter
 
-Start with the litter the kitten already knows, then change slowly if you need to. When you do choose, clumping matters most for odor: tight clumps lift the whole source of the smell out of the box. Scented litter can put a sensitive cat off the box entirely, so an unscented litter is the safer first try. If your kitten is very young, ask the shelter or your vet which type they recommend before you switch. The [litter odor control guide](/litter/best-cat-litter-odor-control/) compares three clumping litters on clumping, dust and scent.
+Start with the litter the kitten already knows, then change slowly if you need to. When you do choose, clumping matters most for odor: tight clumps lift the whole source of the smell out of the box. Scented litter can put a sensitive cat off the box entirely, so an unscented litter is the safer first try. If your kitten is very young, ask the shelter or your vet which type they recommend before you switch. The [litter odor control guide](/litter/best-cat-litter-odor-control/) compares three clumping litters on clumping and scent.
 
 ## 3. Litter box
 
@@ -71,7 +71,7 @@ None of these is urgent, but each solves a problem most new owners hit within we
 - **A bed of its own.** See [cat beds](/beds/best-cat-beds/).
 - **A grooming brush**, to keep loose fur off the furniture. See [cat grooming brushes](/grooming/best-cat-grooming-brushes/).
 
-## Questions new kitten owners ask
+## Common questions
 
 ### What do I need before bringing a kitten home?
 
@@ -79,7 +79,7 @@ Six things: kitten food, litter, a litter box the kitten can step into, a scratc
 
 ### Which kitten food should I start with?
 
-Start with whatever the shelter or breeder fed, then move to your choice over about a week if you want to change. Whatever you choose, its AAFCO statement should say it is formulated for growth or for all life stages.
+Start with whatever the shelter or breeder fed, then move to your choice over about 7 to 10 days if you want to change. Whatever you choose, its AAFCO statement should say it is formulated for growth or for all life stages.
 
 ### Do I need a scratching post on the first day?
 

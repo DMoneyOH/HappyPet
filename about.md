@@ -1,22 +1,22 @@
 ---
 layout: default
 title: "About Us"
-description: "Learn about Happy Pet Product Reviews, an independent pet product review site helping dog and cat owners find the best gear through honest, research-backed reviews."
+description: "Learn about Happy Pet Product Reviews, plain-English pet product guides for dog and cat owners."
 permalink: /about/
 ---
 
 <section class="piece">
   <div class="wrap piece-inner">
     <h1>About Happy Pet Product Reviews</h1>
-    <p class="standfirst">Honest reviews. Happy pets. Zero fluff.</p>
+    <p class="standfirst">Honest reviews. Happy pets.</p>
 
     <div class="prose">
       <h2>Why we exist</h2>
       <p>Shopping for pet products should not feel like a guessing game. With thousands of dog and cat products flooding the market, it is hard to know what is actually worth your money and what is just pretty packaging.</p>
-      <p>Happy Pet Product Reviews was built to cut through the noise. We dig into the details: materials, sizing, durability, value, and what owners say again and again in their reviews, so you can make confident decisions for the pet you love.</p>
+      <p>Happy Pet Product Reviews was built to cut through the noise and help you decide what suits the pet you love.</p>
 
       <h2>What we cover</h2>
-      <p>We publish in-depth reviews and buying guides across the most important pet product categories, including:</p>
+      <p>We publish reviews and buying guides in pet product categories including:</p>
       <ul>
         <li>Dog collars, harnesses, and training gear</li>
         <li>Dog beds, crates, and comfort products</li>
@@ -26,15 +26,15 @@ permalink: /about/
         <li>Feeders, water fountains, and daily essentials</li>
       </ul>
 
-      <h2>How we choose</h2>
-      <p>We don't test or handle the products we cover. Each guide starts from the products with the strongest owner ratings, compares them on their published specs, and weighs price against what you get. We only recommend products we'd feel good putting in front of a fellow pet owner.</p>
+      <h2>How our guides are put together</h2>
+      <p>Our guides look at what makers publish, such as specs, ingredients and price, along with what buyer reviews say.</p>
 
       <h2 id="affiliate-disclosure">Affiliate disclosure</h2>
-      <p>To keep this site free, we take part in affiliate programs including Amazon Associates and Chewy. If you click a link and make a purchase, we may earn a small commission at no extra cost to you. This never influences our recommendations. Our goal is always to help you find the best product for your pet, full stop.</p>
-      <p>We link to two retailers, Amazon and Chewy, because between them they carry the widest and most varied range of pet products, so most readers can find the exact item a guide recommends.</p>
+      <p>To keep this site free, we take part in affiliate programs including Amazon Associates and Chewy. If you click a link and make a purchase, we may earn a small commission at no extra cost to you.</p>
+      <p>We link to two retailers, Amazon and Chewy.</p>
 
       <h2>Get in touch</h2>
-      <p>Have a product you would like us to cover, or a question about a recommendation? We would love to hear from you. <a href="{{ site.baseurl }}/contact/">Reach out anytime</a>. We are pet people, and we are always happy to talk shop.</p>
+      <p>Have a product you would like us to cover, or a question about a recommendation? We would love to hear from you. <a href="{{ site.baseurl }}/contact/">Reach out anytime</a>. We are pet people, and we're happy to talk shop.</p>
     </div>
 
     <p style="margin-top:2.25rem;"><a class="btn" href="{{ site.baseurl }}/">Browse all reviews</a></p>
