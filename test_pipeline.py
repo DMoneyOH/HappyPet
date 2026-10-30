@@ -14910,6 +14910,63 @@ class TestUpdatedDate(unittest.TestCase):
                 updated = datetime.date.fromisoformat(str(value).strip("'\"")[:10])
                 self.assertGreaterEqual(updated, datetime.date.fromisoformat(p.name[:10]))
 
+    # A visible date in a post: "Updated on October 20, 2026", "Reviewed Oct 5,
+    # 2026", "Last updated: Oct 2026". Amazon figures keep their own "(as of
+    # Oct 25, 2026)" stamps, which this does not match.
+    VISIBLE_DATE = re.compile(
+        r"\b(?:last\s+)?(?:updated|reviewed|published)(?:\s+on)?\s*:?\s*"
+        r"(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\.?\s+"
+        r"(?:\d{1,2},?\s+)?(?:19|20)\d\d", re.IGNORECASE)
+    MONTH_DATE = re.compile(
+        r"\b(?:January|February|March|April|May|June|July|August|September|"
+        r"October|November|December) \d{1,2}, (?:19|20)\d\d")
+
+    def test_every_post_renders_exactly_one_date(self):
+        """The date line as each real post renders it carries one date: the
+        "Updated on" date when the post sets the field, else the post date."""
+        from validate_published_chewy_links import parse_frontmatter
+        posts = sorted((REPO / "_posts").glob("[0-9]*.md"))
+        self.assertGreater(len(posts), 40, "the scan found too few posts to mean anything")
+        for p in posts:
+            fm = parse_frontmatter(p)
+            page = {"date": p.name[:10]}
+            if fm.get(self.FIELD) is not None:
+                page[self.FIELD] = str(fm[self.FIELD]).strip("'\"")[:10]
+            with self.subTest(post=p.name):
+                line = self._date_line(page)
+                self.assertEqual(len(self.MONTH_DATE.findall(line)), 1, line)
+                self.assertEqual(line.startswith('<p class="piece-date">Updated on '),
+                                 self.FIELD in page, line)
+
+    def test_the_layout_prints_a_post_date_only_on_the_date_line(self):
+        """Outside comments and the JSON-LD block, page.date and the field
+        appear only on the one piece-date line."""
+        layout = (REPO / "_layouts" / "post.html").read_text(encoding="utf-8")
+        visible = re.sub(r"\{%-?\s*comment\s*-?%\}.*?\{%-?\s*endcomment\s*-?%\}", "",
+                         layout, flags=re.DOTALL)
+        visible = re.sub(r"<script\b.*?</script>", "", visible, flags=re.DOTALL)
+        visible = re.sub(r'<p class="piece-date">.*?</p>', "", visible, count=1)
+        self.assertEqual(re.findall(r"page\.(?:date|last_modified_at)\b", visible), [])
+
+    def test_no_post_carries_a_date_line_of_its_own(self):
+        """A post's markdown never prints a date line beside the layout's."""
+        offenders = []
+        for p in sorted((REPO / "_posts").glob("[0-9]*.md")):
+            text = p.read_text(encoding="utf-8")
+            body = text.split("---", 2)[2] if text.startswith("---") else text
+            offenders += [f"{p.name}: {m.group(0)!r}" for m in self.VISIBLE_DATE.finditer(body)]
+        self.assertEqual(offenders, [])
+
+    def test_the_visible_date_pattern_catches_the_shapes_it_names(self):
+        for line in ("Updated on October 20, 2026", "*Last updated: Oct 2026*",
+                     "Reviewed Oct. 5, 2026", "**Published on November 2, 2026**"):
+            with self.subTest(line=line):
+                self.assertRegex(line, self.VISIBLE_DATE)
+        for line in ("It sells for $16.11 (as of Oct 25, 2026).",
+                     "The formula was updated in 2024.", "Reviewers in October 2026 said"):
+            with self.subTest(line=line):
+                self.assertNotRegex(line, self.VISIBLE_DATE)
+
 
 class TestOldPermalinksStillResolve(unittest.TestCase):
     """For ~4 minutes on 2026-04-06 (6eba5a4 until cea0382) the ten original
