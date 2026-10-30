@@ -2711,10 +2711,10 @@ class TestRewritePromptGuardrails(unittest.TestCase):
 
 
 class TestFirsthandClaimGuard(unittest.TestCase):
-    """Happy Pet Product Reviews does not test, try, own or handle any product --
-    it works from retailer specs, star ratings and customer reviews, per the
-    Director's 2026-10-28 decision. An article claiming otherwise is a false advertising claim on a
-    monetized affiliate page, which is why this is a hold and not a style rule.
+    """Happy Pet Product Reviews does not test, try, own or handle any product
+    (HappyPet copy decisions 2026-10-28, recorded in the vault session log).
+    An article claiming otherwise is a false advertising claim on a monetized
+    affiliate page, which is why this is a hold and not a style rule.
 
     The generator published "We tested the top litters so you can finally say
     goodbye to that smell" as the frontmatter description of
@@ -9262,6 +9262,17 @@ class TestProductReviewStructuredData(unittest.TestCase):
                     self.assertIsNone(declared, "front matter rating with nothing shown on the page")
 
 
+# The five section A posts: the FAQ fixture covers them, and each dates its
+# prices and ratings to one listing reading.
+SECTION_A_POSTS = frozenset({
+    "2026-04-23-best-dog-joint-supplements.md",
+    "2026-04-04-best-cat-litter-odor-control.md",
+    "2026-04-27-best-kitten-food.md",
+    "2026-08-24-best-cat-carrier-backpacks.md",
+    "2026-04-07-best-grain-free-cat-food.md",
+})
+
+
 class TestFaqStructuredData(unittest.TestCase):
     """post.html renders a post's `faq:` list twice: once as visible
     <details>/<summary> items under "Common questions", and once as
@@ -9287,13 +9298,7 @@ class TestFaqStructuredData(unittest.TestCase):
 
     # Section A of the 2026-10-27 FAQ change. Section B posts are a comparison
     # group and must stay without a faq: until that read is done.
-    FAQ_POSTS = {
-        "2026-04-23-best-dog-joint-supplements.md",
-        "2026-04-04-best-cat-litter-odor-control.md",
-        "2026-04-27-best-kitten-food.md",
-        "2026-08-24-best-cat-carrier-backpacks.md",
-        "2026-04-07-best-grain-free-cat-food.md",
-    }
+    FAQ_POSTS = SECTION_A_POSTS
     GUARD = "{%- if page.faq %}"
 
     @staticmethod
@@ -9543,16 +9548,11 @@ class TestFaqStructuredData(unittest.TestCase):
 class TestSectionACopyPins(unittest.TestCase):
     """Two pins from the 2026-10-28 section A review. The post disclosure must
     carry Amazon's Associates statement and must not bring back the dropped
-    promise. Each section A post dates its prices and ratings to one reading,
-    so a partial refresh cannot leave two dates for the same kind of figure."""
+    promise. Each section A post dates its prices and ratings to the newest
+    reading, so a partial refresh cannot leave an older date behind."""
 
-    SECTION_A = (
-        "2026-04-23-best-dog-joint-supplements.md",
-        "2026-04-04-best-cat-litter-odor-control.md",
-        "2026-04-27-best-kitten-food.md",
-        "2026-08-24-best-cat-carrier-backpacks.md",
-        "2026-04-07-best-grain-free-cat-food.md",
-    )
+    SECTION_A = sorted(SECTION_A_POSTS)
+    NEWEST_READING = "2026-10-28"
 
     def test_post_disclosure_carries_the_associates_line(self):
         layout = (REPO / "_layouts" / "post.html").read_text(encoding="utf-8")
@@ -9561,14 +9561,30 @@ class TestSectionACopyPins(unittest.TestCase):
 
     # The price and rating labels' date. The summary block's "read <date>" lead
     # dates Amazon's summary, a different source, and is not counted here.
-    FIGURE_DATE = re.compile(r"\bas of ([A-Z][a-z]{2} \d{1,2}, \d{4})")
+    FIGURE_DATE = re.compile(r"\bas\s+of\s+([a-z]+\.?\s+\d{1,2},\s*\d{4})", re.I)
 
-    def test_each_section_a_post_uses_one_reading_date(self):
+    @staticmethod
+    def _reading_date(raw):
+        """ISO date for "Oct 28, 2026", "october 28, 2026" or "Oct. 28,2026"."""
+        import datetime
+        cleaned = re.sub(r"\s+", " ", raw.replace(".", ""))
+        cleaned = re.sub(r"\s*,\s*", ", ", cleaned).strip()
+        for fmt in ("%b %d, %Y", "%B %d, %Y"):
+            try:
+                return datetime.datetime.strptime(cleaned, fmt).date().isoformat()
+            except ValueError:
+                pass
+        raise AssertionError(f"unreadable reading date {raw!r}")
+
+    def test_each_section_a_post_uses_the_newest_reading_date(self):
         for name in self.SECTION_A:
             text = (REPO / "_posts" / name).read_text(encoding="utf-8")
-            dates = set(self.FIGURE_DATE.findall(text))
+            raw = self.FIGURE_DATE.findall(text)
             with self.subTest(post=name):
-                self.assertEqual(len(dates), 1, f"{name} has reading dates {sorted(dates)}")
+                self.assertTrue(raw, f"{name} has no dated figure")
+                dates = {self._reading_date(r) for r in raw}
+                self.assertEqual(dates, {self.NEWEST_READING},
+                                 f"{name} has reading dates {sorted(dates)}")
 
     def test_the_summary_blocks_read_date_is_not_a_second_figure_date(self):
         """Ruled to stay (section 16 round 1): the block's lead carries the
