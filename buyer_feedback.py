@@ -204,7 +204,7 @@ def find_summary_block_problems(text: str, summary: str, read_on_label: str) -> 
 # Each entry is (prompt text, pattern). The prompt text is what the prompts
 # list, joined with "; ", so the stated rule and the enforced gate read from
 # one place.
-_PRO = r"(?:vet|veterinarian|veterinary|doctor|dentist|dr\.?)"
+_PRO = r"(?:vets?|veterinarians?|veterinary|doctors?|dentists?|dvms?|dr\.?)"
 _RANK = r"(?:top|first|number[\s-]+one|#1)"
 _ENDORSE = r"(?:proven|pick|choice|favou?rite|grade|strength|quality)"
 # Professionals as a crowd ("many vets") or as an endorsement, refused
