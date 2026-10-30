@@ -4,6 +4,6 @@ hub_topic: grooming
 permalink: /grooming/
 title: "Dog and Cat Grooming Tools"
 description: "Dog grooming kits, nail grinders and cat grooming brushes, compared by coat type, noise and how easy they are to use at home."
-intro: "Grooming at home saves money only if the tool suits your pet's coat and temperament. These guides cover brushes for different cat coats, nail grinders and dog grooming tools. Each one notes what helps a nervous pet get through it."
-how_we_choose: "Our guides look at what makers publish, such as specs, materials and price, along with what buyer reviews say."
+intro: "Grooming at home saves money only if the tool suits your pet's coat and temperament. These guides cover brushes for different cat coats, nail grinders and dog grooming tools. Along the way, they note what helps a nervous pet get through it."
+how_we_choose: "Our guides look at what makers publish, such as specs, materials and price, and, where Amazon publishes one, the product's customer review summary."
 ---

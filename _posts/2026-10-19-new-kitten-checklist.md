@@ -20,7 +20,7 @@ image: "https://images-na.ssl-images-amazon.com/images/P/B0000AH3RP.01.LZZZZZZZ.
 
 A new kitten needs six things in the house before it arrives: kitten food, litter, a box it can step into, a scratching post, a carrier and a plan for small, regular meals. Everything else can wait a week. Before you buy any of it, ask the shelter or breeder which food and litter the kitten already uses. Keeping those the same for the first days means one less change in a week that is already full of them.
 
-This checklist takes each item in the order you will need it and links our full review for each one. The picks come from those reviews, which look at what makers publish, such as specs, ingredients and price, along with what buyer reviews say.
+This checklist takes each item in the order you will need it and links our full review for each one. The picks come from those reviews, which look at what makers publish, such as specs, ingredients and price, and, where Amazon publishes one, the product's customer review summary.
 
 ## The checklist at a glance
 

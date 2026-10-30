@@ -3293,7 +3293,7 @@ class TestBuyerFeedbackGuard(unittest.TestCase):
         "First-time owners should start with the small size.",
         # Published text and the About page's method sentence.
         "Our guides look at what makers publish, such as specs, ingredients and price, "
-        "along with what buyer reviews say.",
+        "and, where Amazon publishes one, the product's customer review summary.",
         "Dog owners who rent need a crate that folds flat.",
         "It holds a 4.7-star rating across 12,000 customer reviews.",
         # Moved to OWNER_CASES 2026-10-29: "For many pet owners, the hunt for a
@@ -14491,7 +14491,8 @@ class TestPublishWritesTheHub(unittest.TestCase):
             self.assertIn('intro: "A treat does a job, whether that job is rewarding a sit, '
                           'hiding a pill or filling a stocking.', hub)
             self.assertIn('how_we_choose: "Our guides look at what makers publish, such as '
-                          'specs, ingredients and price, along with what buyer reviews say."\n',
+                          'specs, ingredients and price, and, where Amazon publishes one, '
+                          'the product\'s customer review summary."\n',
                           hub)
 
     def test_the_publish_of_a_second_treats_post_writes_no_hub(self):
