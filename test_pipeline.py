@@ -3003,8 +3003,8 @@ class TestNamedTestimonialGuard(unittest.TestCase):
     def test_the_deleted_group_quote_is_gone_from_the_published_corpus(self):
         """The hand-deletion above, asserted on the corpus rather than trusted.
         The testimonial detector does not and will not fire on this quote shape.
-        test_no_published_post_carries_owner_attribution catches its "Many owners
-        rave" lead-in; this test pins the quote itself."""
+        test_no_published_post_carries_crowd_claims_outside_the_summary_block
+        catches its "Many owners rave" lead-in; this test pins the quote itself."""
         text = (REPO / "_posts" / "2026-04-04-best-cat-scratching-posts.md").read_text(
             encoding="utf-8")
         self.assertNotIn("shredded every other scratcher", text)
@@ -9546,10 +9546,10 @@ class TestPublishedPostsVoiceIntegrity(unittest.TestCase):
         That pass recast first-person sentences into "Testing found X" /
         "Testing showed X", which satisfies the no-first-person rule and asserts
         a test that never happened. The recorded target voice for an
-        observation is a flat statement of the spec, or a paraphrase of a real
-        Amazon customer summary that names it as the source. "Owners report X"
-        is not the fix: it
-        invents feedback, and test_no_published_post_carries_owner_attribution
+        observation is a flat statement of the spec. Buyer feedback appears only
+        in the verbatim Amazon summary block. "Owners report X" is not the fix:
+        it invents feedback, and
+        test_no_published_post_carries_crowd_claims_outside_the_summary_block
         below tracks it.
         """
         import generate_posts as gp
