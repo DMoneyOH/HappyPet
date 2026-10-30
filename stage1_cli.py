@@ -84,8 +84,7 @@ def cmd_gate(args) -> int:
     product, err = _product_for(args.slug)
     if err:
         return err
-    # --slug supplies the product names, read as names by the crowd-term check,
-    # and the listing title a credited crowd term may come from.
+    # --slug supplies the product names, read as names by the crowd-term check.
     sources = gp.feedback_sources(product)
     passed, flags = gp.authoritative_gate(scorecard, scrubbed, sources)
     product_name = ""
