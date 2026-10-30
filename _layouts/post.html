@@ -96,13 +96,13 @@ layout: default
       {%- elsif page.description %}<p class="standfirst">{{ page.description }}</p>{% endif %}
       {%- comment -%}
         The post shows one date. "Updated on" replaces "Reviewed" when the post
-        sets last_modified_at in its front matter, never both (Director,
-        2026-10-29). Buyer feedback carries no date of its own: this line dates
+        sets last_modified_at in its front matter, never both (HappyPet copy
+        decision, 2026-10-29). Buyer feedback carries no date of its own: this line dates
         it. jekyll-sitemap reads the same field for the post's <lastmod>. The
         Review block below keeps datePublished, the original date.
         Set it by hand, and only for a substantive edit: new or rewritten
         copy, a changed pick, or re-pulled prices or ratings. A deletion alone
-        does not count (Director, 2026-10-29). Never for a pipeline touch such as
+        does not count (HappyPet copy decision, 2026-10-29). Never for a pipeline touch such as
         an anchor rewrite or a link check. A date that moves on every commit is
         noise, and it claims a fresh review that did not happen. No pipeline
         script or workflow writes this field (test_pipeline.py::TestUpdatedDate).

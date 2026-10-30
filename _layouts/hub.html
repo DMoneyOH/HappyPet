@@ -26,7 +26,7 @@ layout: default
     <p class="standfirst">{{ page.intro }}</p>
     {%- endif %}
     {%- if page.how_we_choose %}
-    <p class="hub-method"><b>How our guides are put together:</b> {{ page.how_we_choose }}</p>
+    <p class="hub-method"><b>How our guides are put together:</b> {% include method-sentence.html noun=page.how_we_choose %}</p>
     {%- endif %}
     <div class="entries">
       {% include post-list.html posts=hub_posts %}
