@@ -476,8 +476,9 @@ class TestPinWorkflowWiring(unittest.TestCase):
         idx = [self.names.index(n) for n in order]
         self.assertEqual(idx, sorted(idx), f"step order wrong: {order}")
 
-    def test_alert_step_still_keys_on_failure(self):
-        self.assertIn("if: failure() && steps.resolve.outputs.nothing_to_pin != 'true'",
+    def test_alert_step_keys_on_failure_or_cancel(self):
+        """A cancelled or timed-out run can have fired pins, with or without sentinels."""
+        self.assertIn("if: (failure() || cancelled()) && steps.resolve.outputs.nothing_to_pin != 'true'",
                       self.steps["Alert on failure"])
 
     # --- exit 6 (a refused repeat) is told apart from exit 1 (a failed pin) -----

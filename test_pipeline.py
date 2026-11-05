@@ -16166,7 +16166,9 @@ class TestSlotWatchdog(_AlertIssueStep, unittest.TestCase):
         self.assertIn("\n  workflow_dispatch:\n", self.workflow)
 
     def test_it_reads_main_and_may_only_open_issues(self):
-        self.assertEqual(_workflow_permissions(self.workflow), ({"contents": "read", "issues": "write"}, 1))
+        # actions: read is for the pin-check watchdog step, which lists pin-verify.yml's runs.
+        self.assertEqual(_workflow_permissions(self.workflow),
+                         ({"contents": "read", "issues": "write", "actions": "read"}, 1))
         self.assertIn("uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4\n", self.workflow)
         self.assertIn("          ref: main\n", self.workflow)
         self.assertIn("          persist-credentials: false\n", self.workflow)
@@ -16341,7 +16343,8 @@ class TestPinFailureIssue(_AlertIssueStep, unittest.TestCase):
     def test_the_token_is_pinned(self):
         self.assertEqual(_workflow_permissions(self.workflow),
                          ({"contents": "write", "issues": "write"}, 1))
-        self.assertIn("        if: failure() && steps.resolve.outputs.nothing_to_pin != 'true'\n", self.head)
+        self.assertIn("        if: (failure() || cancelled()) && steps.resolve.outputs.nothing_to_pin != 'true'\n",
+                      self.head)
         self.assertIn("          SLUGS: ${{ steps.resolve.outputs.slugs }}\n", self.head)
 
     def test_the_body_says_which_stage_failed(self):
