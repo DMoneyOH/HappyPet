@@ -35,6 +35,12 @@ What it checks, and how:
     equal or at least RATIO similar. That absorbs truncation, escaping, curly
     quotes, an added ellipsis and a light rewording, while another post's text
     still fails.
+  * Real feeds (captured 2026-11-05): item ORDER varies between reads, so every
+    item is scanned and order is never assumed. Each feed carries one ghost item
+    (empty title, `<pubDate>Invalid Date</pubDate>`); an item with no readable
+    date is skipped, and never counts as a match or as "the feed has no dates".
+    Feeds hold about 25 items; only pins fired in this run are expected, so an old
+    pin dropping off the end changes nothing.
   * Three answers per pin, never a pass by default:
       found       a dated item matches.
       missing     the feed read fine, has dated items, and none matches.
@@ -136,8 +142,8 @@ def feed_url(board):
 def _pub(text):
     try:
         when = parsedate_to_datetime((text or "").strip())
-    except (TypeError, ValueError, IndexError):
-        return None
+    except (TypeError, ValueError, IndexError, OverflowError):
+        return None   # Pinterest's own "Invalid Date", or any other junk
     if when is None:
         return None
     return when.replace(tzinfo=UTC) if when.tzinfo is None else when.astimezone(UTC)
@@ -247,9 +253,10 @@ def evaluate_pin(pin, items):
     for item in dated:
         if item.pub >= floor and same_pin_text(pin["description"], item.title):
             return "found", ""
-    n = len(items)
+    n, skipped = len(dated), len(items) - len(dated)
     newest = max(i.pub for i in dated)
-    return "missing", (f"the feed ({n} item{'s' if n != 1 else ''}, newest {newest:%Y-%m-%d %H:%M} UTC) "
+    return "missing", (f"the feed ({n} dated item{'s' if n != 1 else ''}"
+                       f"{f', {skipped} undated skipped' if skipped else ''}, newest {newest:%Y-%m-%d %H:%M} UTC) "
                        f"has no pin with that description posted after the fire")
 
 

@@ -230,7 +230,7 @@ class TestEvaluatePin(unittest.TestCase):
         feed = feed_of((OTHER_DESC, dt.datetime(2026, 10, 26, 12, 0, tzinfo=UTC)))
         status, detail = vp.evaluate_pin(pin(), feed)
         self.assertEqual(status, "missing")
-        self.assertIn("1 item", detail)
+        self.assertIn("1 dated item", detail)
 
     def test_an_empty_feed_is_could_not_check_not_missing(self):
         status, detail = vp.evaluate_pin(pin(), feed_of())
@@ -531,6 +531,166 @@ class TestMain(_NoNetwork):
         with self.assertRaises(SystemExit):
             vp.main(["--since", "2026-11-02; rm -rf /", "--repo-dir", str(self.repo)],
                     read_board=_Feeds(), describe=lambda r: (lambda s: ""), sleep=self.slept.append)
+
+
+# ---------------------------------------------------------------------------
+# A real capture
+# ---------------------------------------------------------------------------
+REAL_FEED = REPO / "_test_fixtures" / "pinterest_feed_best_dog_products_2026-11-05.xml"
+# What post_pins.py sent for best-dog-winter-coats on 2026-11-05, and when its dogs
+# webhook answered (the sentinel's own time). Literals, not read from the repo.
+WINTER_DESC = "Waterproof, reversible and under $27: a dog winter coat that keeps cold, wet walks on track."
+WINTER_FIRED = dt.datetime(2026, 11, 5, 12, 12, 42, 663749, tzinfo=UTC)
+WINTER_PIN_TIME = dt.datetime(2026, 11, 5, 12, 12, 43, tzinfo=UTC)
+GHOST = (b"<item><title></title><link>https://www.pinterest.com/pin/AlZA7KdS/</link>"
+         b"<description>&lt;a href=&quot;https://www.pinterest.com/pin/AlZA7KdS/&quot;&gt;"
+         b"&lt;img src=&quot;&quot;&gt;&lt;/a&gt;</description><pubDate>Invalid Date</pubDate>"
+         b"<guid>https://www.pinterest.com/pin/AlZA7KdS/</guid></item>")
+
+
+def real_items():
+    return vp.parse_feed(REAL_FEED.read_bytes())
+
+
+def winter_pin(**kw):
+    return {**pin(slug="best-dog-winter-coats", event="happypet_pin_dogs", desc=WINTER_DESC,
+                  fired=WINTER_FIRED), **kw}
+
+
+class TestRealFeed(_NoNetwork):
+    """Held against bytes Pinterest served, not a feed built from a description of one."""
+
+    def test_the_capture_parses_with_its_one_ghost_item(self):
+        items = real_items()
+        self.assertEqual(len(items), 26)
+        undated = [i for i in items if i.pub is None]
+        self.assertEqual(len(undated), 1)
+        self.assertEqual(undated[0].title, "")
+        self.assertTrue(undated[0].link.endswith("/pin/AlZA7KdS/"), undated[0].link)
+        self.assertEqual(max(i.pub for i in items if i.pub), WINTER_PIN_TIME)
+
+    def test_the_real_pin_is_found(self):
+        self.assertEqual(vp.evaluate_pin(winter_pin(), real_items()), ("found", ""))
+
+    def test_a_real_run_through_run_check_is_silent(self):
+        results = vp.run_check([winter_pin()], lambda board: real_items(),
+                               sleep=lambda s: self.fail("no retry expected"))
+        self.assertEqual([r["status"] for r in results], ["found"])
+        self.assertIsNone(vp.build_report(results))
+
+    def test_another_posts_description_is_missing_from_the_real_feed(self):
+        status, detail = vp.evaluate_pin(winter_pin(description=CAT_DESC), real_items())
+        self.assertEqual(status, "missing")
+        self.assertIn("25 dated items, 1 undated skipped", detail)
+        self.assertIn("newest 2026-11-05 12:12 UTC", detail)
+
+    def test_a_fire_after_the_real_pin_does_not_find_it(self):
+        later = WINTER_FIRED + dt.timedelta(minutes=8)
+        self.assertEqual(vp.evaluate_pin(winter_pin(fired_at=later), real_items())[0], "missing")
+
+    def test_an_older_real_pin_does_not_count_for_a_new_fire(self):
+        """The 2026-10-29 advent pin is in the feed; fired today it is not today's pin."""
+        advent = "Advent countdown treats your small dog will wait by the shelf for, rawhide-free and budget friendly."
+        self.assertIn(advent, [i.title for i in real_items()])
+        self.assertEqual(vp.evaluate_pin(winter_pin(description=advent), real_items())[0], "missing")
+        old_fire = dt.datetime(2026, 10, 29, 12, 30, 30, tzinfo=UTC)
+        self.assertEqual(
+            vp.evaluate_pin(winter_pin(description=advent, fired_at=old_fire), real_items())[0], "found")
+
+    def test_the_real_feed_is_found_whatever_the_item_order(self):
+        """Pinterest reorders a feed between reads; the newest pin was first on 17
+        of 24 reads and a random older item otherwise."""
+        import random
+        items = real_items()
+        orders = [list(reversed(items)),
+                  sorted(items, key=lambda i: (i.pub is not None, i.pub or WINTER_PIN_TIME))]
+        for seed in range(30):
+            shuffled = list(items)
+            random.Random(seed).shuffle(shuffled)
+            orders.append(shuffled)
+        for n, order in enumerate(orders):
+            with self.subTest(order=n):
+                self.assertEqual(vp.evaluate_pin(winter_pin(), order)[0], "found")
+                status, detail = vp.evaluate_pin(winter_pin(description=CAT_DESC), order)
+                self.assertEqual(status, "missing")
+                self.assertIn("newest 2026-11-05 12:12 UTC", detail)
+
+    def test_the_pin_is_found_wherever_the_cut_falls_when_old_pins_drop_off(self):
+        """If the feed is capped, older pins fall off the end. Only this run's pins
+        are expected, so any number of the newest items still finds them."""
+        dated = sorted((i for i in real_items() if i.pub), key=lambda i: i.pub, reverse=True)
+        for keep in (1, 2, 5, 13, 24, 25):
+            with self.subTest(keep=keep):
+                self.assertEqual(vp.evaluate_pin(winter_pin(), dated[:keep])[0], "found")
+
+    def test_main_end_to_end_on_the_real_feed_exits_0_and_writes_nothing(self):
+        with tempfile.TemporaryDirectory() as d:
+            repo = Path(d)
+            fired = repo / "_pin_queue" / ".fired"
+            fired.mkdir(parents=True)
+            (fired / "best-dog-winter-coats.happypet_pin_dogs.fired").write_text(
+                WINTER_FIRED.isoformat(), encoding="utf-8")
+            out = repo / "pin-verify"
+            rc = vp.main(["--since", "2026-11-05T12:00:00Z", "--repo-dir", str(repo), "--out-dir", str(out),
+                          "--wait-minutes", "0", "--retry-wait-minutes", "0"],
+                         read_board=lambda board: real_items(),
+                         describe=lambda r: (lambda slug: WINTER_DESC), sleep=lambda s: None)
+            self.assertEqual(rc, 0)
+            self.assertFalse(out.exists())
+
+
+class TestGhostAndUndatedItems(_NoNetwork):
+    GOOD = (CAT_DESC, FIRED + dt.timedelta(minutes=2))
+
+    @staticmethod
+    def feed_with(*parts):
+        return vp.parse_feed(b'<rss version="2.0"><channel>' + b"".join(parts) + b"</channel></rss>")
+
+    @staticmethod
+    def real_item(title, when):
+        return (f"<item><title>{escape(title)}</title><pubDate>{email.utils.format_datetime(when, usegmt=True)}"
+                f"</pubDate></item>").encode()
+
+    def test_a_ghost_beside_a_real_pin_does_not_hide_it_or_crash(self):
+        good = self.real_item(*self.GOOD)
+        for ghost_first, order in ((True, (GHOST, good)), (False, (good, GHOST))):
+            with self.subTest(ghost_first=ghost_first):
+                self.assertEqual(vp.evaluate_pin(pin(), self.feed_with(*order))[0], "found")
+
+    def test_a_ghost_beside_other_dated_pins_is_missing_not_no_dates(self):
+        other = self.real_item(OTHER_DESC, FIRED + dt.timedelta(minutes=1))
+        status, detail = vp.evaluate_pin(pin(), self.feed_with(GHOST, other))
+        self.assertEqual(status, "missing")
+        self.assertIn("1 dated item, 1 undated skipped", detail)
+
+    def test_a_feed_of_only_a_ghost_is_could_not_check(self):
+        status, detail = vp.evaluate_pin(pin(), self.feed_with(GHOST))
+        self.assertEqual(status, "unchecked")
+        self.assertIn("no readable dates", detail)
+
+    def test_many_undated_items_do_not_stop_a_dated_match(self):
+        undated = [f"<item><title>{OTHER_DESC} {n}</title></item>".encode() for n in range(10)]
+        feed = self.feed_with(*undated, self.real_item(*self.GOOD))
+        self.assertEqual(vp.evaluate_pin(pin(), feed)[0], "found")
+
+    def test_an_undated_item_with_the_right_text_cannot_prove_the_pin(self):
+        """No date means no proof it is this run's pin rather than an older one."""
+        for junk in ("Invalid Date", "", "yesterday", "Thu, 99 Foo 2026 12:00:00 GMT",
+                     "Thu, 05 Nov 99999 12:12:43 GMT", "Thu, 05 Nov 2026 25:61:61 GMT"):
+            with self.subTest(pubdate=junk):
+                undated = f"<item><title>{escape(CAT_DESC)}</title><pubDate>{junk}</pubDate></item>".encode()
+                dated = self.real_item(OTHER_DESC, FIRED + dt.timedelta(minutes=1))
+                self.assertEqual(vp.evaluate_pin(pin(), self.feed_with(undated, dated))[0], "missing")
+
+    def test_junk_dates_read_as_none_and_never_raise(self):
+        for junk in ("Invalid Date", "", "   ", "NaN", "0", "Thu, 99 Foo 2026 12:00:00 GMT",
+                     "Thu, 05 Nov 99999 12:12:43 GMT", "Thu, 05 Nov 2026 25:61:61 GMT", None):
+            with self.subTest(junk=junk):
+                self.assertIsNone(vp._pub(junk))
+
+    def test_items_with_no_title_or_no_pubdate_element_parse(self):
+        items = self.feed_with(b"<item><link>https://x/</link></item>", b"<item><title/></item>")
+        self.assertEqual([(i.title, i.pub) for i in items], [("", None), ("", None)])
 
 
 # ---------------------------------------------------------------------------
