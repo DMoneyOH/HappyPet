@@ -217,7 +217,7 @@ jobs:
           retention-days: 14
 
       - name: Alert on failure
-        if: failure() && steps.resolve.outputs.nothing_to_pin != 'true'
+        if: (failure() || cancelled()) && steps.resolve.outputs.nothing_to_pin != 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SLUGS: ${{ steps.resolve.outputs.slugs }}

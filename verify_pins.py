@@ -9,9 +9,9 @@ unavailable"), Stage 3 passed, and the pin was missing.
 
 This script reads each board's public RSS feed and reports a pin that is not
 there. pin-verify.yml runs it every hour on a schedule. It is a sweep over
-whatever fired recently, not a step that follows one Stage 3 run, so a Stage 3
-run that failed, was cancelled, timed out or was started by hand is covered
-exactly like a normal one, and no trigger has to "fire after" another workflow.
+whatever fired recently, not a step that follows one Stage 3 run, so no trigger
+has to "fire after" another workflow, and it looks at pins whatever way Stage 3
+ended, provided the sentinels reached main (see LIMITS).
 
 READ-ONLY. It fires no webhook and changes no sentinel, ledger or queue file.
 Its one output is a report in --out-dir, written only when something needs an
@@ -20,22 +20,36 @@ issue; pin-verify.yml turns that into a GitHub issue.
 What it checks, and how:
   * Which pins to expect: the per-board sentinels post_pins.py writes
     (_pin_queue/.fired/<slug>.<event>.fired). Each holds the UTC time its webhook
-    answered. A sentinel fired within the window (default the last 2.5 hours, or
+    answered. A sentinel fired within the window (default the last 210 minutes, or
     from --since, never more than 24 hours back) is one pin to confirm. A pin
     younger than --settle-minutes (default 30) is not due yet and is left to the
-    next sweep, which gives Pinterest time to catch up. With an hourly schedule
-    each pin is therefore examined exactly twice (between 30 minutes and 2.5 hours
-    after the fire), so
-    one skipped or late scheduled run does not leave it unchecked. A sentinel
-    whose time cannot be read is "could not check", never skipped.
+    next sweep, which gives Pinterest time to catch up. An hourly sweep therefore
+    examines a pin while its age is 30 to 210 minutes: three sweeps when they run on
+    time. The pin stays examined at least once through one skipped run plus up to
+    59 minutes of scheduler delay (two consecutive actual sweeps must be less than
+    180 minutes apart). Two skipped runs in a row can leave a pin unchecked.
+    A sentinel whose time cannot be read, or is more than an hour in the future,
+    is "could not check", never skipped.
   * LIMITS, stated plainly. A board whose webhook failed has no sentinel, so it is
     not checked here: pin.yml's own alert covers it. A fire whose sentinels never
-    reached main (the runner died after firing and before pin.yml's commit; a
-    cancelled or timed-out Stage 3 has no alert of its own) is invisible to this
-    check, which reads main. The only net under that is publish.yml's stale
-    `.pending-slugs` issue, which opens after 24 hours. If the hourly schedule
-    itself stops (two skipped runs in a row, or the workflow disabled), nothing
-    says so. A post whose description was edited after the fire will not match.
+    reached main (the runner died after firing and before pin.yml's commit) is
+    invisible to this check, which reads main. pin.yml now alerts on a cancelled or
+    timed-out run, with or without sentinels, but that alert is not this check. The
+    only other net is publish.yml's stale `.pending-slugs` issue: it opens at the
+    first publish run more than 24 hours later (publish runs Mon and Thu, so up to
+    about 4 days), and a pin.yml run started by hand with typed slugs has no
+    `.pending-slugs` file, so no net at all. slot-watchdog.yml opens an issue when
+    no run of pin-verify.yml was created in the 3 hours before a Mon/Thu slot
+    check. It shares GitHub's scheduler with this check, so it cannot catch a total
+    scheduler outage, and it looks only twice a week.
+  * ACCEPTED, not fixed (each makes noise or loses a report, none hides a miss
+    except where said): a duplicate issue if the Director closes one between
+    sweeps, or if sweeps straddle midnight (the title carries the Eastern date);
+    a false "missing" or "could not check" from a blocked or stale second read,
+    from a stale feed, or from a post whose description was edited after the fire;
+    a pin that appears in the feed with a blank title reads as missing; a cancel
+    during the retry wait loses its report, so that run opens only the generic
+    "could not check" issue.
   * Where to look: BOARD_SLUG, the one place that maps an IFTTT event to a board.
     Feed: https://www.pinterest.com/<profile>/<board-slug>.rss
   * How a pin is recognised: the feed item's <title> holds the pin's
@@ -55,14 +69,15 @@ What it checks, and how:
     item is scanned and order is never assumed. Each feed carries one ghost item
     (empty title, `<pubDate>Invalid Date</pubDate>`); an item with no readable
     date is skipped, and never counts as a match or as "the feed has no dates".
-    Feeds hold about 25 items; only pins fired in this run are expected, so an old
-    pin dropping off the end changes nothing.
+    Feeds hold about 25 items; only pins fired in the window are expected, so an
+    old pin dropping off the end changes nothing.
   * Three answers per pin, never a pass by default:
       found       a dated item matches.
       missing     the feed read fine, has dated items, and none matches.
       unchecked   the feed could not be read, was empty, had no dates, or none of
-                  its dated items carries any text; or the description is too
-                  short to identify a pin; or the sentinel's time is unreadable.
+                  its dated items carries text long enough to match; or the
+                  description is too short to identify a pin; or the sentinel's
+                  time is unreadable or in the future.
                   A blocked or empty feed is "could not check", never "missing"
                   and never a pass.
     Anything not found is read once more (always; after --retry-wait-minutes when
@@ -81,6 +96,7 @@ no login), in a temporary test job that has since been deleted.
 import argparse
 import datetime as dt
 import difflib
+import hashlib
 import html
 import re
 import sys
@@ -98,6 +114,7 @@ UTC = dt.timezone.utc
 
 PROFILE = "happypetproductreviews"
 FEED_URL = "https://www.pinterest.com/{profile}/{board}.rss"
+USER_AGENT = "Mozilla/5.0"
 MAX_FEED_BYTES = 2_000_000
 FEED_TIMEOUT = 20
 
@@ -120,7 +137,8 @@ MIN_MATCH = 20      # fewer characters than this identify no pin
 COMPARE_MAX = 160
 RATIO = 0.9
 
-DEFAULT_WINDOW = dt.timedelta(minutes=150)   # 150 - 30 settle = 120 min: exactly two hourly sweeps per pin
+DEFAULT_WINDOW = dt.timedelta(minutes=210)   # 210 - 30 settle = 180 min: three hourly sweeps per pin
+FUTURE_TOLERANCE = dt.timedelta(hours=1)  # a sentinel time further ahead than this is not a real fire time
 MAX_LOOKBACK = dt.timedelta(hours=24)    # an older --since risks a post edited after its fire
 MAX_WAIT_MINUTES = 30                    # the longest --settle/--retry-wait the CLI accepts
 DEFAULT_SETTLE_MINUTES = 30              # the one hand-timed feed lag was under 3 minutes
@@ -196,9 +214,9 @@ def parse_feed(data):
 
 def fetch_feed(board):
     """Read and parse one board's feed. Any failure is a FeedError naming the cause."""
-    req = urllib.request.Request(feed_url(board), headers={
-        "User-Agent": "HappyPetPinCheck/1.0 (+https://happypetproductreviews.com)",
-        "Accept": "application/rss+xml, application/xml;q=0.9"})
+    # The one header a GitHub runner was measured to read all six feeds with (18 of 18,
+    # 2026-11-05). Nothing else is sent: no Accept, since the test did not use one.
+    req = urllib.request.Request(feed_url(board), headers={"User-Agent": USER_AGENT})
     try:
         with urllib.request.urlopen(req, timeout=FEED_TIMEOUT) as resp:
             data = resp.read(MAX_FEED_BYTES + 1)
@@ -223,11 +241,12 @@ def _fire_time(path):
     return when.replace(tzinfo=UTC) if when.tzinfo is None else when.astimezone(UTC)
 
 
-def find_fired_pins(fired_dir, since):
+def find_fired_pins(fired_dir, since, now=None):
     """One dict per board sentinel fired at or after `since`. Each sentinel holds
-    the UTC time its webhook answered. A sentinel whose time cannot be read is
-    returned with fired_at None, so it is reported as "could not check" and is
-    never silently dropped."""
+    the UTC time its webhook answered. A sentinel whose time cannot be read, or
+    (given `now`) lies more than FUTURE_TOLERANCE ahead of it, is returned with
+    fired_at None, so it is reported as "could not check" and is never silently
+    dropped or treated as always recent."""
     fired_dir = Path(fired_dir)
     pins = []
     if not fired_dir.is_dir():
@@ -237,8 +256,10 @@ def find_fired_pins(fired_dir, since):
         if not m:
             continue
         when = _fire_time(path)
+        if when is not None and now is not None and when > now + FUTURE_TOLERANCE:
+            when = None
         if when is None:
-            print(f"WARN: unreadable fire time in {path.name}")
+            print(f"WARN: unreadable or future fire time in {path.name}")
         if when is None or when >= since:
             pins.append({"slug": m["slug"], "event": m["event"], "board": BOARD_SLUG.get(m["event"]),
                          "fired_at": when, "description": None})
@@ -288,8 +309,8 @@ def evaluate_pin(pin, items):
     dated = [i for i in items if i.pub]
     if not dated:
         return "unchecked", "the board's feed items carry no readable dates"
-    if not any(norm(i.title) for i in dated):
-        return "unchecked", "none of the board's dated feed items carries any text to match"
+    if not any(len(norm(i.title)) >= MIN_MATCH for i in dated):
+        return "unchecked", "none of the board's dated feed items carries text long enough to match"
     floor = pin["fired_at"] - SKEW
     for item in dated:
         if item.pub >= floor and same_pin_text(pin["description"], item.title):
@@ -367,13 +388,19 @@ def _sentinels(results):
     return ", ".join(names)
 
 
-def title_slugs(slugs):
-    """The slug list for an issue title: the first few, then a count. Capped so a
-    big batch cannot push the title past GitHub's 256 characters; the body lists
-    every pin."""
-    slugs = sorted(set(slugs))
+def title_slugs(pins):
+    """The tail of an issue title for these pins: the first few slugs, a count of
+    the rest, and a short hash of the exact (slug, board) set. The cap keeps a big
+    batch under GitHub's 256 characters (the body lists every pin). The hash keeps
+    the dedupe by title from hiding a different miss behind an open issue about
+    another one: the same set always gives the same title, a different set does not."""
+    pins = list(pins)
+    slugs = sorted({p["slug"] for p in pins})
+    key = ";".join(sorted({f"{p['slug']}|{p['event']}" for p in pins}))
+    short = hashlib.sha1(key.encode("utf-8")).hexdigest()[:6]
     shown = ",".join(slugs[:TITLE_SLUGS_MAX])
-    return shown + (f" (+{len(slugs) - TITLE_SLUGS_MAX} more)" if len(slugs) > TITLE_SLUGS_MAX else "")
+    more = f" (+{len(slugs) - TITLE_SLUGS_MAX} more)" if len(slugs) > TITLE_SLUGS_MAX else ""
+    return f"{shown}{more} #{short}"
 
 
 def _slug_files(missing, where):
@@ -392,15 +419,26 @@ def _repost_steps(missing):
         "1. Check the IFTTT applet's activity for the failure.",
         "2. In `_pin_queue/.fired/.pinned.json`, delete the missing board's entry under the slug's image. "
         "If that leaves the image with no boards, delete the image key; then the slug key if it has no images.",
-        f"3. Move {_slug_files(missing, 'sent/')} back to `_pin_queue/`. Skip this and a rerun "
-        "looks green (\"nothing to do\") while nothing fires. With the file back but the ledger entry "
-        "still there, post_pins.py refuses the repeat (exit 6).",
+        f"3. If the queue file is in `_pin_queue/sent/` ({_slug_files(missing, 'sent/')}), move it back to "
+        "`_pin_queue/`. Left there, a rerun looks green (\"nothing to do\") while nothing fires. With the "
+        "file back but the ledger entry still there, post_pins.py refuses the repeat (exit 6).",
         f"4. Commit the change{s} and push to `main`. pin.yml runs from `main`, so a change that is not "
         "there changes nothing.",
         f"5. Run pin.yml with slugs set to the slug{s} and force set to true. Boards still in the "
-        "ledger are refused, so only the board you removed fires.",
+        "ledger are refused. Boards missing from it fire: the one you removed, and any that never fired "
+        "in a partial fire.",
         "6. The next hourly sweep checks the repost. Close this issue.",
     ]
+
+
+def _repair_note(unchecked):
+    """A sentinel with an unreadable or future time never goes away by itself."""
+    bad = [r["pin"] for r in unchecked if r["pin"]["fired_at"] is None]
+    if not bad:
+        return []
+    names = ", ".join(f"`_pin_queue/.fired/{p['slug']}.{p['event']}.fired`" for p in bad)
+    return ["", f"Repair {names}: its time is unreadable or in the future. It stays in the repo and every "
+                f"sweep reads it again, so this issue reopens until it holds a real UTC time or is deleted."]
 
 
 def build_report(results):
@@ -412,7 +450,7 @@ def build_report(results):
     if not missing and not unchecked:
         return None
     kind = "missing" if missing else "unchecked"
-    slugs = title_slugs(r["pin"]["slug"] for r in (missing or unchecked))
+    slugs = title_slugs(r["pin"] for r in (missing or unchecked))
     lines = []
     if missing:
         lines += [f"The pin check read Pinterest's public board feeds and found "
@@ -420,7 +458,7 @@ def build_report(results):
                   f"post_pins.py counted them as fired.", ""]
         lines += [_line(r) for r in missing]
         if unchecked:
-            lines += ["", "Could not check:"] + [_line(r) for r in unchecked]
+            lines += ["", "Could not check:"] + [_line(r) for r in unchecked] + _repair_note(unchecked)
         lines += ["",
                   "Look at the board first: the check reads a public feed and can be wrong "
                   "(feed lag, text Pinterest changed, or the post's description edited after the fire).", ""]
@@ -428,7 +466,7 @@ def build_report(results):
     else:
         lines += [f"The pin check could not check {len(unchecked)} pin(s), so "
                   f"none of them is confirmed or ruled out. This is not a confirmed miss.", ""]
-        lines += [_line(r) for r in unchecked]
+        lines += [_line(r) for r in unchecked] + _repair_note(unchecked)
         lines += ["",
                   "Open each board above and look for the pin. If Pinterest blocks the runner on every "
                   "run, this check protects nothing until the feed read has another route. Close this "
@@ -469,7 +507,7 @@ def _since(value):
 def _parser():
     p = argparse.ArgumentParser(description="Confirm fired pins are on their Pinterest boards (read-only).")
     p.add_argument("--since", type=_since, default=None,
-                   help="UTC time to look from, at most 24 hours back; blank or absent = the last 2.5 hours")
+                   help="UTC time to look from, at most 24 hours back; blank or absent = the last 210 minutes")
     p.add_argument("--settle-minutes", type=_minutes, default=DEFAULT_SETTLE_MINUTES,
                    help="a pin fired more recently than this is not due yet and is left to the next "
                         f"sweep (default {DEFAULT_SETTLE_MINUTES})")
@@ -490,7 +528,7 @@ def _due(pins, now, settle):
 
 def _run(args, read_board, describe_factory, sleep, state, now):
     since = args.since or (now - DEFAULT_WINDOW)
-    pins = find_fired_pins(Path(args.repo_dir) / "_pin_queue" / ".fired", since)
+    pins = find_fired_pins(Path(args.repo_dir) / "_pin_queue" / ".fired", since, now)
     due, waiting = _due(pins, now, dt.timedelta(minutes=args.settle_minutes))
     state["pins"] = due
     for p in waiting:
@@ -523,7 +561,7 @@ def main(argv=None, *, read_board=None, describe=None, sleep=time.sleep, now=Non
         report = _run(args, read_board or fetch_feed, describe or repo_describer, sleep, state, now)
     except Exception as exc:
         # The check must never read as a pass because it broke.
-        slugs = title_slugs(p["slug"] for p in state["pins"])
+        slugs = title_slugs(state["pins"])
         report = {"kind": "unchecked", "slugs": slugs,
                   "body": f"The pin check stopped with an error ({type(exc).__name__}), so it could not "
                           f"check these pins. This is not a confirmed miss. The run log has the trace.\n"

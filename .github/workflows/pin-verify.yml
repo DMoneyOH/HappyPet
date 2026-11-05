@@ -4,7 +4,7 @@ name: Pin outcome check
 # That says the event was accepted, not that Pinterest made the pin: on 2026-11-02
 # one board's applet failed, Stage 3 stayed green, and the pin never appeared.
 #
-# Every hour this workflow looks at the pins fired in the last 2.5 hours, reads each
+# Every hour this workflow looks at the pins fired in the last 3.5 hours, reads each
 # board's public RSS feed, and confirms every pin that is at least 30 minutes old is
 # there (verify_pins.py explains how a pin is recognised and what it cannot see).
 # A pin that is not there, or a feed that cannot be read, opens one GitHub issue,
@@ -13,10 +13,13 @@ name: Pin outcome check
 # It runs on a schedule, not after pin.yml, on purpose. A trigger that fires "after
 # another workflow" cannot be tested before merge, and if it never fired nothing
 # would say so: a check that never starts looks exactly like a pass. A schedule
-# needs no other workflow to behave, covers a Stage 3 run that failed, was cancelled,
-# timed out or was started by hand, and examines each pin exactly twice (between 30 minutes and 2.5
-# hours after the fire) so one late or skipped run leaves it covered. The same schedule
-# mechanism runs slot-watchdog.yml.
+# needs no other workflow to behave and does not care how Stage 3 ended, provided its
+# sentinels reached main. It examines each pin while the pin is 30 minutes to 3.5
+# hours old: three sweeps on time, and still one after a skipped run plus up to 59
+# minutes of delay. Two skipped runs in a row can leave a pin unchecked. The same
+# schedule mechanism runs slot-watchdog.yml, whose last step opens an issue if this
+# workflow has not run in 3 hours (it shares GitHub's scheduler, so it cannot catch a
+# total outage of it). The limits and the accepted false alarms are in verify_pins.py.
 #
 # Read-only: it fires nothing and writes no file in the repo. There is no
 # concurrency group on purpose: a shared group keeps one pending run and silently
@@ -29,7 +32,7 @@ on:
   workflow_dispatch:
     inputs:
       since:
-        description: 'UTC time to look from, like 2026-11-05T12:00:00Z, at most 24 hours back (blank = the last 2.5 hours)'
+        description: 'UTC time to look from, like 2026-11-05T12:00:00Z, at most 24 hours back (blank = the last 3.5 hours)'
         required: false
         default: ''
       settle_minutes:

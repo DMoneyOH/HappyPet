@@ -42,8 +42,9 @@ sys.path.insert(0, str(REPO))
 
 import post_pins  # noqa: E402
 import verify_pins as vp  # noqa: E402
-from test_pipeline import (WORKFLOWS, _AlertIssueStep, _bash_for_workflow_steps,  # noqa: E402
-                           _named_step, _run_alert_step, _workflow_permissions)
+from test_pipeline import (GH_CALL_END, WORKFLOWS, _AlertIssueStep,  # noqa: E402
+                           _bash_for_workflow_steps, _named_step, _run_alert_step,
+                           _workflow_permissions)
 
 UTC = dt.timezone.utc
 FIRED = dt.datetime(2026, 11, 2, 12, 29, 20, tzinfo=UTC)
@@ -191,6 +192,14 @@ class TestFetchFeed(unittest.TestCase):
         self.assertEqual(op.call_args[0][0].full_url, vp.feed_url(CATS))
         self.assertEqual(items[0].title, CAT_DESC)
 
+    def test_the_request_carries_only_the_user_agent_a_runner_was_tested_with(self):
+        """A GitHub runner read all six feeds 18 of 18 times with `Mozilla/5.0` and
+        nothing else; no custom Accept is sent."""
+        with patch("urllib.request.urlopen", return_value=self._Resp(rss([(CAT_DESC, FIRED)]))) as op:
+            vp.fetch_feed(CATS)
+        self.assertEqual(op.call_args[0][0].header_items(), [("User-agent", "Mozilla/5.0")])
+        self.assertEqual(vp.USER_AGENT, "Mozilla/5.0")
+
     def test_a_blocked_or_broken_read_is_a_feed_error_naming_the_cause(self):
         cases = (("HTTP 403", urllib.error.HTTPError("u", 403, "Forbidden", {}, None)),
                  ("HTTP 429", urllib.error.HTTPError("u", 429, "Too Many", {}, None)),
@@ -255,7 +264,18 @@ class TestEvaluatePin(unittest.TestCase):
                         ("<b></b>", FIRED + dt.timedelta(minutes=3)))
         status, detail = vp.evaluate_pin(pin(), blank)
         self.assertEqual(status, "unchecked")
-        self.assertIn("any text to match", detail)
+        self.assertIn("long enough to match", detail)
+
+    def test_a_feed_whose_dated_items_are_all_shorter_than_a_match_is_could_not_check(self):
+        """Titles under MIN_MATCH characters cannot identify a pin, so a feed of nothing
+        else tells us nothing; one title of MIN_MATCH characters is enough to judge."""
+        when = FIRED + dt.timedelta(minutes=1)
+        short = feed_of(("x" * (vp.MIN_MATCH - 1), when), ("Great food", when))
+        status, detail = vp.evaluate_pin(pin(), short)
+        self.assertEqual(status, "unchecked")
+        self.assertIn("long enough to match", detail)
+        enough = feed_of(("x" * vp.MIN_MATCH, when), ("Great food", when))
+        self.assertEqual(vp.evaluate_pin(pin(), enough)[0], "missing")
 
     def test_text_only_on_undated_items_is_still_could_not_check(self):
         feed = vp.parse_feed(
@@ -332,7 +352,7 @@ class TestRunCheck(_NoNetwork):
                           ("best-lickable-cat-treats", FOOD): "found"})
         report = vp.build_report(results)
         self.assertEqual(report["kind"], "missing")
-        self.assertEqual(report["slugs"], "best-lickable-cat-treats")
+        self.assertEqual(report["slugs"], "best-lickable-cat-treats #b5dce3")
         self.assertIn(CATS, report["body"])
         self.assertNotIn(FOOD, report["body"])
 
@@ -449,13 +469,15 @@ class TestReport(unittest.TestCase):
             "1. Check the IFTTT applet's activity for the failure.",
             "2. In `_pin_queue/.fired/.pinned.json`, delete the missing board's entry under the slug's image. "
             "If that leaves the image with no boards, delete the image key; then the slug key if it has no images.",
-            "3. Move `_pin_queue/sent/best-lickable-cat-treats.json` back to `_pin_queue/`. Skip this and a "
-            "rerun looks green (\"nothing to do\") while nothing fires. With the file back but the ledger "
-            "entry still there, post_pins.py refuses the repeat (exit 6).",
+            "3. If the queue file is in `_pin_queue/sent/` (`_pin_queue/sent/best-lickable-cat-treats.json`), "
+            "move it back to `_pin_queue/`. Left there, a rerun looks green (\"nothing to do\") while nothing "
+            "fires. With the file back but the ledger entry still there, post_pins.py refuses the repeat "
+            "(exit 6).",
             "4. Commit the change and push to `main`. pin.yml runs from `main`, so a change that is not "
             "there changes nothing.",
             "5. Run pin.yml with slugs set to the slug and force set to true. Boards still in the ledger "
-            "are refused, so only the board you removed fires.",
+            "are refused. Boards missing from it fire: the one you removed, and any that never fired in a "
+            "partial fire.",
             "6. The next hourly sweep checks the repost. Close this issue.",
         ])
         (intro,) = [ln for ln in lines if ln.startswith("This will not re-fire by itself.")]
@@ -468,7 +490,8 @@ class TestReport(unittest.TestCase):
     def test_several_slugs_name_every_queue_file_and_pluralize_the_steps(self):
         results = [{"pin": pin(slug=s), "status": "missing", "detail": "x"} for s in ("best-b", "best-a")]
         body = vp.build_report(results)["body"]
-        self.assertIn("3. Move `_pin_queue/sent/best-a.json` and `_pin_queue/sent/best-b.json` back", body)
+        self.assertIn("3. If the queue file is in `_pin_queue/sent/` (`_pin_queue/sent/best-a.json` and "
+                      "`_pin_queue/sent/best-b.json`), move it back", body)
         self.assertIn("4. Commit the changes and push", body)
         self.assertIn("slugs set to the slugs and force", body)
 
@@ -476,14 +499,14 @@ class TestReport(unittest.TestCase):
         slugs = [f"best-{c}-{'x' * 38}" for c in "abcdefgh"]
         results = [{"pin": pin(slug=s), "status": "missing", "detail": "x"} for s in slugs]
         report = vp.build_report(results)
-        self.assertEqual(report["slugs"], ",".join(slugs[:3]) + " (+5 more)")
+        self.assertEqual(report["slugs"], ",".join(slugs[:3]) + " (+5 more) #a942a2")
         self.assertLess(len("⚠️ Pin missing from its board on 2026-11-05: " + report["slugs"]), 256)
         for s in slugs:
             self.assertIn(f"`{s}`", report["body"])
 
     def test_the_title_list_is_stable_whatever_the_order(self):
         a = [{"pin": pin(slug=s), "status": "missing", "detail": "x"} for s in ("best-b", "best-c", "best-a", "best-d")]
-        self.assertEqual(vp.build_report(a)["slugs"], "best-a,best-b,best-c (+1 more)")
+        self.assertEqual(vp.build_report(a)["slugs"], "best-a,best-b,best-c (+1 more) #e18bc5")
         self.assertEqual(vp.build_report(list(reversed(a)))["slugs"], vp.build_report(a)["slugs"])
 
     def test_the_fire_time_is_in_utc(self):
@@ -492,12 +515,23 @@ class TestReport(unittest.TestCase):
     def test_found_pins_are_not_in_the_report(self):
         results = self.missing() + [{"pin": pin(event="happypet_pin_food"), "status": "found", "detail": ""}]
         self.assertNotIn(FOOD, vp.build_report(results)["body"])
-        self.assertEqual(vp.build_report(results)["slugs"], "best-lickable-cat-treats")
+        self.assertEqual(vp.build_report(results)["slugs"], "best-lickable-cat-treats #b5dce3")
+
+    def test_a_different_set_of_misses_gets_a_different_title_so_dedupe_cannot_hide_it(self):
+        """Literals from the sha1 of the sorted slug|event pairs. Same slug on another
+        board, another slug on the same board, and a bigger set are all new titles."""
+        cat = [{"pin": pin(), "status": "missing", "detail": "x"}]
+        food = [{"pin": pin(event="happypet_pin_food"), "status": "missing", "detail": "x"}]
+        both = cat + food
+        titles = [vp.build_report(r)["slugs"] for r in (cat, food, both)]
+        self.assertEqual(titles[:2], ["best-lickable-cat-treats #b5dce3", "best-lickable-cat-treats #1d6949"])
+        self.assertEqual(len(set(titles)), 3)
+        self.assertEqual(vp.build_report(list(reversed(both)))["slugs"], titles[2], "order does not matter")
 
     def test_slugs_are_sorted_and_unique(self):
         results = [{"pin": pin(slug=s, event=e), "status": "missing", "detail": "x"}
                    for s in ("best-b", "best-a") for e in ("happypet_pin_cats", "happypet_pin_food")]
-        self.assertEqual(vp.build_report(results)["slugs"], "best-a,best-b")
+        self.assertEqual(vp.build_report(results)["slugs"], "best-a,best-b #aeadb2")
 
 
 class TestFindFiredPins(unittest.TestCase):
@@ -534,6 +568,24 @@ class TestFindFiredPins(unittest.TestCase):
         found = vp.find_fired_pins(self.dir, since)
         self.assertEqual(sorted(p["slug"] for p in found), ["best-bad0", "best-bad1", "best-bad2", "best-bad3"])
         self.assertTrue(all(p["fired_at"] is None for p in found))
+
+    def test_a_far_future_sentinel_time_is_unreadable_and_a_slightly_future_one_is_not(self):
+        now = dt.datetime(2026, 11, 5, 13, 0, tzinfo=UTC)
+        since = now - dt.timedelta(hours=3)
+        self.sentinel("best-far.happypet_pin_cats.fired", (now + dt.timedelta(hours=1, minutes=1)).isoformat())
+        self.sentinel("best-skew.happypet_pin_cats.fired", (now + dt.timedelta(minutes=59)).isoformat())
+        self.sentinel("best-year.happypet_pin_cats.fired", "2099-01-01T00:00:00+00:00")
+        found = {p["slug"]: p["fired_at"] for p in vp.find_fired_pins(self.dir, since, now)}
+        self.assertEqual(sorted(found), ["best-far", "best-skew", "best-year"])
+        self.assertIsNone(found["best-far"])
+        self.assertIsNone(found["best-year"])
+        self.assertEqual(found["best-skew"], now + dt.timedelta(minutes=59))
+
+    def test_without_a_now_a_future_time_is_left_alone(self):
+        since = dt.datetime(2026, 11, 5, 12, 0, tzinfo=UTC)
+        self.sentinel("best-year.happypet_pin_cats.fired", "2099-01-01T00:00:00+00:00")
+        (found,) = vp.find_fired_pins(self.dir, since)
+        self.assertEqual(found["fired_at"].year, 2099)
 
     def test_a_sentinel_with_a_zone_other_than_utc_is_converted(self):
         since = dt.datetime(2026, 11, 5, 12, 0, tzinfo=UTC)
@@ -598,7 +650,7 @@ class TestMain(_NoNetwork):
         before = _tree_digest(self.repo / "_pin_queue")
         self.assertEqual(self.go(feeds), 1)
         self.assertEqual((self.out / "kind").read_text(encoding="utf-8"), "missing")
-        self.assertEqual((self.out / "slugs").read_text(encoding="utf-8"), "best-lickable-cat-treats")
+        self.assertEqual((self.out / "slugs").read_text(encoding="utf-8"), "best-lickable-cat-treats #b5dce3")
         self.assertIn(CATS, (self.out / "body.md").read_text(encoding="utf-8"))
         self.assertEqual(self.slept, [900], "one retry wait, and no wait before the first read")
         self.assertEqual(_tree_digest(self.repo / "_pin_queue"), before,
@@ -623,13 +675,13 @@ class TestMain(_NoNetwork):
         raise AssertionError("a feed was read although no pin was due")
 
     def test_nothing_fired_in_the_window_means_no_wait_and_no_feed_read(self):
-        self.assertEqual(self.go(self.never, now=FIRED + dt.timedelta(hours=3)), 0)
+        self.assertEqual(self.go(self.never, now=FIRED + dt.timedelta(hours=4)), 0)
         self.assertEqual(self.slept, [])
 
-    def test_the_default_window_is_two_and_a_half_hours(self):
-        self.assertEqual(self.go(self.never, now=FIRED + dt.timedelta(hours=2, minutes=30, seconds=1)), 0)
+    def test_the_default_window_is_210_minutes(self):
+        self.assertEqual(self.go(self.never, now=FIRED + dt.timedelta(minutes=210, seconds=1)), 0)
         feeds = _Feeds(**{CATS: [rss([(CAT_DESC, FIRED)])], FOOD: [rss([(CAT_DESC, FIRED)])]})
-        self.assertEqual(self.go(feeds, now=FIRED + dt.timedelta(hours=2, minutes=29)), 0)
+        self.assertEqual(self.go(feeds, now=FIRED + dt.timedelta(minutes=209)), 0)
         self.assertEqual(feeds.calls, {CATS: 1, FOOD: 1}, "inside the window, the pins were read")
 
     def test_a_pin_younger_than_the_settle_time_is_left_to_the_next_sweep(self):
@@ -666,6 +718,15 @@ class TestMain(_NoNetwork):
         self.assertIn("fire time unreadable", body)
         self.assertIn("the sentinel's fire time could not be read", body, "judged on its own reason, not a feed error")
 
+    def test_a_far_future_sentinel_is_reported_with_the_repair_note_in_every_sweep(self):
+        (self.repo / "_pin_queue" / ".fired" / "best-year.happypet_pin_toys.fired").write_text(
+            "2099-01-01T00:00:00+00:00", encoding="utf-8")
+        for _ in range(2):
+            self.assertEqual(self.go(_Feeds()), 2, "it reopens every sweep until repaired")
+            body = (self.out / "body.md").read_text(encoding="utf-8")
+            self.assertIn("Repair `_pin_queue/.fired/best-year.happypet_pin_toys.fired`", body)
+            self.assertIn("reopens", body)
+
     def test_a_pin_with_no_description_is_could_not_check(self):
         feeds = _Feeds(**{CATS: [rss([])], FOOD: [rss([])]})
         self.assertEqual(self.go(feeds, describe=None), 2)
@@ -685,7 +746,8 @@ class TestMain(_NoNetwork):
         self.assertEqual(rc, 2)
         self.assertEqual((self.out / "kind").read_text(encoding="utf-8"), "unchecked")
         self.assertIn("OSError", (self.out / "body.md").read_text(encoding="utf-8"))
-        self.assertEqual((self.out / "slugs").read_text(encoding="utf-8"), "best-lickable-cat-treats")
+        self.assertRegex((self.out / "slugs").read_text(encoding="utf-8"),
+                         r"^best-lickable-cat-treats #[0-9a-f]{6}$")
 
     def test_hostile_arguments_are_refused_not_run(self):
         for extra in (["--settle-minutes", "-5"], ["--settle-minutes", "31"], ["--retry-wait-minutes", "x"],
@@ -883,15 +945,41 @@ class TestPinVerifyWorkflow(unittest.TestCase):
         self.assertEqual((hour, rest), ("*", ["*", "*", "*"]))
         self.assertNotIn(int(minute), (0, 15, 30, 45), "scheduled runs are delayed most at round times")
 
-    def test_every_pin_is_examined_by_exactly_two_hourly_sweeps(self):
-        """Sweeps run at :23 each hour and examine pins aged from the settle time up
-        to (not including) the window. That span is two hours, so whatever minute a
-        pin fires, two sweeps fall in it: one skipped or late run leaves it covered."""
-        settle = dt.timedelta(minutes=vp.DEFAULT_SETTLE_MINUTES)
+    @staticmethod
+    def _examined(fire_minute, sweeps):
+        """Is a pin fired at `fire_minute` past the hour examined by any of `sweeps`
+        (actual run times, in minutes from the top of the hour of the first)?"""
+        settle = vp.DEFAULT_SETTLE_MINUTES
+        window = vp.DEFAULT_WINDOW.total_seconds() / 60
+        return any(settle <= when - fire_minute < window for when in sweeps)
+
+    def test_a_pin_is_examined_through_one_skipped_run_and_up_to_59_minutes_of_delay(self):
+        """Hourly sweeps nominally at :23, each examining pins aged settle..window. Any
+        one sweep skipped, every other sweep on time or up to 59 minutes late, any
+        fire minute: still examined at least once."""
+        import itertools
+        for fire_minute in range(60):
+            for skipped in range(6):
+                for delays in itertools.product((0, 59), repeat=6):
+                    sweeps = [60 * k + 23 + delays[k] for k in range(6) if k != skipped]
+                    self.assertTrue(self._examined(fire_minute, sweeps),
+                                    (fire_minute, skipped, delays))
+
+    def test_two_skipped_runs_in_a_row_plus_delay_can_leave_a_pin_unchecked(self):
+        """The documented limit, shown to be real: the window is 180 minutes past the
+        settle time, so a 180-minute gap between actual sweeps is the most it bridges."""
+        self.assertEqual(vp.DEFAULT_WINDOW - dt.timedelta(minutes=vp.DEFAULT_SETTLE_MINUTES),
+                         dt.timedelta(minutes=180))
+        sweeps = [23, 203 + 59, 263 + 59]     # sweeps 1 and 2 skipped, the next one late
+        self.assertFalse(self._examined(0, sweeps))
+        self.assertTrue(self._examined(0, [23, 203, 263]), "two skipped runs on time are bridged exactly")
+
+    def test_on_time_a_pin_is_examined_by_three_sweeps(self):
         for fire_minute in range(60):
             with self.subTest(fire_minute=fire_minute):
-                ages = [dt.timedelta(minutes=60 * k + 23 - fire_minute) for k in range(6)]
-                self.assertEqual(sum(1 for age in ages if settle <= age < vp.DEFAULT_WINDOW), 2)
+                sweeps = [60 * k + 23 for k in range(8)]
+                n = sum(1 for s in sweeps if self._examined(fire_minute, [s]))
+                self.assertEqual(n, 3)
 
     def test_there_is_no_concurrency_group_that_could_drop_a_pending_run(self):
         self.assertNotIn("concurrency:", self.text.split("\njobs:")[0].split("\non:")[1].split("permissions:")[1])
@@ -1223,6 +1311,96 @@ class TestRecoverySteps(_PostPinsRepo, _NoNetwork):
         code, fired = self.rerun()
         self.assertEqual(code, 0)
         self.assertEqual(sorted(event for event, _ in fired), ["happypet_pin_cats", "happypet_pin_food"])
+
+
+# ---------------------------------------------------------------------------
+# The watchdog on the check, in slot-watchdog.yml
+# ---------------------------------------------------------------------------
+class TestSlotWatchdogPinCheck(_AlertIssueStep, unittest.TestCase):
+    """slot-watchdog.yml's last step: no run of pin-verify.yml created in the last
+    3 hours opens one issue. It shares GitHub's scheduler with the check, so it
+    cannot catch a total scheduler outage; that limit is in the step's comment."""
+
+    WORKFLOW = "slot-watchdog.yml"
+    STEP = "Pin check not running — create GitHub issue"
+    TITLE_RE = r"^⚠️ Pin check not running on \d{4}-\d{2}-\d{2}$"
+
+    # gh stand-in: `gh api` answers $API_ANSWER (or fails), issue list answers $OPEN_ISSUES.
+    GH = ('gh() {\n'
+          '  printf "%s\\n" "$@" >> "$GH_ARGS"; echo "' + GH_CALL_END + '" >> "$GH_ARGS"\n'
+          '  if [ "$1" = "api" ]; then [ -n "$API_FAILS" ] && return 1; printf "%s\\n" "$API_ANSWER"; return 0; fi\n'
+          '  if [ "$1 $2" = "issue list" ]; then [ -n "$OPEN_ISSUES" ] && printf "%s\\n" "$OPEN_ISSUES"; fi\n'
+          '  return 0\n}\n')
+
+    def scenario_env(self):
+        return {"REPO_URL": "https://github.com/DMoneyOH/HappyPet"}
+
+    def run_api(self, answer="", api_fails=False, open_issues=""):
+        with tempfile.TemporaryDirectory() as d:
+            env = {"RUN_URL": self.RUN_URL, "API_ANSWER": answer, "API_FAILS": "1" if api_fails else "",
+                   **self.scenario_env()}
+            return _run_alert_step(self, self.GH + self.script, env, d,
+                                   open_issues=[open_issues] if open_issues else ())
+
+    # The inherited checks assume `issue list` is the first gh call; here `gh api` is.
+    def test_a_failure_opens_one_issue_naming_the_run(self):
+        proc, calls = self.run_api("0")
+        self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+        self.assertEqual([c[:2] for c in calls], [["api", calls[0][1]], ["issue", "list"], ["issue", "create"]])
+        (create,) = self.creates(calls)
+        self.assertEqual(self.arg(create, "--assignee"), "DMoneyOH")
+        self.assertEqual(self.arg(create, "--repo"), "DMoneyOH/HappyPet")
+        body = self.body(create)
+        for needle in (self.RUN_URL, "Reported: ", "_Auto-generated by slot-watchdog.yml_",
+                       "https://github.com/DMoneyOH/HappyPet/actions/workflows/pin-verify.yml",
+                       "cannot catch a total scheduler outage"):
+            self.assertIn(needle, body)
+
+    def test_an_open_issue_with_the_same_title_stops_a_second(self):
+        title, _ = self.opened()
+        proc, calls = self.run_api("0", open_issues=title)
+        self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+        self.assertEqual(self.creates(calls), [])
+        self.assertIn("already open", proc.stdout)
+
+    def test_the_step_asks_for_runs_created_in_the_last_three_hours(self):
+        import datetime
+        proc, calls = self.run_api("5")
+        api = calls[0]
+        self.assertEqual(api[0], "api")
+        self.assertEqual(api[2:], ["--jq", ".total_count"])
+        m = re.fullmatch(r"repos/DMoneyOH/HappyPet/actions/workflows/pin-verify\.yml/runs"
+                         r"\?created=%3E%3D(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z)&per_page=1", api[1])
+        self.assertIsNotNone(m, api[1])
+        since = datetime.datetime.strptime(m.group(1), "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=UTC)
+        age = datetime.datetime.now(UTC) - since
+        self.assertLess(abs(age - datetime.timedelta(hours=3)), datetime.timedelta(minutes=5), age)
+
+    def test_runs_in_the_window_open_nothing(self):
+        for answer in ("1", "3", "24"):
+            with self.subTest(count=answer):
+                proc, calls = self.run_api(answer)
+                self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+                self.assertEqual([c[0] for c in calls], ["api"])
+                self.assertIn(f"ran {answer} time(s)", proc.stdout)
+
+    def test_no_runs_an_unreadable_answer_or_a_failed_call_all_open_an_issue(self):
+        """Silence must not read as healthy: only a positive count is a pass."""
+        for label, kw in (("zero", {"answer": "0"}), ("empty", {"answer": ""}), ("null", {"answer": "null"}),
+                          ("junk", {"answer": "not a number"}), ("negative", {"answer": "-1"}),
+                          ("call fails", {"api_fails": True})):
+            with self.subTest(case=label):
+                proc, calls = self.run_api(**kw)
+                self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+                self.assertEqual(len(self.creates(calls)), 1, calls)
+
+    def test_it_runs_even_when_the_slot_step_failed_and_reads_the_real_workflow_names(self):
+        head, _ = _named_step(self.workflow, self.STEP)
+        self.assertIn("        if: always()\n", head)
+        pin_verify = (WORKFLOWS / "pin-verify.yml").read_text(encoding="utf-8")
+        self.assertIn("pin-verify.yml/runs", self.script)
+        self.assertEqual(re.findall(r"^    - cron: '([^']*)'$", pin_verify, re.M), ["23 * * * *"])
+        self.assertIn("date -u -d '3 hours ago'", self.script, "three hourly runs fit the window")
 
 
 if __name__ == "__main__":
