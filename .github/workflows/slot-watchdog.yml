@@ -119,7 +119,7 @@ jobs:
             "" \
             "What to do:" \
             "1. Open the check's runs and see whether it is disabled, failing before it starts, or just late: ${REPO_URL}/actions/workflows/pin-verify.yml" \
-            "2. Enable it or fix the cause, then run it by hand once. Close this issue." \
+            "2. Enable it or fix the cause. Then run it by hand with the since input set to a time before the outage, at most 24 hours back: a default run covers only the last 210 minutes, so pins fired during the outage stay unchecked until you do. Look at the boards by eye for anything older. Close this issue." \
             "" \
             "This watchdog uses the same GitHub scheduler as the check, so it cannot catch a total scheduler outage." \
             "" \
