@@ -6,8 +6,8 @@ post_pins.py counts a pin as fired when IFTTT's Maker webhook answers 2xx. That
 says IFTTT accepted the event, not that Pinterest made the pin: on 2026-11-02
 the "Best Cat Products" applet failed ("The Pinterest connection was
 temporarily unavailable"), Stage 3 still passed, and the pin was missing.
-verify_pins.py reads each board's public RSS feed on an hourly schedule and
-reports a pin that is not there.
+verify_pins.py reads each board's public RSS feed on a schedule and reports
+a pin that is not there.
 
 Kept out of test_pipeline.py on purpose (several branches edit it at once); it
 borrows that file's alert-issue harness so the new alert step is held to the
@@ -478,7 +478,7 @@ class TestReport(unittest.TestCase):
             "5. Run pin.yml with slugs set to the slug and force set to true. Boards still in the ledger "
             "are refused. Boards missing from it fire: the one you removed, and any that never fired in a "
             "partial fire.",
-            "6. The next hourly sweep checks the repost. Close this issue.",
+            "6. The next sweep checks the repost. Close this issue.",
         ])
         (intro,) = [ln for ln in lines if ln.startswith("This will not re-fire by itself.")]
         self.assertEqual(intro,
@@ -675,13 +675,19 @@ class TestMain(_NoNetwork):
         raise AssertionError("a feed was read although no pin was due")
 
     def test_nothing_fired_in_the_window_means_no_wait_and_no_feed_read(self):
-        self.assertEqual(self.go(self.never, now=FIRED + dt.timedelta(hours=4)), 0)
+        self.assertEqual(self.go(self.never, now=FIRED + dt.timedelta(hours=25)), 0)
         self.assertEqual(self.slept, [])
 
-    def test_the_default_window_is_210_minutes(self):
-        self.assertEqual(self.go(self.never, now=FIRED + dt.timedelta(minutes=210, seconds=1)), 0)
+    def test_the_default_window_is_24_hours(self):
+        """GitHub runs the hourly schedule every 7 to 9 hours in practice, so a
+        210-minute window missed pins fired between runs. 24 hours is also the
+        furthest --since may reach."""
+        self.assertEqual(self.go(self.never, now=FIRED + dt.timedelta(hours=24, seconds=1)), 0)
         feeds = _Feeds(**{CATS: [rss([(CAT_DESC, FIRED)])], FOOD: [rss([(CAT_DESC, FIRED)])]})
-        self.assertEqual(self.go(feeds, now=FIRED + dt.timedelta(minutes=209)), 0)
+        self.assertEqual(self.go(feeds, now=FIRED + dt.timedelta(hours=9)), 0)
+        self.assertEqual(feeds.calls, {CATS: 1, FOOD: 1}, "nine hours on, the pins were read")
+        feeds = _Feeds(**{CATS: [rss([(CAT_DESC, FIRED)])], FOOD: [rss([(CAT_DESC, FIRED)])]})
+        self.assertEqual(self.go(feeds, now=FIRED + dt.timedelta(hours=23, minutes=59)), 0)
         self.assertEqual(feeds.calls, {CATS: 1, FOOD: 1}, "inside the window, the pins were read")
 
     def test_a_pin_younger_than_the_settle_time_is_left_to_the_next_sweep(self):
@@ -953,33 +959,23 @@ class TestPinVerifyWorkflow(unittest.TestCase):
         window = vp.DEFAULT_WINDOW.total_seconds() / 60
         return any(settle <= when - fire_minute < window for when in sweeps)
 
-    def test_a_pin_is_examined_through_one_skipped_run_and_up_to_59_minutes_of_delay(self):
-        """Hourly sweeps nominally at :23, each examining pins aged settle..window. Any
-        one sweep skipped, every other sweep on time or up to 59 minutes late, any
-        fire minute: still examined at least once."""
-        import itertools
-        for fire_minute in range(60):
-            for skipped in range(6):
-                for delays in itertools.product((0, 59), repeat=6):
-                    sweeps = [60 * k + 23 + delays[k] for k in range(6) if k != skipped]
-                    self.assertTrue(self._examined(fire_minute, sweeps),
-                                    (fire_minute, skipped, delays))
+    def test_a_pin_is_examined_at_the_cadence_github_actually_keeps(self):
+        """The hourly schedule ran every 7 to 9 hours in practice (issues #220 and
+        #223). Sweeps that far apart, or 12 hours apart, examine a pin fired at any
+        minute between them at least once."""
+        for gap in (60, 7 * 60, 9 * 60, 12 * 60):
+            sweeps = [23 + gap * k for k in range(5)]
+            for fire_minute in range(23, 23 + 2 * gap):
+                self.assertTrue(self._examined(fire_minute, sweeps), (gap, fire_minute))
 
-    def test_two_skipped_runs_in_a_row_plus_delay_can_leave_a_pin_unchecked(self):
-        """The documented limit, shown to be real: the window is 180 minutes past the
-        settle time, so a 180-minute gap between actual sweeps is the most it bridges."""
+    def test_a_gap_longer_than_23_and_a_half_hours_can_leave_a_pin_unchecked(self):
+        """The documented limit, shown to be real: the window is 1410 minutes past
+        the settle time, so a 1410-minute gap between actual sweeps is the most it
+        bridges. The pin fired one minute after the settle cut-off of a sweep."""
         self.assertEqual(vp.DEFAULT_WINDOW - dt.timedelta(minutes=vp.DEFAULT_SETTLE_MINUTES),
-                         dt.timedelta(minutes=180))
-        sweeps = [23, 203 + 59, 263 + 59]     # sweeps 1 and 2 skipped, the next one late
-        self.assertFalse(self._examined(0, sweeps))
-        self.assertTrue(self._examined(0, [23, 203, 263]), "two skipped runs on time are bridged exactly")
-
-    def test_on_time_a_pin_is_examined_by_three_sweeps(self):
-        for fire_minute in range(60):
-            with self.subTest(fire_minute=fire_minute):
-                sweeps = [60 * k + 23 for k in range(8)]
-                n = sum(1 for s in sweeps if self._examined(fire_minute, [s]))
-                self.assertEqual(n, 3)
+                         dt.timedelta(minutes=1410))
+        self.assertTrue(self._examined(1, [30, 30 + 1410]), "a 1410-minute gap is bridged exactly")
+        self.assertFalse(self._examined(1, [30, 30 + 1411]))
 
     def test_there_is_no_concurrency_group_that_could_drop_a_pending_run(self):
         self.assertNotIn("concurrency:", self.text.split("\njobs:")[0].split("\non:")[1].split("permissions:")[1])
@@ -1318,7 +1314,7 @@ class TestRecoverySteps(_PostPinsRepo, _NoNetwork):
 # ---------------------------------------------------------------------------
 class TestSlotWatchdogPinCheck(_AlertIssueStep, unittest.TestCase):
     """slot-watchdog.yml's last step: no run of pin-verify.yml created in the last
-    3 hours opens one issue. It shares GitHub's scheduler with the check, so it
+    12 hours opens one issue. It shares GitHub's scheduler with the check, so it
     cannot catch a total scheduler outage; that limit is in the step's comment."""
 
     WORKFLOW = "slot-watchdog.yml"
@@ -1356,6 +1352,18 @@ class TestSlotWatchdogPinCheck(_AlertIssueStep, unittest.TestCase):
                        "cannot catch a total scheduler outage"):
             self.assertIn(needle, body)
 
+    def test_the_issue_asks_for_no_rerun_the_check_refuses(self):
+        """The body never asks for a re-run further back than MAX_LOOKBACK,
+        which the check rejects: it names that limit and the by-eye check."""
+        proc, calls = self.run_api("0")
+        (create,) = self.creates(calls)
+        body = self.body(create)
+        hours = int(vp.MAX_LOOKBACK.total_seconds() // 3600)
+        self.assertIn(f"only pins fired in the last {hours} hours", body)
+        self.assertIn("by eye on its Pinterest board", body)
+        self.assertNotIn("before the outage", body)
+        self.assertLessEqual(vp.DEFAULT_WINDOW, vp.MAX_LOOKBACK)
+
     def test_an_open_issue_with_the_same_title_stops_a_second(self):
         title, _ = self.opened()
         proc, calls = self.run_api("0", open_issues=title)
@@ -1363,7 +1371,7 @@ class TestSlotWatchdogPinCheck(_AlertIssueStep, unittest.TestCase):
         self.assertEqual(self.creates(calls), [])
         self.assertIn("already open", proc.stdout)
 
-    def test_the_step_asks_for_runs_created_in_the_last_three_hours(self):
+    def test_the_step_asks_for_runs_created_in_the_last_twelve_hours(self):
         import datetime
         proc, calls = self.run_api("5")
         api = calls[0]
@@ -1374,7 +1382,7 @@ class TestSlotWatchdogPinCheck(_AlertIssueStep, unittest.TestCase):
         self.assertIsNotNone(m, api[1])
         since = datetime.datetime.strptime(m.group(1), "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=UTC)
         age = datetime.datetime.now(UTC) - since
-        self.assertLess(abs(age - datetime.timedelta(hours=3)), datetime.timedelta(minutes=5), age)
+        self.assertLess(abs(age - datetime.timedelta(hours=12)), datetime.timedelta(minutes=5), age)
 
     def test_runs_in_the_window_open_nothing(self):
         for answer in ("1", "3", "24"):
@@ -1400,7 +1408,15 @@ class TestSlotWatchdogPinCheck(_AlertIssueStep, unittest.TestCase):
         pin_verify = (WORKFLOWS / "pin-verify.yml").read_text(encoding="utf-8")
         self.assertIn("pin-verify.yml/runs", self.script)
         self.assertEqual(re.findall(r"^    - cron: '([^']*)'$", pin_verify, re.M), ["23 * * * *"])
-        self.assertIn("date -u -d '3 hours ago'", self.script, "three hourly runs fit the window")
+        self.assertIn("date -u -d '12 hours ago'", self.script)
+
+    def test_the_threshold_tolerates_the_real_cadence_and_stays_inside_the_window(self):
+        """Above the 7-9 hour gaps GitHub keeps (no false alarm like #220 and #223),
+        and below the longest gap the check's window bridges (no silent hole)."""
+        hours = int(re.search(r"date -u -d '(\d+) hours ago'", self.script).group(1))
+        self.assertGreater(hours, 9)
+        self.assertLess(dt.timedelta(hours=hours),
+                        vp.DEFAULT_WINDOW - dt.timedelta(minutes=vp.DEFAULT_SETTLE_MINUTES))
 
 
 if __name__ == "__main__":

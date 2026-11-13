@@ -11,7 +11,7 @@ Happy Pet Product Reviews Generator v22.0 — 3-stage Writer-Judge-Fixer routing
 - Pin queue staged for publish.yml -> post_pins.py
 - DONE log includes held count
 """
-import os, re, json, datetime, time, urllib.request, urllib.error, urllib.parse, subprocess
+import os, re, json, datetime, time, unicodedata, urllib.request, urllib.error, urllib.parse, subprocess
 from pathlib import Path
 from typing import NamedTuple
 
@@ -20,6 +20,7 @@ import categories
 from buyer_feedback import (clean_customer_summary, find_crowd_claims,
                             find_summary_block_problems, insert_summary_block,
                             normalize as normalize_text, prompt_term_list, render_summary_block)
+from buyer_feedback import _LOOKALIKES
 
 try:
     from dotenv import load_dotenv
@@ -1862,7 +1863,8 @@ def evaluate_scorecard(scorecard: dict, content: str, sources: FeedbackSources =
                 flags.append(f"{key}={val} below minimum {minimum}")
             passed = False
 
-    # Accuracy/fabrication flags always fail regardless of pass=true
+    # Accuracy/fabrication flags always fail regardless of pass=true. Deliberately
+    # stricter than authoritative_gate: no approving-negation exemption here.
     accuracy_keywords = ("fabricat", "unverif", "invent", "statistic", "percentag",
                          "specific number", "no source", "not verif", "made up",
                          "cited", "claimed", "without source")
@@ -1888,7 +1890,9 @@ def authoritative_gate(scorecard: dict, content: str, sources: FeedbackSources =
       - every rule in body_rule_flags, read off the actual body (em dash,
         first person singular, named testimonial, crowd term, the reviewer's
         structured buyer-feedback verdict),
-      - an EXPLICIT fabrication callout (fabricated/invented/made-up) in the flags.
+      - an EXPLICIT fabrication callout (fabricated/invented/made-up) in a flag,
+        unless that whole flag is one approving shape such as "no invented
+        specs" (flag_reports_fabrication).
     Returns (passed: bool, flags: list).
     """
     passed = True
@@ -1909,17 +1913,121 @@ def authoritative_gate(scorecard: dict, content: str, sources: FeedbackSources =
         passed = False
         flags.append(flag)
 
-    # Only UNAMBIGUOUS fabrication verbs hard-fail. Cautionary reviewer prose
+    # Only UNAMBIGUOUS fabrication verbs hard-fail, judged one flag at a time; a
+    # flag that is wholly an approving shape ("no invented specs") is exempt, and
+    # any other wording around the word holds. Cautionary reviewer prose
     # ("no source", "unverified", "statistic", "specific number") is NOT treated
     # as fabrication: it false-positived on VERIFIED featured-product figures (the
     # reviewer is not the source of truth for what was verified), and soft/
     # unsourced claims are already governed by the accuracy score floor above.
-    fabrication_keywords = ("fabricat", "invent", "made up", "made-up")
-    if flags and any(kw in " ".join(str(f) for f in flags).lower()
-                     for kw in fabrication_keywords):
+    if any(flag_reports_fabrication(str(f)) for f in flags):
         passed = False
 
     return passed, flags
+
+
+_FABRICATION_RE = re.compile(r"fabricat|invent|made[\W_]*up")
+
+
+_LETTER = r"[^\W\d_]"
+_HYPHEN_IN_WORD = re.compile(rf"(?<={_LETTER})[-\u2010\u2011](?={_LETTER})")
+_SPACED_LETTERS = re.compile(rf"(?<!{_LETTER}){_LETTER}(?:[\s.\-_]{{1,3}}{_LETTER}(?!{_LETTER})){{2,}}")
+
+
+def _detection_text(flag: str) -> str:
+    """The flag as fabrication detection reads it: accents and compatibility
+    forms folded to their base letters (NFKD), every mark, invisible format
+    character and non-space control character dropped, Cyrillic and Greek
+    look-alike letters read as Latin, a hyphen inside a word removed, a run of
+    single spaced-out letters joined, then case-folded. Detection only ever
+    widens, so "İNVENTED", full-width letters, "invented" spelled with a Cyrillic e,
+    "in-vented" and "i n v e n t e d" are all found; "made up" is found with
+    any punctuation or space between the two words. Synonyms ("fake",
+    "hallucinated") are not detected."""
+    text = unicodedata.normalize("NFKD", flag)
+    text = "".join(c for c in text if unicodedata.category(c)[0] != "M"
+                   and unicodedata.category(c) != "Cf"
+                   and not (unicodedata.category(c) == "Cc" and not c.isspace()))
+    text = _HYPHEN_IN_WORD.sub("", text.translate(_LOOKALIKES))
+    text = _SPACED_LETTERS.sub(lambda m: re.sub(r"[\W_]", "", m.group()), text)
+    return text.casefold()
+
+
+def _one_of(words) -> str:
+    return "(?:" + "|".join(re.escape(w) for w in sorted(words, key=len, reverse=True)) + ")"
+
+
+# The one approving shape, built from closed word sets only. A flag is exempt
+# when the WHOLE of it, lower-cased with its whitespace collapsed, is one of:
+#   <subject> <have-verb> no <participle> <noun phrase>   "The alternative sections carry no invented figures"
+#   <subject> <copula> not <participle>                   "Specs are not invented"
+#   <writer> never <participle> [<object>]                "The writer never fabricated a rating"
+# with an optional benign tail ("which is correct", "(correct)", "good"), or is
+# one of these with the tail required:
+#   no <participle> <noun phrase>                         "no invented specs, which is correct"
+#   nothing [<copula>] <participle>                       "Nothing is invented, good"
+#   not <participle> / never <participle> [<object>]
+# then an optional full stop. A bare label ("No invented statistics") holds:
+# flags list problems only, so it cannot be told from a broken rule. A word
+# outside these sets anywhere in the flag withdraws the exemption. That is the
+# point: a denylist of doubt words always misses one.
+# No set holds an apostrophe, so every spelling of a contraction ("isn't",
+# "isn’t", "isnt") is held alike.
+_APPROVAL_PARTICIPLES = ("invented", "fabricated", "made up", "made-up")
+_APPROVAL_NOUNS = (
+    "spec", "specs", "specification", "specifications", "figure", "figures",
+    "number", "numbers", "stat", "stats", "statistic", "statistics", "fact", "facts",
+    "claim", "claims", "quote", "quotes", "testimonial", "testimonials", "review",
+    "reviews", "rating", "ratings", "price", "prices", "detail", "details", "data",
+    "measurement", "measurements", "feature", "features", "anecdote", "anecdotes",
+    "source", "sources", "result", "results", "article", "post", "draft", "body",
+    "section", "sections", "intro", "conclusion")
+_APPROVAL_MODIFIERS = ("alternative", "featured", "product", "personal", "technical", "customer")
+_APPROVAL_DETERMINERS = ("the", "this", "these")
+_APPROVAL_HAVE_VERBS = ("carry", "carries", "contain", "contains", "has", "have",
+                        "include", "includes", "use", "uses")
+_APPROVAL_COPULAS = ("is", "are", "was", "were", "has been", "have been")
+_APPROVAL_WRITERS = ("writer", "author", "article", "draft", "post")
+_APPROVAL_TAILS = ("which is correct", "correct", "good", "as required", "as expected", "fine")
+
+_NOUN_PHRASE = (rf"(?:{_one_of(_APPROVAL_MODIFIERS)} )?{_one_of(_APPROVAL_NOUNS)}"
+                rf"(?: (?:and|or) (?:{_one_of(_APPROVAL_MODIFIERS)} )?{_one_of(_APPROVAL_NOUNS)})?")
+_SUBJECT = rf"(?:{_one_of(_APPROVAL_DETERMINERS)} )?{_NOUN_PHRASE}"
+_PARTICIPLE = _one_of(_APPROVAL_PARTICIPLES)
+_COPULA = _one_of(_APPROVAL_COPULAS)
+_TAIL = _one_of(_APPROVAL_TAILS)
+_OBJECT = rf"(?: (?:(?:a|an|any|the) )?{_NOUN_PHRASE})?"
+_BENIGN_TAIL = rf"(?:(?:,|;|:| -)? {_TAIL}| \({_TAIL}\))"
+_APPROVING_FLAG_RE = re.compile(
+    "(?:(?:"
+    rf"{_SUBJECT} {_one_of(_APPROVAL_HAVE_VERBS)} no {_PARTICIPLE} {_NOUN_PHRASE}"
+    rf"|{_SUBJECT} {_COPULA} not {_PARTICIPLE}"
+    rf"|(?:the |this )?{_one_of(_APPROVAL_WRITERS)} never {_PARTICIPLE}{_OBJECT}"
+    rf"){_BENIGN_TAIL}?|(?:"
+    rf"no {_PARTICIPLE} {_NOUN_PHRASE}"
+    rf"|nothing (?:{_COPULA} )?{_PARTICIPLE}"
+    rf"|not {_PARTICIPLE}"
+    rf"|never {_PARTICIPLE}{_OBJECT}"
+    rf"){_BENIGN_TAIL})\.?")
+_DASHES = str.maketrans({"\u2013": " - ", "\u2014": " - "})
+
+
+def flag_reports_fabrication(flag: str) -> bool:
+    """True when one reviewer flag reports a fabrication: it contains
+    fabricat/invent/made up, unless the whole flag is the approving shape above
+    ("The alternative sections carry no invented figures", "no invented specs,
+    which is correct"). A bare label ("No invented statistics") holds. This is
+    a safety gate, so the exemption is an allowlist: the flag must match the shape
+    exactly once its whitespace is collapsed and en and em dashes read as "-", and
+    a flag holding any other non-ASCII character (a Cyrillic "о", a zero-width
+    space) is never exempt. Anything else holds: an exception ("with one
+    exception: the range"), a quantifier ("almost no"), an instruction ("so no
+    invented figures remain"), a hedge ("Presumably"), a question mark or a
+    second clause ("; this article did")."""
+    if not _FABRICATION_RE.search(_detection_text(flag)):
+        return False
+    text = " ".join(flag.translate(_DASHES).split())
+    return not (text.isascii() and _APPROVING_FLAG_RE.fullmatch(text.lower()))
 
 
 def call_openrouter_chain(chain, messages, *, label, max_tokens, temperature,
@@ -2030,6 +2138,9 @@ def make_review_prompt(title: str, keyword: str, content: str, verified_facts: s
             "unverified and may be flagged.\n"
             f"{verified_facts}\n\n"
         )
+    # The flags rule below says the fabrication words "always hold the article".
+    # That is deliberate steering, not the gate's rule: authoritative_gate exempts
+    # a flag that is wholly an approving shape (flag_reports_fabrication).
     return f"""You are a senior human editor for Happy Pet Product Reviews, a budget-focused pet product affiliate blog.
 Your job is to score this article honestly and catch every AI writing pattern it contains. Do not be generous.
 
@@ -2164,7 +2275,7 @@ Begin with {{ and end with }}.
 
 Rules:
 - ai_patterns_found: list each AI pattern detected as "CATEGORY_NUMBER: description" (e.g. "10: uses leverage, seamless")
-- flags: list each specific problem as a plain string; empty array if none
+- flags: list each specific problem as a plain string; empty array if none. List problems only, never a check the article passed. The words invented, fabricated and made up in a flag always hold the article: use one of them whenever you report a fabrication, and never otherwise
 - rewrite_instructions: name exact sections and specific fixes if pass=false; empty string if pass=true. Keep under 250 words -- a truncated response fails JSON parsing and the article is held unreviewed.
 - em_dash_count: exact integer count of (—) characters in article
 - unbacked_buyer_feedback: every sentence that states buyer feedback or popularity (category {BUYER_FEEDBACK_CATEGORY}), copied word for word; empty array if none. Any entry fails the article.
@@ -2755,15 +2866,63 @@ def short_product_name(name) -> str:
     """The product name the purchase panel and sticky buybar show. The only name
     the generator has is the Amazon listing title ("AWOOF Pet Snuffle Mat for
     Dogs, Interactive Feed Game"), so keep the part before its first separator,
-    capped at eight words for a title with none, dropping a connector the cap
+    capped at eight words for a title with none, dropping a connector any cut
     leaves dangling. A copy heuristic, not a rule: product_short in a post can be
-    edited by hand."""
-    words = _LISTING_SEPARATOR.split(" ".join(str(name or "").split()), 1)[0].split()
-    if len(words) > _SHORT_NAME_WORDS:
-        words = words[:_SHORT_NAME_WORDS]
+    edited by hand.
+
+    Brackets are (), [], {} and 【】. A group that opens the title ("[2 Pack,
+    Large] Dog Toy") is a pack or size note, so it is skipped before cutting; a
+    title that is nothing but one group keeps the group's text. A cut that lands
+    inside a group drops the whole outermost unclosed group ("...9 Balls (2
+    inches)" -> "...9 Balls", not "...9 Balls (2"). A name that would come out
+    empty (a title of only connectors or brackets) is the whole title."""
+    whole = " ".join(str(name or "").split())
+    full = _without_leading_groups(whole)
+    words = _LISTING_SEPARATOR.split(full, 1)[0].split()
+    short = _before_unclosed_group(" ".join(words[:_SHORT_NAME_WORDS]))
+    if short != full:
+        words = short.split()
         while words and words[-1].lower() in _DANGLING:
             words.pop()
-    return " ".join(words)
+        short = " ".join(words)
+    return short or whole
+
+
+_OPENERS, _CLOSERS = "([{【", ")]}】"
+
+
+def _without_leading_groups(text: str) -> str:
+    """`text` without the bracket groups that open it. A group that never closes
+    loses only its opening bracket. If nothing follows a group, its own text is
+    read the same way, so the result never starts with a bracket."""
+    while text and text[0] in _OPENERS:
+        depth = 0
+        for i, ch in enumerate(text):
+            if ch in _OPENERS:
+                depth += 1
+            elif ch in _CLOSERS:
+                depth -= 1
+                if depth == 0:
+                    break
+        else:
+            text = text[1:].lstrip()
+            continue
+        text = text[i + 1:].lstrip() or text[1:i].strip()
+    return text
+
+
+def _before_unclosed_group(text: str) -> str:
+    """`text` up to the outermost bracket left unclosed, or unchanged when every
+    bracket closes."""
+    depth, opened_at = 0, None
+    for i, ch in enumerate(text):
+        if ch in _OPENERS:
+            if depth == 0:
+                opened_at = i
+            depth += 1
+        elif ch in _CLOSERS and depth:
+            depth -= 1
+    return text[:opened_at].rstrip() if depth else text
 
 
 _MONTHS = ("Jan", "Feb", "Mar", "Apr", "May", "Jun",

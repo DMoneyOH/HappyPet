@@ -80,6 +80,26 @@ def test_gate_passes_clean_on_standard_article():
         out = json.loads(r.stdout)
         assert out["passed"] is True
 
+def _gate_with_flags(flags):
+    with tempfile.TemporaryDirectory() as td:
+        body = Path(td) / "body.md"; body.write_text("clean body text" + QUESTION_BLOCK, encoding="utf-8")
+        card = Path(td) / "card.json"
+        card.write_text(json.dumps({"pass": True, "flags": flags,
+            "scores": {"human_voice": 4, "warmth": 4, "readability": 4, "accuracy": 4}}),
+            encoding="utf-8")
+        r = run("gate", "--body", str(body), "--scorecard", str(card))
+        assert r.returncode == 0, r.stderr
+        return json.loads(r.stdout)["passed"]
+
+def test_gate_passes_the_approving_flags_that_held_the_ball_launcher():
+    # Stage 1, 2026-11-12: 4/4/4/4 and clean code checks, held on these flags.
+    assert _gate_with_flags(["The alternative sections carry no invented figures"]) is True
+    assert _gate_with_flags(["no invented specs, which is correct"]) is True
+
+def test_gate_still_holds_a_real_fabrication_flag():
+    assert _gate_with_flags(["invented 30-foot launch range"]) is False
+    assert _gate_with_flags(["no invented specs, but the ball count is fabricated"]) is False
+
 def test_gate_autofixes_em_dash_instead_of_holding():
     # scrub_typography converts the em dash before the gate evaluates it, so an
     # otherwise on-standard article is NOT held on a fixable em dash: it passes,
