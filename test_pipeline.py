@@ -4824,7 +4824,8 @@ class TestAuthoritativeGate(unittest.TestCase):
         """Detection widens only inside a word or a run of single letters, so
         ordinary words that sit next to each other are not read as one."""
         for flag in ("Built-in vents keep the crate cool", "The fabric at the seams frays",
-                     "Mention the in vent position", "Warmth could be higher"):
+                     "Mention the in vent position", "Has a fabric at the seams that frays",
+                     "Warmth could be higher"):
             with self.subTest(flag=flag):
                 self.assertTrue(self._gate(flag))
 
