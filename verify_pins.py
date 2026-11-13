@@ -8,7 +8,7 @@ the "Best Cat Products" applet failed ("The Pinterest connection was temporarily
 unavailable"), Stage 3 passed, and the pin was missing.
 
 This script reads each board's public RSS feed and reports a pin that is not
-there. pin-verify.yml runs it every hour on a schedule. It is a sweep over
+there. pin-verify.yml runs it on an hourly cron schedule. It is a sweep over
 whatever fired recently, not a step that follows one Stage 3 run, so no trigger
 has to "fire after" another workflow, and it looks at pins whatever way Stage 3
 ended, provided the sentinels reached main (see LIMITS).
@@ -20,14 +20,16 @@ issue; pin-verify.yml turns that into a GitHub issue.
 What it checks, and how:
   * Which pins to expect: the per-board sentinels post_pins.py writes
     (_pin_queue/.fired/<slug>.<event>.fired). Each holds the UTC time its webhook
-    answered. A sentinel fired within the window (default the last 210 minutes, or
+    answered. A sentinel fired within the window (default the last 24 hours, or
     from --since, never more than 24 hours back) is one pin to confirm. A pin
     younger than --settle-minutes (default 30) is not due yet and is left to the
-    next sweep, which gives Pinterest time to catch up. An hourly sweep therefore
-    examines a pin while its age is 30 to 210 minutes: three sweeps when they run on
-    time. The pin stays examined at least once through one skipped run plus up to
-    59 minutes of scheduler delay (two consecutive actual sweeps must be less than
-    180 minutes apart). Two skipped runs in a row can leave a pin unchecked.
+    next sweep, which gives Pinterest time to catch up. A sweep therefore examines
+    a pin while its age is 30 minutes to 24 hours. The cron asks for hourly runs,
+    but GitHub ran them every 7 to 9 hours (November 2026), which a 210-minute
+    window did not bridge. Any gap up to 23.5 hours between actual sweeps is
+    bridged; a longer one can leave a pin unchecked. The cost: a pin is read
+    again by every sweep for a day, and a closed but unfixed miss reopens for
+    that long.
     A sentinel whose time cannot be read, or is more than an hour in the future,
     is "could not check", never skipped.
   * LIMITS, stated plainly. A board whose webhook failed has no sentinel, so it is
@@ -39,7 +41,7 @@ What it checks, and how:
     first publish run more than 24 hours later (publish runs Mon and Thu, so up to
     about 4 days), and a pin.yml run started by hand with typed slugs has no
     `.pending-slugs` file, so no net at all. slot-watchdog.yml opens an issue when
-    no run of pin-verify.yml was created in the 3 hours before a Mon/Thu slot
+    no run of pin-verify.yml was created in the 12 hours before a Mon/Thu slot
     check. It shares GitHub's scheduler with this check, so it cannot catch a total
     scheduler outage, and it looks only twice a week.
   * ACCEPTED, not fixed (each makes noise or loses a report, none hides a miss
@@ -137,7 +139,7 @@ MIN_MATCH = 20      # fewer characters than this identify no pin
 COMPARE_MAX = 160
 RATIO = 0.9
 
-DEFAULT_WINDOW = dt.timedelta(minutes=210)   # 210 - 30 settle = 180 min: three hourly sweeps per pin
+DEFAULT_WINDOW = dt.timedelta(hours=24)      # bridges a 23.5 h gap; GitHub runs the hourly cron every 7-9 h
 FUTURE_TOLERANCE = dt.timedelta(hours=1)  # a sentinel time further ahead than this is not a real fire time
 MAX_LOOKBACK = dt.timedelta(hours=24)    # an older --since risks a post edited after its fire
 MAX_WAIT_MINUTES = 30                    # the longest --settle/--retry-wait the CLI accepts
@@ -427,7 +429,7 @@ def _repost_steps(missing):
         f"5. Run pin.yml with slugs set to the slug{s} and force set to true. Boards still in the "
         "ledger are refused. Boards missing from it fire: the one you removed, and any that never fired "
         "in a partial fire.",
-        "6. The next hourly sweep checks the repost. Close this issue.",
+        "6. The next sweep checks the repost. Close this issue.",
     ]
 
 
@@ -507,7 +509,7 @@ def _since(value):
 def _parser():
     p = argparse.ArgumentParser(description="Confirm fired pins are on their Pinterest boards (read-only).")
     p.add_argument("--since", type=_since, default=None,
-                   help="UTC time to look from, at most 24 hours back; blank or absent = the last 210 minutes")
+                   help="UTC time to look from, at most 24 hours back; blank or absent = the last 24 hours")
     p.add_argument("--settle-minutes", type=_minutes, default=DEFAULT_SETTLE_MINUTES,
                    help="a pin fired more recently than this is not due yet and is left to the next "
                         f"sweep (default {DEFAULT_SETTLE_MINUTES})")
