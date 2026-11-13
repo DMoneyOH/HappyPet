@@ -4728,7 +4728,8 @@ class TestAuthoritativeGate(unittest.TestCase):
         """One per weakening a mutant would add: each word here sits in a slot
         the shape allows, so only the closed sets keep it out."""
         for flag in ("not be invented", "Specs must not be invented", "Specs be not invented",
-                     "Only the specs are not invented", "no invented figures, only verified ones",
+                     "Only the specs are not invented", "Only specs are not invented",
+                     "Only sections carry no invented figures", "no invented figures, only verified ones",
                      "only no invented specs",
                      "Almost no invented figures", "nearly nothing is invented",
                      "Nothing seems invented", "nothing appears invented",
@@ -4736,6 +4737,7 @@ class TestAuthoritativeGate(unittest.TestCase):
                      "no invented specs, never", "never never fabricated",
                      "hard to say nothing is invented", "hard to believe no invented specs",
                      "no invented specs, but", "no invented specs except range",
+                     "no invented specs except quotes", "no invented specs but ratings",
                      "no invented specs or quotes yet",
                      "The other sections carry no invented figures",
                      "All specs are not invented", "Not all specs are not invented",
