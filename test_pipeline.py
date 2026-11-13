@@ -5637,6 +5637,44 @@ class TestShortProductName(unittest.TestCase):
             with self.subTest(name=name):
                 self.assertEqual(gp.short_product_name(name), short)
 
+    def test_a_group_that_opens_the_title_is_skipped(self):
+        """Gate review round 1: a pack or size group opening the title left
+        "(2 Pack" as the name, because the separator inside it was the cut."""
+        import generate_posts as gp
+        cases = {
+            "[2 Pack, Large] Dog Toy": "Dog Toy",
+            "(2 Pack, Blue) Dog Poop Bag Dispenser with 120 Bags, Leak Proof":
+                "Dog Poop Bag Dispenser with 120 Bags",
+            "【Upgraded】 Dog Ball Launcher, Automatic": "Dog Ball Launcher",
+            "{2 Pack} Cat Brush": "Cat Brush",
+            "[New] (2 Pack) Dog Toy": "Dog Toy",
+            # a group that never closes loses only its bracket
+            "(2 Pack Dog Toy, Blue": "2 Pack Dog Toy",
+            # a title that is only a group keeps the group's text
+            "(Blue Dog Toy)": "Blue Dog Toy",
+        }
+        for name, short in cases.items():
+            with self.subTest(name=name):
+                self.assertEqual(gp.short_product_name(name), short)
+
+    def test_every_bracket_kind_and_the_outermost_group_are_cut(self):
+        import generate_posts as gp
+        cases = {
+            # the outer "(" is unclosed, the inner "[Blue]" closes: cut at "("
+            "Dog Toy (Large [Blue] Pack, Red)": "Dog Toy",
+            "Dog Ball Launcher 【Upgraded, 2 Pack】": "Dog Ball Launcher",
+            "Cat Brush {Large, Grey}": "Cat Brush",
+            "Dog Toy(Large, Blue)": "Dog Toy",
+        }
+        for name, short in cases.items():
+            with self.subTest(name=name):
+                self.assertEqual(gp.short_product_name(name), short)
+
+    def test_a_separator_cut_drops_a_dangling_connector_too(self):
+        import generate_posts as gp
+        self.assertEqual(gp.short_product_name("Snuffle Mat for: Dogs and Cats"), "Snuffle Mat")
+        self.assertEqual(gp.short_product_name("Dog Leash with - Padded Handle"), "Dog Leash")
+
 
 class TestFbMessage(unittest.TestCase):
     """The Facebook-queue message must not reuse one repetitive fallback for

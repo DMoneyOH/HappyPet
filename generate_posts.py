@@ -2840,33 +2840,63 @@ def short_product_name(name) -> str:
     """The product name the purchase panel and sticky buybar show. The only name
     the generator has is the Amazon listing title ("AWOOF Pet Snuffle Mat for
     Dogs, Interactive Feed Game"), so keep the part before its first separator,
-    capped at eight words for a title with none, dropping a connector the cap
+    capped at eight words for a title with none, dropping a connector any cut
     leaves dangling. A copy heuristic, not a rule: product_short in a post can be
-    edited by hand. A cut that lands inside a parenthesis or bracket drops the
-    unclosed group ("...9 Balls (2 inches)" -> "...9 Balls", not "...9 Balls (2")."""
-    words = _LISTING_SEPARATOR.split(" ".join(str(name or "").split()), 1)[0].split()
-    kept = _without_unclosed_group(words[:_SHORT_NAME_WORDS])
-    if kept != words:
-        words = kept
+    edited by hand.
+
+    Brackets are (), [], {} and 【】. A group that opens the title ("[2 Pack,
+    Large] Dog Toy") is a pack or size note, so it is skipped before cutting; a
+    title that is nothing but one group keeps the group's text. A cut that lands
+    inside a group drops the whole outermost unclosed group ("...9 Balls (2
+    inches)" -> "...9 Balls", not "...9 Balls (2")."""
+    full = _without_leading_groups(" ".join(str(name or "").split()))
+    words = _LISTING_SEPARATOR.split(full, 1)[0].split()
+    short = _before_unclosed_group(" ".join(words[:_SHORT_NAME_WORDS]))
+    if short != full:
+        words = short.split()
         while words and words[-1].lower() in _DANGLING:
             words.pop()
-    return " ".join(words)
+        short = " ".join(words)
+    return short
 
 
-def _without_unclosed_group(words: list) -> list:
-    """`words` up to the word that opens a bracket left unclosed, or unchanged
-    when every bracket closes (or the unclosed one opens the first word, where
-    cutting would leave nothing)."""
-    depth, opened_at = 0, None
-    for i, word in enumerate(words):
-        for ch in word:
-            if ch in "([":
-                if depth == 0:
-                    opened_at = i
+_OPENERS, _CLOSERS = "([{【", ")]}】"
+
+
+def _without_leading_groups(text: str) -> str:
+    """`text` without the bracket groups that open it. A group that never closes
+    loses only its opening bracket. If nothing follows the groups, the text of
+    the last one is kept, brackets removed."""
+    while text and text[0] in _OPENERS:
+        depth = 0
+        for i, ch in enumerate(text):
+            if ch in _OPENERS:
                 depth += 1
-            elif ch in ")]" and depth:
+            elif ch in _CLOSERS:
                 depth -= 1
-    return words[:opened_at] if depth and opened_at else words
+                if depth == 0:
+                    break
+        else:
+            return text[1:].lstrip()
+        rest = text[i + 1:].lstrip()
+        if not rest:
+            return text[1:i].strip()
+        text = rest
+    return text
+
+
+def _before_unclosed_group(text: str) -> str:
+    """`text` up to the outermost bracket left unclosed, or unchanged when every
+    bracket closes."""
+    depth, opened_at = 0, None
+    for i, ch in enumerate(text):
+        if ch in _OPENERS:
+            if depth == 0:
+                opened_at = i
+            depth += 1
+        elif ch in _CLOSERS and depth:
+            depth -= 1
+    return text[:opened_at].rstrip() if depth else text
 
 
 _MONTHS = ("Jan", "Feb", "Mar", "Apr", "May", "Jun",
