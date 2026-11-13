@@ -83,11 +83,13 @@ jobs:
             --body "$BODY" \
             --assignee DMoneyOH
 
-      # Watches the pin check (pin-verify.yml, hourly cron that GitHub runs every 7 to
-      # 9 hours). No run created in the last 12 hours means it is not running; the
-      # check's 24-hour window still covers that gap, so the alert comes before a pin
-      # can go unreported. It shares GitHub's scheduler with the check, so it cannot catch a
-      # total scheduler outage, and it only looks twice a week, at the publish slots.
+      # Watches the pin check (pin-verify.yml; its real cadence is in verify_pins.py).
+      # No run created in the last 12 hours means it is not running. This step only
+      # looks twice a week, at the publish slots, so an outage can run for days before
+      # it alerts, past the check's 24-hour window: a pin fired more than 24 hours
+      # before the check runs again is never checked by it, only by eye on the board.
+      # It shares GitHub's scheduler with the check, so it cannot catch a total
+      # scheduler outage.
       # If the run list cannot be read it alerts too: silence must not read as healthy.
       - name: Pin check not running — create GitHub issue
         if: always()
@@ -120,7 +122,7 @@ jobs:
             "" \
             "What to do:" \
             "1. Open the check's runs and see whether it is disabled, failing before it starts, or just late: ${REPO_URL}/actions/workflows/pin-verify.yml" \
-            "2. Enable it or fix the cause. Then run it by hand with the since input set to a time before the outage, at most 24 hours back: a default run covers only the last 24 hours, so pins fired earlier in the outage stay unchecked until you do. Look at the boards by eye for anything older. Close this issue." \
+            "2. Enable it or fix the cause, then run it by hand. A run checks only pins fired in the last 24 hours: that is its default window and as far back as its since input goes. Check any pin fired before that by eye on its Pinterest board. Close this issue." \
             "" \
             "This watchdog uses the same GitHub scheduler as the check, so it cannot catch a total scheduler outage." \
             "" \

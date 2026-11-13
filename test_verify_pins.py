@@ -1352,6 +1352,19 @@ class TestSlotWatchdogPinCheck(_AlertIssueStep, unittest.TestCase):
                        "cannot catch a total scheduler outage"):
             self.assertIn(needle, body)
 
+    def test_the_issue_asks_for_no_rerun_the_check_refuses(self):
+        """Gate review round 1: the body told the operator to re-run with since
+        set before the outage, which can be more than MAX_LOOKBACK back and is
+        then rejected. It now names the real limit and the by-eye check."""
+        proc, calls = self.run_api("0")
+        (create,) = self.creates(calls)
+        body = self.body(create)
+        hours = int(vp.MAX_LOOKBACK.total_seconds() // 3600)
+        self.assertIn(f"only pins fired in the last {hours} hours", body)
+        self.assertIn("by eye on its Pinterest board", body)
+        self.assertNotIn("before the outage", body)
+        self.assertLessEqual(vp.DEFAULT_WINDOW, vp.MAX_LOOKBACK)
+
     def test_an_open_issue_with_the_same_title_stops_a_second(self):
         title, _ = self.opened()
         proc, calls = self.run_api("0", open_issues=title)

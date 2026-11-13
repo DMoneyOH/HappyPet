@@ -139,9 +139,12 @@ MIN_MATCH = 20      # fewer characters than this identify no pin
 COMPARE_MAX = 160
 RATIO = 0.9
 
-DEFAULT_WINDOW = dt.timedelta(hours=24)      # bridges a 23.5 h gap; GitHub runs the hourly cron every 7-9 h
+# DEFAULT_WINDOW bridges a 23.5 h gap between sweeps (the cadence is in the module
+# docstring). It must not exceed MAX_LOOKBACK, and slot-watchdog.yml's issue text
+# names the same 24 hours.
+DEFAULT_WINDOW = dt.timedelta(hours=24)
 FUTURE_TOLERANCE = dt.timedelta(hours=1)  # a sentinel time further ahead than this is not a real fire time
-MAX_LOOKBACK = dt.timedelta(hours=24)    # an older --since risks a post edited after its fire
+MAX_LOOKBACK = dt.timedelta(hours=24)    # an older --since risks a post edited after its fire; >= DEFAULT_WINDOW
 MAX_WAIT_MINUTES = 30                    # the longest --settle/--retry-wait the CLI accepts
 DEFAULT_SETTLE_MINUTES = 30              # the one hand-timed feed lag was under 3 minutes
 DEFAULT_RETRY_WAIT_MINUTES = 15
