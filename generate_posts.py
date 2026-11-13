@@ -1914,12 +1914,42 @@ def authoritative_gate(scorecard: dict, content: str, sources: FeedbackSources =
     # as fabrication: it false-positived on VERIFIED featured-product figures (the
     # reviewer is not the source of truth for what was verified), and soft/
     # unsourced claims are already governed by the accuracy score floor above.
-    fabrication_keywords = ("fabricat", "invent", "made up", "made-up")
-    if flags and any(kw in " ".join(str(f) for f in flags).lower()
-                     for kw in fabrication_keywords):
+    if any(flag_reports_fabrication(str(f)) for f in flags):
         passed = False
 
     return passed, flags
+
+
+_FABRICATION_RE = re.compile(r"fabricat|invent|made[\s-]+up", re.IGNORECASE)
+# The one approving shape a flag may carry: a bare negator directly before the
+# participle, optionally through "is/are/was/were/been/be". "no invented specs",
+# "nothing is invented", "not made up".
+_APPROVING_NEGATION_RE = re.compile(
+    r"\b(?:no|not|nothing|never)\s+(?:(?:is|are|was|were|been|be)\s+)?"
+    r"(?:invented|fabricated|made[\s-]+up)\b", re.IGNORECASE)
+# Anything that can turn that approval back into a doubt or an exception. Its
+# presence anywhere in the flag withdraws the exemption.
+_FLAG_DOUBT_RE = re.compile(
+    r"\?|n['’]t\b|\b(?:no|not|nothing|never|none|without|cannot|but|except|"
+    r"however|though|although|unless|if|whether|yet|only|other than|apart from|"
+    r"aside from|besides|save for|doubt\w*|rule out|sure|unclear|possibl\w*|may|"
+    r"might|could|seem\w*|appear\w*|apparent\w*|suspect\w*|likely)\b", re.IGNORECASE)
+
+
+def flag_reports_fabrication(flag: str) -> bool:
+    """True when one reviewer flag reports a fabrication: it contains
+    fabricat/invent/made up, unless every occurrence is an approving negation
+    ("carry no invented figures", "no invented specs, which is correct"). The
+    exemption is narrow on purpose -- this is a safety gate, so the doubtful
+    case fails. Once the approving phrases are removed, the rest of the flag
+    must hold no fabrication word, no other negator, no contrast or exception
+    ("but", "except", "though") and no hedge ("could", "unclear", "?"). So
+    "no invented specs, but the ball count is fabricated" fails, as does
+    "no evidence the figure was not invented"."""
+    if not _FABRICATION_RE.search(flag):
+        return False
+    rest = _APPROVING_NEGATION_RE.sub(" ", flag)
+    return bool(_FABRICATION_RE.search(rest) or _FLAG_DOUBT_RE.search(rest))
 
 
 def call_openrouter_chain(chain, messages, *, label, max_tokens, temperature,
@@ -2164,7 +2194,7 @@ Begin with {{ and end with }}.
 
 Rules:
 - ai_patterns_found: list each AI pattern detected as "CATEGORY_NUMBER: description" (e.g. "10: uses leverage, seamless")
-- flags: list each specific problem as a plain string; empty array if none
+- flags: list each specific problem as a plain string; empty array if none. List problems only, never a check the article passed. The words invented, fabricated and made up in a flag always hold the article, so use them only to report a real fabrication
 - rewrite_instructions: name exact sections and specific fixes if pass=false; empty string if pass=true. Keep under 250 words -- a truncated response fails JSON parsing and the article is held unreviewed.
 - em_dash_count: exact integer count of (—) characters in article
 - unbacked_buyer_feedback: every sentence that states buyer feedback or popularity (category {BUYER_FEEDBACK_CATEGORY}), copied word for word; empty array if none. Any entry fails the article.

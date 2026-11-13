@@ -4568,6 +4568,84 @@ class TestAuthoritativeGate(unittest.TestCase):
             "clean body")
         self.assertTrue(passed)
 
+    # --- approving negations (Stage 1 run of 2026-11-12, best-automatic-ball-
+    # launchers): attempts 2 and 4 scored 4/4/4/4 and were held only because the
+    # reviewer wrote what the article did RIGHT into flags, using the word.
+    def _gate(self, *flags):
+        return self.gp.authoritative_gate(self._card(flags=list(flags)), "clean body")[0]
+
+    def test_the_two_approving_flags_from_the_held_run_pass(self):
+        for flag in ("The alternative sections carry no invented figures",
+                     "no invented specs, which is correct"):
+            with self.subTest(flag=flag):
+                self.assertTrue(self._gate(flag))
+
+    def test_other_adjacent_approving_negations_pass(self):
+        for flag in ("Specs are not invented", "nothing invented", "Nothing is invented",
+                     "NO FABRICATED statistics", "no made-up figures", "not made up",
+                     "no\tinvented\nspecs", "the writer never fabricated a rating"):
+            with self.subTest(flag=flag):
+                self.assertTrue(self._gate(flag))
+
+    def test_real_fabrication_still_fails(self):
+        for flag in ("invented 30% figure in section 2",
+                     "the bite-force spec looks fabricated",
+                     "made up review count",
+                     "Invents a launch distance of 30 feet",
+                     "the 9-ball count is an invention",
+                     "no source; invented 4.5-star rating",
+                     "no source given, invented rating"):
+            with self.subTest(flag=flag):
+                self.assertFalse(self._gate(flag))
+
+    def test_a_negation_with_a_second_unnegated_keyword_fails(self):
+        for flag in ("no invented specs; the bite-force figure is fabricated",
+                     "no invented specs, but the ball count is fabricated",
+                     "No invented specs. Section 3 invents a range."):
+            with self.subTest(flag=flag):
+                self.assertFalse(self._gate(flag))
+
+    def test_a_negation_qualified_by_doubt_or_an_exception_fails(self):
+        for flag in ("no invented specs except the 40 ft range",
+                     "no invented specs, though the range could be",
+                     "not only invented a statistic but a test panel",
+                     "cannot rule out invented figures",
+                     "can’t say nothing is invented",
+                     "no doubt invented",
+                     "not sure the specs are not invented",
+                     "no invented specs?",
+                     "no invented specs if the listing says 9 balls",
+                     "no evidence the figure was not invented",
+                     "isn't invented, apparently",
+                     "the 9-ball count isn’t invented"):
+            with self.subTest(flag=flag):
+                self.assertFalse(self._gate(flag))
+
+    def test_a_negator_that_is_not_adjacent_fails(self):
+        for flag in ("no specs here are invented", "not a single invented figure",
+                     "none of the specs look invented", "zero invented specs"):
+            with self.subTest(flag=flag):
+                self.assertFalse(self._gate(flag))
+
+    def test_flags_are_judged_one_at_a_time_not_joined(self):
+        """A negator ending one flag must not cancel a keyword opening the next."""
+        self.assertFalse(self._gate("Says no", "invented 30% figure"))
+        self.assertFalse(self._gate("no invented specs", "invented 30% figure"))
+        self.assertTrue(self._gate("no invented specs", "nothing fabricated"))
+
+
+class TestReviewPromptFlagsAreProblemsOnly(unittest.TestCase):
+    """The prompt half of the same fix: the reviewer is told not to put passed
+    checks into flags, and that the fabrication words there always fail."""
+
+    def test_the_flags_rule_says_problems_only_and_names_the_words(self):
+        import generate_posts as gp
+        p = gp.make_review_prompt("T", "k", "body")
+        rule = next(line for line in p.splitlines() if line.startswith("- flags:"))
+        self.assertIn("problems only", rule)
+        for word in ("invented", "fabricated", "made up"):
+            self.assertIn(word, rule)
+
 
 class TestBuildVerifiedFacts(unittest.TestCase):
     def setUp(self):
