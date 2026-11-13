@@ -4647,10 +4647,147 @@ class TestAuthoritativeGate(unittest.TestCase):
         self.assertFalse(self._gate("no invented specs", "invented 30% figure"))
         self.assertTrue(self._gate("no invented specs", "nothing fabricated"))
 
+    # --- the exemption is an allowlist (gate review round 1): the denylist of
+    # doubt words let 43 of 91 fabrication reports through, each by a word it
+    # did not list. Only the whole-flag approving shape is exempt now.
+    def test_every_slot_of_the_approving_shape_passes(self):
+        for flag in (
+                # each participle, and "made up" however it is spaced
+                "no invented specs", "no fabricated quotes", "no made up reviews",
+                "no made-up ratings", "no made  up figures",
+                # each have-verb, after a subject with each determiner and modifier
+                "The alternative sections carry no invented figures",
+                "This featured section carries no invented specs",
+                "These product specs contain no invented numbers",
+                "the article contains no invented personal anecdotes",
+                "The draft has no invented technical details",
+                "The sections have no invented customer reviews",
+                "The intro includes no invented stats",
+                "The conclusion include no invented facts",
+                "The post uses no invented ratings", "The body use no invented prices",
+                # nothing, with and without each copula
+                "nothing invented", "Nothing is invented", "Nothing was fabricated",
+                "Nothing has been made up", "nothing are invented", "nothing were invented",
+                "nothing have been invented",
+                # not, bare and after a subject
+                "not made up", "Specs are not invented", "The rating is not fabricated",
+                "The figures were not made up", "The quote was not invented",
+                "statistics and testimonials are not invented",
+                # never, with each writer and an object
+                "never fabricated", "the writer never fabricated a rating",
+                "The author never invented any figures", "this article never made up the specs",
+                "The draft never fabricated quotes", "the post never invented a price",
+                # each benign tail, and a closing full stop
+                "no invented specs, which is correct", "no invented specs (correct)",
+                "no invented specs; good", "No invented figures – good",
+                "No invented figures — good", "no invented specs: as required",
+                "no invented specs - as expected", "no invented specs fine",
+                "no invented specs correct", "No invented specs."):
+            with self.subTest(flag=flag):
+                self.assertTrue(self._gate(flag))
+
+    def test_case_and_whitespace_do_not_change_the_verdict(self):
+        for flag in ("NO FABRICATED statistics", "No Invented Specs", "NOTHING IS MADE UP",
+                     "no  invented\tspecs", "  no invented specs  ", "nothing is\nmade\r\n up",
+                     "no invented specs"):
+            with self.subTest(flag=flag):
+                self.assertTrue(self._gate(flag))
+
+    def test_the_round1_false_passes_hold(self):
+        for flag in ("No invented specs, with one exception: the 30 ft range",
+                     "No invented specs excluding the 30 ft range",
+                     "No invented specs beyond the 30 ft range",
+                     "No invented specs bar the 30 ft range",
+                     "No invented specs, minus the 30 ft range",
+                     "No invented specs save the 30 ft range",
+                     "Almost nothing is invented", "Almost no invented figures",
+                     "Edit section 3 so no invented figures remain",
+                     "Ensure no fabricated stats remain; the 88% is one",
+                     "Amazon never fabricated reviews; this article did",
+                     "The brand never invented the vet-approved badge",
+                     "The 4.8 rating is not invented by Amazon; it is fake",
+                     "Specs are not invented; the rating is.",
+                     "not made up by the listing; the writer added it",
+                     "No invented specs apart  from the range",
+                     "No invented specs apart\tfrom the range",
+                     "No invented specs apart\nfrom the range",
+                     "Rating not made up by Amazon, the writer made it up"):
+            with self.subTest(flag=flag):
+                self.assertFalse(self._gate(flag))
+
+    def test_a_hedged_approval_holds(self):
+        for flag in ("Unverified: no invented specs", "Presumably nothing invented",
+                     "Allegedly, nothing is invented", "Nothing is invented, allegedly",
+                     "AFAICT nothing is invented", "couldnt verify; nothing is invented",
+                     "didnt check; nothing is invented", "nothing invented (I hope)",
+                     "Probably nothing is invented", "Not sure nothing is invented"):
+            with self.subTest(flag=flag):
+                self.assertFalse(self._gate(flag))
+
+    def test_a_word_outside_the_closed_sets_holds(self):
+        """One per weakening a mutant would add: each word here sits in a slot
+        the shape allows, so only the closed sets keep it out."""
+        for flag in ("not be invented", "Specs must not be invented", "Specs be not invented",
+                     "Only the specs are not invented", "no invented figures, only verified ones",
+                     "only no invented specs",
+                     "Almost no invented figures", "nearly nothing is invented",
+                     "Nothing seems invented", "nothing appears invented",
+                     "Specs seem not invented", "specs appear not invented",
+                     "no invented specs, never", "never never fabricated",
+                     "hard to say nothing is invented", "hard to believe no invented specs",
+                     "no invented specs, but", "no invented specs except range",
+                     "no invented specs or quotes yet",
+                     "The other sections carry no invented figures",
+                     "All specs are not invented", "Not all specs are not invented",
+                     "Some sections carry no invented figures",
+                     "Few sections carry no invented figures",
+                     "The brand never fabricated a rating",
+                     "no invented specs, no invented ratings",
+                     "no invented 30 ft range", "nothing here is invented"):
+            with self.subTest(flag=flag):
+                self.assertFalse(self._gate(flag))
+
+    def test_only_one_full_stop_closes_an_approval(self):
+        for flag in ("no invented specs?", "no invented specs..", "no invented specs...",
+                     "no invented specs…", "no invented specs!?", "no invented specs!",
+                     "\"no invented specs\"", "'no invented specs'", "(no invented specs)"):
+            with self.subTest(flag=flag):
+                self.assertFalse(self._gate(flag))
+
+    def test_every_spelling_of_a_contraction_holds_alike(self):
+        for flag in ("The specs aren't invented", "The specs aren’t invented",
+                     "The specs aren`t invented", "The specs arenʼt invented",
+                     "The specs arent invented", "the 9-ball count isn't invented"):
+            with self.subTest(flag=flag):
+                self.assertFalse(self._gate(flag))
+
+    def test_a_non_ascii_letter_or_invisible_character_never_exempts(self):
+        for flag in ("nо invented specs",        # Cyrillic o
+                     "no​ invented specs",       # zero-width space
+                     "no invented spe​cs",
+                     "nõ invented specs",        # o with tilde
+                     "nõ invented specs",       # combining tilde
+                     "ｎｏ invented specs"):  # full-width "no"
+            with self.subTest(flag=flag):
+                self.assertFalse(self._gate(flag))
+
+    def test_detection_finds_the_words_however_they_are_written(self):
+        """The fabrication words are found in any case, width or accent, across
+        an invisible character, and in "made up" with any spacing."""
+        for flag in ("İNVENTED rating", "ＩＮＶＥＮＴＥＤ rating",
+                     "inv​ented rating", "FABRICÁTED rating",
+                     "made\tup review count", "made  up test results", "made\nup quote",
+                     "madeup quote", "made-up quote", "MADE UP rating"):
+            with self.subTest(flag=flag):
+                self.assertFalse(self._gate(flag))
+
 
 class TestReviewPromptFlagsAreProblemsOnly(unittest.TestCase):
     """The prompt half of the same fix: the reviewer is told not to put passed
-    checks into flags, and that the fabrication words there always fail."""
+    checks into flags, and to use a fabrication word whenever it reports one.
+    The gate still exempts a flag that is wholly one approving shape
+    (generate_posts.flag_reports_fabrication), so a stray approval does not
+    hold a clean article."""
 
     def test_the_flags_rule_says_problems_only_and_names_the_words(self):
         import generate_posts as gp

@@ -11,7 +11,7 @@ Happy Pet Product Reviews Generator v22.0 — 3-stage Writer-Judge-Fixer routing
 - Pin queue staged for publish.yml -> post_pins.py
 - DONE log includes held count
 """
-import os, re, json, datetime, time, urllib.request, urllib.error, urllib.parse, subprocess
+import os, re, json, datetime, time, unicodedata, urllib.request, urllib.error, urllib.parse, subprocess
 from pathlib import Path
 from typing import NamedTuple
 
@@ -1862,7 +1862,8 @@ def evaluate_scorecard(scorecard: dict, content: str, sources: FeedbackSources =
                 flags.append(f"{key}={val} below minimum {minimum}")
             passed = False
 
-    # Accuracy/fabrication flags always fail regardless of pass=true
+    # Accuracy/fabrication flags always fail regardless of pass=true. Deliberately
+    # stricter than authoritative_gate: no approving-negation exemption here.
     accuracy_keywords = ("fabricat", "unverif", "invent", "statistic", "percentag",
                          "specific number", "no source", "not verif", "made up",
                          "cited", "claimed", "without source")
@@ -1888,7 +1889,9 @@ def authoritative_gate(scorecard: dict, content: str, sources: FeedbackSources =
       - every rule in body_rule_flags, read off the actual body (em dash,
         first person singular, named testimonial, crowd term, the reviewer's
         structured buyer-feedback verdict),
-      - an EXPLICIT fabrication callout (fabricated/invented/made-up) in the flags.
+      - an EXPLICIT fabrication callout (fabricated/invented/made-up) in a flag,
+        unless that whole flag is one approving shape such as "no invented
+        specs" (flag_reports_fabrication).
     Returns (passed: bool, flags: list).
     """
     passed = True
@@ -1909,7 +1912,9 @@ def authoritative_gate(scorecard: dict, content: str, sources: FeedbackSources =
         passed = False
         flags.append(flag)
 
-    # Only UNAMBIGUOUS fabrication verbs hard-fail. Cautionary reviewer prose
+    # Only UNAMBIGUOUS fabrication verbs hard-fail, judged one flag at a time; a
+    # flag that is wholly an approving shape ("no invented specs") is exempt, and
+    # any other wording around the word holds. Cautionary reviewer prose
     # ("no source", "unverified", "statistic", "specific number") is NOT treated
     # as fabrication: it false-positived on VERIFIED featured-product figures (the
     # reviewer is not the source of truth for what was verified), and soft/
@@ -1920,40 +1925,86 @@ def authoritative_gate(scorecard: dict, content: str, sources: FeedbackSources =
     return passed, flags
 
 
-_FABRICATION_RE = re.compile(r"fabricat|invent|made[\s-]+up", re.IGNORECASE)
-# The one approving shape a flag may carry: a bare negator directly before the
-# participle, optionally through "is/are/was/were/been". "no invented specs",
-# "nothing is invented", "not made up". Not "be": "must not be invented" is an
-# instruction, not an approval.
-_APPROVING_NEGATION_RE = re.compile(
-    r"\b(?:no|not|nothing|never)\s+(?:(?:is|are|was|were|been)\s+)?"
-    r"(?:invented|fabricated|made[\s-]+up)\b", re.IGNORECASE)
-# Anything that can turn that approval back into a doubt, an exception or an
-# instruction. Its presence anywhere in the flag withdraws the exemption.
-_FLAG_DOUBT_RE = re.compile(
-    r"\?|n['’]t\b|\b(?:no|not|nothing|never|none|without|cannot|but|except|"
-    r"however|though|although|unless|if|whether|yet|only|other than|apart from|"
-    r"aside from|besides|save for|\w*doubt\w*|rule out|sure|unclear|possibl\w*|"
-    r"may|maybe|might|could|can|must|should|shall|would|will|need\w*|perhaps|"
-    r"probabl\w*|\w*likely|seem\w*|appear\w*|apparent\w*|suspect\w*|suspici\w*|"
-    r"believ\w*|assum\w*|guess\w*|think\w*|question\w*|hard to|remove|delete|"
-    r"cut|drop|replace|fix|rewrite|change)\b", re.IGNORECASE)
+_FABRICATION_RE = re.compile(r"fabricat|invent|made[\s-]*up")
+
+
+def _detection_text(flag: str) -> str:
+    """The flag as fabrication detection reads it: accents and compatibility
+    forms folded to their base letters, invisible format characters (a zero-width
+    space) dropped, then case-folded. Detection only ever widens, so "İNVENTED",
+    full-width letters and an invented word split by a zero-width space are all
+    found."""
+    text = unicodedata.normalize("NFKD", flag)
+    text = "".join(c for c in text
+                   if not unicodedata.combining(c) and unicodedata.category(c) != "Cf")
+    return text.casefold()
+
+
+def _one_of(words) -> str:
+    return "(?:" + "|".join(re.escape(w) for w in sorted(words, key=len, reverse=True)) + ")"
+
+
+# The one approving shape, built from closed word sets only. A flag is exempt
+# when the WHOLE of it, lower-cased with its whitespace collapsed, is one of:
+#   [<subject> <have-verb>] no <participle> <noun phrase>   "The alternative sections carry no invented figures"
+#   nothing [<copula>] <participle>                         "Nothing is invented"
+#   [<subject> <copula>] not <participle>                   "Specs are not invented"
+#   [<writer>] never <participle> [<object>]                "The writer never fabricated a rating"
+# then an optional benign tail ("which is correct", "(correct)", "good") and an
+# optional full stop. A word outside these sets anywhere in the flag withdraws
+# the exemption. That is the point: a denylist of doubt words always misses one.
+# No set holds an apostrophe, so every spelling of a contraction ("isn't",
+# "isn’t", "isnt") is held alike.
+_APPROVAL_PARTICIPLES = ("invented", "fabricated", "made up", "made-up")
+_APPROVAL_NOUNS = (
+    "spec", "specs", "specification", "specifications", "figure", "figures",
+    "number", "numbers", "stat", "stats", "statistic", "statistics", "fact", "facts",
+    "claim", "claims", "quote", "quotes", "testimonial", "testimonials", "review",
+    "reviews", "rating", "ratings", "price", "prices", "detail", "details", "data",
+    "measurement", "measurements", "feature", "features", "anecdote", "anecdotes",
+    "source", "sources", "result", "results", "article", "post", "draft", "body",
+    "section", "sections", "intro", "conclusion")
+_APPROVAL_MODIFIERS = ("alternative", "featured", "product", "personal", "technical", "customer")
+_APPROVAL_DETERMINERS = ("the", "this", "these")
+_APPROVAL_HAVE_VERBS = ("carry", "carries", "contain", "contains", "has", "have",
+                        "include", "includes", "use", "uses")
+_APPROVAL_COPULAS = ("is", "are", "was", "were", "has been", "have been")
+_APPROVAL_WRITERS = ("writer", "author", "article", "draft", "post")
+_APPROVAL_TAILS = ("which is correct", "correct", "good", "as required", "as expected", "fine")
+
+_NOUN_PHRASE = (rf"(?:{_one_of(_APPROVAL_MODIFIERS)} )?{_one_of(_APPROVAL_NOUNS)}"
+                rf"(?: (?:and|or) (?:{_one_of(_APPROVAL_MODIFIERS)} )?{_one_of(_APPROVAL_NOUNS)})?")
+_SUBJECT = rf"(?:{_one_of(_APPROVAL_DETERMINERS)} )?{_NOUN_PHRASE}"
+_PARTICIPLE = _one_of(_APPROVAL_PARTICIPLES)
+_COPULA = _one_of(_APPROVAL_COPULAS)
+_TAIL = _one_of(_APPROVAL_TAILS)
+_APPROVING_FLAG_RE = re.compile(
+    "(?:"
+    rf"(?:{_SUBJECT} {_one_of(_APPROVAL_HAVE_VERBS)} )?no {_PARTICIPLE} {_NOUN_PHRASE}"
+    rf"|nothing (?:{_COPULA} )?{_PARTICIPLE}"
+    rf"|(?:{_SUBJECT} {_COPULA} )?not {_PARTICIPLE}"
+    rf"|(?:(?:the |this )?{_one_of(_APPROVAL_WRITERS)} )?never {_PARTICIPLE}"
+    rf"(?: (?:(?:a|an|any|the) )?{_NOUN_PHRASE})?"
+    ")"
+    rf"(?:(?:,|;|:| -)? {_TAIL}| \({_TAIL}\))?\.?")
+_DASHES = str.maketrans({"\u2013": " - ", "\u2014": " - "})
 
 
 def flag_reports_fabrication(flag: str) -> bool:
     """True when one reviewer flag reports a fabrication: it contains
-    fabricat/invent/made up, unless every occurrence is an approving negation
-    ("carry no invented figures", "no invented specs, which is correct"). The
-    exemption is narrow on purpose -- this is a safety gate, so the doubtful
-    case fails. Once the approving phrases are removed, the rest of the flag
-    must hold no fabrication word, no other negator, no contrast or exception
-    ("but", "except", "though") and no hedge ("could", "unclear", "?"). So
-    "no invented specs, but the ball count is fabricated" fails, as does
-    "no evidence the figure was not invented"."""
-    if not _FABRICATION_RE.search(flag):
+    fabricat/invent/made up, unless the whole flag is the approving shape above
+    ("carry no invented figures", "no invented specs, which is correct"). This is
+    a safety gate, so the exemption is an allowlist: the flag must match the shape
+    exactly once its whitespace is collapsed and en and em dashes read as "-", and
+    a flag holding any other non-ASCII character (a Cyrillic "о", a zero-width
+    space) is never exempt. Anything else holds: an exception ("with one
+    exception: the range"), a quantifier ("almost no"), an instruction ("so no
+    invented figures remain"), a hedge ("Presumably"), a question mark or a
+    second clause ("; this article did")."""
+    if not _FABRICATION_RE.search(_detection_text(flag)):
         return False
-    rest = _APPROVING_NEGATION_RE.sub(" ", flag)
-    return bool(_FABRICATION_RE.search(rest) or _FLAG_DOUBT_RE.search(rest))
+    text = " ".join(flag.translate(_DASHES).split())
+    return not (text.isascii() and _APPROVING_FLAG_RE.fullmatch(text.lower()))
 
 
 def call_openrouter_chain(chain, messages, *, label, max_tokens, temperature,
