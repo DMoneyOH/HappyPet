@@ -4679,8 +4679,8 @@ class TestAuthoritativeGate(unittest.TestCase):
                 "The draft never fabricated quotes", "the post never invented a price",
                 # each benign tail, and a closing full stop
                 "no invented specs, which is correct", "no invented specs (correct)",
-                "no invented specs; good", "No invented figures – good",
-                "No invented figures — good", "no invented specs: as required",
+                "no invented specs; good", "No invented figures \u2013 good",
+                "No invented figures \u2014 good", "no invented specs: as required",
                 "no invented specs - as expected", "no invented specs fine",
                 "no invented specs correct", "No invented specs."):
             with self.subTest(flag=flag):
@@ -4689,7 +4689,7 @@ class TestAuthoritativeGate(unittest.TestCase):
     def test_case_and_whitespace_do_not_change_the_verdict(self):
         for flag in ("NO FABRICATED statistics", "No Invented Specs", "NOTHING IS MADE UP",
                      "no  invented\tspecs", "  no invented specs  ", "nothing is\nmade\r\n up",
-                     "no invented specs"):
+                     "no\u00a0invented specs"):
             with self.subTest(flag=flag):
                 self.assertTrue(self._gate(flag))
 
@@ -4751,35 +4751,39 @@ class TestAuthoritativeGate(unittest.TestCase):
 
     def test_only_one_full_stop_closes_an_approval(self):
         for flag in ("no invented specs?", "no invented specs..", "no invented specs...",
-                     "no invented specs…", "no invented specs!?", "no invented specs!",
+                     "no invented specs\u2026", "no invented specs!?", "no invented specs!",
                      "\"no invented specs\"", "'no invented specs'", "(no invented specs)"):
             with self.subTest(flag=flag):
                 self.assertFalse(self._gate(flag))
 
     def test_every_spelling_of_a_contraction_holds_alike(self):
-        for flag in ("The specs aren't invented", "The specs aren’t invented",
-                     "The specs aren`t invented", "The specs arenʼt invented",
+        for flag in ("The specs aren't invented", "The specs aren\u2019t invented",
+                     "The specs aren`t invented", "The specs aren\u02bct invented",
                      "The specs arent invented", "the 9-ball count isn't invented"):
             with self.subTest(flag=flag):
                 self.assertFalse(self._gate(flag))
 
     def test_a_non_ascii_letter_or_invisible_character_never_exempts(self):
-        for flag in ("nо invented specs",        # Cyrillic o
-                     "no​ invented specs",       # zero-width space
-                     "no invented spe​cs",
-                     "nõ invented specs",        # o with tilde
-                     "nõ invented specs",       # combining tilde
-                     "ｎｏ invented specs"):  # full-width "no"
+        for flag in ("n\u043e invented specs",        # Cyrillic o
+                     "no\u200b invented specs",       # zero-width space
+                     "no invented spe\u200bcs",
+                     "n\u00f5 invented specs",        # o with tilde
+                     "no\u0303 invented specs",       # combining tilde
+                     "\uff4e\uff4f invented specs"):  # full-width "no"
             with self.subTest(flag=flag):
                 self.assertFalse(self._gate(flag))
 
     def test_detection_finds_the_words_however_they_are_written(self):
         """The fabrication words are found in any case, width or accent, across
         an invisible character, and in "made up" with any spacing."""
-        for flag in ("İNVENTED rating", "ＩＮＶＥＮＴＥＤ rating",
-                     "inv​ented rating", "FABRICÁTED rating",
+        for flag in ("\u0130NVENTED rating", "\uff29\uff2e\uff36\uff25\uff2e\uff34\uff25\uff24 rating",
+                     "inv\u200bented rating", "FABRIC\u00c1TED rating",
                      "made\tup review count", "made  up test results", "made\nup quote",
-                     "madeup quote", "made-up quote", "MADE UP rating"):
+                     "madeup quote", "made-up quote", "MADE UP rating",
+                     # any dash, punctuation or invisible mark between or inside
+                     "made\u2011up quote", "made\u2010up quote", "made\u2013up quote",
+                     "made\u2212up quote", "made_up quote", "made\u00adup quote",
+                     "inv\u034fented rating", "inv\ufe0fented rating", "fab\u200dricated"):
             with self.subTest(flag=flag):
                 self.assertFalse(self._gate(flag))
 
@@ -5647,13 +5651,17 @@ class TestShortProductName(unittest.TestCase):
             "[2 Pack, Large] Dog Toy": "Dog Toy",
             "(2 Pack, Blue) Dog Poop Bag Dispenser with 120 Bags, Leak Proof":
                 "Dog Poop Bag Dispenser with 120 Bags",
-            "【Upgraded】 Dog Ball Launcher, Automatic": "Dog Ball Launcher",
+            "\u3010Upgraded\u3011 Dog Ball Launcher, Automatic": "Dog Ball Launcher",
             "{2 Pack} Cat Brush": "Cat Brush",
             "[New] (2 Pack) Dog Toy": "Dog Toy",
             # a group that never closes loses only its bracket
             "(2 Pack Dog Toy, Blue": "2 Pack Dog Toy",
             # a title that is only a group keeps the group's text
             "(Blue Dog Toy)": "Blue Dog Toy",
+            # and the result never opens with a bracket
+            "((2 Pack Dog Toy": "2 Pack Dog Toy",
+            "([2 Pack, Large])": "2 Pack",
+            "[(2 Pack) Dog Toy": "Dog Toy",
         }
         for name, short in cases.items():
             with self.subTest(name=name):
@@ -5664,7 +5672,7 @@ class TestShortProductName(unittest.TestCase):
         cases = {
             # the outer "(" is unclosed, the inner "[Blue]" closes: cut at "("
             "Dog Toy (Large [Blue] Pack, Red)": "Dog Toy",
-            "Dog Ball Launcher 【Upgraded, 2 Pack】": "Dog Ball Launcher",
+            "Dog Ball Launcher \u3010Upgraded, 2 Pack\u3011": "Dog Ball Launcher",
             "Cat Brush {Large, Grey}": "Cat Brush",
             "Dog Toy(Large, Blue)": "Dog Toy",
         }

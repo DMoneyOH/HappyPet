@@ -1925,18 +1925,19 @@ def authoritative_gate(scorecard: dict, content: str, sources: FeedbackSources =
     return passed, flags
 
 
-_FABRICATION_RE = re.compile(r"fabricat|invent|made[\s-]*up")
+_FABRICATION_RE = re.compile(r"fabricat|invent|made[\W_]*up")
 
 
 def _detection_text(flag: str) -> str:
     """The flag as fabrication detection reads it: accents and compatibility
-    forms folded to their base letters, invisible format characters (a zero-width
-    space) dropped, then case-folded. Detection only ever widens, so "İNVENTED",
-    full-width letters and an invented word split by a zero-width space are all
-    found."""
+    forms folded to their base letters, every mark and invisible format character
+    (a zero-width space, a variation selector) dropped, then case-folded.
+    Detection only ever widens, so "İNVENTED", full-width letters and an invented
+    word split by an invisible character are all found; "made up" is found with
+    any punctuation or space between the two words."""
     text = unicodedata.normalize("NFKD", flag)
     text = "".join(c for c in text
-                   if not unicodedata.combining(c) and unicodedata.category(c) != "Cf")
+                   if not unicodedata.category(c).startswith("M") and unicodedata.category(c) != "Cf")
     return text.casefold()
 
 
@@ -2865,8 +2866,8 @@ _OPENERS, _CLOSERS = "([{【", ")]}】"
 
 def _without_leading_groups(text: str) -> str:
     """`text` without the bracket groups that open it. A group that never closes
-    loses only its opening bracket. If nothing follows the groups, the text of
-    the last one is kept, brackets removed."""
+    loses only its opening bracket. If nothing follows a group, its own text is
+    read the same way, so the result never starts with a bracket."""
     while text and text[0] in _OPENERS:
         depth = 0
         for i, ch in enumerate(text):
@@ -2877,11 +2878,9 @@ def _without_leading_groups(text: str) -> str:
                 if depth == 0:
                     break
         else:
-            return text[1:].lstrip()
-        rest = text[i + 1:].lstrip()
-        if not rest:
-            return text[1:i].strip()
-        text = rest
+            text = text[1:].lstrip()
+            continue
+        text = text[i + 1:].lstrip() or text[1:i].strip()
     return text
 
 
