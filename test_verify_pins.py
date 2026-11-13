@@ -1353,9 +1353,8 @@ class TestSlotWatchdogPinCheck(_AlertIssueStep, unittest.TestCase):
             self.assertIn(needle, body)
 
     def test_the_issue_asks_for_no_rerun_the_check_refuses(self):
-        """Gate review round 1: the body told the operator to re-run with since
-        set before the outage, which can be more than MAX_LOOKBACK back and is
-        then rejected. It now names the real limit and the by-eye check."""
+        """The body never asks for a re-run further back than MAX_LOOKBACK,
+        which the check rejects: it names that limit and the by-eye check."""
         proc, calls = self.run_api("0")
         (create,) = self.creates(calls)
         body = self.body(create)

@@ -20,6 +20,7 @@ import categories
 from buyer_feedback import (clean_customer_summary, find_crowd_claims,
                             find_summary_block_problems, insert_summary_block,
                             normalize as normalize_text, prompt_term_list, render_summary_block)
+from buyer_feedback import _LOOKALIKES
 
 try:
     from dotenv import load_dotenv
@@ -1928,16 +1929,27 @@ def authoritative_gate(scorecard: dict, content: str, sources: FeedbackSources =
 _FABRICATION_RE = re.compile(r"fabricat|invent|made[\W_]*up")
 
 
+_LETTER = r"[^\W\d_]"
+_HYPHEN_IN_WORD = re.compile(rf"(?<={_LETTER})[-\u2010\u2011](?={_LETTER})")
+_SPACED_LETTERS = re.compile(rf"(?<!{_LETTER}){_LETTER}(?:[\s.\-_]{{1,3}}{_LETTER}(?!{_LETTER})){{2,}}")
+
+
 def _detection_text(flag: str) -> str:
     """The flag as fabrication detection reads it: accents and compatibility
-    forms folded to their base letters, every mark and invisible format character
-    (a zero-width space, a variation selector) dropped, then case-folded.
-    Detection only ever widens, so "İNVENTED", full-width letters and an invented
-    word split by an invisible character are all found; "made up" is found with
-    any punctuation or space between the two words."""
+    forms folded to their base letters (NFKD), every mark, invisible format
+    character and non-space control character dropped, Cyrillic and Greek
+    look-alike letters read as Latin, a hyphen inside a word removed, a run of
+    single spaced-out letters joined, then case-folded. Detection only ever
+    widens, so "İNVENTED", full-width letters, "invented" spelled with a Cyrillic e,
+    "in-vented" and "i n v e n t e d" are all found; "made up" is found with
+    any punctuation or space between the two words. Synonyms ("fake",
+    "hallucinated") are not detected."""
     text = unicodedata.normalize("NFKD", flag)
-    text = "".join(c for c in text
-                   if not unicodedata.category(c).startswith("M") and unicodedata.category(c) != "Cf")
+    text = "".join(c for c in text if unicodedata.category(c)[0] != "M"
+                   and unicodedata.category(c) != "Cf"
+                   and not (unicodedata.category(c) == "Cc" and not c.isspace()))
+    text = _HYPHEN_IN_WORD.sub("", text.translate(_LOOKALIKES))
+    text = _SPACED_LETTERS.sub(lambda m: re.sub(r"[\W_]", "", m.group()), text)
     return text.casefold()
 
 
@@ -1947,13 +1959,18 @@ def _one_of(words) -> str:
 
 # The one approving shape, built from closed word sets only. A flag is exempt
 # when the WHOLE of it, lower-cased with its whitespace collapsed, is one of:
-#   [<subject> <have-verb>] no <participle> <noun phrase>   "The alternative sections carry no invented figures"
-#   nothing [<copula>] <participle>                         "Nothing is invented"
-#   [<subject> <copula>] not <participle>                   "Specs are not invented"
-#   [<writer>] never <participle> [<object>]                "The writer never fabricated a rating"
-# then an optional benign tail ("which is correct", "(correct)", "good") and an
-# optional full stop. A word outside these sets anywhere in the flag withdraws
-# the exemption. That is the point: a denylist of doubt words always misses one.
+#   <subject> <have-verb> no <participle> <noun phrase>   "The alternative sections carry no invented figures"
+#   <subject> <copula> not <participle>                   "Specs are not invented"
+#   <writer> never <participle> [<object>]                "The writer never fabricated a rating"
+# with an optional benign tail ("which is correct", "(correct)", "good"), or is
+# one of these with the tail required:
+#   no <participle> <noun phrase>                         "no invented specs, which is correct"
+#   nothing [<copula>] <participle>                       "Nothing is invented, good"
+#   not <participle> / never <participle> [<object>]
+# then an optional full stop. A bare label ("No invented statistics") holds:
+# flags list problems only, so it cannot be told from a broken rule. A word
+# outside these sets anywhere in the flag withdraws the exemption. That is the
+# point: a denylist of doubt words always misses one.
 # No set holds an apostrophe, so every spelling of a contraction ("isn't",
 # "isn’t", "isnt") is held alike.
 _APPROVAL_PARTICIPLES = ("invented", "fabricated", "made up", "made-up")
@@ -1979,22 +1996,27 @@ _SUBJECT = rf"(?:{_one_of(_APPROVAL_DETERMINERS)} )?{_NOUN_PHRASE}"
 _PARTICIPLE = _one_of(_APPROVAL_PARTICIPLES)
 _COPULA = _one_of(_APPROVAL_COPULAS)
 _TAIL = _one_of(_APPROVAL_TAILS)
+_OBJECT = rf"(?: (?:(?:a|an|any|the) )?{_NOUN_PHRASE})?"
+_BENIGN_TAIL = rf"(?:(?:,|;|:| -)? {_TAIL}| \({_TAIL}\))"
 _APPROVING_FLAG_RE = re.compile(
-    "(?:"
-    rf"(?:{_SUBJECT} {_one_of(_APPROVAL_HAVE_VERBS)} )?no {_PARTICIPLE} {_NOUN_PHRASE}"
+    "(?:(?:"
+    rf"{_SUBJECT} {_one_of(_APPROVAL_HAVE_VERBS)} no {_PARTICIPLE} {_NOUN_PHRASE}"
+    rf"|{_SUBJECT} {_COPULA} not {_PARTICIPLE}"
+    rf"|(?:the |this )?{_one_of(_APPROVAL_WRITERS)} never {_PARTICIPLE}{_OBJECT}"
+    rf"){_BENIGN_TAIL}?|(?:"
+    rf"no {_PARTICIPLE} {_NOUN_PHRASE}"
     rf"|nothing (?:{_COPULA} )?{_PARTICIPLE}"
-    rf"|(?:{_SUBJECT} {_COPULA} )?not {_PARTICIPLE}"
-    rf"|(?:(?:the |this )?{_one_of(_APPROVAL_WRITERS)} )?never {_PARTICIPLE}"
-    rf"(?: (?:(?:a|an|any|the) )?{_NOUN_PHRASE})?"
-    ")"
-    rf"(?:(?:,|;|:| -)? {_TAIL}| \({_TAIL}\))?\.?")
+    rf"|not {_PARTICIPLE}"
+    rf"|never {_PARTICIPLE}{_OBJECT}"
+    rf"){_BENIGN_TAIL})\.?")
 _DASHES = str.maketrans({"\u2013": " - ", "\u2014": " - "})
 
 
 def flag_reports_fabrication(flag: str) -> bool:
     """True when one reviewer flag reports a fabrication: it contains
     fabricat/invent/made up, unless the whole flag is the approving shape above
-    ("carry no invented figures", "no invented specs, which is correct"). This is
+    ("The alternative sections carry no invented figures", "no invented specs,
+    which is correct"). A bare label ("No invented statistics") holds. This is
     a safety gate, so the exemption is an allowlist: the flag must match the shape
     exactly once its whitespace is collapsed and en and em dashes read as "-", and
     a flag holding any other non-ASCII character (a Cyrillic "о", a zero-width
@@ -2116,6 +2138,9 @@ def make_review_prompt(title: str, keyword: str, content: str, verified_facts: s
             "unverified and may be flagged.\n"
             f"{verified_facts}\n\n"
         )
+    # The flags rule below says the fabrication words "always hold the article".
+    # That is deliberate steering, not the gate's rule: authoritative_gate exempts
+    # a flag that is wholly an approving shape (flag_reports_fabrication).
     return f"""You are a senior human editor for Happy Pet Product Reviews, a budget-focused pet product affiliate blog.
 Your job is to score this article honestly and catch every AI writing pattern it contains. Do not be generous.
 
@@ -2849,8 +2874,10 @@ def short_product_name(name) -> str:
     Large] Dog Toy") is a pack or size note, so it is skipped before cutting; a
     title that is nothing but one group keeps the group's text. A cut that lands
     inside a group drops the whole outermost unclosed group ("...9 Balls (2
-    inches)" -> "...9 Balls", not "...9 Balls (2")."""
-    full = _without_leading_groups(" ".join(str(name or "").split()))
+    inches)" -> "...9 Balls", not "...9 Balls (2"). A name that would come out
+    empty (a title of only connectors or brackets) is the whole title."""
+    whole = " ".join(str(name or "").split())
+    full = _without_leading_groups(whole)
     words = _LISTING_SEPARATOR.split(full, 1)[0].split()
     short = _before_unclosed_group(" ".join(words[:_SHORT_NAME_WORDS]))
     if short != full:
@@ -2858,7 +2885,7 @@ def short_product_name(name) -> str:
         while words and words[-1].lower() in _DANGLING:
             words.pop()
         short = " ".join(words)
-    return short
+    return short or whole
 
 
 _OPENERS, _CLOSERS = "([{【", ")]}】"
