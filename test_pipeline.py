@@ -5447,6 +5447,44 @@ class TestShortProductName(unittest.TestCase):
         self.assertEqual(gp.short_product_name(""), "")
         self.assertEqual(gp.short_product_name(None), "")
 
+    def test_a_cut_never_leaves_an_unclosed_bracket(self):
+        """The 2026-11-12 Stage 1 hold: the eight-word cap cut the queued name
+        inside its parenthesis, the writer was told to use "...9 Balls (2" as
+        anchor text, and the reviewer flagged it on every attempt. A cut by the
+        separator lands inside a bracket the same way."""
+        import generate_posts as gp
+        cases = {
+            # the queued entry, by the cap
+            "Automatic Dog Ball Launche with 9 Balls (2 inches)":
+                "Automatic Dog Ball Launche with 9 Balls",
+            # by the separator
+            "Cozy Calming Dog Bed (Large, Blue)": "Cozy Calming Dog Bed",
+            "Cozy Calming Dog Bed (Large - Blue)": "Cozy Calming Dog Bed",
+            # square brackets
+            "Dog Ball Launcher with Six Balls Pack [Blue Edition]":
+                "Dog Ball Launcher with Six Balls Pack",
+            # the connector the cut leaves is dropped, as after the cap
+            "Automatic Ball Launcher for Dogs with (2 inch balls) Blue":
+                "Automatic Ball Launcher for Dogs",
+            # only the unclosed group goes; a closed one before it stays
+            "KONG (Large) Classic Dog Toy Natural Rubber (Red, 2-Pack)":
+                "KONG (Large) Classic Dog Toy Natural Rubber",
+        }
+        for name, short in cases.items():
+            with self.subTest(name=name):
+                self.assertEqual(gp.short_product_name(name), short)
+
+    def test_closed_brackets_are_kept_whole(self):
+        import generate_posts as gp
+        cases = {
+            "KONG (Large) Classic Dog Toy": "KONG (Large) Classic Dog Toy",
+            "FRONTLINE Plus (Green) Count of 3": "FRONTLINE Plus (Green) Count of 3",
+            "Cat Tree [52 in] Multi-Level Condo": "Cat Tree [52 in] Multi-Level Condo",
+        }
+        for name, short in cases.items():
+            with self.subTest(name=name):
+                self.assertEqual(gp.short_product_name(name), short)
+
 
 class TestFbMessage(unittest.TestCase):
     """The Facebook-queue message must not reuse one repetitive fallback for

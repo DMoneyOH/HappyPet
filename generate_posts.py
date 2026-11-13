@@ -2787,13 +2787,31 @@ def short_product_name(name) -> str:
     Dogs, Interactive Feed Game"), so keep the part before its first separator,
     capped at eight words for a title with none, dropping a connector the cap
     leaves dangling. A copy heuristic, not a rule: product_short in a post can be
-    edited by hand."""
+    edited by hand. A cut that lands inside a parenthesis or bracket drops the
+    unclosed group ("...9 Balls (2 inches)" -> "...9 Balls", not "...9 Balls (2")."""
     words = _LISTING_SEPARATOR.split(" ".join(str(name or "").split()), 1)[0].split()
-    if len(words) > _SHORT_NAME_WORDS:
-        words = words[:_SHORT_NAME_WORDS]
+    kept = _without_unclosed_group(words[:_SHORT_NAME_WORDS])
+    if kept != words:
+        words = kept
         while words and words[-1].lower() in _DANGLING:
             words.pop()
     return " ".join(words)
+
+
+def _without_unclosed_group(words: list) -> list:
+    """`words` up to the word that opens a bracket left unclosed, or unchanged
+    when every bracket closes (or the unclosed one opens the first word, where
+    cutting would leave nothing)."""
+    depth, opened_at = 0, None
+    for i, word in enumerate(words):
+        for ch in word:
+            if ch in "([":
+                if depth == 0:
+                    opened_at = i
+                depth += 1
+            elif ch in ")]" and depth:
+                depth -= 1
+    return words[:opened_at] if depth and opened_at else words
 
 
 _MONTHS = ("Jan", "Feb", "Mar", "Apr", "May", "Jun",
