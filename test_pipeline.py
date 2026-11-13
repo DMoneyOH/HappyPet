@@ -4621,6 +4621,20 @@ class TestAuthoritativeGate(unittest.TestCase):
             with self.subTest(flag=flag):
                 self.assertFalse(self._gate(flag))
 
+    def test_an_instruction_or_a_hedge_around_the_negation_fails(self):
+        for flag in ("Launch distance must not be invented; remove the 30 ft claim",
+                     "figures should never be fabricated",
+                     "the range was not invented; cut it anyway",
+                     "unlikely the specs were not invented",
+                     "hard to believe the range was not invented",
+                     "the specs are probably not invented",
+                     "maybe not invented",
+                     "perhaps nothing is invented",
+                     "I think nothing is made up",
+                     "undoubtedly not invented"):
+            with self.subTest(flag=flag):
+                self.assertFalse(self._gate(flag))
+
     def test_a_negator_that_is_not_adjacent_fails(self):
         for flag in ("no specs here are invented", "not a single invented figure",
                      "none of the specs look invented", "zero invented specs"):
@@ -4645,6 +4659,7 @@ class TestReviewPromptFlagsAreProblemsOnly(unittest.TestCase):
         self.assertIn("problems only", rule)
         for word in ("invented", "fabricated", "made up"):
             self.assertIn(word, rule)
+        self.assertIn("use one of them whenever you report a fabrication", rule)
 
 
 class TestBuildVerifiedFacts(unittest.TestCase):

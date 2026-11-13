@@ -1922,18 +1922,22 @@ def authoritative_gate(scorecard: dict, content: str, sources: FeedbackSources =
 
 _FABRICATION_RE = re.compile(r"fabricat|invent|made[\s-]+up", re.IGNORECASE)
 # The one approving shape a flag may carry: a bare negator directly before the
-# participle, optionally through "is/are/was/were/been/be". "no invented specs",
-# "nothing is invented", "not made up".
+# participle, optionally through "is/are/was/were/been". "no invented specs",
+# "nothing is invented", "not made up". Not "be": "must not be invented" is an
+# instruction, not an approval.
 _APPROVING_NEGATION_RE = re.compile(
-    r"\b(?:no|not|nothing|never)\s+(?:(?:is|are|was|were|been|be)\s+)?"
+    r"\b(?:no|not|nothing|never)\s+(?:(?:is|are|was|were|been)\s+)?"
     r"(?:invented|fabricated|made[\s-]+up)\b", re.IGNORECASE)
-# Anything that can turn that approval back into a doubt or an exception. Its
-# presence anywhere in the flag withdraws the exemption.
+# Anything that can turn that approval back into a doubt, an exception or an
+# instruction. Its presence anywhere in the flag withdraws the exemption.
 _FLAG_DOUBT_RE = re.compile(
     r"\?|n['’]t\b|\b(?:no|not|nothing|never|none|without|cannot|but|except|"
     r"however|though|although|unless|if|whether|yet|only|other than|apart from|"
-    r"aside from|besides|save for|doubt\w*|rule out|sure|unclear|possibl\w*|may|"
-    r"might|could|seem\w*|appear\w*|apparent\w*|suspect\w*|likely)\b", re.IGNORECASE)
+    r"aside from|besides|save for|\w*doubt\w*|rule out|sure|unclear|possibl\w*|"
+    r"may|maybe|might|could|can|must|should|shall|would|will|need\w*|perhaps|"
+    r"probabl\w*|\w*likely|seem\w*|appear\w*|apparent\w*|suspect\w*|suspici\w*|"
+    r"believ\w*|assum\w*|guess\w*|think\w*|question\w*|hard to|remove|delete|"
+    r"cut|drop|replace|fix|rewrite|change)\b", re.IGNORECASE)
 
 
 def flag_reports_fabrication(flag: str) -> bool:
@@ -2194,7 +2198,7 @@ Begin with {{ and end with }}.
 
 Rules:
 - ai_patterns_found: list each AI pattern detected as "CATEGORY_NUMBER: description" (e.g. "10: uses leverage, seamless")
-- flags: list each specific problem as a plain string; empty array if none. List problems only, never a check the article passed. The words invented, fabricated and made up in a flag always hold the article, so use them only to report a real fabrication
+- flags: list each specific problem as a plain string; empty array if none. List problems only, never a check the article passed. The words invented, fabricated and made up in a flag always hold the article: use one of them whenever you report a fabrication, and never otherwise
 - rewrite_instructions: name exact sections and specific fixes if pass=false; empty string if pass=true. Keep under 250 words -- a truncated response fails JSON parsing and the article is held unreviewed.
 - em_dash_count: exact integer count of (—) characters in article
 - unbacked_buyer_feedback: every sentence that states buyer feedback or popularity (category {BUYER_FEEDBACK_CATEGORY}), copied word for word; empty array if none. Any entry fails the article.
