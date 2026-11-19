@@ -3933,11 +3933,19 @@ class TestSummaryBlock(unittest.TestCase):
                     self.assertEqual(block, "")
         self.assertGreater(rendered, 10)
 
-    def test_the_ball_launcher_summary_is_marked_unusable(self):
-        """Its summary describes the balls, not the launcher."""
-        products = json.loads((REPO / "products.json").read_text(encoding="utf-8"))
-        entry = next(e for e in products if e.get("asin") == "B0F8J2FGNC")
-        self.assertTrue(entry.get("customer_summary_unusable"))
+    def test_a_summary_marked_unusable_renders_no_block(self):
+        """A summary that describes a different item (the ball launcher's
+        described its balls) is marked unusable and never reaches a post.
+        Built from a fixture, not products.json: the routine retires entries
+        from products.json after their pins fire, so a lookup there breaks."""
+        entry = {"asin": "B0F8J2FGNC", "name": "Automatic Dog Ball Launcher",
+                 "customer_summary": ("Customers find the balls bounce well and are "
+                                      "a good size for small dogs, and consider "
+                                      "them well worth the money."),
+                 "customer_summary_read_on": "2026-10-29"}
+        # Control: without the flag the same summary does render.
+        self.assertNotEqual(self.gp.summary_block_for(self.gp.feedback_sources(entry)), "")
+        entry["customer_summary_unusable"] = True
         self.assertEqual(self.gp.summary_block_for(self.gp.feedback_sources(entry)), "")
 
 
