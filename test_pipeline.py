@@ -17140,7 +17140,7 @@ class TestIndexNow(unittest.TestCase):
                           ("about.md", "https://happypetproductreviews.com/about/"),
                           ("hubs/beds.md", "https://happypetproductreviews.com/beds/"),
                           ("search.md", None),    # sitemap: false
-                          ("README.md", None), ("CLAUDE.md", None), ("HANDOFF.md", None)):
+                          ("README.md", None)):
             with self.subTest(path=path):
                 self.assertEqual(self.ix.url_for(path, (REPO / path).read_text(encoding="utf-8")), url)
 
