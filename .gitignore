@@ -53,3 +53,16 @@ chewy_link_validation_*.json
 # Refill agent runtime artifacts (uploaded to GHA, PR body scratch)
 REFILL_RESULT.json
 pr_body.md
+
+# === Internal working papers (kept out of the public repository) ===
+/HANDOFF.md
+/HANDOFF-archive-2026-07-20-1606.md
+/HANDOFF-archive-2026-07-21-1353.md
+/HANDOFF-archive-2026-07-22-1343.md
+/HANDOFF-archive-2026-07-22-1512.md
+/DESIGN_PROGRESS.md
+/AUDIT_ADDENDUM.md
+/AUDIT_FINDINGS.md
+/BETA_PLAN_REVIEW.md
+/PIPELINE_AUDIT_HANDOVER.md
+/CLAUDE.md
