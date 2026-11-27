@@ -53,8 +53,6 @@ The larger pack size brings the per-dose cost down compared to smaller options. 
 
 ## Buying Guide
 
-**Match the strain to the problem.** *Enterococcus faecium* SF68, found in FortiFlora, has the most clinical documentation for diarrhea management and immune support in dogs. Multi-strain formulas like Proviable cover broader gut flora support and tend to suit post-antibiotic recovery better. For daily maintenance in an otherwise healthy dog, either approach works.
-
 **CFU count matters less than strain quality.** A higher CFU number does not automatically mean a better product. What counts is whether the strain survives digestion and reaches the gut in active form. Look for products that specify stability through the expiration date, not just at manufacture.
 
 **Delivery format drives compliance.** A probiotic that a dog refuses to eat provides no benefit. Powders work well for dogs already eating wet food. Chews suit picky eaters who respond to treat-like formats. Capsules offer the most dosing flexibility but require the most effort.
