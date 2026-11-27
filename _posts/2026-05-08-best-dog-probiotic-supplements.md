@@ -7,7 +7,7 @@ redirect_from:
   - /dog-health/best-dog-probiotic-supplements/
 species: dog
 tags: [best dog probiotic supplements]
-description: "Powder, capsule or chew: 4 dog probiotics compared by strain, form and use, from recovery after antibiotics to daily upkeep, and when to see a vet first."
+description: "Powder, capsule or chew: 4 dog probiotics compared by strain, form and daily use, and when to see a vet first."
 affiliate_url: "https://www.amazon.com/s?k=Purina+Pro+Plan+FortiFlora&tag=happypetdc-20"
 chewy_url: "https://chewy.sjv.io/c/7160344/3054490/32975?u=https%3A%2F%2Fwww.chewy.com%2Fpurina-pro-plan-veterinary-diets%2Fdp%2F50029"
 image: "https://images-na.ssl-images-amazon.com/images/P/B001650NNW.01.LZZZZZZZ.jpg"
