@@ -106,11 +106,11 @@ For clever kitties, the Trixie Activity Fun Board is an excellent choice for men
 
 | Product | Best For | Price Range | Rating | Check price |
 | :---------------------------------------- | :------------------------------------------- | :---------- | :--------- | --- |
-| Catstages Tower of Tracks Interactive Cat Toy | Independent play, batting, multiple cats | $ | ★★★★★ | [On Amazon](https://www.amazon.com/dp/B00DT2WL26?th=1&tag=happypetdc-20) |
-| PetSafe Bolt Automatic Laser Cat Toy | High-energy cats | $$ | ★★★★☆ | - |
-| Kong Refillables Catnip Toy | Catnip lovers, sensory play, cuddling | $ | ★★★★☆ | - |
-| Frisco Mouse Hunter Electronic Cat Toy | Hunting instincts, active play | $$ | ★★★★☆ | - |
-| Trixie Activity Fun Board | Mental stimulation, slow feeding, clever cats | $$$ | ★★★★★ | - |
+| Catstages Tower of Tracks Interactive Cat Toy | Independent play, batting, multiple cats | $ | See listing | [On Amazon](https://www.amazon.com/dp/B00DT2WL26?th=1&tag=happypetdc-20) |
+| PetSafe Bolt Automatic Laser Cat Toy | High-energy cats | $$ | See listing | - |
+| Kong Refillables Catnip Toy | Catnip lovers, sensory play, cuddling | $ | See listing | - |
+| Frisco Mouse Hunter Electronic Cat Toy | Hunting instincts, active play | $$ | See listing | - |
+| Trixie Activity Fun Board | Mental stimulation, slow feeding, clever cats | $$$ | See listing | - |
 
 *Price Range Key: $ = Under $15, $$ = $15-$30, $$$ = Over $30*
 
