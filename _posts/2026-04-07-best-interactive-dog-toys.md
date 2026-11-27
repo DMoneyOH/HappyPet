@@ -175,7 +175,7 @@ Technically a chew toy, but the hollow center takes treats, peanut butter or fro
 
 **Independent vs. interactive:** Some of these toys keep your dog busy without you. Others (like the Chuckit! ball) only work if you're involved. Be honest about what you actually need, a toy for when you're busy, or a toy for playtime together.
 
-**Chew level:** This matters more than most listings admit. Match the material to how your dog actually plays, not how you hope they'll play.
+**Chew level:** Match the material to how your dog actually plays, not how you hope they'll play.
 
 **Food motivation:** Treat dispensers only work well if your dog is motivated enough to work for food. Some dogs, particularly anxious or distracted ones, won't engage consistently. If your dog tends to leave food in their bowl, a treat dispenser may frustrate more than engage.
 

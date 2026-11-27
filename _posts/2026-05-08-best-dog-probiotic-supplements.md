@@ -66,10 +66,8 @@ This 120-count pack brings the per-dose cost down compared to smaller options. S
 | Product | Best For | Price Range | Form | Check price |
 |---|---|---|---|---|
 | Purina FortiFlora Daily Probiotics 30ct | Daily use | $$ | Powder sachet | [On Amazon](https://www.amazon.com/s?k=Purina+Pro+Plan+FortiFlora&tag=happypetdc-20) |
-| Nutramax Proviable 30 Capsules | Multi-strain support | $$ | Capsule | [On Amazon](https://www.amazon.com/dp/B0050JM626?tag=happypetdc-20) |
+| Nutramax Proviable 30 Capsules | Multi-strain | $$ | Capsule | [On Amazon](https://www.amazon.com/dp/B0050JM626?tag=happypetdc-20) |
 | Zesty Paws Probiotics DE111 Pumpkin 90ct | - | $$ | Soft chew | [On Amazon](https://www.amazon.com/dp/B01N17VJF7?tag=happypetdc-20) |
 | Probiotics Dogs Gut Health 120ct | Daily maintenance | $ | Capsule/tablet | - |
 
 A probiotic sits alongside consistent nutrition, regular exercise and routine veterinary care. It does not replace any of them.
-
-For dogs dealing with digestive disruption, [Purina Pro Plan FortiFlora](https://www.amazon.com/s?k=Purina+Pro+Plan+FortiFlora&tag=happypetdc-20) is the starting point this guide recommends.
