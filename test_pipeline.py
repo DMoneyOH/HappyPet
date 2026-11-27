@@ -9832,8 +9832,9 @@ class TestFaqStructuredData(unittest.TestCase):
     json.loads, and a backslash fails the test instead of being guessed at.
     """
 
-    # Section A of the 2026-10-27 FAQ change. Section B posts are a comparison
-    # group and must stay without a faq: until that read is done.
+    # Section A of the 2026-10-27 FAQ change. The section B hold ended with the
+    # section B cleanup, but no FAQ copy has been applied to section B posts,
+    # so only section A carries a faq: and an answer:.
     FAQ_POSTS = SECTION_A_POSTS
     GUARD = "{%- if page.faq %}"
 
@@ -10359,16 +10360,12 @@ class TestPublishedPostsVoiceIntegrity(unittest.TestCase):
                 offenders.append(f"{name}: {quote!r}")
         self.assertEqual(offenders, [])
 
-    # Section B: four posts held back as the 11-24 control group, still carrying
-    # owner lines on purpose. Each exemption expires by itself: a section B post
-    # that comes up clean fails test_section_b_exemptions_are_still_needed, so
-    # the name has to come off this list in the same change that cleans it.
-    SECTION_B_EXEMPT = (
-        "2026-04-07-best-interactive-cat-toys.md",
-        "2026-04-07-best-interactive-dog-toys.md",
-        "2026-05-08-best-dog-probiotic-supplements.md",
-        "2026-09-24-best-odor-eliminators-pet-stains.md",
-    )
+    # Section B: the four posts once held back as the 11-24 control group. The
+    # hold ended by the Director's ruling (2026-11-27) and all four were cleaned,
+    # so the list is empty and every post is checked. Each exemption expires by
+    # itself: a listed post that comes up clean fails
+    # test_section_b_exemptions_are_still_needed.
+    SECTION_B_EXEMPT = ()
     # Front matter that is data rather than prose a reader sees.
     DATA_KEYS = ("affiliate_url:", "image:", "pin_image:", "chewy_url:", "listing_title:",
                  "customer_summary:", "customer_summary_read_on:")
@@ -15698,9 +15695,9 @@ class TestSitemapInputs(unittest.TestCase):
 
 
 class TestReviewSummaryBlocks(unittest.TestCase):
-    """A post outside section B that carries a customer_summary in front
-    matter shows it in exactly one verbatim block, and no post shows a block
-    without one. Checked without the sentence-selection rule, which belongs
+    """A post not listed in SECTION_B_EXEMPT (now empty, so any post) that
+    carries a customer_summary in front matter shows it in exactly one
+    verbatim block, and no post shows a block without one. Checked without the sentence-selection rule, which belongs
     to the generator: the lead dates the block with customer_summary_read_on,
     and each quoted line is a whole sentence of the summary, the first one
     first."""
@@ -15744,9 +15741,9 @@ class TestReviewSummaryBlocks(unittest.TestCase):
 
 class TestPublishedCopyAvoidsBannedVocabulary(unittest.TestCase):
     """The generator's own word lists (BANNED_WORDS, BANNED_PHRASES and
-    BANNED_INTENSIFIERS) hold for published copy too: every post outside
-    section B, the hubs, the hub copy file, the About page, the home page and
-    the method-sentence include. A banned word that reached a post before the
+    BANNED_INTENSIFIERS) hold for published copy too: every post not listed in
+    SECTION_B_EXEMPT (now empty, so every post), the hubs, the hub copy file,
+    the About page, the home page and the method-sentence include. A banned word that reached a post before the
     lists existed, or by hand, fails here. Words match with common inflections
     ("crucially", "prioritizing"); phrases match across whitespace and either
     apostrophe.
