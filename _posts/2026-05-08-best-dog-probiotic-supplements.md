@@ -49,7 +49,7 @@ Zesty Paws takes a soft chew approach, combining probiotics with pumpkin fiber f
 
 ### Probiotics Dogs Gut Health 120ct
 
-The larger pack size brings the per-dose cost down compared to smaller options. Strain specificity and CFU concentration vary by formulation, so confirm the label details before committing. It suits daily maintenance but may not be the first choice for acute digestive episodes, where a single targeted strain like FortiFlora's is the more common starting point.
+This 120-count pack brings the per-dose cost down compared to smaller options. Strain specificity and CFU concentration vary by formulation, so confirm the label details before committing. It suits daily maintenance.
 
 ## Buying Guide
 
@@ -65,11 +65,11 @@ The larger pack size brings the per-dose cost down compared to smaller options. 
 
 | Product | Best For | Price Range | Form | Check price |
 |---|---|---|---|---|
-| Purina FortiFlora Daily Probiotics 30ct | Acute diarrhea, immune support, daily use | $$ | Powder sachet | [On Amazon](https://www.amazon.com/s?k=Purina+Pro+Plan+FortiFlora&tag=happypetdc-20) |
-| Nutramax Proviable 30 Capsules | Post-antibiotic recovery, multi-strain support | $$ | Capsule | [On Amazon](https://www.amazon.com/dp/B0050JM626?tag=happypetdc-20) |
-| Zesty Paws Probiotics DE111 Pumpkin 90ct | Picky eaters, mild ongoing digestive support | $$ | Soft chew | [On Amazon](https://www.amazon.com/dp/B01N17VJF7?tag=happypetdc-20) |
+| Purina FortiFlora Daily Probiotics 30ct | Daily use | $$ | Powder sachet | [On Amazon](https://www.amazon.com/s?k=Purina+Pro+Plan+FortiFlora&tag=happypetdc-20) |
+| Nutramax Proviable 30 Capsules | Multi-strain support | $$ | Capsule | [On Amazon](https://www.amazon.com/dp/B0050JM626?tag=happypetdc-20) |
+| Zesty Paws Probiotics DE111 Pumpkin 90ct | - | $$ | Soft chew | [On Amazon](https://www.amazon.com/dp/B01N17VJF7?tag=happypetdc-20) |
 | Probiotics Dogs Gut Health 120ct | Daily maintenance | $ | Capsule/tablet | - |
 
 A probiotic sits alongside consistent nutrition, regular exercise and routine veterinary care. It does not replace any of them.
 
-For dogs dealing with digestive disruption, [Purina Pro Plan FortiFlora](https://www.amazon.com/s?k=Purina+Pro+Plan+FortiFlora&tag=happypetdc-20) is the starting point this guide recommends. Give it at least two weeks of consistent daily use before evaluating results, and adjust based on how the dog responds.
+For dogs dealing with digestive disruption, [Purina Pro Plan FortiFlora](https://www.amazon.com/s?k=Purina+Pro+Plan+FortiFlora&tag=happypetdc-20) is the starting point this guide recommends.

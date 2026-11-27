@@ -42,7 +42,7 @@ Interactive dog toys work best when they match how your dog actually plays. A pu
 
 The Chuckit! Ultra Ball is a rubber fetch ball, not a puzzle toy, let's be clear about that upfront. What makes it "interactive" is how it behaves: the bounce is unpredictable enough that dogs can't just sit and wait for it, and the high-visibility orange color means it works in tall grass and water.
 
-That said, it requires your participation. If you're looking for something that occupies your dog independently, this isn't it.
+It requires your participation. If you're looking for something that occupies your dog independently, this isn't it.
 
 **Pros:**
 - Floats, high-visibility orange color
@@ -57,13 +57,12 @@ That said, it requires your participation. If you're looking for something that 
 
 ### Kong Wobbler Treat Dispensing Dog Toy
 
-The Wobbler is the treat dispenser to start most dogs on. It's weighted at the bottom so it rights itself after each knock, dispensing kibble or small treats as your dog nudges it around. The mechanism is simple, and the shell is durable food-grade plastic.
+The Wobbler is the treat dispenser to start most dogs on. It's weighted at the bottom so it rights itself after each knock, dispensing kibble or small treats as your dog nudges it around. The mechanism is simple, and the shell is food-grade plastic.
 
 It comes apart in two pieces for filling and cleaning, which is genuinely easy. The main honest limitation: clever dogs figure it out fast. At that point it's less of a mental challenge and more of a mealtime chore for them. It works best with dogs who are treat-motivated but not exceptionally food-smart.
 
 **Pros:**
-- Durable food-grade plastic, easy to clean
-- Good for slowing fast eaters
+- Food-grade plastic, easy to clean
 - Two sizes available
 
 **Cons:**
@@ -75,14 +74,13 @@ It comes apart in two pieces for filling and cleaning, which is genuinely easy. 
 
 ### PetSafe Busy Buddy Tug-A-Jug
 
-This one is odd-looking, a rope threaded through a plastic bottle. The rope gives them something to grab while the bottle dispenses treats as it gets knocked around. The clear plastic lets them see the treats inside, which helps keep motivation up.
+This one is odd-looking, a rope threaded through a plastic bottle. The rope gives your dog something to grab while the bottle dispenses treats as it gets knocked around. The clear plastic lets them see the treats inside.
 
 It's not for every dog. If yours doesn't naturally grab and pull things, they'll probably just stare at it. The rope also frays with hard chewers over time, and replacing it isn't straightforward. Best suited for medium-energy dogs who like a bit of a physical challenge with their reward.
 
 **Pros:**
 - Combines tug play with treat dispensing
 - Adjustable treat dispensing rate
-- Clear bottle keeps dogs motivated
 
 **Cons:**
 - Rope frays over time with aggressive chewers
@@ -95,7 +93,7 @@ It's not for every dog. If yours doesn't naturally grab and pull things, they'll
 
 This is a softer, quieter option, a plush "den" (tree trunk, barn, or similar) with several small squeaky toys hidden inside. The dog's job is to sniff them out and pull them free. It engages their nose and natural hunting instincts rather than food motivation.
 
-It's not built for dogs who chew aggressively, the plush pieces won't survive that. But for gentle players or dogs who are more scent-oriented, it's a genuinely different kind of mental workout that most other toys don't offer. The small pieces can also get lost under furniture fairly easily.
+It's not built for dogs who chew aggressively, the plush pieces won't survive that. It suits gentle players or dogs who are more scent-oriented. The small pieces can also get lost under furniture fairly easily.
 
 **Pros:**
 - Engages scent and hunting instincts, not just food drive
@@ -162,22 +160,22 @@ Technically a chew toy, but the hollow center takes treats, peanut butter or fro
 
 ## Comparison
 
-| Product | Best For | Independent Play? | Durability | Check price |
-|---|---|---|---|---|
-| [Chuckit! Ultra Ball](https://www.amazon.com/dp/B000F4AVPA?th=1&tag=happypetdc-20) | Outdoor fetch, active dogs | No, needs you | High | [On Amazon](https://www.amazon.com/dp/B000F4AVPA?th=1&tag=happypetdc-20) |
-| Kong Wobbler | Treat-motivated dogs, slow feeders | Yes | High | [On Amazon](https://www.amazon.com/dp/B003ALMW0M?th=1&tag=happypetdc-20) |
-| PetSafe Tug-A-Jug | Dogs who like to tug | Partial | Medium | [On Amazon](https://www.amazon.com/dp/B000KV7ZGQ?th=1&tag=happypetdc-20) |
-| Frisco Hide and Seek | Gentle dogs, scent play | Yes | Low | - |
-| Outward Hound Hide-A-Squirrel | Plush-loving dogs, scent play | Yes, once loaded | Medium | [On Amazon](https://www.amazon.com/dp/B005VS9WO6?tag=happypetdc-20) |
-| Nina Ottosson Dog Tornado | Puzzle solvers who like rotating challenges | Yes, once loaded | Medium | [On Amazon](https://www.amazon.com/dp/B07239T47Y?tag=happypetdc-20) |
-| Trixie Activity Flip Board | Beginner problem-solvers | Partial, watch chewers | Low with strong chewers | [On Amazon](https://www.amazon.com/dp/B0054Q9TMA?tag=happypetdc-20) |
-| KONG Classic (medium) | Chewers who also need mental work | Yes, once stuffed | High | [On Amazon](https://www.amazon.com/dp/B000AYN7LU?tag=happypetdc-20) |
+| Product | Best For | Independent Play? | Check price |
+|---|---|---|---|
+| [Chuckit! Ultra Ball](https://www.amazon.com/dp/B000F4AVPA?th=1&tag=happypetdc-20) | Outdoor fetch, active dogs | No, needs you | [On Amazon](https://www.amazon.com/dp/B000F4AVPA?th=1&tag=happypetdc-20) |
+| Kong Wobbler | Treat-motivated dogs | Yes | [On Amazon](https://www.amazon.com/dp/B003ALMW0M?th=1&tag=happypetdc-20) |
+| PetSafe Tug-A-Jug | Dogs who like to tug | Partial | [On Amazon](https://www.amazon.com/dp/B000KV7ZGQ?th=1&tag=happypetdc-20) |
+| Frisco Hide and Seek | Gentle dogs, scent play | Yes | - |
+| Outward Hound Hide-A-Squirrel | Plush-loving dogs, scent play | Yes, once loaded | [On Amazon](https://www.amazon.com/dp/B005VS9WO6?tag=happypetdc-20) |
+| Nina Ottosson Dog Tornado | Puzzle solvers who like rotating challenges | Yes, once loaded | [On Amazon](https://www.amazon.com/dp/B07239T47Y?tag=happypetdc-20) |
+| Trixie Activity Flip Board | Beginner problem-solvers | Partial, watch chewers | [On Amazon](https://www.amazon.com/dp/B0054Q9TMA?tag=happypetdc-20) |
+| KONG Classic (medium) | Chewers who also need mental work | Yes, once stuffed | [On Amazon](https://www.amazon.com/dp/B000AYN7LU?tag=happypetdc-20) |
 
 ## What to Actually Look For
 
 **Independent vs. interactive:** Some of these toys keep your dog busy without you. Others (like the Chuckit! ball) only work if you're involved. Be honest about what you actually need, a toy for when you're busy, or a toy for playtime together.
 
-**Chew level:** This matters more than most listings admit. A plush puzzle toy rated "for all dogs" will be destroyed in minutes by a Lab or a Pit. Match the material to how your dog actually plays, not how you hope they'll play.
+**Chew level:** This matters more than most listings admit. Match the material to how your dog actually plays, not how you hope they'll play.
 
 **Food motivation:** Treat dispensers only work well if your dog is motivated enough to work for food. Some dogs, particularly anxious or distracted ones, won't engage consistently. If your dog tends to leave food in their bowl, a treat dispenser may frustrate more than engage.
 
