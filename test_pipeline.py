@@ -10364,7 +10364,6 @@ class TestPublishedPostsVoiceIntegrity(unittest.TestCase):
     # that comes up clean fails test_section_b_exemptions_are_still_needed, so
     # the name has to come off this list in the same change that cleans it.
     SECTION_B_EXEMPT = (
-        "2026-04-07-best-interactive-cat-toys.md",
         "2026-04-07-best-interactive-dog-toys.md",
         "2026-05-08-best-dog-probiotic-supplements.md",
         "2026-09-24-best-odor-eliminators-pet-stains.md",
