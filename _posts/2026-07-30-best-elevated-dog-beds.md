@@ -1,6 +1,6 @@
 ---
 layout: post
-title: "Best Elevated Dog Beds to Keep Your Dog Cool and Comfortable"
+title: "Best Elevated Dog Beds: 3 Raised Cots Compared"
 date: 2026-07-30
 last_modified_at: 2026-10-29
 categories: [beds]
@@ -8,7 +8,7 @@ redirect_from:
   - /dog-beds/best-elevated-dog-beds/
 species: dog
 tags: [best elevated dog bed]
-description: "Raised dog beds that lift your dog off the hot floor, compared on frame, surface and size, starting under $30."
+description: "3 elevated dog beds compared on frame, surface and size, led by a steel-frame cot with a woven top that rinses clean with a hose."
 affiliate_url: "https://www.amazon.com/dp/B000P7JKD6?tag=happypetdc-20"
 product_short: "Coolaroo Elevated Dog Bed"
 chewy_url: "https://chewy.sjv.io/c/7160344/3054490/32975?prodsku=68873&u=https%3A%2F%2Fwww.chewy.com%2Fcoolaroo-steel-framed-elevated-dog%2Fdp%2F53797%3Futm_source%3Dgoogle-product%26utm_medium%3Dorganic%26utm_content%3DCoolaroo&intsrc=APIG_24727"

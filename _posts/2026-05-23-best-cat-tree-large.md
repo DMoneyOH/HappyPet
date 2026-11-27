@@ -1,6 +1,6 @@
 ---
 layout: post
-title: "Best Large Cat Trees for Climbing, Scratching, and Lounging"
+title: "Best Large Cat Trees: 5 Picks Compared"
 date: 2026-05-23
 last_modified_at: 2026-10-29
 categories: [scratching]
@@ -9,7 +9,7 @@ redirect_from:
   - /cat-scratching/best-cat-tree-large/
 species: cat
 tags: [best large cat tree]
-description: "The ultimate cat tree that lets your kitty climb, scratch, and snooze in style, without breaking the bank."
+description: "A 74-inch tower with 7 sisal posts and 2 padded condos leads 5 large cat trees, compared on height, condos, hammocks and frame."
 affiliate_url: "https://www.amazon.com/dp/B0DNPS3YTZ?th=1&tag=happypetdc-20"
 product_short: "Globlazer 74-Inch Cat Tree"
 image: "https://m.media-amazon.com/images/I/71e3htQU6oL._AC_SX425_.jpg"
