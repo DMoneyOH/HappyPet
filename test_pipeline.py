@@ -10359,13 +10359,12 @@ class TestPublishedPostsVoiceIntegrity(unittest.TestCase):
                 offenders.append(f"{name}: {quote!r}")
         self.assertEqual(offenders, [])
 
-    # Section B: four posts held back as the 11-24 control group, still carrying
-    # owner lines on purpose. Each exemption expires by itself: a section B post
-    # that comes up clean fails test_section_b_exemptions_are_still_needed, so
-    # the name has to come off this list in the same change that cleans it.
-    SECTION_B_EXEMPT = (
-        "2026-09-24-best-odor-eliminators-pet-stains.md",
-    )
+    # Section B: the four posts once held back as the 11-24 control group. The
+    # hold ended by the Director's ruling (2026-11-27) and all four were cleaned,
+    # so the list is empty and every post is checked. Each exemption expires by
+    # itself: a listed post that comes up clean fails
+    # test_section_b_exemptions_are_still_needed.
+    SECTION_B_EXEMPT = ()
     # Front matter that is data rather than prose a reader sees.
     DATA_KEYS = ("affiliate_url:", "image:", "pin_image:", "chewy_url:", "listing_title:",
                  "customer_summary:", "customer_summary_read_on:")
